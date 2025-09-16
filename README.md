@@ -1,4 +1,4 @@
-# dyganox
+# Dyganox
 
 A new Flutter project.
 
