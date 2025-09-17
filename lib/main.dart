@@ -22,17 +22,19 @@ class ServiceProviderApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFFF8FAFC),
         primarySwatch: Colors.blue,
         visualDensity: VisualDensity.adaptivePlatformDensity,
+        textTheme: GoogleFonts.interTextTheme().apply(
+          bodyColor: const Color(0xFF1E293B),
+          displayColor: const Color(0xFF1E293B),
+        ),
         colorScheme: const ColorScheme.light(
           primary: Color(0xFF6366F1), // Indigo-500
           secondary: Color(0xFF8B5CF6), // Violet-500
           tertiary: Color(0xFF06B6D4), // Cyan-500
           surface: Color(0xFFFFFFFF),
-          background: Color(0xFFF8FAFC),
           error: Color(0xFFEF4444), // Red-500
           onPrimary: Color(0xFFFFFFFF),
           onSecondary: Color(0xFFFFFFFF),
           onSurface: Color(0xFF1E293B),
-          onBackground: Color(0xFF1E293B),
           onError: Color(0xFFFFFFFF),
         ),
         appBarTheme: AppBarTheme(

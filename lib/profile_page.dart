@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -6,265 +7,344 @@ class ProfilePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F8FE),
+      backgroundColor: const Color(0xFFF8FAFC),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: const Icon(Icons.arrow_back, color: Colors.black, size: 20),
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          'Profile',
+          style: GoogleFonts.outfit(
+            color: Colors.black,
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        centerTitle: true,
+      ),
       body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
         child: Column(
           children: [
+            // Profile Header
             Container(
-              width: double.infinity,
-              constraints: const BoxConstraints(minHeight: 926),
-              decoration: const BoxDecoration(color: Color(0xFFF4F8FE)),
-              child: Stack(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF6366F1), Color(0xFF8B5CF6), Color(0xFF06B6D4)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  stops: [0.0, 0.5, 1.0],
+                ),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF6366F1).withOpacity(0.3),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: Column(
                 children: [
-                  // Header with back button and profile title
-                  Positioned(
-                    left: 16,
-                    top: 46,
-                    child: Row(
-                      children: [
-                        IconButton(
-                          onPressed: () => Navigator.pop(context),
-                          icon: const Icon(
-                            Icons.arrow_back,
-                            color: Color(0xFF202244),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        const Text(
-                          'Profile',
-                          style: TextStyle(
-                            color: Color(0xFF202244),
-                            fontSize: 21,
-                            fontFamily: 'Jost',
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
+                  CircleAvatar(
+                    radius: 50,
+                    backgroundColor: Colors.white.withOpacity(0.2),
+                    child: const Icon(
+                      Icons.person,
+                      size: 50,
+                      color: Colors.white,
                     ),
                   ),
-                  
-                  // Profile picture with edit button
-                  Positioned(
-                    left: 159,
-                    top: 116,
-                    child: Stack(
-                      children: [
-                        Container(
-                          width: 110,
-                          height: 110,
-                          decoration: const ShapeDecoration(
-                            color: Color(0xFFD7D7D7),
-                            shape: OvalBorder(
-                              side: BorderSide(
-                                width: 4,
-                                strokeAlign: BorderSide.strokeAlignOutside,
-                                color: Color(0xFF167F71),
-                              ),
-                            ),
-                          ),
-                          child: const Icon(
-                            Icons.person,
-                            size: 60,
-                            color: Colors.white,
-                          ),
-                        ),
-                        Positioned(
-                          right: 0,
-                          bottom: 10,
-                          child: Container(
-                            width: 36,
-                            height: 36,
-                            decoration: ShapeDecoration(
-                              color: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                side: const BorderSide(
-                                  width: 3,
-                                  strokeAlign: BorderSide.strokeAlignOutside,
-                                  color: Color(0xFF167F71),
-                                ),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                            child: const Icon(
-                              Icons.edit,
-                              size: 20,
-                              color: Color(0xFF167F71),
-                            ),
-                          ),
-                        ),
-                      ],
+                  const SizedBox(height: 16),
+                  Text(
+                    'John Doe',
+                    style: GoogleFonts.outfit(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
                     ),
                   ),
-                  
-                  // User name
-                  const Positioned(
-                    left: 0,
-                    right: 0,
-                    top: 240,
-                    child: Text(
-                      'James S. Hernandez',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Color(0xFF202244),
-                        fontSize: 24,
-                        fontFamily: 'Jost',
-                        fontWeight: FontWeight.w600,
-                      ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'john.doe@example.com',
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      color: Colors.white.withOpacity(0.9),
                     ),
                   ),
-                  
-                  // User email
-                  const Positioned(
-                    left: 0,
-                    right: 0,
-                    top: 279,
-                    child: Text(
-                      'hernandex.redial@gmail.ac.in',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Color(0xFF545454),
-                        fontSize: 13,
-                        fontFamily: 'Mulish',
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  
-                  // Profile menu items
-                  ...buildProfileMenuItems(),
-                  
-                  // Bottom navigation
-                  Positioned(
-                    left: 0,
-                    bottom: 0,
-                    child: Container(
-                      width: MediaQuery.of(context).size.width,
-                      height: 100,
-                      decoration: const BoxDecoration(color: Color(0xFFF4F8FE)),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          _buildBottomNavItem('HOME', false),
-                          _buildBottomNavItem('MY COURSES', false),
-                          _buildBottomNavItem('INBOX', false),
-                          _buildBottomNavItem('TRANSACTION', false),
-                          _buildBottomNavItem('PROFILE', true),
-                        ],
-                      ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '+91 98765 43210',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      color: Colors.white.withOpacity(0.8),
                     ),
                   ),
                 ],
               ),
             ),
+
+            const SizedBox(height: 24),
+
+            // Profile Options
+            _buildProfileOption(
+              icon: Icons.person_outline,
+              title: 'Personal Information',
+              subtitle: 'Update your personal details',
+              onTap: () {},
+            ),
+            _buildProfileOption(
+              icon: Icons.location_on_outlined,
+              title: 'Addresses',
+              subtitle: 'Manage your saved addresses',
+              onTap: () {},
+            ),
+            _buildProfileOption(
+              icon: Icons.payment_outlined,
+              title: 'Payment Methods',
+              subtitle: 'Manage your payment options',
+              onTap: () {},
+            ),
+            _buildProfileOption(
+              icon: Icons.history,
+              title: 'Service History',
+              subtitle: 'View your past service requests',
+              onTap: () {},
+            ),
+            _buildProfileOption(
+              icon: Icons.favorite_outline,
+              title: 'Favorites',
+              subtitle: 'Your saved services and providers',
+              onTap: () {},
+            ),
+            _buildProfileOption(
+              icon: Icons.notifications_outlined,
+              title: 'Notifications',
+              subtitle: 'Manage your notification preferences',
+              onTap: () {},
+            ),
+            _buildProfileOption(
+              icon: Icons.help_outline,
+              title: 'Help & Support',
+              subtitle: 'Get help and contact support',
+              onTap: () {},
+            ),
+            _buildProfileOption(
+              icon: Icons.info_outline,
+              title: 'About',
+              subtitle: 'App version and information',
+              onTap: () {},
+            ),
+
+            const SizedBox(height: 24),
+
+            // Logout Button
+            Container(
+              width: double.infinity,
+              height: 56,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: const Color(0xFFEF4444).withOpacity(0.3),
+                  width: 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: TextButton(
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (BuildContext context) {
+                      return AlertDialog(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        title: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFEF4444).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(
+                                Icons.logout,
+                                color: Color(0xFFEF4444),
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              'Logout',
+                              style: GoogleFonts.outfit(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                              ),
+                            ),
+                          ],
+                        ),
+                        content: Text(
+                          'Are you sure you want to logout?',
+                          style: GoogleFonts.inter(
+                            fontSize: 16,
+                            color: const Color(0xFF64748B),
+                          ),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: Text(
+                              'Cancel',
+                              style: GoogleFonts.outfit(
+                                color: const Color(0xFF64748B),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          ElevatedButton(
+                            onPressed: () {
+                              Navigator.pop(context);
+                              Navigator.pushReplacementNamed(context, '/login');
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFEF4444),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: Text(
+                              'Logout',
+                              style: GoogleFonts.outfit(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                },
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.logout,
+                      color: Color(0xFFEF4444),
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Logout',
+                      style: GoogleFonts.outfit(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFFEF4444),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 20),
           ],
         ),
       ),
     );
   }
 
-  List<Widget> buildProfileMenuItems() {
-    final menuItems = [
-      {'title': 'Edit Profile', 'top': 321.0, 'icon': Icons.edit},
-      {'title': 'Payment Option', 'top': 377.0, 'icon': Icons.payment},
-      {'title': 'Notifications', 'top': 433.0, 'icon': Icons.notifications},
-      {'title': 'Security', 'top': 489.0, 'icon': Icons.security},
-      {'title': 'Permissions', 'top': 546.0, 'icon': Icons.admin_panel_settings},
-      {'title': 'Transaction Details', 'top': 602.0, 'icon': Icons.receipt_long},
-      {'title': 'Terms & Conditions', 'top': 658.0, 'icon': Icons.description},
-      {'title': 'Help Center', 'top': 713.0, 'icon': Icons.help_center},
-      {'title': 'Invite Friends', 'top': 772.0, 'icon': Icons.people},
-      {'title': 'Logout', 'top': 828.0, 'icon': Icons.logout},
-    ];
-
-    return menuItems.map((item) {
-      return Positioned(
-        left: 35,
-        right: 35,
-        top: item['top'] as double,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
-          margin: const EdgeInsets.only(bottom: 8),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Icon(
-                item['icon'] as IconData,
-                color: const Color(0xFF167F71),
-                size: 20,
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Text(
-                  item['title'] as String,
-                  style: const TextStyle(
-                    color: Color(0xFF202244),
-                    fontSize: 15,
-                    fontFamily: 'Mulish',
-                    fontWeight: FontWeight.w700,
+  Widget _buildProfileOption({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        elevation: 2,
+        shadowColor: Colors.black.withOpacity(0.05),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF6366F1).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: const Color(0xFF6366F1),
+                    size: 24,
                   ),
                 ),
-              ),
-              const Icon(
-                Icons.arrow_forward_ios,
-                color: Color(0xFF545454),
-                size: 16,
-              ),
-            ],
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: GoogleFonts.outfit(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF1E293B),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          color: const Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(
+                  Icons.arrow_forward_ios,
+                  color: Color(0xFF94A3B8),
+                  size: 16,
+                ),
+              ],
+            ),
           ),
         ),
-      );
-    }).toList();
-  }
-
-  Widget _buildBottomNavItem(String title, bool isActive) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(
-          _getIconForNavItem(title),
-          color: isActive ? const Color(0xFF167F71) : const Color(0xFF202244),
-          size: 20,
-        ),
-        const SizedBox(height: 4),
-        Text(
-          title,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: isActive ? const Color(0xFF167F71) : const Color(0xFF202244),
-            fontSize: 9,
-            fontFamily: 'Mulish',
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.40,
-          ),
-        ),
-      ],
+      ),
     );
-  }
-
-  IconData _getIconForNavItem(String title) {
-    switch (title) {
-      case 'HOME':
-        return Icons.home;
-      case 'MY COURSES':
-        return Icons.book;
-      case 'INBOX':
-        return Icons.inbox;
-      case 'TRANSACTION':
-        return Icons.receipt;
-      case 'PROFILE':
-        return Icons.person;
-      default:
-        return Icons.circle;
-    }
   }
 }

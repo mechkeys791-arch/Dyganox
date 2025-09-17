@@ -460,17 +460,10 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                                       child: Row(
                                         mainAxisAlignment: MainAxisAlignment.center,
                                         children: [
-                                          Image.asset(
-                                            'assets/icons/google.png',
-                                            width: 24,
-                                            height: 24,
-                                            errorBuilder: (context, error, stackTrace) {
-                                              return const Icon(
-                                                Icons.g_mobiledata,
-                                                color: Colors.red,
-                                                size: 24,
-                                              );
-                                            },
+                                          const Icon(
+                                            Icons.g_mobiledata,
+                                            color: Colors.red,
+                                            size: 24,
                                           ),
                                           const SizedBox(width: 12),
                                           Text(

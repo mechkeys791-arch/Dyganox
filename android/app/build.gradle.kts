@@ -8,9 +8,10 @@ plugins {
 android {
     namespace = "com.example.dyganox"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    ndkVersion = "27.0.12077973" // ✅ Force latest NDK version
 
     compileOptions {
+        // ✅ Use Java 11 instead of Java 8 (fixes warnings)
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
@@ -20,10 +21,10 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
+        // ✅ Application ID (unique package name for your app)
         applicationId = "com.example.dyganox"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
+
+        // ✅ Flutter-managed values
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
@@ -33,7 +34,7 @@ android {
     buildTypes {
         release {
             // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
+            // Currently using debug keys so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
         }
     }

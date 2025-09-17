@@ -901,9 +901,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                             ),
                                             child: Column(
                                               children: [
-                                                Icon(
+                                                const Icon(
                                                   Icons.gps_fixed,
-                                                  color: const Color(0xFF2ECC71),
+                                                  color: Color(0xFF2ECC71),
                                                   size: 32,
                                                 ),
                                                 const SizedBox(height: 8),

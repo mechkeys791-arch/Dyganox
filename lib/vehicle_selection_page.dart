@@ -567,9 +567,9 @@ class _VehicleSelectionPageState extends State<VehicleSelectionPage> with Ticker
           ),
           child: Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.info_outline,
-                color: const Color(0xFF6366F1),
+                color: Color(0xFF6366F1),
                 size: 24,
               ),
               const SizedBox(width: 12),
