@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'dart:async';
 import 'car_service_page.dart';
 import 'bike_service_page.dart';
 import 'minor_repair_page.dart';
@@ -25,6 +26,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   
   final TextEditingController _searchController = TextEditingController();
   bool _isSearchActive = false;
+  
+  // Specification slider variables
+  late PageController _specPageController;
+  int _currentSpecIndex = 0;
+  Timer? _specTimer;
 
   @override
   void initState() {
@@ -56,8 +62,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       curve: Curves.easeInOut,
     ));
 
+    _specPageController = PageController(initialPage: 0);
+    
     _fadeController.forward();
     _pulseController.repeat(reverse: true);
+    _startSpecSlider();
   }
 
   @override
@@ -65,6 +74,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     _fadeController.dispose();
     _pulseController.dispose();
     _searchController.dispose();
+    _specPageController.dispose();
+    _specTimer?.cancel();
     super.dispose();
   }
 
@@ -200,7 +211,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           },
           borderRadius: BorderRadius.circular(16),
           child: Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
               gradient: LinearGradient(
@@ -214,10 +225,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: 55,
-                  height: 55,
+                  width: 50,
+                  height: 50,
                   decoration: BoxDecoration(
                     color: color.withValues(alpha: 0.29),
                     borderRadius: BorderRadius.circular(8),
@@ -225,27 +237,173 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   child: Center(
                     child: Image.asset(
                       iconPath,
-                      width: 35,
-                      height: 35,
+                      width: 30,
+                      height: 30,
                       fit: BoxFit.contain,
                     ),
                   ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  title,
-                  style: GoogleFonts.outfit(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                    height: 1.1,
+                const SizedBox(height: 6),
+                Flexible(
+                  child: Text(
+                    title,
+                    style: GoogleFonts.outfit(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                      height: 1.0,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Specification slider data
+  final List<Map<String, dynamic>> _specifications = [
+    {
+      'title': '24/7 Emergency Service',
+      'subtitle': 'Round-the-clock roadside assistance',
+      'icon': Icons.emergency,
+      'color': const Color(0xFFFF6B6B),
+      'features': ['Instant response', 'GPS tracking', 'Expert technicians'],
+    },
+    {
+      'title': 'Professional Mechanics',
+      'subtitle': 'Certified and experienced technicians',
+      'icon': Icons.build,
+      'color': const Color(0xFF4ECDC4),
+      'features': ['ASE certified', '5+ years experience', 'Quality guarantee'],
+    },
+    {
+      'title': 'Transparent Pricing',
+      'subtitle': 'No hidden charges, upfront quotes',
+      'icon': Icons.account_balance_wallet,
+      'color': const Color(0xFF45B7D1),
+      'features': ['Free estimates', 'Fair pricing', 'No surprises'],
+    },
+    {
+      'title': 'Wide Service Coverage',
+      'subtitle': 'Available across major cities',
+      'icon': Icons.location_on,
+      'color': const Color(0xFF9B59B6),
+      'features': ['50+ cities', 'Quick response', 'Local expertise'],
+    },
+  ];
+
+  void _startSpecSlider() {
+    _specTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+      if (_currentSpecIndex < _specifications.length - 1) {
+        _currentSpecIndex++;
+      } else {
+        _currentSpecIndex = 0;
+      }
+      
+      if (_specPageController.hasClients) {
+        _specPageController.animateToPage(
+          _currentSpecIndex,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOut,
+        );
+      }
+    });
+  }
+
+  Widget _buildSpecificationCard(Map<String, dynamic> spec) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      child: Material(
+        elevation: 8,
+        borderRadius: BorderRadius.circular(20),
+        color: Colors.white,
+        shadowColor: spec['color'].withValues(alpha: 0.3),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: LinearGradient(
+              colors: [
+                spec['color'].withValues(alpha: 0.1),
+                spec['color'].withValues(alpha: 0.05),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: spec['color'].withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      spec['icon'],
+                      color: spec['color'],
+                      size: 28,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          spec['title'],
+                          style: GoogleFonts.outfit(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          spec['subtitle'],
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              ...spec['features'].map<Widget>((feature) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.check_circle,
+                      color: spec['color'],
+                      size: 16,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      feature,
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        color: Colors.grey[700],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              )).toList(),
+            ],
           ),
         ),
       ),
@@ -415,6 +573,62 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           ),
                       ],
                     ),
+                  ),
+                ),
+
+                // Specification Slider
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Why Choose Us?',
+                        style: GoogleFonts.outfit(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        height: 200,
+                        child: PageView.builder(
+                          controller: _specPageController,
+                          onPageChanged: (index) {
+                            setState(() {
+                              _currentSpecIndex = index;
+                            });
+                          },
+                          itemCount: _specifications.length,
+                          itemBuilder: (context, index) {
+                            return _buildSpecificationCard(_specifications[index]);
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      // Page indicators
+                      Center(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: List.generate(
+                            _specifications.length,
+                            (index) => AnimatedContainer(
+                              duration: const Duration(milliseconds: 300),
+                              margin: const EdgeInsets.symmetric(horizontal: 4),
+                              width: _currentSpecIndex == index ? 24 : 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                color: _currentSpecIndex == index
+                                    ? const Color(0xFF706DC7)
+                                    : Colors.grey[300],
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
 
@@ -631,6 +845,104 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                 );
                               },
                             ),
+                            _buildQuickServiceCard(
+                              title: 'Track Vehicle',
+                              iconPath: 'assets/icons/smart-car.png',
+                              color: const Color(0xFF2ECC71),
+                              onTap: () {
+                                // Show vehicle tracking dialog
+                                showDialog(
+                                  context: context,
+                                  builder: (BuildContext context) {
+                                    return AlertDialog(
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      title: Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.all(8),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFF2ECC71).withValues(alpha: 0.1),
+                                              borderRadius: BorderRadius.circular(8),
+                                            ),
+                                            child: const Icon(
+                                              Icons.location_on,
+                                              color: Color(0xFF2ECC71),
+                                              size: 20,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Text(
+                                            'Track Vehicle',
+                                            style: GoogleFonts.outfit(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 18,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      content: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            'Real-time vehicle tracking is coming soon!',
+                                            style: GoogleFonts.inter(fontSize: 16),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                          const SizedBox(height: 16),
+                                          Container(
+                                            padding: const EdgeInsets.all(16),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFF2ECC71).withValues(alpha: 0.1),
+                                              borderRadius: BorderRadius.circular(12),
+                                            ),
+                                            child: Column(
+                                              children: [
+                                                Icon(
+                                                  Icons.gps_fixed,
+                                                  color: const Color(0xFF2ECC71),
+                                                  size: 32,
+                                                ),
+                                                const SizedBox(height: 8),
+                                                Text(
+                                                  'Features Coming Soon:',
+                                                  style: GoogleFonts.outfit(
+                                                    fontWeight: FontWeight.w600,
+                                                    fontSize: 14,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 8),
+                                                Text(
+                                                  '• Live GPS tracking\n• Service history\n• Maintenance alerts\n• Location sharing',
+                                                  style: GoogleFonts.inter(
+                                                    fontSize: 12,
+                                                    color: Colors.grey[600],
+                                                  ),
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Navigator.pop(context),
+                                          child: Text(
+                                            'Got it!',
+                                            style: GoogleFonts.outfit(
+                                              color: const Color(0xFF2ECC71),
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                );
+                              },
+                            ),
                           ],
                         ),
                       ),
@@ -725,7 +1037,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
 
 
-                const SizedBox(height: 100), // Space for navigation
+                const SizedBox(height: 80), // Space for navigation
               ],
             ),
           ),
@@ -734,7 +1046,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
       // Modern Bottom Navigation
       bottomNavigationBar: Container(
-        margin: const EdgeInsets.all(20),
+        margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
           color: Colors.white,
@@ -759,6 +1071,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       ),
 
       // Emergency FAB
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       floatingActionButton: ScaleTransition(
         scale: _pulseAnimation,
         child: FloatingActionButton(
