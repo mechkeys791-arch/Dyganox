@@ -144,11 +144,11 @@ class ProfilePage extends StatelessWidget {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
-                          _buildBottomNavItem('HOME', false),
-                          _buildBottomNavItem('MY COURSES', false),
-                          _buildBottomNavItem('INBOX', false),
-                          _buildBottomNavItem('TRANSACTION', false),
-                          _buildBottomNavItem('PROFILE', true),
+                          _buildBottomNavItem(context, 'HOME', false),
+                          _buildBottomNavItem(context, 'MY COURSES', false),
+                          _buildBottomNavItem(context, 'INBOX', false),
+                          _buildBottomNavItem(context, 'TRANSACTION', false),
+                          _buildBottomNavItem(context, 'PROFILE', true),
                         ],
                       ),
                     ),
@@ -226,28 +226,40 @@ class ProfilePage extends StatelessWidget {
     }).toList();
   }
 
-  Widget _buildBottomNavItem(String title, bool isActive) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(
-          _getIconForNavItem(title),
-          color: isActive ? const Color(0xFF167F71) : const Color(0xFF202244),
-          size: 20,
-        ),
-        const SizedBox(height: 4),
-        Text(
-          title,
-          textAlign: TextAlign.center,
-          style: TextStyle(
+  Widget _buildBottomNavItem(BuildContext context, String title, bool isActive) {
+    return GestureDetector(
+      onTap: () {
+        if (title == 'HOME') {
+          Navigator.pushNamedAndRemoveUntil(
+            context, 
+            '/home', 
+            (route) => false,
+          );
+        }
+        // Add navigation for other items as needed
+      },
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            _getIconForNavItem(title),
             color: isActive ? const Color(0xFF167F71) : const Color(0xFF202244),
-            fontSize: 9,
-            fontFamily: 'Mulish',
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.40,
+            size: 20,
           ),
-        ),
-      ],
+          const SizedBox(height: 4),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: isActive ? const Color(0xFF167F71) : const Color(0xFF202244),
+              fontSize: 9,
+              fontFamily: 'Mulish',
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.40,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
