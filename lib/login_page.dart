@@ -131,7 +131,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: const Color(0xFFF8FAFC),
       body: SafeArea(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
@@ -157,14 +157,15 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                               height: 100,
                               decoration: BoxDecoration(
                                 gradient: const LinearGradient(
-                                  colors: [Color(0xFF706DC7), Color(0xFF9B59B6)],
+                                  colors: [Color(0xFF6366F1), Color(0xFF8B5CF6), Color(0xFF06B6D4)],
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
+                                  stops: [0.0, 0.5, 1.0],
                                 ),
                                 borderRadius: BorderRadius.circular(25),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: const Color(0xFF706DC7).withValues(alpha: 0.3),
+                                    color: const Color(0xFF6366F1).withValues(alpha: 0.3),
                                     blurRadius: 20,
                                     offset: const Offset(0, 10),
                                   ),
@@ -340,7 +341,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                               child: Text(
                                 'Forgot Password?',
                                 style: GoogleFonts.inter(
-                                  color: const Color(0xFF706DC7),
+                                  color: const Color(0xFF6366F1),
                                   fontWeight: FontWeight.w600,
                                   fontSize: 14,
                                 ),
@@ -356,14 +357,15 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                             height: 56,
                             decoration: BoxDecoration(
                               gradient: const LinearGradient(
-                                colors: [Color(0xFF706DC7), Color(0xFF9B59B6)],
+                                colors: [Color(0xFF6366F1), Color(0xFF8B5CF6), Color(0xFF06B6D4)],
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
+                                stops: [0.0, 0.5, 1.0],
                               ),
                               borderRadius: BorderRadius.circular(16),
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0xFF706DC7).withValues(alpha: 0.3),
+                                  color: const Color(0xFF6366F1).withValues(alpha: 0.3),
                                   blurRadius: 15,
                                   offset: const Offset(0, 8),
                                 ),
@@ -579,7 +581,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                                   child: Text(
                                     'Sign Up',
                                     style: GoogleFonts.inter(
-                                      color: const Color(0xFF706DC7),
+                                      color: const Color(0xFF6366F1),
                                       fontWeight: FontWeight.bold,
                                       fontSize: 14,
                                     ),

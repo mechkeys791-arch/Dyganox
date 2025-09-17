@@ -197,7 +197,7 @@ class _VehicleSelectionPageState extends State<VehicleSelectionPage> with Ticker
           height: 8,
           decoration: BoxDecoration(
             color: _currentStep >= index
-                ? const Color(0xFF706DC7)
+                ? const Color(0xFF6366F1)
                 : Colors.grey[300],
             borderRadius: BorderRadius.circular(4),
           ),
@@ -283,16 +283,16 @@ class _VehicleSelectionPageState extends State<VehicleSelectionPage> with Ticker
         margin: const EdgeInsets.all(4),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF706DC7) : Colors.white,
+          color: isSelected ? const Color(0xFF6366F1) : Colors.white,
           borderRadius: BorderRadius.circular(25),
           border: Border.all(
-            color: isSelected ? const Color(0xFF706DC7) : Colors.grey[300]!,
+            color: isSelected ? const Color(0xFF6366F1) : Colors.grey[300]!,
             width: 1,
           ),
           boxShadow: [
             BoxShadow(
               color: isSelected 
-                  ? const Color(0xFF706DC7).withValues(alpha: 0.2)
+                  ? const Color(0xFF6366F1).withValues(alpha: 0.2)
                   : Colors.black.withValues(alpha: 0.05),
               blurRadius: 8,
               offset: const Offset(0, 3),
@@ -314,7 +314,7 @@ class _VehicleSelectionPageState extends State<VehicleSelectionPage> with Ticker
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -364,14 +364,15 @@ class _VehicleSelectionPageState extends State<VehicleSelectionPage> with Ticker
                             height: 80,
                             decoration: BoxDecoration(
                               gradient: const LinearGradient(
-                                colors: [Color(0xFF706DC7), Color(0xFF9B59B6)],
+                                colors: [Color(0xFF6366F1), Color(0xFF8B5CF6), Color(0xFF06B6D4)],
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
+                                stops: [0.0, 0.5, 1.0],
                               ),
                               borderRadius: BorderRadius.circular(20),
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0xFF706DC7).withValues(alpha: 0.3),
+                                  color: const Color(0xFF6366F1).withValues(alpha: 0.3),
                                   blurRadius: 15,
                                   offset: const Offset(0, 8),
                                 ),
@@ -478,14 +479,15 @@ class _VehicleSelectionPageState extends State<VehicleSelectionPage> with Ticker
                           height: 56,
                           decoration: BoxDecoration(
                             gradient: const LinearGradient(
-                              colors: [Color(0xFF706DC7), Color(0xFF9B59B6)],
+                              colors: [Color(0xFF6366F1), Color(0xFF8B5CF6), Color(0xFF06B6D4)],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
+                              stops: [0.0, 0.5, 1.0],
                             ),
                             borderRadius: BorderRadius.circular(16),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFF706DC7).withValues(alpha: 0.3),
+                                color: const Color(0xFF6366F1).withValues(alpha: 0.3),
                                 blurRadius: 15,
                                 offset: const Offset(0, 8),
                               ),
@@ -556,10 +558,10 @@ class _VehicleSelectionPageState extends State<VehicleSelectionPage> with Ticker
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: const Color(0xFF706DC7).withValues(alpha: 0.1),
+            color: const Color(0xFF6366F1).withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: const Color(0xFF706DC7).withValues(alpha: 0.3),
+              color: const Color(0xFF6366F1).withValues(alpha: 0.3),
               width: 1,
             ),
           ),
@@ -567,7 +569,7 @@ class _VehicleSelectionPageState extends State<VehicleSelectionPage> with Ticker
             children: [
               Icon(
                 Icons.info_outline,
-                color: const Color(0xFF706DC7),
+                color: const Color(0xFF6366F1),
                 size: 24,
               ),
               const SizedBox(width: 12),
@@ -576,7 +578,7 @@ class _VehicleSelectionPageState extends State<VehicleSelectionPage> with Ticker
                   'Don\'t worry! You can always change this information later in your profile settings.',
                   style: GoogleFonts.inter(
                     fontSize: 14,
-                    color: const Color(0xFF706DC7),
+                    color: const Color(0xFF6366F1),
                     fontWeight: FontWeight.w500,
                   ),
                 ),
