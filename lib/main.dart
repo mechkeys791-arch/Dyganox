@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'login_page.dart';
 import 'homepage.dart';
 
 void main() {
@@ -12,14 +13,20 @@ class ServiceProviderApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Service Provider App',
+      title: 'Dyganox - Vehicle Service Provider',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         fontFamily: GoogleFonts.inter().fontFamily,
         useMaterial3: true,
-        scaffoldBackgroundColor: const Color(0xFFFFFFFF), // White background as per XML
+        scaffoldBackgroundColor: const Color(0xFFF8F9FA),
+        primarySwatch: Colors.blue,
+        visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      home: const HomePage(),
+      home: const LoginPage(),
+      routes: {
+        '/login': (context) => const LoginPage(),
+        '/home': (context) => const HomePage(),
+      },
     );
   }
 }
