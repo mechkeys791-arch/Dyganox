@@ -90,12 +90,54 @@ class ProfilePage extends StatelessWidget {
                       color: Colors.white.withOpacity(0.9),
                     ),
                   ),
+<<<<<<< HEAD
                   const SizedBox(height: 4),
                   Text(
                     '+91 98765 43210',
                     style: GoogleFonts.inter(
                       fontSize: 14,
                       color: Colors.white.withOpacity(0.8),
+=======
+                  
+                  // User email
+                  const Positioned(
+                    left: 0,
+                    right: 0,
+                    top: 279,
+                    child: Text(
+                      'hernandex.redial@gmail.ac.in',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Color(0xFF545454),
+                        fontSize: 13,
+                        fontFamily: 'Mulish',
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  
+                  // Profile menu items
+                  ...buildProfileMenuItems(),
+                  
+                  // Bottom navigation
+                  Positioned(
+                    left: 0,
+                    bottom: 0,
+                    child: Container(
+                      width: MediaQuery.of(context).size.width,
+                      height: 100,
+                      decoration: const BoxDecoration(color: Color(0xFFF4F8FE)),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          _buildBottomNavItem(context, 'HOME', false),
+                          _buildBottomNavItem(context, 'MY COURSES', false),
+                          _buildBottomNavItem(context, 'INBOX', false),
+                          _buildBottomNavItem(context, 'TRANSACTION', false),
+                          _buildBottomNavItem(context, 'PROFILE', true),
+                        ],
+                      ),
+>>>>>>> 5ea109a343f0b269157d321b6483544c97fd5bf9
                     ),
                   ),
                 ],
@@ -344,6 +386,46 @@ class ProfilePage extends StatelessWidget {
             ),
           ),
         ),
+<<<<<<< HEAD
+=======
+      );
+    }).toList();
+  }
+
+  Widget _buildBottomNavItem(BuildContext context, String title, bool isActive) {
+    return GestureDetector(
+      onTap: () {
+        if (title == 'HOME') {
+          Navigator.pushNamedAndRemoveUntil(
+            context, 
+            '/home', 
+            (route) => false,
+          );
+        }
+        // Add navigation for other items as needed
+      },
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            _getIconForNavItem(title),
+            color: isActive ? const Color(0xFF167F71) : const Color(0xFF202244),
+            size: 20,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: isActive ? const Color(0xFF167F71) : const Color(0xFF202244),
+              fontSize: 9,
+              fontFamily: 'Mulish',
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.40,
+            ),
+          ),
+        ],
+>>>>>>> 5ea109a343f0b269157d321b6483544c97fd5bf9
       ),
     );
   }
