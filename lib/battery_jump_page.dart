@@ -80,7 +80,7 @@ class _BatteryJumpPageState extends State<BatteryJumpPage> with TickerProviderSt
                 elevation: 8,
                 borderRadius: BorderRadius.circular(20),
                 color: Colors.white,
-                shadowColor: const Color(0xFFF6AD55).withOpacity(0.2),
+                shadowColor: const Color(0xFFF59E0B).withOpacity(0.2),
                 child: InkWell(
                   onTap: () {
                     HapticFeedback.lightImpact();
@@ -94,13 +94,13 @@ class _BatteryJumpPageState extends State<BatteryJumpPage> with TickerProviderSt
                       gradient: LinearGradient(
                         colors: [
                           Colors.white,
-                          const Color(0xFFF6AD55).withOpacity(0.02),
+                          const Color(0xFFF59E0B).withOpacity(0.02),
                         ],
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                       ),
                       border: Border.all(
-                        color: const Color(0xFFF6AD55).withOpacity(0.1),
+                        color: const Color(0xFFF59E0B).withOpacity(0.1),
                         width: 1,
                       ),
                     ),
@@ -110,10 +110,10 @@ class _BatteryJumpPageState extends State<BatteryJumpPage> with TickerProviderSt
                           width: 60,
                           height: 60,
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF6AD55).withOpacity(0.1),
+                            color: const Color(0xFFF59E0B).withOpacity(0.1),
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: const Color(0xFFF6AD55).withOpacity(0.2),
+                              color: const Color(0xFFF59E0B).withOpacity(0.2),
                               width: 1,
                             ),
                           ),
@@ -152,14 +152,14 @@ class _BatteryJumpPageState extends State<BatteryJumpPage> with TickerProviderSt
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFF6AD55).withOpacity(0.1),
+                                  color: const Color(0xFFF59E0B).withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Text(
                                   'Starting at $price',
                                   style: GoogleFonts.outfit(
                                     fontSize: 12,
-                                    color: const Color(0xFFF6AD55),
+                                    color: const Color(0xFFF59E0B),
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -170,7 +170,7 @@ class _BatteryJumpPageState extends State<BatteryJumpPage> with TickerProviderSt
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF6AD55).withOpacity(0.1),
+                            color: const Color(0xFFF59E0B).withOpacity(0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: const Icon(
@@ -210,7 +210,7 @@ class _BatteryJumpPageState extends State<BatteryJumpPage> with TickerProviderSt
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: const Color(0xFFF6AD55).withOpacity(0.1),
+              color: const Color(0xFFF59E0B).withOpacity(0.1),
               width: 1,
             ),
           ),
@@ -218,13 +218,13 @@ class _BatteryJumpPageState extends State<BatteryJumpPage> with TickerProviderSt
             children: [
               CircleAvatar(
                 radius: 30,
-                backgroundColor: const Color(0xFFF6AD55).withOpacity(0.1),
+                backgroundColor: const Color(0xFFF59E0B).withOpacity(0.1),
                 child: Text(
                   name[0],
                   style: GoogleFonts.outfit(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: const Color(0xFFF6AD55),
+                    color: const Color(0xFFF59E0B),
                   ),
                 ),
               ),
@@ -278,14 +278,14 @@ class _BatteryJumpPageState extends State<BatteryJumpPage> with TickerProviderSt
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF6AD55).withOpacity(0.1),
+                            color: const Color(0xFFF59E0B).withOpacity(0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
                             distance,
                             style: GoogleFonts.outfit(
                               fontSize: 11,
-                              color: const Color(0xFFF6AD55),
+                              color: const Color(0xFFF59E0B),
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -304,7 +304,7 @@ class _BatteryJumpPageState extends State<BatteryJumpPage> with TickerProviderSt
                         'Calling $name...',
                         style: GoogleFonts.outfit(),
                       ),
-                      backgroundColor: const Color(0xFFF6AD55),
+                      backgroundColor: const Color(0xFFF59E0B),
                       behavior: SnackBarBehavior.floating,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
@@ -313,7 +313,7 @@ class _BatteryJumpPageState extends State<BatteryJumpPage> with TickerProviderSt
                   );
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFF6AD55),
+                  backgroundColor: const Color(0xFFF59E0B),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -408,7 +408,7 @@ class _BatteryJumpPageState extends State<BatteryJumpPage> with TickerProviderSt
     ];
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -453,14 +453,15 @@ class _BatteryJumpPageState extends State<BatteryJumpPage> with TickerProviderSt
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [Color(0xFFF6AD55), Color(0xFFE6941E)],
+                    colors: [Color(0xFFF59E0B), Color(0xFFD97706), Color(0xFFB45309)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
+                    stops: [0.0, 0.5, 1.0],
                   ),
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFFF6AD55).withOpacity(0.3),
+                      color: const Color(0xFFF59E0B).withOpacity(0.3),
                       blurRadius: 20,
                       offset: const Offset(0, 10),
                     ),
@@ -574,7 +575,7 @@ class _BatteryJumpPageState extends State<BatteryJumpPage> with TickerProviderSt
                                 Container(
                                   padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFF6AD55).withOpacity(0.1),
+                                    color: const Color(0xFFF59E0B).withOpacity(0.1),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Column(
@@ -591,7 +592,7 @@ class _BatteryJumpPageState extends State<BatteryJumpPage> with TickerProviderSt
                                             'Available 24/7',
                                             style: GoogleFonts.outfit(
                                               fontSize: 12,
-                                              color: const Color(0xFFF6AD55),
+                                              color: const Color(0xFFF59E0B),
                                               fontWeight: FontWeight.w600,
                                             ),
                                           ),
@@ -610,7 +611,7 @@ class _BatteryJumpPageState extends State<BatteryJumpPage> with TickerProviderSt
                                             'Professional battery experts',
                                             style: GoogleFonts.outfit(
                                               fontSize: 12,
-                                              color: const Color(0xFFF6AD55),
+                                              color: const Color(0xFFF59E0B),
                                               fontWeight: FontWeight.w600,
                                             ),
                                           ),
@@ -638,7 +639,7 @@ class _BatteryJumpPageState extends State<BatteryJumpPage> with TickerProviderSt
                                         'Booking ${service['title']}...',
                                         style: GoogleFonts.outfit(),
                                       ),
-                                      backgroundColor: const Color(0xFFF6AD55),
+                                      backgroundColor: const Color(0xFFF59E0B),
                                       behavior: SnackBarBehavior.floating,
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(10),
@@ -647,7 +648,7 @@ class _BatteryJumpPageState extends State<BatteryJumpPage> with TickerProviderSt
                                   );
                                 },
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFFF6AD55),
+                                  backgroundColor: const Color(0xFFF59E0B),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(8),
                                   ),

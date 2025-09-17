@@ -124,14 +124,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         Container(
                           width: 70,
                           height: 70,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF706DC7).withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: const Color(0xFF706DC7).withValues(alpha: 0.3),
-                              width: 1,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF6366F1).withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: const Color(0xFF6366F1).withValues(alpha: 0.3),
+                                width: 1.5,
+                              ),
                             ),
-                          ),
                           child: Center(
                             child: Image.asset(
                               iconPath,
@@ -169,12 +169,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF706DC7).withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(8),
+                            color: const Color(0xFF6366F1).withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(12),
                           ),
                           child: const Icon(
                             Icons.arrow_forward_ios,
-                            color: Color(0xFF706DC7),
+                            color: Color(0xFF6366F1),
                             size: 16,
                           ),
                         ),
@@ -413,7 +413,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: const Color(0xFFF8FAFC),
       body: SafeArea(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
@@ -428,16 +428,18 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                      colors: [Color.fromARGB(255, 61, 58, 143), Color.fromARGB(255, 171, 155, 251)],
+                      colors: [Color(0xFF6366F1), Color(0xFF8B5CF6), Color(0xFF06B6D4)],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
+                      stops: [0.0, 0.5, 1.0],
                     ),
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF706DC7).withValues(alpha: 0.2),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
+                        color: const Color(0xFF6366F1).withValues(alpha: 0.3),
+                        blurRadius: 25,
+                        offset: const Offset(0, 12),
+                        spreadRadius: 2,
                       ),
                     ],
                   ),
@@ -504,9 +506,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       borderRadius: BorderRadius.circular(_isSearchActive ? 16 : 25),
                       boxShadow: [
                         BoxShadow(
-                          color: _isSearchActive 
-                              ? const Color(0xFF706DC7).withValues(alpha: 0.2)
-                              : Colors.black.withValues(alpha: 0.1),
+                        color: _isSearchActive 
+                            ? const Color(0xFF6366F1).withValues(alpha: 0.2)
+                            : Colors.black.withValues(alpha: 0.1),
                           blurRadius: _isSearchActive ? 20 : 15,
                           offset: const Offset(0, 5),
                           spreadRadius: _isSearchActive ? 2 : 0,
@@ -514,7 +516,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       ],
                       border: Border.all(
                         color: _isSearchActive 
-                            ? const Color(0xFF706DC7).withValues(alpha: 0.5)
+                            ? const Color(0xFF6366F1).withValues(alpha: 0.5)
                             : Colors.transparent,
                         width: 1,
                       ),
@@ -524,7 +526,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         Icon(
                           Icons.search,
                           color: _isSearchActive 
-                              ? const Color(0xFF706DC7)
+                              ? const Color(0xFF6366F1)
                               : const Color(0xFFB4BDC4),
                           size: 20,
                         ),
@@ -620,7 +622,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                               height: 8,
                               decoration: BoxDecoration(
                                 color: _currentSpecIndex == index
-                                    ? const Color(0xFF706DC7)
+                                    ? const Color(0xFF6366F1)
                                     : Colors.grey[300],
                                 borderRadius: BorderRadius.circular(4),
                               ),
@@ -1161,7 +1163,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF706DC7).withValues(alpha: 0.1) : Colors.transparent,
+          color: isSelected ? const Color(0xFF6366F1).withValues(alpha: 0.1) : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Column(
@@ -1169,7 +1171,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           children: [
             Icon(
               icon,
-              color: isSelected ? const Color(0xFF706DC7) : Colors.grey,
+              color: isSelected ? const Color(0xFF6366F1) : Colors.grey,
               size: 24,
             ),
             const SizedBox(height: 4),
@@ -1178,7 +1180,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               style: GoogleFonts.outfit(
                 fontSize: 11,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                color: isSelected ? const Color(0xFF706DC7) : Colors.grey,
+                color: isSelected ? const Color(0xFF6366F1) : Colors.grey,
               ),
             ),
           ],
