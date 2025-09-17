@@ -28,7 +28,6 @@ class _VehicleSelectionPageState extends State<VehicleSelectionPage> with Ticker
   String _selectedFuelType = '';
   bool _isLoading = false;
   int _currentStep = 0;
-  bool _isInputFocused = false;
 
   final List<Map<String, dynamic>> _vehicleTypes = [
     {
@@ -144,11 +143,6 @@ class _VehicleSelectionPageState extends State<VehicleSelectionPage> with Ticker
     }
   }
 
-  void _onInputFocusChanged(bool hasFocus) {
-    setState(() {
-      _isInputFocused = hasFocus;
-    });
-  }
 
   Future<void> _completeSetup() async {
     if (_formKey.currentState!.validate()) {
@@ -353,9 +347,8 @@ class _VehicleSelectionPageState extends State<VehicleSelectionPage> with Ticker
       body: SafeArea(
         child: GestureDetector(
           onTap: () {
-            // Hide keyboard and navigation buttons when tapping outside input fields
+            // Hide keyboard when tapping outside input fields
             FocusScope.of(context).unfocus();
-            _onInputFocusChanged(false);
           },
           child: FadeTransition(
             opacity: _fadeAnimation,
@@ -446,8 +439,8 @@ class _VehicleSelectionPageState extends State<VehicleSelectionPage> with Ticker
                   
                   const SizedBox(height: 20),
                   
-                  // Navigation Buttons - Hide when input is focused
-                  if (!_isInputFocused) Row(
+                  // Navigation Buttons
+                  Row(
                     children: [
                       if (_currentStep > 0)
                         Expanded(
@@ -624,9 +617,6 @@ class _VehicleSelectionPageState extends State<VehicleSelectionPage> with Ticker
             ),
             child: TextFormField(
               controller: _vehicleModelController,
-              onTap: () => _onInputFocusChanged(true),
-              onEditingComplete: () => _onInputFocusChanged(false),
-              onFieldSubmitted: (value) => _onInputFocusChanged(false),
               style: GoogleFonts.inter(
                 fontSize: 16,
                 color: Colors.black87,
@@ -679,9 +669,6 @@ class _VehicleSelectionPageState extends State<VehicleSelectionPage> with Ticker
             child: TextFormField(
               controller: _vehicleYearController,
               keyboardType: TextInputType.number,
-              onTap: () => _onInputFocusChanged(true),
-              onEditingComplete: () => _onInputFocusChanged(false),
-              onFieldSubmitted: (value) => _onInputFocusChanged(false),
               style: GoogleFonts.inter(
                 fontSize: 16,
                 color: Colors.black87,
@@ -737,9 +724,6 @@ class _VehicleSelectionPageState extends State<VehicleSelectionPage> with Ticker
             ),
             child: TextFormField(
               controller: _licensePlateController,
-              onTap: () => _onInputFocusChanged(true),
-              onEditingComplete: () => _onInputFocusChanged(false),
-              onFieldSubmitted: (value) => _onInputFocusChanged(false),
               style: GoogleFonts.inter(
                 fontSize: 16,
                 color: Colors.black87,
