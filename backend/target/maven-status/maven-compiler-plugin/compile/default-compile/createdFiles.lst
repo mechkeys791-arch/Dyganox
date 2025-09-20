@@ -1,0 +1,6 @@
+com\example\demo\DemoApplication.class
+com\example\demo\controller\PersonController.class
+com\example\demo\corsconfig.class
+com\example\demo\repository\PersonRepo.class
+com\example\demo\corsconfig$1.class
+com\example\demo\model\Person.class
