@@ -28,27 +28,31 @@ class _VehicleSelectionPageState extends State<VehicleSelectionPage> with Ticker
   String _selectedFuelType = '';
   bool _isLoading = false;
   int _currentStep = 0;
+  
+  // Responsive design variables
+  late double screenWidth;
+  late double screenHeight;
 
   final List<Map<String, dynamic>> _vehicleTypes = [
     {
       'name': 'Car',
       'icon': Icons.directions_car,
-      'color': const Color(0xFF4ECDC4),
+      'color': const Color(0xFF706DC7),
     },
     {
       'name': 'Motorcycle',
       'icon': Icons.motorcycle,
-      'color': const Color(0xFF45B7D1),
+      'color': const Color(0xFF706DC7),
     },
     {
       'name': 'Scooter',
       'icon': Icons.two_wheeler,
-      'color': const Color(0xFF9B59B6),
+      'color': const Color(0xFF706DC7),
     },
     {
       'name': 'Bicycle',
       'icon': Icons.pedal_bike,
-      'color': const Color(0xFF2ECC71),
+      'color': const Color(0xFF706DC7),
     },
   ];
 
@@ -107,6 +111,13 @@ class _VehicleSelectionPageState extends State<VehicleSelectionPage> with Ticker
     _fadeController.forward();
     _slideController.forward();
     _pulseController.repeat(reverse: true);
+  }
+  
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    screenWidth = MediaQuery.of(context).size.width;
+    screenHeight = MediaQuery.of(context).size.height;
   }
 
   @override
@@ -355,7 +366,7 @@ class _VehicleSelectionPageState extends State<VehicleSelectionPage> with Ticker
             child: SlideTransition(
               position: _slideAnimation,
               child: Padding(
-                padding: const EdgeInsets.all(24.0),
+                padding: EdgeInsets.all(screenWidth * 0.06),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -366,11 +377,11 @@ class _VehicleSelectionPageState extends State<VehicleSelectionPage> with Ticker
                         ScaleTransition(
                           scale: _pulseAnimation,
                           child: Container(
-                            width: 80,
-                            height: 80,
+                            width: screenWidth * 0.2,
+                            height: screenWidth * 0.2,
                             decoration: BoxDecoration(
                               gradient: const LinearGradient(
-                                colors: [Color(0xFF6366F1), Color(0xFF8B5CF6), Color(0xFF06B6D4)],
+                                colors: [Color(0xFF706DC7), Color(0xFF8B7ED8), Color(0xFF706DC7)],
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
                                 stops: [0.0, 0.5, 1.0],
@@ -378,20 +389,20 @@ class _VehicleSelectionPageState extends State<VehicleSelectionPage> with Ticker
                               borderRadius: BorderRadius.circular(20),
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0xFF6366F1).withValues(alpha: 0.3),
+                                  color: const Color(0xFF706DC7).withOpacity(0.3),
                                   blurRadius: 15,
                                   offset: const Offset(0, 8),
                                 ),
                               ],
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.directions_car,
                               color: Colors.white,
-                              size: 40,
+                              size: screenWidth * 0.1,
                             ),
                           ),
                         ),
-                        const SizedBox(height: 20),
+                        SizedBox(height: screenHeight * 0.025),
                         Text(
                           _currentStep == 0
                               ? 'Select Vehicle Type'
@@ -399,12 +410,12 @@ class _VehicleSelectionPageState extends State<VehicleSelectionPage> with Ticker
                                   ? 'Choose Fuel Type'
                                   : 'Vehicle Details',
                           style: GoogleFonts.outfit(
-                            fontSize: 28,
+                            fontSize: screenWidth * 0.07,
                             fontWeight: FontWeight.bold,
-                            color: Colors.black87,
+                            color: const Color(0xFF1F2937),
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        SizedBox(height: screenHeight * 0.01),
                         Text(
                           _currentStep == 0
                               ? 'What type of vehicle do you own?'
@@ -412,8 +423,8 @@ class _VehicleSelectionPageState extends State<VehicleSelectionPage> with Ticker
                                   ? 'What fuel does your vehicle use?'
                                   : 'Tell us more about your vehicle',
                           style: GoogleFonts.inter(
-                            fontSize: 16,
-                            color: Colors.grey[600],
+                            fontSize: screenWidth * 0.04,
+                            color: const Color(0xFF6B7280),
                             fontWeight: FontWeight.w400,
                           ),
                         ),

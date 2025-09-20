@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 
 class EVChargingPage extends StatelessWidget {
   const EVChargingPage({super.key});
@@ -472,6 +473,7 @@ class _EVChargingScreenState extends State<EVChargingScreen> {
   List<Map<String, dynamic>> _chargingStations = [];
   bool _showMap = false;
   String _locationMessage = '';
+  PolylinePoints polylinePoints = PolylinePoints();
 
   final List<Map<String, dynamic>> _allStations = [
     {
@@ -599,6 +601,76 @@ class _EVChargingScreenState extends State<EVChargingScreen> {
         infoWindow: const InfoWindow(title: 'Charging Station'),
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
       ));
+    });
+    
+    // Create polyline route
+    await _createPolylineRoute(destination);
+  }
+
+  Future<void> _createPolylineRoute(LatLng destination) async {
+    // TODO: Replace with your actual Google Maps API key
+    // Get your API key from: https://console.cloud.google.com/google/maps-apis
+    const String apiKey = 'AIzaSyB82H7s8dM-Z9v5E_3HIl301m0iM3e6ctc';
+    
+    // If no API key is provided, use fallback route
+    if (apiKey == 'AIzaSyB82H7s8dM-Z9v5E_3HIl301m0iM3e6ctc') {
+      print('No Google Maps API key provided. Using straight line route.');
+      _createFallbackRoute(destination);
+      return;
+    }
+
+    try {
+      // Get route points from Google Directions API
+      PolylineResult result = await polylinePoints.getRouteBetweenCoordinates(
+        request: PolylineRequest(
+          mode: TravelMode.driving,
+          origin: PointLatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+          destination: PointLatLng(destination.latitude, destination.longitude),
+        ),
+      );
+
+      if (result.points.isNotEmpty) {
+        List<LatLng> polylineCoordinates = [];
+        for (PointLatLng point in result.points) {
+          polylineCoordinates.add(LatLng(point.latitude, point.longitude));
+        }
+
+        setState(() {
+          _polylines.add(
+            Polyline(
+              polylineId: const PolylineId('route'),
+              points: polylineCoordinates,
+              color: const Color(0xFF706DC7),
+              width: 4,
+              patterns: [],
+            ),
+          );
+        });
+        print('Route created successfully with ${polylineCoordinates.length} points');
+      } else {
+        print('No route points received from API');
+        _createFallbackRoute(destination);
+      }
+    } catch (e) {
+      print('Error creating polyline route: $e');
+      _createFallbackRoute(destination);
+    }
+  }
+
+  void _createFallbackRoute(LatLng destination) {
+    setState(() {
+      _polylines.add(
+        Polyline(
+          polylineId: const PolylineId('route'),
+          points: [
+            LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+            destination,
+          ],
+          color: const Color(0xFF706DC7),
+          width: 4,
+          patterns: [],
+        ),
+      );
     });
   }
 

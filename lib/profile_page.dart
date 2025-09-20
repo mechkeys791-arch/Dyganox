@@ -6,6 +6,8 @@ class ProfilePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
@@ -40,15 +42,15 @@ class ProfilePage extends StatelessWidget {
         centerTitle: true,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+        padding: EdgeInsets.all(screenWidth * 0.05),
         child: Column(
           children: [
             // Profile Header
             Container(
-              padding: const EdgeInsets.all(24),
+              padding: EdgeInsets.all(screenWidth * 0.06),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFF6366F1), Color(0xFF8B5CF6), Color(0xFF06B6D4)],
+                  colors: [Color(0xFF706DC7), Color(0xFF8B7ED8), Color(0xFF706DC7)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   stops: [0.0, 0.5, 1.0],
@@ -56,7 +58,7 @@ class ProfilePage extends StatelessWidget {
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF6366F1).withOpacity(0.3),
+                    color: const Color(0xFF706DC7).withOpacity(0.3),
                     blurRadius: 20,
                     offset: const Offset(0, 10),
                   ),
@@ -65,28 +67,28 @@ class ProfilePage extends StatelessWidget {
               child: Column(
                 children: [
                   CircleAvatar(
-                    radius: 50,
+                    radius: screenWidth * 0.12,
                     backgroundColor: Colors.white.withOpacity(0.2),
-                    child: const Icon(
+                    child: Icon(
                       Icons.person,
-                      size: 50,
+                      size: screenWidth * 0.12,
                       color: Colors.white,
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: screenHeight * 0.02),
                   Text(
                     'John Doe',
                     style: GoogleFonts.outfit(
-                      fontSize: 24,
+                      fontSize: screenWidth * 0.06,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: screenHeight * 0.01),
                   Text(
                     'john.doe@example.com',
                     style: GoogleFonts.inter(
-                      fontSize: 16,
+                      fontSize: screenWidth * 0.04,
                       color: Colors.white.withOpacity(0.9),
                     ),
                   ),

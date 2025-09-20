@@ -6,7 +6,7 @@ echo "Testing EV Charging Backend API..."
 
 # Test POST request to create a new charging provider
 echo "Creating a new charging provider..."
-curl -X POST http://localhost:8080/api/person \
+curl -X POST http://localhost:8081/api/person \
   -H "Content-Type: application/json" \
   -d '{
     "name": "John Doe Charging Station",
@@ -18,7 +18,7 @@ curl -X POST http://localhost:8080/api/person \
   }'
 
 echo -e "\n\nTesting GET request to retrieve all providers..."
-curl -X GET http://localhost:8080/api/person
+curl -X GET http://localhost:8081/api/person
 
 echo -e "\n\nAPI test completed!"
 

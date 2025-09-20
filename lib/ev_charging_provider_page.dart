@@ -41,41 +41,85 @@ class _EVChargingProviderPageState extends State<EVChargingProviderPage> {
     };
 
     try {
+      print("🚀 Sending data to backend: $providerData");
+      print("🌐 Target URL: http://localhost:8081/api/person");
+      
+      // First, let's test if the server is reachable
+      try {
+        final testResponse = await http.get(
+          Uri.parse("http://localhost:8081/api/person"),
+          headers: {"Content-Type": "application/json"},
+        );
+        print("🔍 Server connectivity test: ${testResponse.statusCode}");
+      } catch (testError) {
+        print("❌ Server connectivity test failed: $testError");
+        throw Exception("Cannot connect to server: $testError");
+      }
+      
       final response = await http.post(
-       Uri.parse("http://192.168.11.187:8081/api/person"), // for phone
+        Uri.parse("http://localhost:8081/api/person"), // Spring Boot backend
         headers: {"Content-Type": "application/json"},
         body: jsonEncode(providerData),
       );
 
+      print("📡 Response status: ${response.statusCode}");
+      print("📡 Response body: ${response.body}");
+      print("📡 Response headers: ${response.headers}");
+
       if (response.statusCode == 200 || response.statusCode == 201) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              "Application submitted successfully!",
-              style: GoogleFonts.outfit(),
+        // Parse response to get the created person data
+        try {
+          final responseData = jsonDecode(response.body);
+          print("✅ Data successfully saved to database: $responseData");
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                "✅ Application submitted successfully!\nID: ${responseData['id'] ?? 'N/A'}",
+                style: GoogleFonts.outfit(),
+              ),
+              backgroundColor: const Color(0xFF706DC7),
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 4),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
-            backgroundColor: const Color(0xFF45B7D1),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
+          );
+          
+          _formKey.currentState?.reset();
+          setState(() {
+            selectedChargerType = null;
+            selectedAvailableHours = null;
+            agreeToTerms = false;
+          });
+        } catch (parseError) {
+          print("❌ Error parsing response: $parseError");
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                "⚠️ Data sent but response format error",
+                style: GoogleFonts.outfit(),
+              ),
+              backgroundColor: const Color(0xFFF59E0B),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
-          ),
-        );
-        _formKey.currentState?.reset();
-        setState(() {
-          selectedChargerType = null;
-          selectedAvailableHours = null;
-          agreeToTerms = false;
-        });
+          );
+        }
       } else {
+        print("❌ HTTP Error: ${response.statusCode} - ${response.body}");
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              "Failed: ${response.body}",
+              "❌ Server Error (${response.statusCode})\n${response.body.length > 100 ? response.body.substring(0, 100) + '...' : response.body}",
               style: GoogleFonts.outfit(),
             ),
             backgroundColor: const Color(0xFFEF4444),
             behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 5),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10),
             ),
@@ -83,14 +127,111 @@ class _EVChargingProviderPageState extends State<EVChargingProviderPage> {
         );
       }
     } catch (e) {
+      print("❌ Network/Connection Error: $e");
+      String errorMessage = "Network Error";
+      
+      if (e.toString().contains('SocketException')) {
+        errorMessage = "Cannot connect to server\nCheck if backend is running";
+      } else if (e.toString().contains('TimeoutException')) {
+        errorMessage = "Request timeout\nServer is taking too long to respond";
+      } else if (e.toString().contains('FormatException')) {
+        errorMessage = "Invalid response format from server";
+      } else {
+        errorMessage = "Error: ${e.toString()}";
+      }
+      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            "Error: $e",
+            errorMessage,
             style: GoogleFonts.outfit(),
           ),
           backgroundColor: const Color(0xFFEF4444),
           behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 5),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _testConnection() async {
+    try {
+      print("🔍 Testing connection to backend...");
+      print("🌐 Target URL: http://localhost:8081/api/person");
+      
+      // Test GET request first
+      final getResponse = await http.get(
+        Uri.parse("http://localhost:8081/api/person"),
+        headers: {"Content-Type": "application/json"},
+      );
+      
+      print("✅ GET test successful: ${getResponse.statusCode}");
+      print("📡 GET Response: ${getResponse.body}");
+      
+      // Test POST request
+      final testData = {
+        'name': 'Flutter Test User',
+        'phone': '1234567890',
+        'address': 'Test Address from Flutter',
+        'chargerType': 'Type 2',
+        'rate': 'Rs 15/kWh',
+        'availableHours': '24/7'
+      };
+      
+      print("🚀 Testing POST request with data: $testData");
+      
+      final postResponse = await http.post(
+        Uri.parse("http://localhost:8081/api/person"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode(testData),
+      );
+      
+      print("✅ POST test successful: ${postResponse.statusCode}");
+      print("📡 POST Response: ${postResponse.body}");
+      
+      final responseData = jsonDecode(getResponse.body);
+      final postData = jsonDecode(postResponse.body);
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            "✅ Both tests successful!\nGET: ${getResponse.statusCode} (${responseData.length} records)\nPOST: ${postResponse.statusCode} (ID: ${postData['id']})",
+            style: GoogleFonts.outfit(),
+          ),
+              backgroundColor: const Color(0xFF706DC7),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 6),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
+    } catch (e) {
+      print("❌ Connection test failed: $e");
+      print("❌ Error type: ${e.runtimeType}");
+      print("❌ Error details: ${e.toString()}");
+      
+      String errorMessage = "Connection failed";
+      if (e.toString().contains('SocketException')) {
+        errorMessage = "Cannot connect to server\nCheck network connection";
+      } else if (e.toString().contains('TimeoutException')) {
+        errorMessage = "Request timeout\nServer not responding";
+      } else {
+        errorMessage = "Error: ${e.toString()}";
+      }
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            errorMessage,
+            style: GoogleFonts.outfit(),
+          ),
+          backgroundColor: const Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 4),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
           ),
@@ -215,6 +356,8 @@ class _EVChargingProviderPageState extends State<EVChargingProviderPage> {
               const SizedBox(height: 32),
               _buildAgreementCheckbox(),
               const SizedBox(height: 32),
+              _buildTestButton(),
+              const SizedBox(height: 16),
               _buildSubmitButton(),
               const SizedBox(height: 16),
               Center(
@@ -511,6 +654,32 @@ class _EVChargingProviderPageState extends State<EVChargingProviderPage> {
     );
   }
 
+  Widget _buildTestButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 48,
+      child: ElevatedButton(
+        onPressed: _testConnection,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF706DC7),
+          foregroundColor: Colors.white,
+          elevation: 4,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        child: Text(
+          '🔍 Test Connection',
+          style: GoogleFonts.outfit(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildSubmitButton() {
     return SizedBox(
       width: double.infinity,
@@ -536,10 +705,10 @@ class _EVChargingProviderPageState extends State<EVChargingProviderPage> {
           }
         },
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF45B7D1),
+          backgroundColor: const Color(0xFF706DC7),
           foregroundColor: Colors.white,
           elevation: 8,
-          shadowColor: const Color(0xFF45B7D1).withOpacity(0.3),
+          shadowColor: const Color(0xFF706DC7).withOpacity(0.3),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),

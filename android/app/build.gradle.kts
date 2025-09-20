@@ -8,7 +8,7 @@ plugins {
 android {
     namespace = "com.example.dyganox"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = "25.1.8937393"
+    ndkVersion = "26.3.11579264"
 
     compileOptions {
         // ✅ Use Java 11 instead of Java 8 (fixes warnings)

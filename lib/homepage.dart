@@ -31,6 +31,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   late PageController _specPageController;
   int _currentSpecIndex = 0;
   Timer? _specTimer;
+  
+  // Responsive design variables
+  late double screenWidth;
+  late double screenHeight;
 
   @override
   void initState() {
@@ -67,6 +71,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     _fadeController.forward();
     _pulseController.repeat(reverse: true);
     _startSpecSlider();
+  }
+  
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    screenWidth = MediaQuery.of(context).size.width;
+    screenHeight = MediaQuery.of(context).size.height;
   }
 
   @override
@@ -197,13 +208,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     required VoidCallback onTap,
   }) {
     return Container(
-      width: 90,
-      height: 100,
-      margin: const EdgeInsets.symmetric(horizontal: 8),
+      width: screenWidth * 0.22,
+      height: screenHeight * 0.12,
+      margin: EdgeInsets.symmetric(horizontal: screenWidth * 0.02),
       child: Material(
-        elevation: 0,
+        elevation: 2,
         borderRadius: BorderRadius.circular(16),
         color: Colors.white,
+        shadowColor: color.withOpacity(0.2),
         child: InkWell(
           onTap: () {
             HapticFeedback.lightImpact();
@@ -211,13 +223,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           },
           borderRadius: BorderRadius.circular(16),
           child: Container(
-            padding: const EdgeInsets.all(10),
+            padding: EdgeInsets.all(screenWidth * 0.025),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
               gradient: LinearGradient(
                 colors: [
-                  color.withValues(alpha: 0.45),
-                  color.withValues(alpha: 0.05),
+                  color.withOpacity(0.1),
+                  color.withOpacity(0.05),
                 ],
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
@@ -228,30 +240,30 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: 50,
-                  height: 50,
+                  width: screenWidth * 0.12,
+                  height: screenWidth * 0.12,
                   decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.29),
-                    borderRadius: BorderRadius.circular(8),
+                    color: color.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Center(
                     child: Image.asset(
                       iconPath,
-                      width: 30,
-                      height: 30,
+                      width: screenWidth * 0.06,
+                      height: screenWidth * 0.06,
                       fit: BoxFit.contain,
                     ),
                   ),
                 ),
-                const SizedBox(height: 6),
+                SizedBox(height: screenHeight * 0.008),
                 Flexible(
                   child: Text(
                     title,
                     style: GoogleFonts.outfit(
-                      fontSize: 11,
+                      fontSize: screenWidth * 0.028,
                       fontWeight: FontWeight.w600,
-                      color: Colors.black87,
-                      height: 1.0,
+                      color: const Color(0xFF374151),
+                      height: 1.2,
                     ),
                     textAlign: TextAlign.center,
                     maxLines: 2,
@@ -424,22 +436,25 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               children: [
                 // Header Section
                 Container(
-                  margin: const EdgeInsets.all(20),
-                  padding: const EdgeInsets.all(20),
+                  margin: EdgeInsets.symmetric(
+                    horizontal: screenWidth * 0.05, 
+                    vertical: screenHeight * 0.02
+                  ),
+                  padding: EdgeInsets.all(screenWidth * 0.05),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                      colors: [Color(0xFF6366F1), Color(0xFF8B5CF6), Color(0xFF06B6D4)],
+                      colors: [Color(0xFF706DC7), Color(0xFF8B7ED8), Color(0xFF706DC7)],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       stops: [0.0, 0.5, 1.0],
                     ),
-                    borderRadius: BorderRadius.circular(24),
+                    borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF6366F1).withValues(alpha: 0.3),
-                        blurRadius: 25,
-                        offset: const Offset(0, 12),
-                        spreadRadius: 2,
+                        color: const Color(0xFF706DC7).withOpacity(0.25),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8),
+                        spreadRadius: 1,
                       ),
                     ],
                   ),
@@ -636,35 +651,38 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
                 // Quick Services
                 Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  margin: EdgeInsets.symmetric(
+                    horizontal: screenWidth * 0.05, 
+                    vertical: screenHeight * 0.02
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'Quick Services',
                         style: GoogleFonts.outfit(
-                          fontSize: 22,
+                          fontSize: screenWidth * 0.055,
                           fontWeight: FontWeight.bold,
-                          color: Colors.black87,
+                          color: const Color(0xFF1F2937),
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      SizedBox(height: screenHeight * 0.02),
                       SizedBox(
-                        height: 109,
+                        height: screenHeight * 0.13,
                         child: ListView(
                           scrollDirection: Axis.horizontal,
-                          padding: const EdgeInsets.symmetric(horizontal: 2),
+                          padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.01),
                           children: [
                             _buildQuickServiceCard(
                               title: 'Emergency',
                               iconPath: 'assets/icons/24-hour-service.png',
-                              color: const Color(0xFFFF6B6B),
+                              color: const Color(0xFF706DC7),
                               onTap: () {},
                             ),
                             _buildQuickServiceCard(
                               title: 'Towing',
                               iconPath: 'assets/icons/tow-truck.png',
-                              color: const Color(0xFFFF9F43),
+                              color: const Color(0xFF706DC7),
                               onTap: () {
                                 Navigator.push(
                                   context,
@@ -694,7 +712,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             _buildQuickServiceCard(
                               title: 'Fuel Refill',
                               iconPath: 'assets/icons/fuel-station.png',
-                              color: const Color(0xFF4ECDC4),
+                              color: const Color(0xFF706DC7),
                               onTap: () {
                                 Navigator.push(
                                   context,
@@ -724,7 +742,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             _buildQuickServiceCard(
                               title: 'EV Charging',
                               iconPath: 'assets/icons/charging-station.png',
-                              color: const Color(0xFF45B7D1),
+                              color: const Color(0xFF706DC7),
                               onTap: () {
                                 Navigator.push(
                                   context,
@@ -754,7 +772,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             _buildQuickServiceCard(
                               title: 'Puncture',
                               iconPath: 'assets/icons/punctured-tire.png',
-                              color: const Color(0xFF9B59B6),
+                              color: const Color(0xFF706DC7),
                               onTap: () {
                                 Navigator.push(
                                   context,
@@ -784,7 +802,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             _buildQuickServiceCard(
                               title: 'Minor Repair',
                               iconPath: 'assets/icons/repair-tools.png',
-                              color: const Color(0xFF26D0CE),
+                              color: const Color(0xFF706DC7),
                               onTap: () {
                                 Navigator.push(
                                   context,
@@ -814,13 +832,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             _buildQuickServiceCard(
                               title: 'Pick & Drop',
                               iconPath: 'assets/icons/delivery-man.png',
-                              color: const Color(0xFF5A67D8),
+                              color: const Color(0xFF706DC7),
                               onTap: () {},
                             ),
                             _buildQuickServiceCard(
                               title: 'Battery Jump',
                               iconPath: 'assets/icons/jump-start.png',
-                              color: const Color(0xFFF6AD55),
+                              color: const Color(0xFF706DC7),
                               onTap: () {
                                 Navigator.push(
                                   context,
@@ -850,7 +868,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             _buildQuickServiceCard(
                               title: 'Track Vehicle',
                               iconPath: 'assets/icons/smart-car.png',
-                              color: const Color(0xFF2ECC71),
+                              color: const Color(0xFF706DC7),
                               onTap: () {
                                 // Show vehicle tracking dialog
                                 showDialog(
