@@ -10,6 +10,7 @@ import 'battery_jump_page.dart';
 import 'ev_charging_page.dart';
 import 'fuel_refill_page.dart';
 import 'tyre_care_page.dart';
+import 'test_connection_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -88,6 +89,540 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     _specPageController.dispose();
     _specTimer?.cancel();
     super.dispose();
+  }
+
+  void _showV2VServiceDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF706DC7).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.people,
+                  color: Color(0xFF706DC7),
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'V2V Service',
+                style: GoogleFonts.outfit(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
+          content: Container(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Choose your service type:',
+                  style: GoogleFonts.outfit(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _showFindServiceDialog();
+                        },
+                        icon: const Icon(Icons.search, color: Colors.white),
+                        label: const Text('Find Service', style: TextStyle(color: Colors.white)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF706DC7),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _showHelpEarnDialog();
+                        },
+                        icon: const Icon(Icons.work, color: Colors.white),
+                        label: const Text('Help & Earn', style: TextStyle(color: Colors.white)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF10B981),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showFindServiceDialog() {
+    String selectedService = '';
+    final TextEditingController customServiceController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              title: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF706DC7).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.search,
+                      color: Color(0xFF706DC7),
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Find Service',
+                    style: GoogleFonts.outfit(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ],
+              ),
+              content: Container(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Select a quick service:',
+                      style: GoogleFonts.outfit(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      decoration: InputDecoration(
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
+                      hint: const Text('Choose service'),
+                      items: [
+                        'Petrol/Diesel',
+                        'Jump Start',
+                        'Tire Change',
+                        'Minor Repair',
+                        'Towing',
+                        'Other'
+                      ].map((String value) {
+                        return DropdownMenuItem<String>(
+                          value: value,
+                          child: Text(value),
+                        );
+                      }).toList(),
+                      onChanged: (String? newValue) {
+                        setState(() {
+                          selectedService = newValue ?? '';
+                        });
+                      },
+                    ),
+                    if (selectedService == 'Other') ...[
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: customServiceController,
+                        decoration: InputDecoration(
+                          hintText: 'Describe your problem briefly',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        ),
+                        maxLines: 2,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(
+                    'Cancel',
+                    style: GoogleFonts.outfit(
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _showHelpComingDialog(selectedService == 'Other' ? customServiceController.text : selectedService);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF706DC7),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text('Request Help', style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showHelpComingDialog(String service) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.check_circle,
+                  color: Color(0xFF10B981),
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Help Coming!',
+                style: GoogleFonts.outfit(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
+          content: Container(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Service Request: $service',
+                  style: GoogleFonts.outfit(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        'John Doe',
+                        style: GoogleFonts.outfit(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF10B981),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Distance: 2.3 km',
+                        style: GoogleFonts.outfit(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'ETA: 15 minutes',
+                        style: GoogleFonts.outfit(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF10B981),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF10B981),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text('Got it!', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showHelpEarnDialog() {
+    final TextEditingController nameController = TextEditingController();
+    final TextEditingController phoneController = TextEditingController();
+    final TextEditingController skillsController = TextEditingController();
+    String selectedAvailability = '';
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              title: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.work,
+                      color: Color(0xFF10B981),
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Help & Earn',
+                    style: GoogleFonts.outfit(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ],
+              ),
+              content: Container(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Join as a service provider:',
+                      style: GoogleFonts.outfit(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: nameController,
+                      decoration: InputDecoration(
+                        hintText: 'Your Name',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: phoneController,
+                      decoration: InputDecoration(
+                        hintText: 'Phone Number',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: skillsController,
+                      decoration: InputDecoration(
+                        hintText: 'Your Skills (e.g., Mechanic, Electrician)',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      decoration: InputDecoration(
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
+                      hint: const Text('Availability'),
+                      items: [
+                        'Weekdays Only',
+                        'Weekends Only',
+                        '24/7',
+                        'Evenings Only'
+                      ].map((String value) {
+                        return DropdownMenuItem<String>(
+                          value: value,
+                          child: Text(value),
+                        );
+                      }).toList(),
+                      onChanged: (String? newValue) {
+                        setState(() {
+                          selectedAvailability = newValue ?? '';
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(
+                    'Cancel',
+                    style: GoogleFonts.outfit(
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    if (nameController.text.isNotEmpty && 
+                        phoneController.text.isNotEmpty && 
+                        skillsController.text.isNotEmpty && 
+                        selectedAvailability.isNotEmpty) {
+                      Navigator.pop(context);
+                      _showSubmissionSuccessDialog();
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Please fill all fields'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF10B981),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text('Submit', style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showSubmissionSuccessDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.check_circle,
+                  color: Color(0xFF10B981),
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Application Submitted!',
+                style: GoogleFonts.outfit(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
+          content: Container(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Text(
+              'Thank you for your interest! We\'ll review your application and get back to you within 24-48 hours.',
+              style: GoogleFonts.outfit(
+                fontSize: 14,
+                color: Colors.grey[600],
+              ),
+            ),
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF10B981),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text('OK', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Widget _buildServiceCard({
@@ -208,9 +743,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     required VoidCallback onTap,
   }) {
     return Container(
-      width: screenWidth * 0.22,
-      height: screenHeight * 0.12,
-      margin: EdgeInsets.symmetric(horizontal: screenWidth * 0.02),
       child: Material(
         elevation: 2,
         borderRadius: BorderRadius.circular(16),
@@ -438,9 +970,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 Container(
                   margin: EdgeInsets.symmetric(
                     horizontal: screenWidth * 0.05, 
-                    vertical: screenHeight * 0.02
+                    vertical: screenHeight * 0.01
                   ),
-                  padding: EdgeInsets.all(screenWidth * 0.05),
+                  padding: EdgeInsets.all(screenWidth * 0.03),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
                       colors: [Color(0xFF706DC7), Color(0xFF8B7ED8), Color(0xFF706DC7)],
@@ -493,16 +1025,16 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         'Service Provider',
                         style: GoogleFonts.outfit(
                           color: Colors.white,
-                          fontSize: 24,
+                          fontSize: 20,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 2),
                       Text(
                         'Professional services at your doorstep',
                         style: GoogleFonts.inter(
                           color: Colors.white.withValues(alpha: 0.8),
-                          fontSize: 14,
+                          fontSize: 12,
                           fontWeight: FontWeight.w400,
                         ),
                       ),
@@ -512,10 +1044,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
                 // Search Bar
                 Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 300),
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(_isSearchActive ? 16 : 25),
@@ -563,16 +1095,16 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             },
                             style: GoogleFonts.inter(
                               color: Colors.black87,
-                              fontSize: 16,
+                              fontSize: 14,
                             ),
                             decoration: InputDecoration(
                               hintText: 'Search for services...',
                               hintStyle: GoogleFonts.inter(
                                 color: const Color(0xFFB4BDC4),
-                                fontSize: 16,
+                                fontSize: 14,
                               ),
                               border: InputBorder.none,
-                              contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                              contentPadding: const EdgeInsets.symmetric(vertical: 8),
                             ),
                           ),
                         ),
@@ -667,11 +1199,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         ),
                       ),
                       SizedBox(height: screenHeight * 0.02),
-                      SizedBox(
-                        height: screenHeight * 0.13,
-                        child: ListView(
-                          scrollDirection: Axis.horizontal,
-                          padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.01),
+                      GridView.count(
+                          crossAxisCount: 4,
+                          crossAxisSpacing: screenWidth * 0.02,
+                          mainAxisSpacing: screenHeight * 0.01,
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          childAspectRatio: 0.8,
                           children: [
                             _buildQuickServiceCard(
                               title: 'Emergency',
@@ -835,36 +1369,44 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                               color: const Color(0xFF706DC7),
                               onTap: () {},
                             ),
-                            _buildQuickServiceCard(
-                              title: 'Battery Jump',
-                              iconPath: 'assets/icons/jump-start.png',
-                              color: const Color(0xFF706DC7),
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  PageRouteBuilder(
-                                    pageBuilder: (context, animation, secondaryAnimation) =>
-                                        const BatteryJumpPage(),
-                                    transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                                      return SlideTransition(
-                                        position: Tween<Offset>(
-                                          begin: const Offset(1.0, 0.0),
-                                          end: Offset.zero,
-                                        ).animate(CurvedAnimation(
-                                          parent: animation,
-                                          curve: Curves.easeOutCubic,
-                                        )),
-                                        child: FadeTransition(
-                                          opacity: animation,
-                                          child: child,
-                                        ),
-                                      );
-                                    },
-                                    transitionDuration: const Duration(milliseconds: 400),
-                                  ),
-                                );
-                              },
-                            ),
+                          _buildQuickServiceCard(
+                            title: 'Battery Jump',
+                            iconPath: 'assets/icons/jump-start.png',
+                            color: const Color(0xFF706DC7),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                PageRouteBuilder(
+                                  pageBuilder: (context, animation, secondaryAnimation) =>
+                                      const BatteryJumpPage(),
+                                  transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                                    return SlideTransition(
+                                      position: Tween<Offset>(
+                                        begin: const Offset(1.0, 0.0),
+                                        end: Offset.zero,
+                                      ).animate(CurvedAnimation(
+                                        parent: animation,
+                                        curve: Curves.easeOutCubic,
+                                      )),
+                                      child: FadeTransition(
+                                        opacity: animation,
+                                        child: child,
+                                      ),
+                                    );
+                                  },
+                                  transitionDuration: const Duration(milliseconds: 400),
+                                ),
+                              );
+                            },
+                          ),
+                          _buildQuickServiceCard(
+                            title: 'V2V Service',
+                            iconPath: 'assets/icons/user.png',
+                            color: const Color(0xFF706DC7),
+                            onTap: () {
+                              _showV2VServiceDialog();
+                            },
+                          ),
                             _buildQuickServiceCard(
                               title: 'Track Vehicle',
                               iconPath: 'assets/icons/smart-car.png',
@@ -965,6 +1507,41 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             ),
                           ],
                         ),
+                      // Test Connection Button
+                      Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const TestConnectionPage(),
+                              ),
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF10B981),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.wifi, size: 20),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Test Network Connection',
+                                style: GoogleFonts.outfit(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -1056,6 +1633,25 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 ),
 
 
+
+                // Debug button for backend testing
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pushNamed(context, '/backend-test');
+                    },
+                    icon: const Icon(Icons.bug_report, color: Colors.white),
+                    label: const Text('Debug Backend', style: TextStyle(color: Colors.white)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                    ),
+                  ),
+                ),
 
                 const SizedBox(height: 80), // Space for navigation
               ],

@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
-class EVChargingProviderPage extends StatefulWidget {
-  const EVChargingProviderPage({super.key});
+class EVProviderScreen extends StatefulWidget {
+  const EVProviderScreen({super.key});
 
   @override
-  State<EVChargingProviderPage> createState() => _EVChargingProviderPageState();
+  State<EVProviderScreen> createState() => _EVProviderScreenState();
 }
 
-class _EVChargingProviderPageState extends State<EVChargingProviderPage> {
+class _EVProviderScreenState extends State<EVProviderScreen> {
   final _formKey = GlobalKey<FormState>();
   String? selectedChargerType;
   String? selectedAvailableHours;
@@ -31,6 +30,15 @@ class _EVChargingProviderPageState extends State<EVChargingProviderPage> {
   }
 
   Future<void> _submitForm() async {
+    // ALWAYS show this message to confirm method is called
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("🚀 _submitForm() CALLED!"),
+        backgroundColor: Colors.blue,
+        duration: Duration(seconds: 3),
+      ),
+    );
+
     final providerData = {
       'name': _nameController.text,
       'phone': _phoneController.text,
@@ -40,201 +48,89 @@ class _EVChargingProviderPageState extends State<EVChargingProviderPage> {
       'availableHours': selectedAvailableHours,
     };
 
+    // Debug print to see the data being sent
+    print("🚀 Submitting data: ${jsonEncode(providerData)}");
+    print("🔍 Data validation:");
+    print("  - Name: '${providerData['name']}' (empty: ${providerData['name']?.isEmpty})");
+    print("  - Phone: '${providerData['phone']}' (empty: ${providerData['phone']?.isEmpty})");
+    print("  - Address: '${providerData['address']}' (empty: ${providerData['address']?.isEmpty})");
+    print("  - ChargerType: '${providerData['chargerType']}' (null: ${providerData['chargerType'] == null})");
+    print("  - Rate: '${providerData['rate']}' (empty: ${providerData['rate']?.isEmpty})");
+    print("  - AvailableHours: '${providerData['availableHours']}' (null: ${providerData['availableHours'] == null})");
+
+    // Show data being sent
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("📤 Sending: ${providerData['name']} - ${providerData['phone']}"),
+        backgroundColor: Colors.purple,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+
     try {
-      print("🚀 Sending data to backend: $providerData");
-      print("🌐 Target URL: http://localhost:8081/api/person");
-      
-      // First, let's test if the server is reachable
-      try {
-        final testResponse = await http.get(
-          Uri.parse("http://localhost:8081/api/person"),
-          headers: {"Content-Type": "application/json"},
-        );
-        print("🔍 Server connectivity test: ${testResponse.statusCode}");
-      } catch (testError) {
-        print("❌ Server connectivity test failed: $testError");
-        throw Exception("Cannot connect to server: $testError");
-      }
+      print("🌐 Making HTTP request to: http://localhost:8081/api/person");
+      print("📦 Request headers: Content-Type: application/json");
+      print("📦 Request body: ${jsonEncode(providerData)}");
       
       final response = await http.post(
-        Uri.parse("http://localhost:8081/api/person"), // Spring Boot backend
+        Uri.parse("http://localhost:8081/api/person"),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode(providerData),
       );
 
-      print("📡 Response status: ${response.statusCode}");
-      print("📡 Response body: ${response.body}");
-      print("📡 Response headers: ${response.headers}");
+      print("📡 Response received:");
+      print("  - Status Code: ${response.statusCode}");
+      print("  - Headers: ${response.headers}");
+      print("  - Body: ${response.body}");
+
+      // Show response
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("📡 Response: ${response.statusCode} - ${response.body.length > 20 ? response.body.substring(0, 20) + '...' : response.body}"),
+          backgroundColor: Colors.indigo,
+          duration: const Duration(seconds: 3),
+        ),
+      );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        // Parse response to get the created person data
-        try {
-          final responseData = jsonDecode(response.body);
-          print("✅ Data successfully saved to database: $responseData");
-          
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                "✅ Application submitted successfully!\nID: ${responseData['id'] ?? 'N/A'}",
-                style: GoogleFonts.outfit(),
-              ),
-              backgroundColor: const Color(0xFF706DC7),
-              behavior: SnackBarBehavior.floating,
-              duration: const Duration(seconds: 4),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-          );
-          
-          _formKey.currentState?.reset();
-          setState(() {
-            selectedChargerType = null;
-            selectedAvailableHours = null;
-            agreeToTerms = false;
-          });
-        } catch (parseError) {
-          print("❌ Error parsing response: $parseError");
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                "⚠️ Data sent but response format error",
-                style: GoogleFonts.outfit(),
-              ),
-              backgroundColor: const Color(0xFFF59E0B),
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-          );
-        }
+        print("✅ SUCCESS! Data stored in database!");
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("✅ SUCCESS! Data stored in database!"),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 4),
+          ),
+        );
+
+        _formKey.currentState?.reset();
+        setState(() {
+          selectedChargerType = null;
+          selectedAvailableHours = null;
+          agreeToTerms = false;
+        });
       } else {
-        print("❌ HTTP Error: ${response.statusCode} - ${response.body}");
+        print("❌ Request failed with status: ${response.statusCode}");
+        print("❌ Error response: ${response.body}");
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              "❌ Server Error (${response.statusCode})\n${response.body.length > 100 ? response.body.substring(0, 100) + '...' : response.body}",
-              style: GoogleFonts.outfit(),
-            ),
-            backgroundColor: const Color(0xFFEF4444),
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 5),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
+            content: Text("❌ Failed: ${response.body}"),
+            backgroundColor: Colors.red,
           ),
         );
       }
     } catch (e) {
-      print("❌ Network/Connection Error: $e");
-      String errorMessage = "Network Error";
-      
-      if (e.toString().contains('SocketException')) {
-        errorMessage = "Cannot connect to server\nCheck if backend is running";
-      } else if (e.toString().contains('TimeoutException')) {
-        errorMessage = "Request timeout\nServer is taking too long to respond";
-      } else if (e.toString().contains('FormatException')) {
-        errorMessage = "Invalid response format from server";
-      } else {
-        errorMessage = "Error: ${e.toString()}";
+      print("💥 Exception occurred: $e");
+      print("💥 Exception type: ${e.runtimeType}");
+      if (e.toString().contains('Connection refused')) {
+        print("🔌 Connection refused - Backend might not be running on port 8081");
+      } else if (e.toString().contains('SocketException')) {
+        print("🌐 Network error - Check if backend is accessible");
       }
       
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            errorMessage,
-            style: GoogleFonts.outfit(),
-          ),
-          backgroundColor: const Color(0xFFEF4444),
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 5),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-      );
-    }
-  }
-
-  Future<void> _testConnection() async {
-    try {
-      print("🔍 Testing connection to backend...");
-      print("🌐 Target URL: http://localhost:8081/api/person");
-      
-      // Test GET request first
-      final getResponse = await http.get(
-        Uri.parse("http://localhost:8081/api/person"),
-        headers: {"Content-Type": "application/json"},
-      );
-      
-      print("✅ GET test successful: ${getResponse.statusCode}");
-      print("📡 GET Response: ${getResponse.body}");
-      
-      // Test POST request
-      final testData = {
-        'name': 'Flutter Test User',
-        'phone': '1234567890',
-        'address': 'Test Address from Flutter',
-        'chargerType': 'Type 2',
-        'rate': 'Rs 15/kWh',
-        'availableHours': '24/7'
-      };
-      
-      print("🚀 Testing POST request with data: $testData");
-      
-      final postResponse = await http.post(
-        Uri.parse("http://localhost:8081/api/person"),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode(testData),
-      );
-      
-      print("✅ POST test successful: ${postResponse.statusCode}");
-      print("📡 POST Response: ${postResponse.body}");
-      
-      final responseData = jsonDecode(getResponse.body);
-      final postData = jsonDecode(postResponse.body);
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            "✅ Both tests successful!\nGET: ${getResponse.statusCode} (${responseData.length} records)\nPOST: ${postResponse.statusCode} (ID: ${postData['id']})",
-            style: GoogleFonts.outfit(),
-          ),
-              backgroundColor: const Color(0xFF706DC7),
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 6),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-      );
-    } catch (e) {
-      print("❌ Connection test failed: $e");
-      print("❌ Error type: ${e.runtimeType}");
-      print("❌ Error details: ${e.toString()}");
-      
-      String errorMessage = "Connection failed";
-      if (e.toString().contains('SocketException')) {
-        errorMessage = "Cannot connect to server\nCheck network connection";
-      } else if (e.toString().contains('TimeoutException')) {
-        errorMessage = "Request timeout\nServer not responding";
-      } else {
-        errorMessage = "Error: ${e.toString()}";
-      }
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            errorMessage,
-            style: GoogleFonts.outfit(),
-          ),
-          backgroundColor: const Color(0xFFEF4444),
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 4),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
+          content: Text("❌ Error: $e"),
+          backgroundColor: Colors.red,
         ),
       );
     }
@@ -243,53 +139,30 @@ class _EVChargingProviderPageState extends State<EVChargingProviderPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: const Icon(Icons.arrow_back, color: Colors.black, size: 20),
-          ),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
+        backgroundColor: const Color(0xFF706DC7),
+        title: const Text(
           'Become a Provider',
-          style: GoogleFonts.outfit(
-            color: Colors.black,
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
         centerTitle: true,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildFormHeader(),
-              const SizedBox(height: 32),
-              _buildFormField('Full Name', controller: _nameController),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
+              _buildFormField('Full Name', controller: _nameController, fieldId: 'full_name'),
+              const SizedBox(height: 16),
               _buildFormField(
                 'Phone Number',
                 controller: _phoneController,
                 keyboardType: TextInputType.phone,
+                fieldId: 'phone_number',
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Please enter phone number';
@@ -300,11 +173,12 @@ class _EVChargingProviderPageState extends State<EVChargingProviderPage> {
                   return null;
                 },
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
               _buildFormField(
                 'Complete Address',
                 controller: _addressController,
                 maxLines: 3,
+                fieldId: 'complete_address',
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Please enter address';
@@ -312,10 +186,12 @@ class _EVChargingProviderPageState extends State<EVChargingProviderPage> {
                   return null;
                 },
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
               _buildDropdownField(
                 'Charger Type',
                 ['Type 1', 'Type 2', 'CCS', 'CHAdeMO', 'Tesla'],
+                value: selectedChargerType,
+                fieldId: 'charger_type',
                 validator: (value) =>
                     value == null ? 'Please select charger type' : null,
                 onChanged: (value) {
@@ -324,11 +200,12 @@ class _EVChargingProviderPageState extends State<EVChargingProviderPage> {
                   });
                 },
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
               _buildFormField(
                 'Charging Rate (₹/kWh)',
                 controller: _rateController,
                 keyboardType: TextInputType.number,
+                fieldId: 'charging_rate',
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Please enter charging rate';
@@ -339,10 +216,12 @@ class _EVChargingProviderPageState extends State<EVChargingProviderPage> {
                   return null;
                 },
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
               _buildDropdownField(
                 'Available Hours',
                 ['9AM-10AM', '4PM-8PM', '6PM-10PM', '24/7'],
+                value: selectedAvailableHours,
+                fieldId: 'available_hours',
                 validator: (value) =>
                     value == null ? 'Please select available hours' : null,
                 onChanged: (value) {
@@ -351,22 +230,17 @@ class _EVChargingProviderPageState extends State<EVChargingProviderPage> {
                   });
                 },
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
               _buildEarningInfo(),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
               _buildAgreementCheckbox(),
-              const SizedBox(height: 32),
-              _buildTestButton(),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
               _buildSubmitButton(),
-              const SizedBox(height: 16),
-              Center(
+              const SizedBox(height: 8),
+              const Center(
                 child: Text(
                   'Applications are reviewed within 24-48 hours of submission',
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFF64748B),
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: Colors.grey, fontSize: 12),
                 ),
               ),
             ],
@@ -380,49 +254,22 @@ class _EVChargingProviderPageState extends State<EVChargingProviderPage> {
     return Center(
       child: Column(
         children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF06B6D4), Color(0xFF0891B2), Color(0xFF0E7490)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                stops: [0.0, 0.5, 1.0],
-              ),
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF45B7D1).withOpacity(0.3),
-                  blurRadius: 15,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: const Icon(
-              Icons.electric_bolt,
-              color: Colors.white,
-              size: 40,
-            ),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            'Start Earning with Your EV Charger',
-            style: GoogleFonts.outfit(
-              fontSize: 24,
+          const Icon(Icons.lightbulb_outline,
+              size: 50, color: Color(0xFF706DC7)),
+          const SizedBox(height: 16),
+          const Text(
+            'Start earning with your EV charger',
+            style: TextStyle(
+              fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: const Color(0xFF1E293B),
+              color: Colors.black87,
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Text(
             'Share your home charger and earn money while helping the EV community',
-            style: GoogleFonts.inter(
-              fontSize: 16,
-              color: const Color(0xFF64748B),
-              height: 1.5,
-            ),
+            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
             textAlign: TextAlign.center,
           ),
         ],
@@ -436,44 +283,24 @@ class _EVChargingProviderPageState extends State<EVChargingProviderPage> {
     TextInputType? keyboardType,
     int maxLines = 1,
     String? Function(String?)? validator,
+    String? fieldId,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: GoogleFonts.outfit(
-            fontWeight: FontWeight.w600,
-            fontSize: 16,
-            color: const Color(0xFF1E293B),
-          ),
-        ),
+        Text(label,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         const SizedBox(height: 8),
         TextFormField(
+          key: fieldId != null ? Key(fieldId) : null,
           controller: controller,
           keyboardType: keyboardType,
           maxLines: maxLines,
           validator: validator,
-          style: GoogleFonts.inter(
-            fontSize: 16,
-            color: const Color(0xFF1E293B),
-          ),
           decoration: InputDecoration(
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFF06B6D4), width: 2),
-            ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            fillColor: Colors.white,
-            filled: true,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           ),
         ),
       ],
@@ -485,48 +312,26 @@ class _EVChargingProviderPageState extends State<EVChargingProviderPage> {
     List<String> options, {
     String? Function(String?)? validator,
     void Function(String?)? onChanged,
+    String? value,
+    String? fieldId,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: GoogleFonts.outfit(
-            fontWeight: FontWeight.w600,
-            fontSize: 16,
-            color: const Color(0xFF1E293B),
-          ),
-        ),
+        Text(label,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
+          key: fieldId != null ? Key(fieldId) : null,
+          value: value,
           decoration: InputDecoration(
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFF06B6D4), width: 2),
-            ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            fillColor: Colors.white,
-            filled: true,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           ),
           items: options
-              .map((value) => DropdownMenuItem<String>(
-                    value: value,
-                    child: Text(
-                      value,
-                      style: GoogleFonts.inter(
-                        fontSize: 16,
-                        color: const Color(0xFF1E293B),
-                      ),
-                    ),
-                  ))
+              .map((value) =>
+                  DropdownMenuItem<String>(value: value, child: Text(value)))
               .toList(),
           validator: validator,
           onChanged: onChanged,
@@ -537,57 +342,32 @@ class _EVChargingProviderPageState extends State<EVChargingProviderPage> {
 
   Widget _buildEarningInfo() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            const Color(0xFF45B7D1).withOpacity(0.1),
-            const Color(0xFF45B7D1).withOpacity(0.05),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
+        color: const Color(0xFF706DC7).withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: const Color(0xFF45B7D1).withOpacity(0.2),
+          color: const Color(0xFF706DC7).withOpacity(0.3),
           width: 1,
         ),
       ),
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFF45B7D1).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(
-              Icons.attach_money,
-              color: Color(0xFF06B6D4),
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: 16),
+          const Icon(Icons.attach_money, color: Color(0xFF706DC7), size: 24),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                const Text('Earning Potential',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: Color(0xFF706DC7))),
+                const SizedBox(height: 4),
                 Text(
-                  'Earning Potential',
-                  style: GoogleFonts.outfit(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                    color: const Color(0xFF45B7D1),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Average providers earn ₹3,000 to ₹7,000 per month by sharing their chargers 4-6 hours daily',
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    color: const Color(0xFF64748B),
-                    height: 1.4,
-                  ),
+                  'Average providers earn ₹3000 to ₹7000 per month by sharing their chargers 4-6 hours daily',
+                  style: TextStyle(fontSize: 14, color: Colors.grey[800]),
                 ),
               ],
             ),
@@ -599,51 +379,34 @@ class _EVChargingProviderPageState extends State<EVChargingProviderPage> {
 
   Widget _buildAgreementCheckbox() {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Checkbox(
+          key: const Key('agree_to_terms'),
           value: agreeToTerms,
           onChanged: (value) {
             setState(() {
               agreeToTerms = value ?? false;
             });
           },
-          activeColor: const Color(0xFF45B7D1),
         ),
-        Expanded(
+        const Expanded(
           child: Text.rich(
             TextSpan(
               children: [
-                TextSpan(
-                  text: 'I agree to the ',
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    color: const Color(0xFF64748B),
-                  ),
-                ),
+                TextSpan(text: 'I agree to the '),
                 TextSpan(
                   text: 'Terms & Conditions',
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    color: const Color(0xFF45B7D1),
+                  style: TextStyle(
+                    color: Colors.blue,
                     decoration: TextDecoration.underline,
-                    fontWeight: FontWeight.w600,
                   ),
                 ),
-                TextSpan(
-                  text: ' and ',
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    color: const Color(0xFF64748B),
-                  ),
-                ),
+                TextSpan(text: ' and '),
                 TextSpan(
                   text: 'Provider Guidelines',
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    color: const Color(0xFF45B7D1),
+                  style: TextStyle(
+                    color: Colors.blue,
                     decoration: TextDecoration.underline,
-                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
@@ -654,72 +417,67 @@ class _EVChargingProviderPageState extends State<EVChargingProviderPage> {
     );
   }
 
-  Widget _buildTestButton() {
-    return SizedBox(
-      width: double.infinity,
-      height: 48,
-      child: ElevatedButton(
-        onPressed: _testConnection,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF706DC7),
-          foregroundColor: Colors.white,
-          elevation: 4,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-        child: Text(
-          '🔍 Test Connection',
-          style: GoogleFonts.outfit(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-            fontSize: 14,
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildSubmitButton() {
     return SizedBox(
       width: double.infinity,
-      height: 56,
       child: ElevatedButton(
         onPressed: () {
-          if (_formKey.currentState!.validate() && agreeToTerms) {
+          // ALWAYS show this message to confirm button works
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("🔍 SUBMIT BUTTON PRESSED!"),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 3),
+            ),
+          );
+
+          bool formValid = _formKey.currentState!.validate();
+          
+          // Show validation status
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("🔍 Form valid: $formValid, Terms: $agreeToTerms"),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+
+          if (formValid && agreeToTerms) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("✅ Validation passed - calling _submitForm()"),
+                backgroundColor: Colors.green,
+                duration: Duration(seconds: 2),
+              ),
+            );
             _submitForm();
           } else if (!agreeToTerms) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  'Please agree to terms and conditions',
-                  style: GoogleFonts.outfit(),
-                ),
-                backgroundColor: const Color(0xFFEF4444),
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
+              const SnackBar(
+                content: Text('❌ Please agree to terms and conditions'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('❌ Please fill all required fields'),
+                backgroundColor: Colors.red,
               ),
             );
           }
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF706DC7),
-          foregroundColor: Colors.white,
-          elevation: 8,
-          shadowColor: const Color(0xFF706DC7).withOpacity(0.3),
+          padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(8),
           ),
         ),
-        child: Text(
+        child: const Text(
           'Submit Application',
-          style: GoogleFonts.outfit(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-          ),
+          style: TextStyle(
+              color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
         ),
       ),
     );

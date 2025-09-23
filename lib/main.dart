@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'login_page.dart';
 import 'homepage.dart';
 import 'profile_page.dart';
+import 'backend_test_page.dart';
 
 void main() {
   runApp(const ServiceProviderApp());
@@ -90,6 +91,7 @@ class ServiceProviderApp extends StatelessWidget {
         '/login': (context) => const LoginPage(),
         '/home': (context) => const HomePage(),
         '/profile': (context) => const ProfilePage(),
+        '/backend-test': (context) => const BackendTestPage(),
       },
     );
   }

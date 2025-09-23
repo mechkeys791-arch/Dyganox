@@ -566,8 +566,9 @@ class _VehicleSelectionPageState extends State<VehicleSelectionPage> with Ticker
   }
 
   Widget _buildFuelTypeSelection() {
-    return Column(
-      children: [
+    return SingleChildScrollView(
+      child: Column(
+        children: [
         Wrap(
           alignment: WrapAlignment.center,
           children: _fuelTypes.map((fuelType) => _buildFuelTypeChip(fuelType)).toList(),
@@ -605,6 +606,7 @@ class _VehicleSelectionPageState extends State<VehicleSelectionPage> with Ticker
           ),
         ),
       ],
+      ),
     );
   }
 
