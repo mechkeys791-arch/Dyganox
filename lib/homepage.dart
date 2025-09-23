@@ -1363,148 +1363,44 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                 );
                               },
                             ),
-                            _buildQuickServiceCard(
-                              title: 'Pick & Drop',
-                              iconPath: 'assets/icons/delivery-man.png',
-                              color: const Color(0xFF706DC7),
-                              onTap: () {},
-                            ),
-                          _buildQuickServiceCard(
-                            title: 'Battery Jump',
-                            iconPath: 'assets/icons/jump-start.png',
-                            color: const Color(0xFF706DC7),
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                PageRouteBuilder(
-                                  pageBuilder: (context, animation, secondaryAnimation) =>
-                                      const BatteryJumpPage(),
-                                  transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                                    return SlideTransition(
-                                      position: Tween<Offset>(
-                                        begin: const Offset(1.0, 0.0),
-                                        end: Offset.zero,
-                                      ).animate(CurvedAnimation(
-                                        parent: animation,
-                                        curve: Curves.easeOutCubic,
-                                      )),
-                                      child: FadeTransition(
-                                        opacity: animation,
-                                        child: child,
-                                      ),
-                                    );
-                                  },
-                                  transitionDuration: const Duration(milliseconds: 400),
-                                ),
-                              );
-                            },
-                          ),
-                          _buildQuickServiceCard(
-                            title: 'V2V Service',
-                            iconPath: 'assets/icons/user.png',
-                            color: const Color(0xFF706DC7),
-                            onTap: () {
-                              _showV2VServiceDialog();
-                            },
-                          ),
-                            _buildQuickServiceCard(
-                              title: 'Track Vehicle',
-                              iconPath: 'assets/icons/smart-car.png',
-                              color: const Color(0xFF706DC7),
-                              onTap: () {
-                                // Show vehicle tracking dialog
-                                showDialog(
-                                  context: context,
-                                  builder: (BuildContext context) {
-                                    return AlertDialog(
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(20),
-                                      ),
-                                      title: Row(
-                                        children: [
-                                          Container(
-                                            padding: const EdgeInsets.all(8),
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFF2ECC71).withValues(alpha: 0.1),
-                                              borderRadius: BorderRadius.circular(8),
-                                            ),
-                                            child: const Icon(
-                                              Icons.location_on,
-                                              color: Color(0xFF2ECC71),
-                                              size: 20,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Text(
-                                            'Track Vehicle',
-                                            style: GoogleFonts.outfit(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 18,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      content: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            'Real-time vehicle tracking is coming soon!',
-                                            style: GoogleFonts.inter(fontSize: 16),
-                                            textAlign: TextAlign.center,
-                                          ),
-                                          const SizedBox(height: 16),
-                                          Container(
-                                            padding: const EdgeInsets.all(16),
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFF2ECC71).withValues(alpha: 0.1),
-                                              borderRadius: BorderRadius.circular(12),
-                                            ),
-                                            child: Column(
-                                              children: [
-                                                const Icon(
-                                                  Icons.gps_fixed,
-                                                  color: Color(0xFF2ECC71),
-                                                  size: 32,
-                                                ),
-                                                const SizedBox(height: 8),
-                                                Text(
-                                                  'Features Coming Soon:',
-                                                  style: GoogleFonts.outfit(
-                                                    fontWeight: FontWeight.w600,
-                                                    fontSize: 14,
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 8),
-                                                Text(
-                                                  '• Live GPS tracking\n• Service history\n• Maintenance alerts\n• Location sharing',
-                                                  style: GoogleFonts.inter(
-                                                    fontSize: 12,
-                                                    color: Colors.grey[600],
-                                                  ),
-                                                  textAlign: TextAlign.center,
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () => Navigator.pop(context),
-                                          child: Text(
-                                            'Got it!',
-                                            style: GoogleFonts.outfit(
-                                              color: const Color(0xFF2ECC71),
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    );
-                                  },
-                                );
-                              },
-                            ),
+                           _buildQuickServiceCard(
+                             title: 'Battery Jump',
+                             iconPath: 'assets/icons/jump-start.png',
+                             color: const Color(0xFF706DC7),
+                             onTap: () {
+                               Navigator.push(
+                                 context,
+                                 PageRouteBuilder(
+                                   pageBuilder: (context, animation, secondaryAnimation) =>
+                                       const BatteryJumpPage(),
+                                   transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                                     return SlideTransition(
+                                       position: Tween<Offset>(
+                                         begin: const Offset(1.0, 0.0),
+                                         end: Offset.zero,
+                                       ).animate(CurvedAnimation(
+                                         parent: animation,
+                                         curve: Curves.easeOutCubic,
+                                       )),
+                                       child: FadeTransition(
+                                         opacity: animation,
+                                         child: child,
+                                       ),
+                                     );
+                                   },
+                                   transitionDuration: const Duration(milliseconds: 400),
+                                 ),
+                               );
+                             },
+                           ),
+                           _buildQuickServiceCard(
+                             title: 'V2V Service',
+                             iconPath: 'assets/icons/user.png',
+                             color: const Color(0xFF706DC7),
+                             onTap: () {
+                               _showV2VServiceDialog();
+                             },
+                           ),
                           ],
                         ),
                       // Test Connection Button
@@ -1631,8 +1527,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     ],
                   ),
                 ),
-
-
 
                 // Debug button for backend testing
                 Container(
