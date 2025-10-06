@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'dart:async';
 import 'car_service_page.dart';
 import 'bike_service_page.dart';
 import 'minor_repair_page.dart';
@@ -28,10 +27,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
   bool _isSearchActive = false;
   
-  // Specification slider variables
-  late PageController _specPageController;
-  int _currentSpecIndex = 0;
-  Timer? _specTimer;
   
   // Responsive design variables
   late double screenWidth;
@@ -67,11 +62,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       curve: Curves.easeInOut,
     ));
 
-    _specPageController = PageController(initialPage: 0);
-    
     _fadeController.forward();
     _pulseController.repeat(reverse: true);
-    _startSpecSlider();
   }
   
   @override
@@ -86,8 +78,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     _fadeController.dispose();
     _pulseController.dispose();
     _searchController.dispose();
-    _specPageController.dispose();
-    _specTimer?.cancel();
     super.dispose();
   }
 
@@ -625,6 +615,161 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
+  void _showFindMechanicDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF6B35).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.build_circle,
+                  color: Color(0xFFFF6B35),
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Find Nearest Mechanic',
+                style: GoogleFonts.outfit(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
+          content: Container(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'What type of service do you need?',
+                  style: GoogleFonts.outfit(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                _buildMechanicServiceOption(
+                  'Emergency Repair',
+                  'Urgent roadside assistance',
+                  Icons.emergency,
+                  const Color(0xFFFF6B35),
+                ),
+                const SizedBox(height: 12),
+                _buildMechanicServiceOption(
+                  'General Maintenance',
+                  'Regular service and checkup',
+                  Icons.build,
+                  const Color(0xFF4ECDC4),
+                ),
+                const SizedBox(height: 12),
+                _buildMechanicServiceOption(
+                  'Diagnostic Check',
+                  'Find out what\'s wrong',
+                  Icons.search,
+                  const Color(0xFF45B7D1),
+                ),
+                const SizedBox(height: 12),
+                _buildMechanicServiceOption(
+                  'Custom Service',
+                  'Describe your specific need',
+                  Icons.edit,
+                  const Color(0xFF9B59B6),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'Cancel',
+                style: GoogleFonts.outfit(
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildMechanicServiceOption(String title, String subtitle, IconData icon, Color color) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: color.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              icon,
+              color: color,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.outfit(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Icon(
+            Icons.arrow_forward_ios,
+            color: color,
+            size: 16,
+          ),
+        ],
+      ),
+    );
+  }
+
+
   Widget _buildServiceCard({
     required String title,
     required String subtitle,
@@ -810,149 +955,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
-  // Specification slider data
-  final List<Map<String, dynamic>> _specifications = [
-    {
-      'title': '24/7 Emergency Service',
-      'subtitle': 'Round-the-clock roadside assistance',
-      'icon': Icons.emergency,
-      'color': const Color(0xFFFF6B6B),
-      'features': ['Instant response', 'GPS tracking', 'Expert technicians'],
-    },
-    {
-      'title': 'Professional Mechanics',
-      'subtitle': 'Certified and experienced technicians',
-      'icon': Icons.build,
-      'color': const Color(0xFF4ECDC4),
-      'features': ['ASE certified', '5+ years experience', 'Quality guarantee'],
-    },
-    {
-      'title': 'Transparent Pricing',
-      'subtitle': 'No hidden charges, upfront quotes',
-      'icon': Icons.account_balance_wallet,
-      'color': const Color(0xFF45B7D1),
-      'features': ['Free estimates', 'Fair pricing', 'No surprises'],
-    },
-    {
-      'title': 'Wide Service Coverage',
-      'subtitle': 'Available across major cities',
-      'icon': Icons.location_on,
-      'color': const Color(0xFF9B59B6),
-      'features': ['50+ cities', 'Quick response', 'Local expertise'],
-    },
-  ];
-
-  void _startSpecSlider() {
-    _specTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
-      if (_currentSpecIndex < _specifications.length - 1) {
-        _currentSpecIndex++;
-      } else {
-        _currentSpecIndex = 0;
-      }
-      
-      if (_specPageController.hasClients) {
-        _specPageController.animateToPage(
-          _currentSpecIndex,
-          duration: const Duration(milliseconds: 500),
-          curve: Curves.easeInOut,
-        );
-      }
-    });
-  }
-
-  Widget _buildSpecificationCard(Map<String, dynamic> spec) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8),
-      child: Material(
-        elevation: 8,
-        borderRadius: BorderRadius.circular(20),
-        color: Colors.white,
-        shadowColor: spec['color'].withValues(alpha: 0.3),
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            gradient: LinearGradient(
-              colors: [
-                spec['color'].withValues(alpha: 0.1),
-                spec['color'].withValues(alpha: 0.05),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: spec['color'].withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      spec['icon'],
-                      color: spec['color'],
-                      size: 28,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          spec['title'],
-                          style: GoogleFonts.outfit(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          spec['subtitle'],
-                          style: GoogleFonts.inter(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              ...spec['features'].map<Widget>((feature) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.check_circle,
-                      color: spec['color'],
-                      size: 16,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      feature,
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        color: Colors.grey[700],
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              )).toList(),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -966,13 +968,16 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header Section
+                // Small Header Section
                 Container(
                   margin: EdgeInsets.symmetric(
                     horizontal: screenWidth * 0.05, 
                     vertical: screenHeight * 0.01
                   ),
-                  padding: EdgeInsets.all(screenWidth * 0.03),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: screenWidth * 0.04,
+                    vertical: screenHeight * 0.015
+                  ),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
                       colors: [Color(0xFF706DC7), Color(0xFF8B7ED8), Color(0xFF706DC7)],
@@ -980,62 +985,47 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       end: Alignment.bottomRight,
                       stops: [0.0, 0.5, 1.0],
                     ),
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
                         color: const Color(0xFF706DC7).withOpacity(0.25),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
+                        blurRadius: 15,
+                        offset: const Offset(0, 5),
                         spreadRadius: 1,
                       ),
                     ],
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Row(
                     children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(
-                              Icons.location_on,
-                              color: Colors.white,
-                              size: 16,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Mangalore, Karnataka',
-                              style: GoogleFonts.inter(
-                                color: Colors.white.withValues(alpha: 0.9),
-                                fontSize: 13,
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
-                          ),
-                        ],
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.location_on,
+                          color: Colors.white,
+                          size: 16,
+                        ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Mangalore, Karnataka',
+                          style: GoogleFonts.inter(
+                            color: Colors.white.withValues(alpha: 0.9),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ),
                       Text(
                         'Service Provider',
                         style: GoogleFonts.outfit(
                           color: Colors.white,
-                          fontSize: 20,
+                          fontSize: 16,
                           fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Professional services at your doorstep',
-                        style: GoogleFonts.inter(
-                          color: Colors.white.withValues(alpha: 0.8),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w400,
                         ),
                       ),
                     ],
@@ -1125,61 +1115,92 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ),
                 ),
 
-                // Specification Slider
+                // Find Nearest Mechanic - HIGHLIGHTED FEATURE
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Why Choose Us?',
-                        style: GoogleFonts.outfit(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        height: 200,
-                        child: PageView.builder(
-                          controller: _specPageController,
-                          onPageChanged: (index) {
-                            setState(() {
-                              _currentSpecIndex = index;
-                            });
-                          },
-                          itemCount: _specifications.length,
-                          itemBuilder: (context, index) {
-                            return _buildSpecificationCard(_specifications[index]);
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      // Page indicators
-                      Center(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: List.generate(
-                            _specifications.length,
-                            (index) => AnimatedContainer(
-                              duration: const Duration(milliseconds: 300),
-                              margin: const EdgeInsets.symmetric(horizontal: 4),
-                              width: _currentSpecIndex == index ? 24 : 8,
-                              height: 8,
-                              decoration: BoxDecoration(
-                                color: _currentSpecIndex == index
-                                    ? const Color(0xFF6366F1)
-                                    : Colors.grey[300],
-                                borderRadius: BorderRadius.circular(4),
+                  child: AnimatedBuilder(
+                    animation: _pulseAnimation,
+                    builder: (context, child) {
+                      return Transform.scale(
+                        scale: _pulseAnimation.value,
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFFFF6B35), Color(0xFFFF8E53)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFFFF6B35).withOpacity(0.4),
+                                blurRadius: 25,
+                                offset: const Offset(0, 10),
+                                spreadRadius: 2,
                               ),
+                            ],
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.3),
+                              width: 2,
                             ),
                           ),
+                          child: Column(
+                            children: [
+                              Text(
+                                'Find Nearest Mechanic',
+                                style: GoogleFonts.outfit(
+                                  color: Colors.white,
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Get instant help from certified mechanics nearby',
+                                style: GoogleFonts.inter(
+                                  color: Colors.white.withOpacity(0.9),
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 20),
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton(
+                                  onPressed: () {
+                                    HapticFeedback.heavyImpact();
+                                    _showFindMechanicDialog();
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.white,
+                                    foregroundColor: const Color(0xFFFF6B35),
+                                    padding: const EdgeInsets.symmetric(vertical: 18),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(15),
+                                    ),
+                                    elevation: 8,
+                                    shadowColor: Colors.black.withOpacity(0.2),
+                                  ),
+                                  child: Text(
+                                    'Find Mechanic Now',
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      );
+                    },
                   ),
                 ),
+
 
                 // Quick Services
                 Container(
@@ -1190,16 +1211,49 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Quick Services',
-                        style: GoogleFonts.outfit(
-                          fontSize: screenWidth * 0.055,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF1F2937),
-                        ),
+                      Row(
+                        children: [
+                          Text(
+                            'Quick Services',
+                            style: GoogleFonts.outfit(
+                              fontSize: screenWidth * 0.055,
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFF1F2937),
+                            ),
+                          ),
+                          const Spacer(),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF706DC7).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              '8 Services',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF706DC7),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                       SizedBox(height: screenHeight * 0.02),
-                      GridView.count(
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 20,
+                              offset: const Offset(0, 5),
+                            ),
+                          ],
+                        ),
+                        child: GridView.count(
                           crossAxisCount: 4,
                           crossAxisSpacing: screenWidth * 0.02,
                           mainAxisSpacing: screenHeight * 0.01,
@@ -1507,6 +1561,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             ),
                           ],
                         ),
+                      ),
                       // Test Connection Button
                       Container(
                         margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
@@ -1548,22 +1603,52 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 ),
                 // Main Services
                 Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 10),
+                  margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: Text(
-                          'Our Services',
-                          style: GoogleFonts.outfit(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF706DC7).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              Icons.build,
+                              color: Color(0xFF706DC7),
+                              size: 24,
+                            ),
                           ),
-                        ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Our Services',
+                            style: GoogleFonts.outfit(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          const Spacer(),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF706DC7).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              'Professional',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF706DC7),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 16),
                       
                       _buildServiceCard(
                         title: 'Car Services',

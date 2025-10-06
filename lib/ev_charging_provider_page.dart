@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
@@ -48,15 +49,20 @@ class _EVProviderScreenState extends State<EVProviderScreen> {
       'availableHours': selectedAvailableHours,
     };
 
-    // Debug print to see the data being sent
-    print("🚀 Submitting data: ${jsonEncode(providerData)}");
-    print("🔍 Data validation:");
-    print("  - Name: '${providerData['name']}' (empty: ${providerData['name']?.isEmpty})");
-    print("  - Phone: '${providerData['phone']}' (empty: ${providerData['phone']?.isEmpty})");
-    print("  - Address: '${providerData['address']}' (empty: ${providerData['address']?.isEmpty})");
-    print("  - ChargerType: '${providerData['chargerType']}' (null: ${providerData['chargerType'] == null})");
-    print("  - Rate: '${providerData['rate']}' (empty: ${providerData['rate']?.isEmpty})");
-    print("  - AvailableHours: '${providerData['availableHours']}' (null: ${providerData['availableHours'] == null})");
+    // Debug print to see the data being sent - using debugPrint for web console visibility
+    debugPrint("🚀 Submitting JSON: ${jsonEncode(providerData)}");
+    debugPrint("🔍 Data validation:");
+    debugPrint("  - Name: '${providerData['name']}' (empty: ${providerData['name']?.isEmpty})");
+    debugPrint("  - Phone: '${providerData['phone']}' (empty: ${providerData['phone']?.isEmpty})");
+    debugPrint("  - Address: '${providerData['address']}' (empty: ${providerData['address']?.isEmpty})");
+    debugPrint("  - ChargerType: '${providerData['chargerType']}' (null: ${providerData['chargerType'] == null})");
+    debugPrint("  - Rate: '${providerData['rate']}' (empty: ${providerData['rate']?.isEmpty})");
+    debugPrint("  - AvailableHours: '${providerData['availableHours']}' (null: ${providerData['availableHours'] == null})");
+    
+    // Also use JavaScript console.log for immediate visibility in Chrome
+    if (kIsWeb) {
+      print("🚀 Submitting JSON: ${jsonEncode(providerData)}");
+    }
 
     // Show data being sent
     ScaffoldMessenger.of(context).showSnackBar(
@@ -68,9 +74,9 @@ class _EVProviderScreenState extends State<EVProviderScreen> {
     );
 
     try {
-      print("🌐 Making HTTP request to: http://localhost:8081/api/person");
-      print("📦 Request headers: Content-Type: application/json");
-      print("📦 Request body: ${jsonEncode(providerData)}");
+      debugPrint("🌐 Making HTTP request to: http://localhost:8081/api/person");
+      debugPrint("📦 Request headers: Content-Type: application/json");
+      debugPrint("📦 Request body: ${jsonEncode(providerData)}");
       
       final response = await http.post(
         Uri.parse("http://localhost:8081/api/person"),
@@ -78,10 +84,10 @@ class _EVProviderScreenState extends State<EVProviderScreen> {
         body: jsonEncode(providerData),
       );
 
-      print("📡 Response received:");
-      print("  - Status Code: ${response.statusCode}");
-      print("  - Headers: ${response.headers}");
-      print("  - Body: ${response.body}");
+      debugPrint("📡 Response received:");
+      debugPrint("  - Status Code: ${response.statusCode}");
+      debugPrint("  - Headers: ${response.headers}");
+      debugPrint("  - Body: ${response.body}");
 
       // Show response
       ScaffoldMessenger.of(context).showSnackBar(
@@ -93,7 +99,7 @@ class _EVProviderScreenState extends State<EVProviderScreen> {
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        print("✅ SUCCESS! Data stored in database!");
+        debugPrint("✅ SUCCESS! Data stored in database!");
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text("✅ SUCCESS! Data stored in database!"),
@@ -109,8 +115,8 @@ class _EVProviderScreenState extends State<EVProviderScreen> {
           agreeToTerms = false;
         });
       } else {
-        print("❌ Request failed with status: ${response.statusCode}");
-        print("❌ Error response: ${response.body}");
+        debugPrint("❌ Request failed with status: ${response.statusCode}");
+        debugPrint("❌ Error response: ${response.body}");
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text("❌ Failed: ${response.body}"),
@@ -119,12 +125,12 @@ class _EVProviderScreenState extends State<EVProviderScreen> {
         );
       }
     } catch (e) {
-      print("💥 Exception occurred: $e");
-      print("💥 Exception type: ${e.runtimeType}");
+      debugPrint("💥 Exception occurred: $e");
+      debugPrint("💥 Exception type: ${e.runtimeType}");
       if (e.toString().contains('Connection refused')) {
-        print("🔌 Connection refused - Backend might not be running on port 8081");
+        debugPrint("🔌 Connection refused - Backend might not be running on port 8081");
       } else if (e.toString().contains('SocketException')) {
-        print("🌐 Network error - Check if backend is accessible");
+        debugPrint("🌐 Network error - Check if backend is accessible");
       }
       
       ScaffoldMessenger.of(context).showSnackBar(
