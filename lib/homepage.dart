@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'car_service_page.dart';
 import 'bike_service_page.dart';
 import 'minor_repair_page.dart';
@@ -9,7 +10,6 @@ import 'battery_jump_page.dart';
 import 'ev_charging_page.dart';
 import 'fuel_refill_page.dart';
 import 'tyre_care_page.dart';
-import 'test_connection_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -616,6 +616,50 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   void _showFindMechanicDialog() {
+    // Mock data for nearby mechanics
+    final List<Map<String, dynamic>> mechanics = [
+      {
+        'name': 'City Auto Care',
+        'distance': '0.8 km',
+        'rating': 4.8,
+        'specialty': 'General Repair',
+        'lat': 12.9141,
+        'lng': 74.8560,
+      },
+      {
+        'name': 'Quick Fix Garage',
+        'distance': '1.2 km',
+        'rating': 4.6,
+        'specialty': 'Engine Specialist',
+        'lat': 12.9156,
+        'lng': 74.8572,
+      },
+      {
+        'name': 'Expert Motors',
+        'distance': '1.5 km',
+        'rating': 4.9,
+        'specialty': 'All Services',
+        'lat': 12.9120,
+        'lng': 74.8545,
+      },
+      {
+        'name': 'AutoCare Plus',
+        'distance': '2.1 km',
+        'rating': 4.5,
+        'specialty': 'Electrical Works',
+        'lat': 12.9180,
+        'lng': 74.8590,
+      },
+      {
+        'name': 'Pro Mechanic Services',
+        'distance': '2.3 km',
+        'rating': 4.7,
+        'specialty': 'Body Works',
+        'lat': 12.9100,
+        'lng': 74.8520,
+      },
+    ];
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -628,18 +672,18 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFF6B35).withOpacity(0.1),
+                  color: const Color(0xFF6366F1).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
-                  Icons.build_circle,
-                  color: Color(0xFFFF6B35),
+                  Icons.location_on,
+                  color: Color(0xFF6366F1),
                   size: 20,
                 ),
               ),
               const SizedBox(width: 12),
               Text(
-                'Find Nearest Mechanic',
+                'Nearest Mechanics',
                 style: GoogleFonts.outfit(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -648,55 +692,30 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               ),
             ],
           ),
-          content: Container(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'What type of service do you need?',
-                  style: GoogleFonts.outfit(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                _buildMechanicServiceOption(
-                  'Emergency Repair',
-                  'Urgent roadside assistance',
-                  Icons.emergency,
-                  const Color(0xFFFF6B35),
-                ),
-                const SizedBox(height: 12),
-                _buildMechanicServiceOption(
-                  'General Maintenance',
-                  'Regular service and checkup',
-                  Icons.build,
-                  const Color(0xFF4ECDC4),
-                ),
-                const SizedBox(height: 12),
-                _buildMechanicServiceOption(
-                  'Diagnostic Check',
-                  'Find out what\'s wrong',
-                  Icons.search,
-                  const Color(0xFF45B7D1),
-                ),
-                const SizedBox(height: 12),
-                _buildMechanicServiceOption(
-                  'Custom Service',
-                  'Describe your specific need',
-                  Icons.edit,
-                  const Color(0xFF9B59B6),
-                ),
-              ],
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.separated(
+              shrinkWrap: true,
+              itemCount: mechanics.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                final mechanic = mechanics[index];
+                return _buildMechanicCard(
+                  mechanic['name'],
+                  mechanic['distance'],
+                  mechanic['rating'],
+                  mechanic['specialty'],
+                  mechanic['lat'],
+                  mechanic['lng'],
+                );
+              },
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
               child: Text(
-                'Cancel',
+                'Close',
                 style: GoogleFonts.outfit(
                   color: Colors.grey[600],
                   fontWeight: FontWeight.w600,
@@ -709,64 +728,144 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildMechanicServiceOption(String title, String subtitle, IconData icon, Color color) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: color.withOpacity(0.3),
-          width: 1,
+  Widget _buildMechanicCard(String name, String distance, double rating, 
+      String specialty, double lat, double lng) {
+    return InkWell(
+      onTap: () {
+        _openMapWithDirections(lat, lng, name);
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: const Color(0xFF6366F1).withOpacity(0.05),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: const Color(0xFF6366F1).withOpacity(0.2),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF6366F1).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.build_circle,
+                color: Color(0xFF6366F1),
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: GoogleFonts.outfit(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.star,
+                        size: 14,
+                        color: Colors.amber[700],
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        rating.toString(),
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Icon(
+                        Icons.location_on,
+                        size: 14,
+                        color: Colors.grey[600],
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        distance,
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    specialty,
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      color: const Color(0xFF6366F1),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF6366F1).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.directions,
+                color: Color(0xFF6366F1),
+                size: 20,
+              ),
+            ),
+          ],
         ),
       ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              icon,
-              color: color,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: GoogleFonts.outfit(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Icon(
-            Icons.arrow_forward_ios,
-            color: color,
-            size: 16,
-          ),
-        ],
-      ),
     );
+  }
+
+  Future<void> _openMapWithDirections(double destLat, double destLng, String name) async {
+    // Using Google Maps URL scheme to open with directions
+    // This will work on both Android and iOS
+    final String googleMapsUrl = 
+        'https://www.google.com/maps/dir/?api=1&destination=$destLat,$destLng&travelmode=driving';
+    
+    final Uri url = Uri.parse(googleMapsUrl);
+    
+    try {
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Could not open maps', style: GoogleFonts.inter()),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error opening maps: $e', style: GoogleFonts.inter()),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
 
@@ -1115,89 +1214,85 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ),
                 ),
 
-                // Find Nearest Mechanic - HIGHLIGHTED FEATURE
+                // Find Nearest Mechanic - Compact Feature
                 Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                  child: AnimatedBuilder(
-                    animation: _pulseAnimation,
-                    builder: (context, child) {
-                      return Transform.scale(
-                        scale: _pulseAnimation.value,
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(24),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFFFF6B35), Color(0xFFFF8E53)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFFFF6B35).withOpacity(0.4),
-                                blurRadius: 25,
-                                offset: const Offset(0, 10),
-                                spreadRadius: 2,
-                              ),
-                            ],
-                            border: Border.all(
-                              color: Colors.white.withOpacity(0.3),
-                              width: 2,
-                            ),
+                  margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  child: Material(
+                    elevation: 4,
+                    borderRadius: BorderRadius.circular(16),
+                    child: InkWell(
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        _showFindMechanicDialog();
+                      },
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF6366F1), Color(0xFF8B7ED8)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
                           ),
-                          child: Column(
-                            children: [
-                              Text(
-                                'Find Nearest Mechanic',
-                                style: GoogleFonts.outfit(
-                                  color: Colors.white,
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF6366F1).withOpacity(0.3),
+                              blurRadius: 15,
+                              offset: const Offset(0, 5),
+                              spreadRadius: 1,
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(12),
                               ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Get instant help from certified mechanics nearby',
-                                style: GoogleFonts.inter(
-                                  color: Colors.white.withOpacity(0.9),
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                                textAlign: TextAlign.center,
+                              child: const Icon(
+                                Icons.location_searching,
+                                color: Colors.white,
+                                size: 24,
                               ),
-                              const SizedBox(height: 20),
-                              SizedBox(
-                                width: double.infinity,
-                                child: ElevatedButton(
-                                  onPressed: () {
-                                    HapticFeedback.heavyImpact();
-                                    _showFindMechanicDialog();
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.white,
-                                    foregroundColor: const Color(0xFFFF6B35),
-                                    padding: const EdgeInsets.symmetric(vertical: 18),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(15),
-                                    ),
-                                    elevation: 8,
-                                    shadowColor: Colors.black.withOpacity(0.2),
-                                  ),
-                                  child: Text(
-                                    'Find Mechanic Now',
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Find Nearest Mechanic',
                                     style: GoogleFonts.outfit(
+                                      color: Colors.white,
                                       fontSize: 18,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
-                                ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Tap to see mechanics near you',
+                                    style: GoogleFonts.inter(
+                                      color: Colors.white.withOpacity(0.9),
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w400,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
+                            ),
+                            const Icon(
+                              Icons.arrow_forward_ios,
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                          ],
                         ),
-                      );
-                    },
+                      ),
+                    ),
                   ),
                 ),
 
@@ -1458,42 +1553,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           ],
                         ),
                       ),
-                      // Test Connection Button
-                      Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                        child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const TestConnectionPage(),
-                              ),
-                            );
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF10B981),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.wifi, size: 20),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Test Network Connection',
-                                style: GoogleFonts.outfit(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
                     ],
                   ),
                 ),
@@ -1610,25 +1669,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         },
                       ),
                     ],
-                  ),
-                ),
-
-                // Debug button for backend testing
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.pushNamed(context, '/backend-test');
-                    },
-                    icon: const Icon(Icons.bug_report, color: Colors.white),
-                    label: const Text('Debug Backend', style: TextStyle(color: Colors.white)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange,
-                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(25),
-                      ),
-                    ),
                   ),
                 ),
 
