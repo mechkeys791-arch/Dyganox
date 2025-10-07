@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'car_service_page.dart';
 import 'bike_service_page.dart';
 import 'minor_repair_page.dart';
@@ -10,6 +9,7 @@ import 'battery_jump_page.dart';
 import 'ev_charging_page.dart';
 import 'fuel_refill_page.dart';
 import 'tyre_care_page.dart';
+import 'mechanic_finder_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -616,256 +616,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   void _showFindMechanicDialog() {
-    // Mock data for nearby mechanics
-    final List<Map<String, dynamic>> mechanics = [
-      {
-        'name': 'City Auto Care',
-        'distance': '0.8 km',
-        'rating': 4.8,
-        'specialty': 'General Repair',
-        'lat': 12.9141,
-        'lng': 74.8560,
-      },
-      {
-        'name': 'Quick Fix Garage',
-        'distance': '1.2 km',
-        'rating': 4.6,
-        'specialty': 'Engine Specialist',
-        'lat': 12.9156,
-        'lng': 74.8572,
-      },
-      {
-        'name': 'Expert Motors',
-        'distance': '1.5 km',
-        'rating': 4.9,
-        'specialty': 'All Services',
-        'lat': 12.9120,
-        'lng': 74.8545,
-      },
-      {
-        'name': 'AutoCare Plus',
-        'distance': '2.1 km',
-        'rating': 4.5,
-        'specialty': 'Electrical Works',
-        'lat': 12.9180,
-        'lng': 74.8590,
-      },
-      {
-        'name': 'Pro Mechanic Services',
-        'distance': '2.3 km',
-        'rating': 4.7,
-        'specialty': 'Body Works',
-        'lat': 12.9100,
-        'lng': 74.8520,
-      },
-    ];
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF6366F1).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.location_on,
-                  color: Color(0xFF6366F1),
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'Nearest Mechanics',
-                style: GoogleFonts.outfit(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-            ],
-          ),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: ListView.separated(
-              shrinkWrap: true,
-              itemCount: mechanics.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                final mechanic = mechanics[index];
-                return _buildMechanicCard(
-                  mechanic['name'],
-                  mechanic['distance'],
-                  mechanic['rating'],
-                  mechanic['specialty'],
-                  mechanic['lat'],
-                  mechanic['lng'],
-                );
-              },
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(
-                'Close',
-                style: GoogleFonts.outfit(
-                  color: Colors.grey[600],
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildMechanicCard(String name, String distance, double rating, 
-      String specialty, double lat, double lng) {
-    return InkWell(
-      onTap: () {
-        _openMapWithDirections(lat, lng, name);
-      },
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: const Color(0xFF6366F1).withOpacity(0.05),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: const Color(0xFF6366F1).withOpacity(0.2),
-            width: 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: const Color(0xFF6366F1).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(
-                Icons.build_circle,
-                color: Color(0xFF6366F1),
-                size: 24,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name,
-                    style: GoogleFonts.outfit(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.star,
-                        size: 14,
-                        color: Colors.amber[700],
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        rating.toString(),
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.grey[700],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Icon(
-                        Icons.location_on,
-                        size: 14,
-                        color: Colors.grey[600],
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        distance,
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    specialty,
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      color: const Color(0xFF6366F1),
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF6366F1).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(
-                Icons.directions,
-                color: Color(0xFF6366F1),
-                size: 20,
-              ),
-            ),
-          ],
-        ),
+    // Navigate to mechanic finder page with map
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const MechanicFinderPage(),
       ),
     );
-  }
-
-  Future<void> _openMapWithDirections(double destLat, double destLng, String name) async {
-    // Using Google Maps URL scheme to open with directions
-    // This will work on both Android and iOS
-    final String googleMapsUrl = 
-        'https://www.google.com/maps/dir/?api=1&destination=$destLat,$destLng&travelmode=driving';
-    
-    final Uri url = Uri.parse(googleMapsUrl);
-    
-    try {
-      if (await canLaunchUrl(url)) {
-        await launchUrl(url, mode: LaunchMode.externalApplication);
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Could not open maps', style: GoogleFonts.inter()),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error opening maps: $e', style: GoogleFonts.inter()),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
   }
 
 
