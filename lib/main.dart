@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'login_page.dart';
+import 'splash_screen.dart';
 import 'homepage.dart';
 import 'profile_page.dart';
 import 'backend_test_page.dart';
@@ -86,9 +86,8 @@ class ServiceProviderApp extends StatelessWidget {
           contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
         ),
       ),
-      home: const LoginPage(),
+      home: const SplashScreen(),
       routes: {
-        '/login': (context) => const LoginPage(),
         '/home': (context) => const HomePage(),
         '/profile': (context) => const ProfilePage(),
         '/backend-test': (context) => const BackendTestPage(),

@@ -26,6 +26,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   
   final TextEditingController _searchController = TextEditingController();
   bool _isSearchActive = false;
+  late PageController _adPageController;
+  int _currentAdIndex = 0;
   
   
   // Responsive design variables
@@ -46,6 +48,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       vsync: this,
     );
 
+    _adPageController = PageController(initialPage: 0);
+
     _fadeAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
@@ -64,6 +68,25 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
     _fadeController.forward();
     _pulseController.repeat(reverse: true);
+    
+    // Auto-scroll ads
+    _startAdAutoScroll();
+  }
+  
+  void _startAdAutoScroll() {
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) {
+        setState(() {
+          _currentAdIndex = (_currentAdIndex + 1) % 3; // 3 ads
+        });
+        _adPageController.animateToPage(
+          _currentAdIndex,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOut,
+        );
+        _startAdAutoScroll();
+      }
+    });
   }
   
   @override
@@ -78,6 +101,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     _fadeController.dispose();
     _pulseController.dispose();
     _searchController.dispose();
+    _adPageController.dispose();
     super.dispose();
   }
 
@@ -824,45 +848,45 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Small Header Section
+                // Compact Profile Header
                 Container(
                   margin: EdgeInsets.symmetric(
                     horizontal: screenWidth * 0.05, 
-                    vertical: screenHeight * 0.01
+                    vertical: screenHeight * 0.005
                   ),
                   padding: EdgeInsets.symmetric(
-                    horizontal: screenWidth * 0.04,
-                    vertical: screenHeight * 0.015
+                    horizontal: screenWidth * 0.03,
+                    vertical: screenHeight * 0.008
                   ),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                      colors: [Color(0xFF706DC7), Color(0xFF8B7ED8), Color(0xFF706DC7)],
+                      colors: [Color(0xFF10B981), Color(0xFF059669), Color(0xFF10B981)],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       stops: [0.0, 0.5, 1.0],
                     ),
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF706DC7).withOpacity(0.25),
-                        blurRadius: 15,
-                        offset: const Offset(0, 5),
-                        spreadRadius: 1,
+                        color: const Color(0xFF10B981).withOpacity(0.2),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                        spreadRadius: 0,
                       ),
                     ],
                   ),
                   child: Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(6),
+                        padding: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(6),
                         ),
                         child: const Icon(
                           Icons.location_on,
                           color: Colors.white,
-                          size: 16,
+                          size: 14,
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -871,17 +895,22 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           'Mangalore, Karnataka',
                           style: GoogleFonts.inter(
                             color: Colors.white.withValues(alpha: 0.9),
-                            fontSize: 13,
+                            fontSize: 12,
                             fontWeight: FontWeight.w400,
                           ),
                         ),
                       ),
-                      Text(
-                        'Service Provider',
-                        style: GoogleFonts.outfit(
+                      // Profile Logo
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.person,
                           color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                          size: 18,
                         ),
                       ),
                     ],
@@ -890,10 +919,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
                 // Search Bar
                 Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+                  margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 300),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(_isSearchActive ? 16 : 25),
@@ -947,10 +976,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                               hintText: 'Search for services...',
                               hintStyle: GoogleFonts.inter(
                                 color: const Color(0xFFB4BDC4),
-                                fontSize: 14,
+                                fontSize: 12,
                               ),
                               border: InputBorder.none,
-                              contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                              contentPadding: const EdgeInsets.symmetric(vertical: 4),
                             ),
                           ),
                         ),
@@ -971,9 +1000,48 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ),
                 ),
 
+                // Sliding Advertisement Section
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  height: 140,
+                  child: PageView.builder(
+                    controller: _adPageController,
+                    onPageChanged: (index) {
+                      setState(() {
+                        _currentAdIndex = index;
+                      });
+                    },
+                    itemCount: 3,
+                    itemBuilder: (context, index) {
+                      return _buildAdCard(index);
+                    },
+                  ),
+                ),
+                
+                // Page Indicators
+                Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(3, (index) {
+                      return Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        width: _currentAdIndex == index ? 20 : 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: _currentAdIndex == index 
+                              ? const Color(0xFF6366F1) 
+                              : Colors.grey[300],
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      );
+                    }),
+                  ),
+                ),
+
                 // Find Nearest Mechanic - Compact Feature
                 Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
                   child: Material(
                     elevation: 4,
                     borderRadius: BorderRadius.circular(16),
@@ -1574,6 +1642,121 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAdCard(int index) {
+    final ads = [
+      {
+        'title': 'Emergency Roadside Assistance',
+        'subtitle': '24/7 Support Available',
+        'icon': Icons.emergency,
+        'color': const Color(0xFFEF4444),
+        'gradient': [const Color(0xFFEF4444), const Color(0xFFDC2626)],
+      },
+      {
+        'title': 'Premium Car Service',
+        'subtitle': 'Expert Mechanics at Your Doorstep',
+        'icon': Icons.build_circle,
+        'color': const Color(0xFF10B981),
+        'gradient': [const Color(0xFF10B981), const Color(0xFF059669)],
+      },
+      {
+        'title': 'EV Charging Network',
+        'subtitle': 'Find Nearest Charging Stations',
+        'icon': Icons.electric_car,
+        'color': const Color(0xFF8B5CF6),
+        'gradient': [const Color(0xFF8B5CF6), const Color(0xFF7C3AED)],
+      },
+    ];
+
+    final ad = ads[index];
+    
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: ad['gradient'] as List<Color>,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: (ad['color'] as Color).withOpacity(0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+            spreadRadius: 0,
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            // Handle ad tap
+          },
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    ad['icon'] as IconData,
+                    color: Colors.white,
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        ad['title'] as String,
+                        style: GoogleFonts.outfit(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        ad['subtitle'] as String,
+                        style: GoogleFonts.inter(
+                          color: Colors.white.withOpacity(0.9),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.arrow_forward_ios,
+                    color: Colors.white,
+                    size: 16,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
