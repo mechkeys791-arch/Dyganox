@@ -4,6 +4,7 @@ import 'splash_screen.dart';
 import 'homepage.dart';
 import 'profile_page.dart';
 import 'backend_test_page.dart';
+import 'test_ev_api_page.dart';
 
 void main() {
   runApp(const ServiceProviderApp());
@@ -91,6 +92,7 @@ class ServiceProviderApp extends StatelessWidget {
         '/home': (context) => const HomePage(),
         '/profile': (context) => const ProfilePage(),
         '/backend-test': (context) => const BackendTestPage(),
+        '/test-ev-api': (context) => const TestEVAPIPage(),
       },
     );
   }

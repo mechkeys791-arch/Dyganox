@@ -664,13 +664,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           offset: Offset(0, (1 - _fadeAnimation.value) * 30),
           child: Opacity(
             opacity: _fadeAnimation.value,
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              child: Material(
-                elevation: 8,
-                borderRadius: BorderRadius.circular(16),
-                color: Colors.white,
-                shadowColor: Colors.grey.withValues(alpha: 0.3),
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                child: Material(
+                  elevation: 8,
+                  borderRadius: BorderRadius.circular(16),
+                  color: Colors.white,
+                  shadowColor: Colors.grey.withValues(alpha: 0.3),
                 child: InkWell(
                   onTap: () {
                     HapticFeedback.lightImpact();
@@ -678,7 +678,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   },
                   borderRadius: BorderRadius.circular(16),
                   child: Container(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(16),
                       gradient: LinearGradient(
@@ -851,12 +851,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 // Compact Profile Header
                 Container(
                   margin: EdgeInsets.symmetric(
-                    horizontal: screenWidth * 0.05, 
-                    vertical: screenHeight * 0.005
+                    horizontal: screenWidth * 0.03, 
+                    vertical: screenHeight * 0.003
                   ),
                   padding: EdgeInsets.symmetric(
                     horizontal: screenWidth * 0.03,
-                    vertical: screenHeight * 0.008
+                    vertical: screenHeight * 0.006
                   ),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
@@ -919,7 +919,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
                 // Search Bar
                 Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
+                  margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 300),
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
@@ -1002,8 +1002,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
                 // Sliding Advertisement Section
                 Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                  height: 140,
+                  margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  height: 130,
                   child: PageView.builder(
                     controller: _adPageController,
                     onPageChanged: (index) {
@@ -1020,7 +1020,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 
                 // Page Indicators
                 Container(
-                  margin: const EdgeInsets.only(bottom: 8),
+                  margin: const EdgeInsets.only(bottom: 4),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: List.generate(3, (index) {
@@ -1041,7 +1041,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
                 // Find Nearest Mechanic - Compact Feature
                 Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                  margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                   child: Material(
                     elevation: 4,
                     borderRadius: BorderRadius.circular(16),
@@ -1053,7 +1053,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       borderRadius: BorderRadius.circular(16),
                       child: Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
                             colors: [Color(0xFF6366F1), Color(0xFF8B7ED8)],
@@ -1125,8 +1125,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 // Quick Services
                 Container(
                   margin: EdgeInsets.symmetric(
-                    horizontal: screenWidth * 0.05, 
-                    vertical: screenHeight * 0.02
+                    horizontal: screenWidth * 0.03, 
+                    vertical: screenHeight * 0.01
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1159,12 +1159,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           ),
                         ],
                       ),
-                      SizedBox(height: screenHeight * 0.02),
+                      SizedBox(height: screenHeight * 0.01),
                       Container(
-                        padding: const EdgeInsets.all(20),
+                        padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.circular(16),
                           boxShadow: [
                             BoxShadow(
                               color: Colors.black.withOpacity(0.05),
@@ -1175,8 +1175,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         ),
                         child: GridView.count(
                           crossAxisCount: 4,
-                          crossAxisSpacing: screenWidth * 0.02,
-                          mainAxisSpacing: screenHeight * 0.01,
+                          crossAxisSpacing: screenWidth * 0.015,
+                          mainAxisSpacing: screenHeight * 0.008,
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
                           childAspectRatio: 0.8,
@@ -1383,7 +1383,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 ),
                 // Main Services
                 Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                  margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -1428,7 +1428,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 8),
                       
                       _buildServiceCard(
                         title: 'Car Services',
@@ -1497,7 +1497,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ),
                 ),
 
-                const SizedBox(height: 80), // Space for navigation
+                const SizedBox(height: 20), // Space for navigation
               ],
             ),
           ),
@@ -1506,16 +1506,16 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
       // Modern Bottom Navigation
       bottomNavigationBar: Container(
-        margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        margin: EdgeInsets.zero,
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(25),
+          borderRadius: BorderRadius.zero,
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 30,
-              offset: const Offset(0, 15),
+              offset: const Offset(0, -5),
             ),
           ],
         ),

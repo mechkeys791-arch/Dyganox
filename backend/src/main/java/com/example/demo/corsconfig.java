@@ -13,7 +13,7 @@ public class corsconfig {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/**")
-                        .allowedOrigins("*") // allow any origin for now
+                        .allowedOrigins("http://localhost:8081/api/evprovider")
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                         .allowedHeaders("*")
                         .allowCredentials(false);

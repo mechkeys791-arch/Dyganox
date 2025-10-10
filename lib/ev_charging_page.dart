@@ -4,6 +4,8 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class EVChargingPage extends StatelessWidget {
   const EVChargingPage({super.key});
@@ -117,21 +119,55 @@ class _EVProviderScreenState extends State<EVProviderScreen> {
   }
 
   Future<void> _submitForm() async {
+    final providerData = {
+      'name': _nameController.text,
+      'phone': _phoneController.text,
+      'address': _addressController.text,
+      'chargerType': selectedChargerType,
+      'rate': _rateController.text,
+      'availableHours': selectedAvailableHours,
+    };
+
+    print("EV Provider Form: Submitting data...");
+
     try {
-      // Note: http dependency needed for this to work
-      // Add to pubspec.yaml: http: ^1.1.0
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Application submitted successfully!")),
+      final response = await http.post(
+        Uri.parse("http://localhost:8081/api/evprovider"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode(providerData),
       );
-      _formKey.currentState?.reset();
-      setState(() {
-        selectedChargerType = null;
-        selectedAvailableHours = null;
-        agreeToTerms = false;
-      });
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        print("EV Provider Form: Success - Data stored in database");
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Application submitted successfully!"),
+            backgroundColor: Colors.green,
+          ),
+        );
+        
+        _formKey.currentState?.reset();
+        setState(() {
+          selectedChargerType = null;
+          selectedAvailableHours = null;
+          agreeToTerms = false;
+        });
+      } else {
+        print("EV Provider Form: Error - HTTP ${response.statusCode}: ${response.body}");
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Failed to submit: ${response.body}"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } catch (e) {
+      print("EV Provider Form: Exception - $e");
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e")),
+        SnackBar(
+          content: Text("Error: $e"),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -429,9 +465,17 @@ class _EVProviderScreenState extends State<EVProviderScreen> {
           if (_formKey.currentState!.validate() && agreeToTerms) {
             _submitForm();
           } else if (!agreeToTerms) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+            ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Please agree to terms and conditions'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Please fill all required fields'),
+                backgroundColor: Colors.red,
               ),
             );
           }
