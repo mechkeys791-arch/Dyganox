@@ -31,6 +31,8 @@ public class EVProviderController {
         System.out.println("📥 Charger Type: " + evProvider.getChargerType());
         System.out.println("📥 Rate: " + evProvider.getRate());
         System.out.println("📥 Available Hours: " + evProvider.getAvailableHours());
+        System.out.println("📥 Latitude: " + evProvider.getLatitude());
+        System.out.println("📥 Longitude: " + evProvider.getLongitude());
         
         try {
             EVProvider savedProvider = evProviderRepo.save(evProvider);

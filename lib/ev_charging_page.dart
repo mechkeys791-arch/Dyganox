@@ -106,15 +106,17 @@ class _EVProviderScreenState extends State<EVProviderScreen> {
 
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
-  final TextEditingController _addressController = TextEditingController();
   final TextEditingController _rateController = TextEditingController();
+  final TextEditingController _latitudeController = TextEditingController();
+  final TextEditingController _longitudeController = TextEditingController();
 
   @override
   void dispose() {
     _nameController.dispose();
     _phoneController.dispose();
-    _addressController.dispose();
     _rateController.dispose();
+    _latitudeController.dispose();
+    _longitudeController.dispose();
     super.dispose();
   }
 
@@ -122,10 +124,12 @@ class _EVProviderScreenState extends State<EVProviderScreen> {
     final providerData = {
       'name': _nameController.text,
       'phone': _phoneController.text,
-      'address': _addressController.text,
+      'address': 'Location: ${_latitudeController.text}, ${_longitudeController.text}',
       'chargerType': selectedChargerType,
       'rate': _rateController.text,
       'availableHours': selectedAvailableHours,
+      'latitude': _latitudeController.text,
+      'longitude': _longitudeController.text,
     };
 
     print("EV Provider Form: Submitting data...");
@@ -152,6 +156,8 @@ class _EVProviderScreenState extends State<EVProviderScreen> {
           selectedAvailableHours = null;
           agreeToTerms = false;
         });
+        _latitudeController.clear();
+        _longitudeController.clear();
       } else {
         print("EV Provider Form: Error - HTTP ${response.statusCode}: ${response.body}");
         ScaffoldMessenger.of(context).showSnackBar(
@@ -212,18 +218,6 @@ class _EVProviderScreenState extends State<EVProviderScreen> {
                 },
               ),
               const SizedBox(height: 16),
-              _buildFormField(
-                'Complete Address',
-                controller: _addressController,
-                maxLines: 3,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter address';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
               _buildDropdownField(
                 'Charger Type',
                 ['Type 1', 'Type 2', 'CCS', 'CHAdeMO', 'Tesla'],
@@ -249,6 +243,44 @@ class _EVProviderScreenState extends State<EVProviderScreen> {
                   }
                   return null;
                 },
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildFormField(
+                      'Latitude',
+                      controller: _latitudeController,
+                      keyboardType: TextInputType.numberWithOptions(decimal: true),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Enter latitude';
+                        }
+                        if (double.tryParse(value) == null) {
+                          return 'Enter valid number';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _buildFormField(
+                      'Longitude',
+                      controller: _longitudeController,
+                      keyboardType: TextInputType.numberWithOptions(decimal: true),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Enter longitude';
+                        }
+                        if (double.tryParse(value) == null) {
+                          return 'Enter valid number';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
               _buildDropdownField(
@@ -518,53 +550,103 @@ class _EVChargingScreenState extends State<EVChargingScreen> {
   bool _showMap = false;
   String _locationMessage = '';
   PolylinePoints polylinePoints = PolylinePoints();
+  bool _isLoading = false;
 
-  final List<Map<String, dynamic>> _allStations = [
-    {
-      "name": "Ravi's home charging",
-      "rating": 4.5,
-      "distance": 0.4,
-      "availableTime": "Available 24/7",
-      "capacity": "7KW",
-      "price": "₹8/KWh",
-      "latitude": 12.9716,
-      "longitude": 77.5946,
-    },
-    {
-      "name": "Green Society Hub",
-      "rating": 4.2,
-      "distance": 0.8,
-      "availableTime": "6AM - 11PM",
-      "capacity": "10KW",
-      "price": "₹10/KWh",
-      "latitude": 12.9756,
-      "longitude": 77.5956,
-    },
-    {
-      "name": "Express Charging Point",
-      "rating": 4.7,
-      "distance": 1.2,
-      "availableTime": "7AM - 10PM",
-      "capacity": "50KW",
-      "price": "₹15/KWh",
-      "latitude": 12.9686,
-      "longitude": 77.5936,
-    },
-  ];
+  List<Map<String, dynamic>> _allStations = [];
 
   @override
   void initState() {
     super.initState();
-    _chargingStations = _allStations;
+    _fetchChargingStations();
+  }
+
+  Future<void> _fetchChargingStations() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      print("EV Charging: Fetching charging stations from database...");
+      final response = await http.get(
+        Uri.parse("http://localhost:8081/api/evprovider"),
+        headers: {"Content-Type": "application/json"},
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        _allStations = data.map((station) {
+          double lat = double.tryParse(station['latitude']?.toString() ?? '0') ?? 0.0;
+          double lng = double.tryParse(station['longitude']?.toString() ?? '0') ?? 0.0;
+          
+          // If lat/long are 0, try to extract from address field
+          if (lat == 0.0 && lng == 0.0) {
+            String address = station['address'] ?? "";
+            if (address.contains("Location:")) {
+              // Extract coordinates from "Location: lat, lng" format
+              RegExp coordRegex = RegExp(r'Location:\s*([+-]?\d*\.?\d+),\s*([+-]?\d*\.?\d+)');
+              Match? match = coordRegex.firstMatch(address);
+              if (match != null) {
+                lat = double.tryParse(match.group(1) ?? '0') ?? 0.0;
+                lng = double.tryParse(match.group(2) ?? '0') ?? 0.0;
+              }
+            }
+          }
+          
+          print("EV Charging: Station '${station['name']}' - Raw Lat: ${station['latitude']}, Raw Lng: ${station['longitude']}");
+          print("EV Charging: Final - Lat: $lat, Lng: $lng");
+          
+          return {
+            "id": station['id'],
+            "name": station['name'],
+            "rating": 4.5, // Default rating since we don't have it in the database yet
+            "distance": 0.0, // Will be calculated based on user location
+            "availableTime": station['availableHours'] ?? "Not specified",
+            "capacity": station['chargerType'] ?? "Unknown",
+            "price": "₹${station['rate']}/KWh",
+            "latitude": lat,
+            "longitude": lng,
+            "phone": station['phone'] ?? "",
+            "address": station['address'] ?? "",
+          };
+        }).toList();
+
+        setState(() {
+          _chargingStations = _allStations;
+        });
+
+        print("EV Charging: Successfully loaded ${_allStations.length} charging stations");
+      } else {
+        print("EV Charging: Error fetching stations - HTTP ${response.statusCode}");
+        _showErrorSnackBar("Failed to load charging stations");
+      }
+    } catch (e) {
+      print("EV Charging: Exception fetching stations - $e");
+      _showErrorSnackBar("Error loading charging stations: $e");
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+      ),
+    );
   }
 
 
   void _getCurrentLocation() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      setState(() {
-        _locationMessage = 'Location services are disabled.';
-      });
+      if (mounted) {
+        setState(() {
+          _locationMessage = 'Location services are disabled.';
+        });
+      }
       return;
     }
 
@@ -572,31 +654,39 @@ class _EVChargingScreenState extends State<EVChargingScreen> {
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
-        setState(() {
-          _locationMessage = 'Location permissions are denied';
-        });
+        if (mounted) {
+          setState(() {
+            _locationMessage = 'Location permissions are denied';
+          });
+        }
         return;
       }
     }
 
     if (permission == LocationPermission.deniedForever) {
-      setState(() {
-        _locationMessage = 'Location permissions are permanently denied';
-      });
+      if (mounted) {
+        setState(() {
+          _locationMessage = 'Location permissions are permanently denied';
+        });
+      }
       return;
     }
 
     try {
       Position position = await Geolocator.getCurrentPosition();
-      setState(() {
-        _currentPosition = position;
-        _locationMessage = 'Location fetched successfully!';
-        _updateDistances(position.latitude, position.longitude);
-      });
+      if (mounted) {
+        setState(() {
+          _currentPosition = position;
+          _locationMessage = 'Location fetched successfully!';
+          _updateDistances(position.latitude, position.longitude);
+        });
+      }
     } catch (e) {
-      setState(() {
-        _locationMessage = 'Error getting location: $e';
-      });
+      if (mounted) {
+        setState(() {
+          _locationMessage = 'Error getting location: $e';
+        });
+      }
     }
   }
 
@@ -613,14 +703,53 @@ class _EVChargingScreenState extends State<EVChargingScreen> {
   }
 
   void _showDirections(LatLng destination) async {
-    if (_currentPosition == null) {
+    // Check if destination coordinates are valid (not 0,0)
+    if (destination.latitude == 0.0 && destination.longitude == 0.0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not determine current location')));
+        const SnackBar(
+          content: Text('Invalid location coordinates. Please contact the provider.'),
+          backgroundColor: Colors.red,
+        ));
       return;
     }
 
-    // Directly show in-app map
-    _showInAppMap(destination);
+    // Try to get current location, but don't block if it fails
+    if (_currentPosition == null) {
+      print("EV Charging: Getting current location for directions...");
+      _getCurrentLocation();
+    }
+
+    if (_currentPosition == null) {
+      // Show map centered on destination without current location
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Location permission denied. Showing charging station location only.'),
+          backgroundColor: Colors.orange,
+        ));
+      
+      // Show map with just the destination marker
+      _showDestinationOnlyMap(destination);
+    } else {
+      // Show full map with current location and destination
+      _showInAppMap(destination);
+    }
+  }
+
+  void _showDestinationOnlyMap(LatLng destination) {
+    setState(() {
+      _showMap = true;
+      _center = destination;
+      _markers.clear();
+      _polylines.clear();
+      
+      // Add only destination marker
+      _markers.add(Marker(
+        markerId: const MarkerId('destination'),
+        position: destination,
+        infoWindow: const InfoWindow(title: 'Charging Station'),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+      ));
+    });
   }
 
   void _showInAppMap(LatLng destination) async {
@@ -792,6 +921,12 @@ class _EVChargingScreenState extends State<EVChargingScreen> {
           style: GoogleFonts.outfit(),
         ),
         backgroundColor: const Color(0xFF706DC7),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _fetchChargingStations,
+          ),
+        ],
       ),
       body: _showMap ? _buildMapView() : _buildListView(),
     );
@@ -924,12 +1059,52 @@ class _EVChargingScreenState extends State<EVChargingScreen> {
                               ],
                             ),
           const SizedBox(height: 20),
-          ..._chargingStations.map((station) => Column(
-                              children: [
-              _buildStationCard(station),
-              const SizedBox(height: 15),
-            ],
-          )).toList(),
+          if (_isLoading)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(20.0),
+                child: CircularProgressIndicator(),
+              ),
+            )
+          else if (_chargingStations.isEmpty)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  children: [
+                    const Icon(
+                      Icons.electric_car_outlined,
+                      size: 64,
+                      color: Colors.grey,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No charging stations found',
+                      style: GoogleFonts.outfit(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Be the first to add a charging station!',
+                      style: GoogleFonts.outfit(
+                        fontSize: 14,
+                        color: Colors.grey[500],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            ..._chargingStations.map((station) => Column(
+                                children: [
+                _buildStationCard(station),
+                const SizedBox(height: 15),
+              ],
+            )).toList(),
         ],
       ),
     );
@@ -1046,7 +1221,18 @@ class _EVChargingScreenState extends State<EVChargingScreen> {
                                 ),
                               ],
                             ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 8),
+                // Debug: Show coordinates
+                if (station['latitude'] != 0.0 || station['longitude'] != 0.0)
+                  Text(
+                    '📍 ${station['latitude']}, ${station['longitude']}',
+                    style: GoogleFonts.outfit(
+                      color: Colors.green[600],
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                const SizedBox(height: 8),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
