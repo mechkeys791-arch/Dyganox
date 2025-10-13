@@ -851,16 +851,16 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 // Compact Profile Header
                 Container(
                   margin: EdgeInsets.symmetric(
-                    horizontal: screenWidth * 0.03, 
-                    vertical: screenHeight * 0.003
+                    horizontal: screenWidth * 0.04, 
+                    vertical: screenHeight * 0.004
                   ),
                   padding: EdgeInsets.symmetric(
-                    horizontal: screenWidth * 0.03,
-                    vertical: screenHeight * 0.006
+                    horizontal: screenWidth * 0.04,
+                    vertical: screenHeight * 0.008
                   ),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                      colors: [Color(0xFF10B981), Color(0xFF059669), Color(0xFF10B981)],
+                      colors: [Color.fromARGB(255, 109, 66, 195), Color.fromARGB(255, 94, 50, 215), Color.fromARGB(255, 45, 60, 172)],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       stops: [0.0, 0.5, 1.0],

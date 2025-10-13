@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'ev_charging_user_page.dart';
-import 'ev_charging_provider_page.dart';
 
 class EVChargingSelectionPage extends StatelessWidget {
   const EVChargingSelectionPage({super.key});
@@ -163,27 +162,14 @@ class EVChargingSelectionPage extends StatelessWidget {
                 height: 60,
                 child: OutlinedButton(
                   onPressed: () {
-                    Navigator.push(
-                      context,
-                      PageRouteBuilder(
-                        pageBuilder: (context, animation, secondaryAnimation) =>
-                            const EVChargingProviderPage(),
-                        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                          return SlideTransition(
-                            position: Tween<Offset>(
-                              begin: const Offset(1.0, 0.0),
-                              end: Offset.zero,
-                            ).animate(CurvedAnimation(
-                              parent: animation,
-                              curve: Curves.easeOutCubic,
-                            )),
-                            child: FadeTransition(
-                              opacity: animation,
-                              child: child,
-                            ),
-                          );
-                        },
-                        transitionDuration: const Duration(milliseconds: 400),
+                    // TODO: Implement provider page
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Provider feature coming soon!',
+                          style: GoogleFonts.outfit(),
+                        ),
+                        backgroundColor: const Color(0xFF45B7D1),
                       ),
                     );
                   },
