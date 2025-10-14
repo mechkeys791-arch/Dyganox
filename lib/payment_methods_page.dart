@@ -1,0 +1,456 @@
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+
+class PaymentMethodsPage extends StatefulWidget {
+  const PaymentMethodsPage({super.key});
+
+  @override
+  State<PaymentMethodsPage> createState() => _PaymentMethodsPageState();
+}
+
+class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
+  List<Map<String, dynamic>> _paymentMethods = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPaymentMethods();
+  }
+
+  Future<void> _loadPaymentMethods() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? paymentMethodsJson = prefs.getString('payment_methods');
+    if (paymentMethodsJson != null) {
+      setState(() {
+        _paymentMethods = List<Map<String, dynamic>>.from(json.decode(paymentMethodsJson));
+      });
+    }
+  }
+
+  Future<void> _savePaymentMethods() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('payment_methods', json.encode(_paymentMethods));
+  }
+
+  void _showAddEditPaymentDialog({Map<String, dynamic>? payment, int? index}) {
+    final labelController = TextEditingController(text: payment?['label'] ?? '');
+    final detailsController = TextEditingController(text: payment?['details'] ?? '');
+    String selectedType = payment?['type'] ?? 'card';
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF6366F1).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  payment == null ? Icons.add : Icons.edit,
+                  color: const Color(0xFF6366F1),
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                payment == null ? 'Add Payment Method' : 'Edit Payment Method',
+                style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<String>(
+                  value: selectedType,
+                  decoration: InputDecoration(
+                    labelText: 'Payment Type',
+                    prefixIcon: const Icon(Icons.category),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'card', child: Text('Credit/Debit Card')),
+                    DropdownMenuItem(value: 'upi', child: Text('UPI')),
+                    DropdownMenuItem(value: 'netbanking', child: Text('Net Banking')),
+                    DropdownMenuItem(value: 'wallet', child: Text('Wallet')),
+                  ],
+                  onChanged: (value) {
+                    setDialogState(() {
+                      selectedType = value!;
+                    });
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: labelController,
+                  decoration: InputDecoration(
+                    labelText: 'Label',
+                    hintText: 'e.g., My HDFC Card',
+                    prefixIcon: const Icon(Icons.label),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: detailsController,
+                  decoration: InputDecoration(
+                    labelText: _getDetailsLabel(selectedType),
+                    hintText: _getDetailsHint(selectedType),
+                    prefixIcon: const Icon(Icons.payment),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'Cancel',
+                style: GoogleFonts.outfit(
+                  color: const Color(0xFF64748B),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (labelController.text.isNotEmpty && detailsController.text.isNotEmpty) {
+                  setState(() {
+                    if (index != null) {
+                      _paymentMethods[index] = {
+                        'label': labelController.text,
+                        'details': detailsController.text,
+                        'type': selectedType,
+                      };
+                    } else {
+                      _paymentMethods.add({
+                        'label': labelController.text,
+                        'details': detailsController.text,
+                        'type': selectedType,
+                      });
+                    }
+                  });
+                  _savePaymentMethods();
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        payment == null
+                            ? 'Payment method added successfully!'
+                            : 'Payment method updated successfully!',
+                        style: GoogleFonts.inter(color: Colors.white),
+                      ),
+                      backgroundColor: Colors.green,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Please fill all fields',
+                        style: GoogleFonts.inter(color: Colors.white),
+                      ),
+                      backgroundColor: const Color(0xFFEF4444),
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF6366F1),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: Text(
+                payment == null ? 'Add' : 'Update',
+                style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _getDetailsLabel(String type) {
+    switch (type) {
+      case 'card':
+        return 'Card Number';
+      case 'upi':
+        return 'UPI ID';
+      case 'netbanking':
+        return 'Account Number';
+      case 'wallet':
+        return 'Wallet ID';
+      default:
+        return 'Details';
+    }
+  }
+
+  String _getDetailsHint(String type) {
+    switch (type) {
+      case 'card':
+        return 'Last 4 digits (e.g., 1234)';
+      case 'upi':
+        return 'e.g., user@paytm';
+      case 'netbanking':
+        return 'Last 4 digits';
+      case 'wallet':
+        return 'e.g., 9876543210';
+      default:
+        return '';
+    }
+  }
+
+  void _deletePaymentMethod(int index) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEF4444).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.delete, color: Color(0xFFEF4444), size: 20),
+            ),
+            const SizedBox(width: 12),
+            Text('Delete Payment Method', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Text(
+          'Are you sure you want to delete this payment method?',
+          style: GoogleFonts.inter(color: const Color(0xFF64748B)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel', style: GoogleFonts.outfit(color: const Color(0xFF64748B))),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              setState(() {
+                _paymentMethods.removeAt(index);
+              });
+              _savePaymentMethods();
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Payment method deleted successfully!',
+                      style: GoogleFonts.inter(color: Colors.white)),
+                  backgroundColor: const Color(0xFFEF4444),
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: Text('Delete', style: GoogleFonts.outfit(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  IconData _getPaymentIcon(String type) {
+    switch (type) {
+      case 'card':
+        return Icons.credit_card;
+      case 'upi':
+        return Icons.account_balance_wallet;
+      case 'netbanking':
+        return Icons.account_balance;
+      case 'wallet':
+        return Icons.wallet;
+      default:
+        return Icons.payment;
+    }
+  }
+
+  String _getPaymentTypeName(String type) {
+    switch (type) {
+      case 'card':
+        return 'Card';
+      case 'upi':
+        return 'UPI';
+      case 'netbanking':
+        return 'Net Banking';
+      case 'wallet':
+        return 'Wallet';
+      default:
+        return type;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: const Icon(Icons.arrow_back, color: Colors.black, size: 20),
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          'Payment Methods',
+          style: GoogleFonts.outfit(
+            color: Colors.black,
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        centerTitle: true,
+      ),
+      body: _paymentMethods.isEmpty
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.payment_outlined,
+                    size: 80,
+                    color: Colors.grey[400],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No Payment Methods',
+                    style: GoogleFonts.outfit(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF64748B),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Add your first payment method',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      color: const Color(0xFF94A3B8),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.all(20),
+              itemCount: _paymentMethods.length,
+              itemBuilder: (context, index) {
+                final payment = _paymentMethods[index];
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.all(16),
+                    leading: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF6366F1).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        _getPaymentIcon(payment['type']),
+                        color: const Color(0xFF6366F1),
+                        size: 24,
+                      ),
+                    ),
+                    title: Text(
+                      payment['label'],
+                      style: GoogleFonts.outfit(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                      ),
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 4),
+                        Text(
+                          _getPaymentTypeName(payment['type']),
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: const Color(0xFF94A3B8),
+                          ),
+                        ),
+                        Text(
+                          payment['details'],
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            color: const Color(0xFF64748B),
+                          ),
+                        ),
+                      ],
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.edit, color: Color(0xFF6366F1)),
+                          onPressed: () => _showAddEditPaymentDialog(payment: payment, index: index),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete, color: Color(0xFFEF4444)),
+                          onPressed: () => _deletePaymentMethod(index),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _showAddEditPaymentDialog(),
+        backgroundColor: const Color(0xFF6366F1),
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: Text(
+          'Add Payment',
+          style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.w600),
+        ),
+      ),
+    );
+  }
+}
+
