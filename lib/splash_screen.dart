@@ -58,6 +58,30 @@ class _SplashScreenState extends State<SplashScreen>
     super.dispose();
   }
 
+  Widget _buildLogo() {
+    return Image.asset(
+      'web/DYAGNOX_(1)[1].png',
+      fit: BoxFit.contain,
+      errorBuilder: (context, error, stackTrace) {
+        // Fallback to custom logo if image fails to load
+        return Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'DYGANOX',
+              style: GoogleFonts.outfit(
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+                color: const Color(0xFF5D4E37),
+                letterSpacing: 3,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -88,29 +112,23 @@ class _SplashScreenState extends State<SplashScreen>
                     child: ScaleTransition(
                       scale: _scaleAnimation,
                       child: Container(
-                        width: 120,
-                        height: 120,
+                        width: 250,
+                        height: 220,
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(30),
+                          borderRadius: BorderRadius.circular(205),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.2),
-                              blurRadius: 20,
+                              color: Colors.black.withOpacity(0.3),
+                              blurRadius: 30,
                               offset: const Offset(0, 10),
-                              spreadRadius: 0,
+                              spreadRadius: 5,
                             ),
                           ],
                         ),
-                        child: Center(
-                          child: Text(
-                            'D',
-                            style: GoogleFonts.outfit(
-                              fontSize: 64,
-                              fontWeight: FontWeight.bold,
-                              color: const Color(0xFF6366F1),
-                            ),
-                          ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(25.0),
+                          child: _buildLogo(),
                         ),
                       ),
                     ),
@@ -118,30 +136,9 @@ class _SplashScreenState extends State<SplashScreen>
                 },
               ),
               
-              const SizedBox(height: 30),
+              const SizedBox(height: 50),
               
-              // App Name Animation
-              AnimatedBuilder(
-                animation: _fadeAnimation,
-                builder: (context, child) {
-                  return FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: Text(
-                      'Dyganox',
-                      style: GoogleFonts.outfit(
-                        fontSize: 36,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        letterSpacing: 2,
-                      ),
-                    ),
-                  );
-                },
-              ),
-              
-              const SizedBox(height: 8),
-              
-              // Tagline Animation
+              // Tagline
               AnimatedBuilder(
                 animation: _fadeAnimation,
                 builder: (context, child) {
@@ -151,16 +148,16 @@ class _SplashScreenState extends State<SplashScreen>
                       'Vehicle Service Provider',
                       style: GoogleFonts.inter(
                         fontSize: 16,
-                        fontWeight: FontWeight.w400,
-                        color: Colors.white.withOpacity(0.9),
-                        letterSpacing: 1,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white.withOpacity(0.95),
+                        letterSpacing: 1.5,
                       ),
                     ),
                   );
                 },
               ),
               
-              const SizedBox(height: 60),
+              const SizedBox(height: 50),
               
               // Loading Indicator
               AnimatedBuilder(
