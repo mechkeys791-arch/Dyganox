@@ -5,6 +5,8 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class MechanicFinderPage extends StatefulWidget {
   const MechanicFinderPage({super.key});
@@ -27,86 +29,15 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
   late AnimationController _fadeController;
   String _selectedFilter = 'All';
   int? _selectedMechanicIndex;
+  bool _isLoading = false;
 
-  final List<Map<String, dynamic>> _allMechanics = [
-    {
-      'name': 'City Auto Care',
-      'distance': 0.8,
-      'rating': 4.8,
-      'specialty': 'General Repair',
-      'experience': '10 years',
-      'availability': 'Available Now',
-      'phone': '+91 98765 43210',
-      'reviewCount': 156,
-      'priceRange': '₹₹',
-      'services': ['Oil Change', 'Brake Repair', 'Engine Diagnostics'],
-      'lat': 12.9141,
-      'lng': 74.8560,
-    },
-    {
-      'name': 'Quick Fix Garage',
-      'distance': 1.2,
-      'rating': 4.6,
-      'specialty': 'Engine Specialist',
-      'experience': '8 years',
-      'availability': 'Available Today',
-      'phone': '+91 98765 43211',
-      'reviewCount': 98,
-      'priceRange': '₹₹₹',
-      'services': ['Engine Repair', 'Turbo Services', 'Performance Tuning'],
-      'lat': 12.9156,
-      'lng': 74.8572,
-    },
-    {
-      'name': 'Expert Motors',
-      'distance': 1.5,
-      'rating': 4.9,
-      'specialty': 'All Services',
-      'experience': '15 years',
-      'availability': 'Available Now',
-      'phone': '+91 98765 43212',
-      'reviewCount': 234,
-      'priceRange': '₹₹',
-      'services': ['Complete Service', 'AC Repair', 'Suspension Work'],
-      'lat': 12.9120,
-      'lng': 74.8545,
-    },
-    {
-      'name': 'AutoCare Plus',
-      'distance': 2.1,
-      'rating': 4.5,
-      'specialty': 'Electrical Works',
-      'experience': '12 years',
-      'availability': 'Available from 2 PM',
-      'phone': '+91 98765 43213',
-      'reviewCount': 87,
-      'priceRange': '₹₹',
-      'services': ['Electrical Repair', 'Battery Service', 'Wiring'],
-      'lat': 12.9180,
-      'lng': 74.8590,
-    },
-    {
-      'name': 'Pro Mechanic Services',
-      'distance': 2.3,
-      'rating': 4.7,
-      'specialty': 'Body Works',
-      'experience': '7 years',
-      'availability': 'Available Now',
-      'phone': '+91 98765 43214',
-      'reviewCount': 145,
-      'priceRange': '₹₹₹',
-      'services': ['Denting & Painting', 'Body Restoration', 'Detailing'],
-      'lat': 12.9100,
-      'lng': 74.8520,
-    },
-  ];
+  List<Map<String, dynamic>> _allMechanics = [];
 
   @override
   void initState() {
     super.initState();
-    _mechanics = _allMechanics;
+    _fetchMechanics();
     _getCurrentLocation();
-    _initializeMapMarkers();
     
     _slideController = AnimationController(
       duration: const Duration(milliseconds: 300),
@@ -119,6 +50,99 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
     );
     
     _fadeController.forward();
+  }
+
+  Future<void> _fetchMechanics() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      print("Mechanic Finder: Fetching mechanics from database...");
+      final response = await http.get(
+        Uri.parse("http://192.168.11.143:8081/api/mechanic"),
+        headers: {"Content-Type": "application/json"},
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        _allMechanics = data.map((mechanic) {
+          double lat = double.tryParse(mechanic['latitude']?.toString() ?? '0') ?? 0.0;
+          double lng = double.tryParse(mechanic['longitude']?.toString() ?? '0') ?? 0.0;
+          
+          double rating = 4.0 + ((mechanic['id'] as int) % 10) * 0.1;
+          int reviewCount = 50 + ((mechanic['id'] as int) % 200);
+          String priceRange = ['₹₹', '₹₹₹'][(mechanic['id'] as int) % 2];
+          
+          List<String> services = _getServicesForSpecialty(mechanic['specialty'] ?? 'General Repair');
+          
+          return {
+            "id": mechanic['id'],
+            "name": mechanic['name'],
+            "email": mechanic['email'],
+            "phone": mechanic['phone'],
+            "specialty": mechanic['specialty'] ?? 'General Repair',
+            "experience": mechanic['experience'] ?? 'Not specified',
+            "nightTimeAvailable": mechanic['nightTimeAvailable'] ?? false,
+            "rating": rating,
+            "reviewCount": reviewCount,
+            "priceRange": priceRange,
+            "services": services,
+            "lat": lat,
+            "lng": lng,
+            "distance": 0.0,
+            "availability": mechanic['nightTimeAvailable'] == true 
+                ? 'Available 24/7' 
+                : 'Available Now',
+          };
+        }).toList();
+
+        setState(() {
+          _mechanics = _allMechanics;
+        });
+
+        print("Mechanic Finder: Successfully loaded ${_allMechanics.length} mechanics");
+        _initializeMapMarkers();
+      } else {
+        print("Mechanic Finder: Error fetching mechanics - HTTP ${response.statusCode}");
+        _showErrorSnackBar("Failed to load mechanics");
+      }
+    } catch (e) {
+      print("Mechanic Finder: Exception fetching mechanics - $e");
+      _showErrorSnackBar("Error loading mechanics: $e");
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  List<String> _getServicesForSpecialty(String specialty) {
+    switch (specialty) {
+      case 'General Repair':
+        return ['Oil Change', 'Brake Repair', 'Engine Diagnostics', 'General Maintenance'];
+      case 'Engine Specialist':
+        return ['Engine Repair', 'Turbo Services', 'Performance Tuning', 'Engine Rebuild'];
+      case 'Electrical Works':
+        return ['Electrical Repair', 'Battery Service', 'Wiring', 'ECU Diagnostics'];
+      case 'Body Works':
+        return ['Denting & Painting', 'Body Restoration', 'Detailing', 'Accident Repair'];
+      case 'Brake Specialist':
+        return ['Brake Repair', 'Brake Pad Replacement', 'Brake Fluid Service', 'ABS Repair'];
+      case 'AC Repair':
+        return ['AC Repair', 'AC Recharge', 'AC Compressor', 'Cooling System'];
+      default:
+        return ['General Services', 'Diagnostics', 'Maintenance'];
+    }
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+      ),
+    );
   }
 
   void _initializeMapMarkers() {

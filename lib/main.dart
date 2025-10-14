@@ -5,6 +5,8 @@ import 'homepage.dart';
 import 'profile_page.dart';
 import 'backend_test_page.dart';
 import 'test_ev_api_page.dart';
+import 'user_type_selection_page.dart';
+import 'mechanic_registration_page.dart';
 
 void main() {
   runApp(const ServiceProviderApp());
@@ -93,6 +95,8 @@ class ServiceProviderApp extends StatelessWidget {
         '/profile': (context) => const ProfilePage(),
         '/backend-test': (context) => const BackendTestPage(),
         '/test-ev-api': (context) => const TestEVAPIPage(),
+        '/user-type-selection': (context) => const UserTypeSelectionPage(),
+        '/mechanic-registration': (context) => const MechanicRegistrationPage(),
       },
     );
   }
