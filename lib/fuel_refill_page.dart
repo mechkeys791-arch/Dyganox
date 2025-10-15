@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geolocator/geolocator.dart';
+import 'dart:async';
 
 class FuelRefillPage extends StatefulWidget {
   const FuelRefillPage({super.key});
@@ -59,6 +62,56 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
     super.dispose();
   }
 
+  Future<void> _openMapView(String name, String location, double lat, double lng) async {
+    Position? currentPosition;
+    
+    try {
+      // Get current location
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      
+      if (permission == LocationPermission.whileInUse || 
+          permission == LocationPermission.always) {
+        currentPosition = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+        );
+      }
+    } catch (e) {
+      // Use default location if can't get current location
+      currentPosition = Position(
+        latitude: 12.9716,
+        longitude: 77.5946,
+        timestamp: DateTime.now(),
+        accuracy: 0,
+        altitude: 0,
+        heading: 0,
+        speed: 0,
+        speedAccuracy: 0,
+        altitudeAccuracy: 0,
+        headingAccuracy: 0,
+      );
+    }
+
+    if (!mounted) return;
+
+    // Navigate to map view
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => FuelStationMapView(
+          stationName: name,
+          stationLocation: location,
+          stationLat: lat,
+          stationLng: lng,
+          currentLat: currentPosition?.latitude ?? 12.9716,
+          currentLng: currentPosition?.longitude ?? 77.5946,
+        ),
+      ),
+    );
+  }
+
   Widget _buildFuelServiceCard({
     required String title,
     required String description,
@@ -80,7 +133,7 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
                 elevation: 8,
                 borderRadius: BorderRadius.circular(20),
                 color: Colors.white,
-                shadowColor: const Color(0xFF4ECDC4).withOpacity(0.2),
+                shadowColor: const Color(0xFF706DC7).withOpacity(0.2),
                 child: InkWell(
                   onTap: () {
                     HapticFeedback.lightImpact();
@@ -94,13 +147,13 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
                       gradient: LinearGradient(
                         colors: [
                           Colors.white,
-                          const Color(0xFF4ECDC4).withOpacity(0.02),
+                          const Color(0xFF706DC7).withOpacity(0.02),
                         ],
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                       ),
                       border: Border.all(
-                        color: const Color(0xFF4ECDC4).withOpacity(0.1),
+                        color: const Color(0xFF706DC7).withOpacity(0.1),
                         width: 1,
                       ),
                     ),
@@ -110,10 +163,10 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
                           width: 60,
                           height: 60,
                           decoration: BoxDecoration(
-                            color: const Color(0xFF4ECDC4).withOpacity(0.1),
+                            color: const Color(0xFF706DC7).withOpacity(0.1),
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: const Color(0xFF4ECDC4).withOpacity(0.2),
+                              color: const Color(0xFF706DC7).withOpacity(0.2),
                               width: 1,
                             ),
                           ),
@@ -152,14 +205,14 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF4ECDC4).withOpacity(0.1),
+                                  color: const Color(0xFF706DC7).withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Text(
                                   'Service fee $price',
                                   style: GoogleFonts.outfit(
                                     fontSize: 12,
-                                    color: const Color(0xFF4ECDC4),
+                                    color: const Color(0xFF706DC7),
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -170,12 +223,12 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF4ECDC4).withOpacity(0.1),
+                            color: const Color(0xFF706DC7).withOpacity(0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: const Icon(
                             Icons.arrow_forward_ios,
-                            color: Color(0xFF4ECDC4),
+                            color: Color(0xFF706DC7),
                             size: 16,
                           ),
                         ),
@@ -197,6 +250,8 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
     required String fuelTypes,
     required String distance,
     required String currentPrice,
+    required double lat,
+    required double lng,
     required int index,
   }) {
     return Container(
@@ -210,7 +265,7 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: const Color(0xFF4ECDC4).withOpacity(0.1),
+              color: const Color(0xFF706DC7).withOpacity(0.1),
               width: 1,
             ),
           ),
@@ -220,13 +275,13 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
                 width: 60,
                 height: 60,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF4ECDC4).withOpacity(0.1),
+                  color: const Color(0xFF706DC7).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
                   Icons.local_gas_station,
                   size: 30,
-                  color: Color(0xFF4ECDC4),
+                  color: Color(0xFF706DC7),
                 ),
               ),
               const SizedBox(width: 16),
@@ -272,14 +327,14 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF4ECDC4).withOpacity(0.1),
+                            color: const Color(0xFF706DC7).withOpacity(0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
                             distance,
                             style: GoogleFonts.outfit(
                               fontSize: 11,
-                              color: const Color(0xFF4ECDC4),
+                              color: const Color(0xFF706DC7),
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -292,22 +347,10 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
               ElevatedButton(
                 onPressed: () {
                   HapticFeedback.lightImpact();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Navigating to $name...',
-                        style: GoogleFonts.outfit(),
-                      ),
-                      backgroundColor: const Color(0xFF4ECDC4),
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                  );
+                  _openMapView(name, location, lat, lng);
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF4ECDC4),
+                  backgroundColor: const Color(0xFF706DC7),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -339,34 +382,10 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
         'price': '₹199',
       },
       {
-        'title': 'Fuel Quality Check',
-        'description': 'Test fuel quality and water contamination',
-        'icon': 'assets/icons/fuel.png',
-        'price': '₹149',
-      },
-      {
-        'title': 'Fuel System Cleaning',
+        'title': 'Fuel System Service',
         'description': 'Clean fuel injectors and fuel system',
-        'icon': 'assets/icons/maintenance.png',
-        'price': '₹899',
-      },
-      {
-        'title': 'Fuel Pump Service',
-        'description': 'Fuel pump repair and replacement service',
         'icon': 'assets/icons/repair-tools.png',
-        'price': '₹1299',
-      },
-      {
-        'title': 'Tank Cleaning',
-        'description': 'Complete fuel tank cleaning and maintenance',
-        'icon': 'assets/icons/tank.png',
-        'price': '₹699',
-      },
-      {
-        'title': 'Fuel Filter Replacement',
-        'description': 'Replace clogged fuel filters for better performance',
-        'icon': 'assets/icons/maintenance.png',
-        'price': '₹399',
+        'price': '₹899',
       },
     ];
 
@@ -377,6 +396,8 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
         'fuelTypes': 'Petrol, Diesel, CNG',
         'distance': '0.5 km',
         'currentPrice': '₹96.25/L',
+        'lat': 12.9716,
+        'lng': 77.5946,
       },
       {
         'name': 'BPCL Pump',
@@ -384,6 +405,8 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
         'fuelTypes': 'Petrol, Diesel',
         'distance': '1.2 km',
         'currentPrice': '₹96.30/L',
+        'lat': 12.9719,
+        'lng': 77.6040,
       },
       {
         'name': 'Indian Oil Station',
@@ -391,6 +414,8 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
         'fuelTypes': 'Petrol, Diesel, CNG',
         'distance': '1.8 km',
         'currentPrice': '₹96.20/L',
+        'lat': 12.9799,
+        'lng': 77.6055,
       },
       {
         'name': 'Shell Fuel Stop',
@@ -398,6 +423,8 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
         'fuelTypes': 'Petrol, Diesel, Premium',
         'distance': '2.1 km',
         'currentPrice': '₹96.35/L',
+        'lat': 12.9352,
+        'lng': 77.6245,
       },
     ];
 
@@ -447,14 +474,14 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [Color(0xFF4ECDC4), Color(0xFF44A08D)],
+                    colors: [Color(0xFF706DC7), Color(0xFF8B7ED8)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF4ECDC4).withOpacity(0.3),
+                      color: const Color(0xFF706DC7).withOpacity(0.3),
                       blurRadius: 20,
                       offset: const Offset(0, 10),
                     ),
@@ -471,11 +498,11 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
                       child: Image.asset(
                         'assets/icons/fuel-station.png',
                         width: 30,
-                        height: 30,
+                        height: 40,
                         color: Colors.white,
                       ),
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 20),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -525,10 +552,10 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
                 itemBuilder: (context, index) {
                   final service = fuelServices[index];
                   return _buildFuelServiceCard(
-                    title: service['title']!,
-                    description: service['description']!,
-                    iconPath: service['icon']!,
-                    price: service['price']!,
+                    title: service['title']! as String,
+                    description: service['description']! as String,
+                    iconPath: service['icon']! as String,
+                    price: service['price']! as String,
                     index: index,
                     onTap: () {
                       showDialog(
@@ -541,14 +568,14 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
                             title: Row(
                               children: [
                                 Image.asset(
-                                  service['icon']!,
+                                  service['icon']! as String,
                                   width: 24,
                                   height: 24,
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Text(
-                                    service['title']!,
+                                    service['title']! as String,
                                     style: GoogleFonts.outfit(
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -561,14 +588,14 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  service['description']!,
+                                  service['description']! as String,
                                   style: GoogleFonts.inter(),
                                 ),
                                 const SizedBox(height: 16),
                                 Container(
                                   padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF4ECDC4).withOpacity(0.1),
+                                    color: const Color(0xFF706DC7).withOpacity(0.1),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Column(
@@ -578,14 +605,14 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
                                           const Icon(
                                             Icons.local_gas_station,
                                             size: 16,
-                                            color: Color(0xFF4ECDC4),
+                                            color: Color(0xFF706DC7),
                                           ),
                                           const SizedBox(width: 8),
                                           Text(
                                             'Professional fuel experts',
                                             style: GoogleFonts.outfit(
                                               fontSize: 12,
-                                              color: const Color(0xFF4ECDC4),
+                                              color: const Color(0xFF706DC7),
                                               fontWeight: FontWeight.w600,
                                             ),
                                           ),
@@ -597,14 +624,14 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
                                           const Icon(
                                             Icons.access_time,
                                             size: 16,
-                                            color: Color(0xFF4ECDC4),
+                                            color: Color(0xFF706DC7),
                                           ),
                                           const SizedBox(width: 8),
                                           Text(
                                             'Available 24/7',
                                             style: GoogleFonts.outfit(
                                               fontSize: 12,
-                                              color: const Color(0xFF4ECDC4),
+                                              color: const Color(0xFF706DC7),
                                               fontWeight: FontWeight.w600,
                                             ),
                                           ),
@@ -629,10 +656,10 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                       content: Text(
-                                        'Booking ${service['title']}...',
+                                        'Booking ${service['title']! as String}...',
                                         style: GoogleFonts.outfit(),
                                       ),
-                                      backgroundColor: const Color(0xFF4ECDC4),
+                                      backgroundColor: const Color(0xFF706DC7),
                                       behavior: SnackBarBehavior.floating,
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(10),
@@ -641,7 +668,7 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
                                   );
                                 },
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF4ECDC4),
+                                  backgroundColor: const Color(0xFF706DC7),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(8),
                                   ),
@@ -686,11 +713,13 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
                 itemBuilder: (context, index) {
                   final station = nearbyStations[index];
                   return _buildFuelStationCard(
-                    name: station['name']!,
-                    location: station['location']!,
-                    fuelTypes: station['fuelTypes']!,
-                    distance: station['distance']!,
-                    currentPrice: station['currentPrice']!,
+                    name: station['name']! as String,
+                    location: station['location']! as String,
+                    fuelTypes: station['fuelTypes']! as String,
+                    distance: station['distance']! as String,
+                    currentPrice: station['currentPrice']! as String,
+                    lat: station['lat'] as double,
+                    lng: station['lng'] as double,
                     index: index,
                   );
                 },
@@ -700,6 +729,261 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+// Fuel Station Map View Page
+class FuelStationMapView extends StatefulWidget {
+  final String stationName;
+  final String stationLocation;
+  final double stationLat;
+  final double stationLng;
+  final double currentLat;
+  final double currentLng;
+
+  const FuelStationMapView({
+    super.key,
+    required this.stationName,
+    required this.stationLocation,
+    required this.stationLat,
+    required this.stationLng,
+    required this.currentLat,
+    required this.currentLng,
+  });
+
+  @override
+  State<FuelStationMapView> createState() => _FuelStationMapViewState();
+}
+
+class _FuelStationMapViewState extends State<FuelStationMapView> {
+  GoogleMapController? _mapController;
+  final Set<Marker> _markers = {};
+  final Set<Polyline> _polylines = {};
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeMap();
+  }
+
+  @override
+  void dispose() {
+    _mapController?.dispose();
+    super.dispose();
+  }
+
+  void _initializeMap() async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    
+    // Add markers
+    _markers.add(
+      Marker(
+        markerId: const MarkerId('current_location'),
+        position: LatLng(widget.currentLat, widget.currentLng),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+        infoWindow: const InfoWindow(
+          title: 'Your Location',
+        ),
+      ),
+    );
+
+    _markers.add(
+      Marker(
+        markerId: const MarkerId('fuel_station'),
+        position: LatLng(widget.stationLat, widget.stationLng),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+        infoWindow: InfoWindow(
+          title: widget.stationName,
+          snippet: widget.stationLocation,
+        ),
+      ),
+    );
+
+    // Add polyline for route
+    _polylines.add(
+      Polyline(
+        polylineId: const PolylineId('route'),
+        points: [
+          LatLng(widget.currentLat, widget.currentLng),
+          LatLng(widget.stationLat, widget.stationLng),
+        ],
+        color: const Color(0xFF706DC7),
+        width: 5,
+        patterns: [PatternItem.dot],
+      ),
+    );
+
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+
+    // Animate camera to show both markers
+    Future.delayed(const Duration(milliseconds: 800), () {
+      if (_mapController != null) {
+        _mapController!.animateCamera(
+          CameraUpdate.newLatLngBounds(
+            LatLngBounds(
+              southwest: LatLng(
+                widget.currentLat < widget.stationLat ? widget.currentLat : widget.stationLat,
+                widget.currentLng < widget.stationLng ? widget.currentLng : widget.stationLng,
+              ),
+              northeast: LatLng(
+                widget.currentLat > widget.stationLat ? widget.currentLat : widget.stationLat,
+                widget.currentLng > widget.stationLng ? widget.currentLng : widget.stationLng,
+              ),
+            ),
+            100.0,
+          ),
+        );
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8F9FA),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 2,
+        leading: IconButton(
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF706DC7).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.arrow_back, color: Color(0xFF706DC7), size: 20),
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              widget.stationName,
+              style: GoogleFonts.outfit(
+                color: Colors.black,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text(
+              widget.stationLocation,
+              style: GoogleFonts.inter(
+                color: Colors.grey[600],
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+        centerTitle: false,
+      ),
+      body: Stack(
+        children: [
+          // Google Map
+          GoogleMap(
+            initialCameraPosition: CameraPosition(
+              target: LatLng(
+                (widget.currentLat + widget.stationLat) / 2,
+                (widget.currentLng + widget.stationLng) / 2,
+              ),
+              zoom: 13,
+            ),
+            markers: _markers,
+            polylines: _polylines,
+            onMapCreated: (GoogleMapController controller) {
+              _mapController = controller;
+            },
+            myLocationEnabled: true,
+            myLocationButtonEnabled: true,
+            compassEnabled: true,
+            mapToolbarEnabled: true,
+            zoomControlsEnabled: true,
+          ),
+
+          // Loading indicator
+          if (_isLoading)
+            Container(
+              color: Colors.white.withOpacity(0.8),
+              child: const Center(
+                child: CircularProgressIndicator(
+                  color: Color(0xFF706DC7),
+                ),
+              ),
+            ),
+
+          // Info Card at bottom
+          Positioned(
+            bottom: 20,
+            left: 20,
+            right: 20,
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF706DC7).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.local_gas_station,
+                          color: Color(0xFF706DC7),
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Route to Station',
+                              style: GoogleFonts.outfit(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Tap markers for more details',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
