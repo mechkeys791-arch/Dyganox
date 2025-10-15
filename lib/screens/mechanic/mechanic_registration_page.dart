@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'homepage.dart';
+import 'mechanic_dashboard_page.dart';
 
 class MechanicRegistrationPage extends StatefulWidget {
   const MechanicRegistrationPage({super.key});
@@ -110,7 +110,7 @@ class _MechanicRegistrationPageState extends State<MechanicRegistrationPage> {
 
     try {
       final response = await http.post(
-        Uri.parse("http://192.168.11.143:8081/api/mechanic"),
+        Uri.parse("http://192.168.11.74:8081/api/mechanic"),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode(mechanicData),
       );
@@ -134,11 +134,11 @@ class _MechanicRegistrationPageState extends State<MechanicRegistrationPage> {
         _latitudeController.clear();
         _longitudeController.clear();
         
-        // Navigate to home page after successful registration
+        // Navigate to mechanic dashboard after successful registration
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => const HomePage(),
+            builder: (context) => const MechanicDashboardPage(),
           ),
         );
       } else {

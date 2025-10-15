@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'car_service_page.dart';
-import 'bike_service_page.dart';
-import 'minor_repair_page.dart';
-import 'towing_service_page.dart';
-import 'battery_jump_page.dart';
-import 'ev_charging_page.dart';
-import 'fuel_refill_page.dart';
-import 'tyre_care_page.dart';
-import 'mechanic_finder_page.dart';
+import 'screens/services/car_service_page.dart';
+import 'screens/services/bike_service_page.dart';
+import 'screens/services/minor_repair_page.dart';
+import 'screens/services/towing_service_page.dart';
+import 'screens/services/battery_jump_page.dart';
+import 'screens/ev_charging/ev_charging_page.dart';
+import 'screens/services/fuel_refill_page.dart';
+import 'screens/services/tyre_care_page.dart';
+import 'screens/mechanic/mechanic_finder_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});

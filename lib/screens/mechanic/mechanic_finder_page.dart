@@ -60,7 +60,7 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
     try {
       print("Mechanic Finder: Fetching mechanics from database...");
       final response = await http.get(
-        Uri.parse("http://192.168.11.143:8081/api/mechanic"),
+        Uri.parse("http://192.168.11.74:8081/api/mechanic"),
         headers: {"Content-Type": "application/json"},
       );
 
@@ -606,6 +606,537 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
     );
   }
 
+  void _showMechanicDetailPopup(Map<String, dynamic> mechanic, int index) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF6366F1).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.person,
+                        color: Color(0xFF6366F1),
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            mechanic['name'] ?? 'Unknown',
+                            style: GoogleFonts.outfit(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            mechanic['specialty'] ?? 'General Mechanic',
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 24),
+                      onPressed: () => Navigator.pop(context),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ),
+                
+                const SizedBox(height: 20),
+                
+                // Mechanic Details
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    children: [
+                      _buildDetailRow(Icons.star, 'Rating', '${mechanic['rating']} ⭐ (${mechanic['reviewCount']} reviews)'),
+                      const SizedBox(height: 12),
+                      _buildDetailRow(Icons.work, 'Experience', mechanic['experience'] ?? 'Not specified'),
+                      const SizedBox(height: 12),
+                      _buildDetailRow(Icons.phone, 'Phone', mechanic['phone'] ?? 'Not available'),
+                      const SizedBox(height: 12),
+                      _buildDetailRow(Icons.access_time, 'Availability', mechanic['availability'] ?? 'Check availability'),
+                    ],
+                  ),
+                ),
+                
+                const SizedBox(height: 24),
+                
+                // Action Buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          setState(() {
+                            _selectedMechanicIndex = index;
+                          });
+                          _showDirectionsOnMap(index);
+                        },
+                        icon: const Icon(Icons.directions, size: 20),
+                        label: const Text('Show Direction'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF6366F1),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _showRequestMechanicDialog(mechanic);
+                        },
+                        icon: const Icon(Icons.request_quote, size: 20),
+                        label: const Text('Request'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF10B981),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDetailRow(IconData icon, String label, String value) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: const Color(0xFF6366F1)),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Text(
+                value,
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  color: Colors.black87,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showRequestMechanicDialog(Map<String, dynamic> mechanic) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.request_quote,
+                  color: Color(0xFF10B981),
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Request Mechanic',
+                style: GoogleFonts.outfit(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Request ${mechanic['name']} for help',
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF3C7),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.3)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.info_outline, color: Color(0xFFF59E0B), size: 16),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Service Fee: ₹50',
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFFF59E0B),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'This amount will be refunded when the mechanic completes the service.',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: const Color(0xFFF59E0B),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  const Icon(Icons.phone, color: Color(0xFF6366F1), size: 16),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Contact: ${mechanic['phone'] ?? 'Not available'}',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      color: Colors.grey[700],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'Cancel',
+                style: GoogleFonts.outfit(
+                  color: const Color(0xFF64748B),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _processMechanicRequest(mechanic);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF10B981),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: Text(
+                'Pay ₹50 & Request',
+                style: GoogleFonts.outfit(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _processMechanicRequest(Map<String, dynamic> mechanic) async {
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF10B981)),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Sending request to ${mechanic['name']}...',
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    try {
+      // Prepare request data
+      final requestData = {
+        'mechanicId': mechanic['id'],
+        'customerName': 'Customer', // You can get this from user profile
+        'customerPhone': '+91 98765 43210', // You can get this from user profile
+        'customerEmail': 'customer@example.com', // You can get this from user profile
+        'serviceType': 'General Service',
+        'description': 'Customer needs help with vehicle service',
+        'latitude': _currentPosition?.latitude.toString() ?? '0',
+        'longitude': _currentPosition?.longitude.toString() ?? '0',
+        'amount': 50.0,
+      };
+
+      print("Sending mechanic request: $requestData");
+
+      // Send request to backend
+      final response = await http.post(
+        Uri.parse("http://192.168.11.74:8081/api/mechanic-requests"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode(requestData),
+      );
+
+      Navigator.pop(context); // Close loading dialog
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        print("Request sent successfully!");
+        
+        // Show success dialog
+        _showSuccessDialog(mechanic);
+      } else {
+        print("Failed to send request: ${response.statusCode} - ${response.body}");
+        _showErrorDialog('Failed to send request. Please try again.');
+      }
+    } catch (e) {
+      Navigator.pop(context); // Close loading dialog
+      print("Error sending request: $e");
+      _showErrorDialog('Network error. Please check your connection and try again.');
+    }
+  }
+
+  void _showSuccessDialog(Map<String, dynamic> mechanic) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.check_circle,
+                  color: Color(0xFF10B981),
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Request Sent!',
+                style: GoogleFonts.outfit(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Your request has been sent to ${mechanic['name']}',
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF0FDF4),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFF10B981).withOpacity(0.3)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'What happens next:',
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF10B981),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '• Mechanic will respond within 15 minutes\n• ₹50 will be refunded after service completion\n• You can call ${mechanic['phone']} for urgent help',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: const Color(0xFF10B981),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF10B981),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: Text(
+                'Got it!',
+                style: GoogleFonts.outfit(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEF4444).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.error,
+                  color: Color(0xFFEF4444),
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Error',
+                style: GoogleFonts.outfit(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            message,
+            style: GoogleFonts.inter(
+              fontSize: 16,
+            ),
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFEF4444),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: Text(
+                'OK',
+                style: GoogleFonts.outfit(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1124,10 +1655,7 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
     return GestureDetector(
       onTap: () {
         HapticFeedback.lightImpact();
-        setState(() {
-          _selectedMechanicIndex = index;
-        });
-        _showDirectionsOnMap(index);
+        _showMechanicDetailPopup(mechanic, index);
       },
       child: Container(
         padding: const EdgeInsets.all(12),
@@ -1444,45 +1972,6 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
     );
   }
 
-  Widget _buildDetailRow(IconData icon, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: const Color(0xFF6366F1).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, size: 20, color: const Color(0xFF6366F1)),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                  ),
-                ),
-                Text(
-                  value,
-                  style: GoogleFonts.outfit(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
 }
 

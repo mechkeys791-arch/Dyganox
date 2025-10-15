@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
-import 'vehicles_page.dart';
+import '../vehicles/vehicles_page.dart';
 import 'addresses_page.dart';
 import 'payment_methods_page.dart';
 import 'service_history_page.dart';

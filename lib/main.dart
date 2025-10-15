@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'splash_screen.dart';
+import 'screens/auth/splash_screen.dart';
 import 'homepage.dart';
-import 'profile_page.dart';
-import 'backend_test_page.dart';
-import 'test_ev_api_page.dart';
-import 'user_type_selection_page.dart';
-import 'mechanic_registration_page.dart';
+import 'screens/profile/profile_page.dart';
+import 'screens/test/backend_test_page.dart';
+import 'screens/test/test_ev_api_page.dart';
+import 'screens/auth/user_type_selection_page.dart';
+import 'screens/mechanic/mechanic_registration_page.dart';
+import 'screens/mechanic/mechanic_dashboard_page.dart';
 
 void main() {
   runApp(const ServiceProviderApp());
@@ -97,6 +98,7 @@ class ServiceProviderApp extends StatelessWidget {
         '/test-ev-api': (context) => const TestEVAPIPage(),
         '/user-type-selection': (context) => const UserTypeSelectionPage(),
         '/mechanic-registration': (context) => const MechanicRegistrationPage(),
+        '/mechanic-dashboard': (context) => const MechanicDashboardPage(),
       },
     );
   }

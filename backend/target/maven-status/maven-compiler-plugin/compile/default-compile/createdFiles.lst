@@ -1,12 +1,15 @@
+com\example\demo\controller\MechanicRequestController.class
 com\example\demo\DemoApplication.class
 com\example\demo\controller\EVProviderController.class
 com\example\demo\controller\MechanicController.class
+com\example\demo\model\MechanicRequest.class
 com\example\demo\model\EVProvider.class
 com\example\demo\repository\MechanicRepo.class
 com\example\demo\controller\PersonController.class
 com\example\demo\repository\EVProviderRepo.class
 com\example\demo\corsconfig.class
 com\example\demo\repository\PersonRepo.class
+com\example\demo\repository\MechanicRequestRepo.class
 com\example\demo\corsconfig$1.class
 com\example\demo\model\Person.class
 com\example\demo\model\Mechanic.class
