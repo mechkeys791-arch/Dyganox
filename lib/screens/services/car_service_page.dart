@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'minor_repair_page.dart';
 import 'towing_service_page.dart';
 import 'battery_jump_page.dart';
-import 'ev_charging_page.dart';
+import '../ev_charging/ev_charging_page.dart';
 import 'fuel_refill_page.dart';
 import 'tyre_care_page.dart';
 
