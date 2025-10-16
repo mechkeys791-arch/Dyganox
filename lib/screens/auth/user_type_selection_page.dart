@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'homepage.dart';
-import 'mechanic_registration_page.dart';
+import '../../homepage.dart';
+import '../mechanic/mechanic_registration_page.dart';
 
 class UserTypeSelectionPage extends StatefulWidget {
   const UserTypeSelectionPage({super.key});

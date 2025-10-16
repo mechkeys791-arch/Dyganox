@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'car_service_page.dart';
-import 'bike_service_page.dart';
-import 'minor_repair_page.dart';
-import 'towing_service_page.dart';
-import 'battery_jump_page.dart';
-import 'ev_charging_page.dart';
-import 'fuel_refill_page.dart';
-import 'tyre_care_page.dart';
-import 'mechanic_finder_page.dart';
+import 'screens/services/car_service_page.dart';
+import 'screens/services/bike_service_page.dart';
+import 'screens/services/minor_repair_page.dart';
+import 'screens/services/towing_service_page.dart';
+import 'screens/services/battery_jump_page.dart';
+import 'screens/ev_charging/ev_charging_page.dart';
+import 'screens/services/fuel_refill_page.dart';
+import 'screens/services/tyre_care_page.dart';
+import 'screens/mechanic/mechanic_finder_page.dart';
+import 'emergency_assistance_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -1003,7 +1004,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 // Sliding Advertisement Section
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  height: 130,
+                  height: 200,
                   child: PageView.builder(
                     controller: _adPageController,
                     onPageChanged: (index) {
@@ -1185,7 +1186,31 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                               title: 'Emergency',
                               iconPath: 'assets/icons/24-hour-service.png',
                               color: const Color(0xFF706DC7),
-                              onTap: () {},
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  PageRouteBuilder(
+                                    pageBuilder: (context, animation, secondaryAnimation) =>
+                                        const EmergencyAssistancePage(),
+                                    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                                      return SlideTransition(
+                                        position: Tween<Offset>(
+                                          begin: const Offset(1.0, 0.0),
+                                          end: Offset.zero,
+                                        ).animate(CurvedAnimation(
+                                          parent: animation,
+                                          curve: Curves.easeOutCubic,
+                                        )),
+                                        child: FadeTransition(
+                                          opacity: animation,
+                                          child: child,
+                                        ),
+                                      );
+                                    },
+                                    transitionDuration: const Duration(milliseconds: 400),
+                                  ),
+                                );
+                              },
                             ),
                             _buildQuickServiceCard(
                               title: 'Towing',
@@ -1655,6 +1680,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         'icon': Icons.emergency,
         'color': const Color(0xFFEF4444),
         'gradient': [const Color(0xFFEF4444), const Color(0xFFDC2626)],
+        'image': 'assets/icons/eva_on_road.png',
       },
       {
         'title': 'Premium Car Service',
@@ -1662,6 +1688,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         'icon': Icons.build_circle,
         'color': const Color(0xFF10B981),
         'gradient': [const Color(0xFF10B981), const Color(0xFF059669)],
+        'image': 'assets/icons/luxcar.png',
       },
       {
         'title': 'EV Charging Network',
@@ -1669,6 +1696,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         'icon': Icons.electric_car,
         'color': const Color(0xFF8B5CF6),
         'gradient': [const Color(0xFF8B5CF6), const Color(0xFF7C3AED)],
+        'image': 'assets/icons/evnw.png',
       },
     ];
 
@@ -1677,11 +1705,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 4),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: ad['gradient'] as List<Color>,
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -1692,71 +1715,136 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           ),
         ],
       ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () {
-            HapticFeedback.lightImpact();
-            // Handle ad tap
-          },
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    ad['icon'] as IconData,
-                    color: Colors.white,
-                    size: 28,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Stack(
+          children: [
+            // Background Image
+            Positioned.fill(
+              child: Image.asset(
+                ad['image'] as String,
+                fit: BoxFit.cover,
+                alignment: Alignment(0, 0.3),
+                errorBuilder: (context, error, stackTrace) {
+                  // Fallback to gradient if image fails to load
+                  return Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: ad['gradient'] as List<Color>,
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            // Subtle dark overlay for text readability only
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.black.withOpacity(0.3),
+                      Colors.black.withOpacity(0.4),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
+              ),
+            ),
+            // Content
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  // Handle ad tap
+                },
+                borderRadius: BorderRadius.circular(16),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
                     children: [
-                      Text(
-                        ad['title'] as String,
-                        style: GoogleFonts.outfit(
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.25),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.3),
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Icon(
+                          ad['icon'] as IconData,
                           color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                          size: 28,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        ad['subtitle'] as String,
-                        style: GoogleFonts.inter(
-                          color: Colors.white.withOpacity(0.9),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              ad['title'] as String,
+                              style: GoogleFonts.outfit(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                shadows: [
+                                  Shadow(
+                                    color: Colors.black.withOpacity(0.3),
+                                    offset: const Offset(0, 2),
+                                    blurRadius: 4,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              ad['subtitle'] as String,
+                              style: GoogleFonts.inter(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                shadows: [
+                                  Shadow(
+                                    color: Colors.black.withOpacity(0.3),
+                                    offset: const Offset(0, 1),
+                                    blurRadius: 3,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.25),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.3),
+                            width: 1.5,
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.arrow_forward_ios,
+                          color: Colors.white,
+                          size: 16,
                         ),
                       ),
                     ],
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(
-                    Icons.arrow_forward_ios,
-                    color: Colors.white,
-                    size: 16,
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );

@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'splash_screen.dart';
+import 'screens/auth/splash_screen.dart';
 import 'homepage.dart';
-import 'profile_page.dart';
-import 'backend_test_page.dart';
-import 'test_ev_api_page.dart';
-import 'user_type_selection_page.dart';
-import 'mechanic_registration_page.dart';
+import 'screens/profile/profile_page.dart';
+import 'screens/test/backend_test_page.dart';
+import 'screens/test/test_ev_api_page.dart';
+import 'screens/auth/user_type_selection_page.dart';
+import 'screens/mechanic/mechanic_registration_page.dart';
+import 'screens/mechanic/mechanic_dashboard_page.dart';
 
 void main() {
   runApp(const ServiceProviderApp());
@@ -31,9 +32,9 @@ class ServiceProviderApp extends StatelessWidget {
           displayColor: const Color(0xFF1E293B),
         ),
         colorScheme: const ColorScheme.light(
-          primary: Color(0xFF6366F1), // Indigo-500
-          secondary: Color(0xFF8B5CF6), // Violet-500
-          tertiary: Color(0xFF06B6D4), // Cyan-500
+          primary: Color(0xFF706DC7), // Custom Purple
+          secondary: Color(0xFF8B7ED8), // Light Purple
+          tertiary: Color(0xFF5D4E99), // Dark Purple
           surface: Color(0xFFFFFFFF),
           error: Color(0xFFEF4444), // Red-500
           onPrimary: Color(0xFFFFFFFF),
@@ -53,17 +54,17 @@ class ServiceProviderApp extends StatelessWidget {
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF6366F1),
+            backgroundColor: const Color(0xFF706DC7),
             foregroundColor: Colors.white,
             elevation: 8,
-            shadowColor: const Color(0xFF6366F1).withOpacity(0.3),
+            shadowColor: const Color(0xFF706DC7).withOpacity(0.3),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           ),
         ),
-        cardTheme: CardTheme(
+        cardTheme: CardThemeData(
           elevation: 8,
           shadowColor: Colors.black.withOpacity(0.1),
           shape: RoundedRectangleBorder(
@@ -84,7 +85,7 @@ class ServiceProviderApp extends StatelessWidget {
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
-            borderSide: const BorderSide(color: Color(0xFF6366F1), width: 2),
+            borderSide: const BorderSide(color: Color(0xFF706DC7), width: 2),
           ),
           contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
         ),
@@ -97,6 +98,7 @@ class ServiceProviderApp extends StatelessWidget {
         '/test-ev-api': (context) => const TestEVAPIPage(),
         '/user-type-selection': (context) => const UserTypeSelectionPage(),
         '/mechanic-registration': (context) => const MechanicRegistrationPage(),
+        '/mechanic-dashboard': (context) => const MechanicDashboardPage(),
       },
     );
   }

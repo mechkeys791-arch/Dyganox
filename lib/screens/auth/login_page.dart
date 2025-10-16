@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'signup_page.dart';
-import 'vehicle_selection_page.dart';
+import '../vehicles/vehicle_selection_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
