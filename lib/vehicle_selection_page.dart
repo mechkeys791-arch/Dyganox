@@ -327,6 +327,7 @@ class _VehicleSelectionPageState extends State<VehicleSelectionPage> with Ticker
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -611,160 +612,181 @@ class _VehicleSelectionPageState extends State<VehicleSelectionPage> with Ticker
   }
 
   Widget _buildVehicleDetailsForm() {
-    return Form(
-      key: _formKey,
-      child: Column(
-        children: [
-          // Vehicle Model
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 5),
-                ),
-              ],
-            ),
-            child: TextFormField(
-              controller: _vehicleModelController,
-              style: GoogleFonts.inter(
-                fontSize: 16,
-                color: Colors.black87,
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          children: [
+            // Vehicle Model
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
               ),
-              decoration: InputDecoration(
-                labelText: 'Vehicle Model (e.g., Honda City, BMW X5)',
-                labelStyle: GoogleFonts.inter(
-                  color: Colors.grey[600],
-                  fontSize: 14,
+              child: TextFormField(
+                controller: _vehicleModelController,
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  color: Colors.black87,
                 ),
-                prefixIcon: const Icon(
-                  Icons.directions_car,
-                  color: Color(0xFF706DC7),
+                decoration: InputDecoration(
+                  labelText: 'Vehicle Model',
+                  hintText: 'e.g., Honda City, BMW X5',
+                  hintStyle: GoogleFonts.inter(
+                    color: Colors.grey[400],
+                    fontSize: 14,
+                  ),
+                  labelStyle: GoogleFonts.inter(
+                    color: Colors.grey[600],
+                    fontSize: 14,
+                  ),
+                  prefixIcon: const Icon(
+                    Icons.directions_car,
+                    color: Color(0xFF706DC7),
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 20,
+                  ),
                 ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
-                ),
-                filled: true,
-                fillColor: Colors.white,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 20,
-                ),
-              ),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter your vehicle model';
-                }
-                return null;
-              },
-            ),
-          ),
-          
-          const SizedBox(height: 20),
-          
-          // Vehicle Year
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 5),
-                ),
-              ],
-            ),
-            child: TextFormField(
-              controller: _vehicleYearController,
-              keyboardType: TextInputType.number,
-              style: GoogleFonts.inter(
-                fontSize: 16,
-                color: Colors.black87,
-              ),
-              decoration: InputDecoration(
-                labelText: 'Manufacturing Year',
-                labelStyle: GoogleFonts.inter(
-                  color: Colors.grey[600],
-                  fontSize: 14,
-                ),
-                prefixIcon: const Icon(
-                  Icons.calendar_today,
-                  color: Color(0xFF706DC7),
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
-                ),
-                filled: true,
-                fillColor: Colors.white,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 20,
-                ),
-              ),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter the manufacturing year';
-                }
-                final year = int.tryParse(value);
-                if (year == null || year < 1900 || year > DateTime.now().year) {
-                  return 'Please enter a valid year';
-                }
-                return null;
-              },
-            ),
-          ),
-          
-          const SizedBox(height: 20),
-          
-          // License Plate
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 5),
-                ),
-              ],
-            ),
-            child: TextFormField(
-              controller: _licensePlateController,
-              style: GoogleFonts.inter(
-                fontSize: 16,
-                color: Colors.black87,
-              ),
-              decoration: InputDecoration(
-                labelText: 'License Plate Number (Optional)',
-                labelStyle: GoogleFonts.inter(
-                  color: Colors.grey[600],
-                  fontSize: 14,
-                ),
-                prefixIcon: const Icon(
-                  Icons.credit_card,
-                  color: Color(0xFF706DC7),
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
-                ),
-                filled: true,
-                fillColor: Colors.white,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 20,
-                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter your vehicle model';
+                  }
+                  return null;
+                },
               ),
             ),
-          ),
-        ],
+            
+            const SizedBox(height: 20),
+            
+            // Vehicle Year
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: TextFormField(
+                controller: _vehicleYearController,
+                keyboardType: TextInputType.number,
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  color: Colors.black87,
+                ),
+                decoration: InputDecoration(
+                  labelText: 'Manufacturing Year',
+                  hintText: 'e.g., 2020',
+                  hintStyle: GoogleFonts.inter(
+                    color: Colors.grey[400],
+                    fontSize: 14,
+                  ),
+                  labelStyle: GoogleFonts.inter(
+                    color: Colors.grey[600],
+                    fontSize: 14,
+                  ),
+                  prefixIcon: const Icon(
+                    Icons.calendar_today,
+                    color: Color(0xFF706DC7),
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 20,
+                  ),
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter the manufacturing year';
+                  }
+                  final year = int.tryParse(value);
+                  if (year == null || year < 1900 || year > DateTime.now().year) {
+                    return 'Please enter a valid year';
+                  }
+                  return null;
+                },
+              ),
+            ),
+            
+            const SizedBox(height: 20),
+            
+            // License Plate
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: TextFormField(
+                controller: _licensePlateController,
+                textCapitalization: TextCapitalization.characters,
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  color: Colors.black87,
+                ),
+                decoration: InputDecoration(
+                  labelText: 'License Plate Number (Optional)',
+                  hintText: 'e.g., MH 12 AB 1234',
+                  hintStyle: GoogleFonts.inter(
+                    color: Colors.grey[400],
+                    fontSize: 14,
+                  ),
+                  labelStyle: GoogleFonts.inter(
+                    color: Colors.grey[600],
+                    fontSize: 14,
+                  ),
+                  prefixIcon: const Icon(
+                    Icons.credit_card,
+                    color: Color(0xFF706DC7),
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 20,
+                  ),
+                ),
+              ),
+            ),
+            // Extra padding at bottom to ensure last field is visible when keyboard is open
+            const SizedBox(height: 100),
+          ],
+        ),
       ),
     );
   }
