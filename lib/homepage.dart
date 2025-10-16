@@ -21,9 +21,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   late AnimationController _fadeController;
-  late AnimationController _pulseController;
   late Animation<double> _fadeAnimation;
-  late Animation<double> _pulseAnimation;
   
   final TextEditingController _searchController = TextEditingController();
   bool _isSearchActive = false;
@@ -43,11 +41,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       duration: const Duration(milliseconds: 1000),
       vsync: this,
     );
-    
-    _pulseController = AnimationController(
-      duration: const Duration(milliseconds: 2000),
-      vsync: this,
-    );
 
     _adPageController = PageController(initialPage: 0);
 
@@ -59,16 +52,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       curve: Curves.easeInOut,
     ));
 
-    _pulseAnimation = Tween<double>(
-      begin: 1.0,
-      end: 1.05,
-    ).animate(CurvedAnimation(
-      parent: _pulseController,
-      curve: Curves.easeInOut,
-    ));
-
     _fadeController.forward();
-    _pulseController.repeat(reverse: true);
     
     // Auto-scroll ads
     _startAdAutoScroll();
@@ -100,7 +84,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   @override
   void dispose() {
     _fadeController.dispose();
-    _pulseController.dispose();
     _searchController.dispose();
     _adPageController.dispose();
     super.dispose();
@@ -1521,8 +1504,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     ],
                   ),
                 ),
-
-                const SizedBox(height: 20), // Space for navigation
               ],
             ),
           ),
@@ -1549,104 +1530,64 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           children: [
             _buildNavItem(Icons.home_rounded, 'Home', true),
             _buildNavItem(Icons.help_outline_rounded, 'Help', false),
+            _buildNavItem(Icons.warning_rounded, 'Emergency', false),
             _buildNavItem(Icons.category_rounded, 'Categories', false),
             _buildNavItem(Icons.person_outline_rounded, 'Profile', false),
           ],
-        ),
-      ),
-
-      // Emergency FAB
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-      floatingActionButton: ScaleTransition(
-        scale: _pulseAnimation,
-        child: FloatingActionButton(
-          onPressed: () {
-            HapticFeedback.heavyImpact();
-            showDialog(
-              context: context,
-              builder: (BuildContext context) {
-                return AlertDialog(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  title: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.red.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(
-                          Icons.emergency,
-                          color: Colors.red,
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        'Emergency',
-                        style: GoogleFonts.outfit(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                        ),
-                      ),
-                    ],
-                  ),
-                  content: Text(
-                    'Need immediate roadside assistance?',
-                    style: GoogleFonts.inter(fontSize: 16),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: Text('Cancel', style: GoogleFonts.outfit()),
-                    ),
-                    ElevatedButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: Text(
-                        'Call Now',
-                        style: GoogleFonts.outfit(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              },
-            );
-          },
-          backgroundColor: Colors.red,
-          child: const Icon(
-            Icons.emergency,
-            color: Colors.white,
-            size: 28,
-          ),
         ),
       ),
     );
   }
 
   Widget _buildNavItem(IconData icon, String label, bool isSelected) {
+    // Special styling for Emergency button
+    final isEmergency = label == 'Emergency';
+    final iconColor = isEmergency 
+        ? Colors.red 
+        : (isSelected ? const Color(0xFF6366F1) : Colors.grey);
+    final labelColor = isEmergency
+        ? Colors.red
+        : (isSelected ? const Color(0xFF6366F1) : Colors.grey);
+    
     return GestureDetector(
       onTap: () {
         HapticFeedback.lightImpact();
         if (label == 'Profile') {
           Navigator.pushNamed(context, '/profile');
+        } else if (label == 'Emergency') {
+          HapticFeedback.heavyImpact();
+          Navigator.push(
+            context,
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) =>
+                  const EmergencyAssistancePage(),
+              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                return SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0.0, 1.0),
+                    end: Offset.zero,
+                  ).animate(CurvedAnimation(
+                    parent: animation,
+                    curve: Curves.easeOutCubic,
+                  )),
+                  child: FadeTransition(
+                    opacity: animation,
+                    child: child,
+                  ),
+                );
+              },
+              transitionDuration: const Duration(milliseconds: 400),
+            ),
+          );
         }
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF6366F1).withValues(alpha: 0.1) : Colors.transparent,
+          color: isEmergency 
+              ? Colors.red.withValues(alpha: 0.1)
+              : (isSelected ? const Color(0xFF6366F1).withValues(alpha: 0.1) : Colors.transparent),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Column(
@@ -1654,7 +1595,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           children: [
             Icon(
               icon,
-              color: isSelected ? const Color(0xFF6366F1) : Colors.grey,
+              color: iconColor,
               size: 24,
             ),
             const SizedBox(height: 4),
@@ -1662,8 +1603,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               label,
               style: GoogleFonts.outfit(
                 fontSize: 11,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                color: isSelected ? const Color(0xFF6366F1) : Colors.grey,
+                fontWeight: isEmergency || isSelected ? FontWeight.w600 : FontWeight.w400,
+                color: labelColor,
               ),
             ),
           ],
