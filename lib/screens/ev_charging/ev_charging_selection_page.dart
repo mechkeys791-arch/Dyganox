@@ -40,23 +40,26 @@ class EVChargingSelectionPage extends StatelessWidget {
         ),
         centerTitle: true,
       ),
-      body: Center(
+      body: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
         child: Padding(
           padding: const EdgeInsets.all(24.0),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.start,
             children: [
-              // Header Icon
+              const SizedBox(height: 20),
+              
+              // Header Image
               Container(
-                width: 120,
-                height: 120,
+                width: double.infinity,
+                height: 200,
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
                     colors: [Color(0xFF45B7D1), Color(0xFF2E8BC0)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  borderRadius: BorderRadius.circular(30),
+                  borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                     BoxShadow(
                       color: const Color(0xFF45B7D1).withOpacity(0.3),
@@ -65,10 +68,41 @@ class EVChargingSelectionPage extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: const Icon(
-                  Icons.electric_car,
-                  color: Colors.white,
-                  size: 60,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(24),
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: Image.asset(
+                          'assets/icons/evnw.png',
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return const Center(
+                              child: Icon(
+                                Icons.electric_car,
+                                color: Colors.white,
+                                size: 80,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      Positioned.fill(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.black.withOpacity(0.3),
+                                Colors.transparent,
+                              ],
+                              begin: Alignment.bottomCenter,
+                              end: Alignment.topCenter,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               
@@ -96,7 +130,7 @@ class EVChargingSelectionPage extends StatelessWidget {
                 textAlign: TextAlign.center,
               ),
               
-              const SizedBox(height: 60),
+              const SizedBox(height: 50),
               
               // Search for Charging Stations Button
               SizedBox(
@@ -142,11 +176,14 @@ class EVChargingSelectionPage extends StatelessWidget {
                     children: [
                       const Icon(Icons.search, size: 24),
                       const SizedBox(width: 12),
-                      Text(
-                        'Search for Charging Stations',
-                        style: GoogleFonts.outfit(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
+                      Flexible(
+                        child: Text(
+                          'Search for Nearest EV Provider',
+                          style: GoogleFonts.outfit(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          textAlign: TextAlign.center,
                         ),
                       ),
                     ],
@@ -185,11 +222,14 @@ class EVChargingSelectionPage extends StatelessWidget {
                     children: [
                       const Icon(Icons.monetization_on, size: 24),
                       const SizedBox(width: 12),
-                      Text(
-                        'Share Charger & Earn Money',
-                        style: GoogleFonts.outfit(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
+                      Flexible(
+                        child: Text(
+                          'Want to Share Charge',
+                          style: GoogleFonts.outfit(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          textAlign: TextAlign.center,
                         ),
                       ),
                     ],

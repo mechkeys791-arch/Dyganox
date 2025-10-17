@@ -45,6 +45,7 @@ class _SplashScreenState extends State<SplashScreen>
     // Navigate to user type selection after 2 seconds
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) {
+        print('Navigating to UserTypeSelectionPage...');
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (context) => const UserTypeSelectionPage()),
         );
@@ -60,7 +61,7 @@ class _SplashScreenState extends State<SplashScreen>
 
   Widget _buildLogo() {
     return Image.asset(
-      'web/DYAGNOX_(1)[1].png',
+      'assets/icons/dyganox_logo.png',
       fit: BoxFit.contain,
       errorBuilder: (context, error, stackTrace) {
         // Fallback to custom logo if image fails to load
@@ -72,7 +73,7 @@ class _SplashScreenState extends State<SplashScreen>
               style: GoogleFonts.outfit(
                 fontSize: 32,
                 fontWeight: FontWeight.bold,
-                color: const Color(0xFF5D4E37),
+                color: Colors.white,
                 letterSpacing: 3,
               ),
             ),

@@ -69,103 +69,105 @@ class _EmergencyAssistancePageState extends State<EmergencyAssistancePage>
             borderRadius: BorderRadius.circular(28),
           ),
           elevation: 16,
-          child: Container(
-            padding: const EdgeInsets.all(28),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(28),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Emergency Icon
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF706DC7).withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.warning_rounded,
-                    color: Color(0xFF706DC7),
-                    size: 50,
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // Title
-                Text(
-                  'Select Vehicle Type',
-                  style: GoogleFonts.outfit(
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                // Subtitle
-                Text(
-                  'Choose your vehicle to find nearby mechanics instantly',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.inter(
-                    fontSize: 15,
-                    color: Colors.grey[600],
-                    height: 1.4,
-                  ),
-                ),
-                const SizedBox(height: 32),
-
-                // Vehicle Type Buttons
-                _buildVehicleOptionButton(
-                  icon: Icons.directions_car_rounded,
-                  title: 'Car',
-                  subtitle: 'Cars, Sedans, SUVs',
-                  onTap: () {
-                    Navigator.pop(context);
-                    _navigateToMechanics('Car');
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                _buildVehicleOptionButton(
-                  icon: Icons.two_wheeler_rounded,
-                  title: 'Bike',
-                  subtitle: 'Motorcycles, Scooters',
-                  onTap: () {
-                    Navigator.pop(context);
-                    _navigateToMechanics('Bike');
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                _buildVehicleOptionButton(
-                  icon: Icons.local_shipping_rounded,
-                  title: 'Other Vehicles',
-                  subtitle: 'Trucks, Vans, Buses',
-                  onTap: () {
-                    Navigator.pop(context);
-                    _navigateToMechanics('Other Vehicles');
-                  },
-                ),
-                const SizedBox(height: 24),
-
-                // Cancel Button
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-                  ),
-                  child: Text(
-                    'Cancel',
-                    style: GoogleFonts.outfit(
-                      color: Colors.grey[600],
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+          child: SingleChildScrollView(
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(28),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Emergency Icon
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF706DC7).withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.warning_rounded,
+                      color: Color(0xFF706DC7),
+                      size: 40,
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 20),
+
+                  // Title
+                  Text(
+                    'Select Vehicle Type',
+                    style: GoogleFonts.outfit(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Subtitle
+                  Text(
+                    'Choose your vehicle to find nearby mechanics instantly',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Vehicle Type Buttons
+                  _buildVehicleOptionButton(
+                    icon: Icons.directions_car_rounded,
+                    title: 'Car',
+                    subtitle: 'Cars, Sedans, SUVs',
+                    onTap: () {
+                      Navigator.pop(context);
+                      _navigateToMechanics('Car');
+                    },
+                  ),
+                  const SizedBox(height: 12),
+
+                  _buildVehicleOptionButton(
+                    icon: Icons.two_wheeler_rounded,
+                    title: 'Bike',
+                    subtitle: 'Motorcycles, Scooters',
+                    onTap: () {
+                      Navigator.pop(context);
+                      _navigateToMechanics('Bike');
+                    },
+                  ),
+                  const SizedBox(height: 12),
+
+                  _buildVehicleOptionButton(
+                    icon: Icons.local_shipping_rounded,
+                    title: 'Other Vehicles',
+                    subtitle: 'Trucks, Vans, Buses',
+                    onTap: () {
+                      Navigator.pop(context);
+                      _navigateToMechanics('Other Vehicles');
+                    },
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Cancel Button
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                    ),
+                    child: Text(
+                      'Cancel',
+                      style: GoogleFonts.outfit(
+                        color: Colors.grey[600],
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -186,32 +188,32 @@ class _EmergencyAssistancePageState extends State<EmergencyAssistancePage>
           HapticFeedback.lightImpact();
           onTap();
         },
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         child: Container(
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             border: Border.all(
               color: const Color(0xFF706DC7).withOpacity(0.3),
-              width: 2,
+              width: 1.5,
             ),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(14),
             color: const Color(0xFF706DC7).withOpacity(0.03),
           ),
           child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(14),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: const Color(0xFF706DC7).withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   icon,
                   color: const Color(0xFF706DC7),
-                  size: 32,
+                  size: 26,
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -219,18 +221,20 @@ class _EmergencyAssistancePageState extends State<EmergencyAssistancePage>
                     Text(
                       title,
                       style: GoogleFonts.outfit(
-                        fontSize: 18,
+                        fontSize: 16,
                         fontWeight: FontWeight.bold,
                         color: Colors.black87,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
                     Text(
                       subtitle,
                       style: GoogleFonts.inter(
-                        fontSize: 13,
+                        fontSize: 12,
                         color: Colors.grey[600],
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
@@ -238,7 +242,7 @@ class _EmergencyAssistancePageState extends State<EmergencyAssistancePage>
               const Icon(
                 Icons.arrow_forward_ios_rounded,
                 color: Color(0xFF706DC7),
-                size: 18,
+                size: 16,
               ),
             ],
           ),
@@ -761,19 +765,6 @@ class _MechanicsListPageState extends State<MechanicsListPage>
     }
   }
 
-  void _bookAppointment(String mechanicName, String address) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => BookingConfirmationPage(
-          mechanicName: mechanicName,
-          address: address,
-          vehicleType: widget.vehicleType,
-        ),
-      ),
-    );
-  }
-
   void _showSnackBar(String message, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -973,63 +964,32 @@ class _MechanicsListPageState extends State<MechanicsListPage>
               const SizedBox(height: 20),
               const Divider(height: 1),
               const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        HapticFeedback.lightImpact();
-                        _bookAppointment(name, address);
-                      },
-                      icon: const Icon(Icons.calendar_month_rounded, size: 22),
-                      label: Text(
-                        'Book Appointment',
-                        style: GoogleFonts.outfit(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                        ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF706DC7),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        elevation: 4,
-                        shadowColor: const Color(0xFF706DC7).withOpacity(0.4),
-                      ),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    _makePhoneCall(phone);
+                  },
+                  icon: const Icon(Icons.phone_rounded, size: 24),
+                  label: Text(
+                    'Call Now',
+                    style: GoogleFonts.outfit(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        HapticFeedback.lightImpact();
-                        _makePhoneCall(phone);
-                      },
-                      icon: const Icon(Icons.phone_rounded, size: 22),
-                      label: Text(
-                        'Call Now',
-                        style: GoogleFonts.outfit(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                        ),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF706DC7),
-                        side: const BorderSide(
-                          color: Color(0xFF706DC7),
-                          width: 2.5,
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF706DC7),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
                     ),
+                    elevation: 4,
+                    shadowColor: const Color(0xFF706DC7).withOpacity(0.4),
                   ),
-                ],
+                ),
               ),
             ],
           ),

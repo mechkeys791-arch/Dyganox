@@ -83,8 +83,8 @@ class _UserTypeSelectionPageState extends State<UserTypeSelectionPage>
                       child: ScaleTransition(
                         scale: _scaleAnimation,
                         child: Container(
-                          width: 120,
-                          height: 120,
+                          width: 140,
+                          height: 140,
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(30),
@@ -97,13 +97,13 @@ class _UserTypeSelectionPageState extends State<UserTypeSelectionPage>
                               ),
                             ],
                           ),
-                          child: Center(
-                            child: Text(
-                              'D',
-                              style: GoogleFonts.outfit(
-                                fontSize: 64,
-                                fontWeight: FontWeight.bold,
-                                color: const Color(0xFF6366F1),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(30),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Image.asset(
+                                'assets/icons/dyganox_logo.png',
+                                fit: BoxFit.contain,
                               ),
                             ),
                           ),
@@ -156,45 +156,6 @@ class _UserTypeSelectionPageState extends State<UserTypeSelectionPage>
                 ),
                 
                 const SizedBox(height: 60),
-                
-                // Selection Title
-                AnimatedBuilder(
-                  animation: _fadeAnimation,
-                  builder: (context, child) {
-                    return FadeTransition(
-                      opacity: _fadeAnimation,
-                      child: Text(
-                        'Choose Your Role',
-                        style: GoogleFonts.outfit(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                
-                const SizedBox(height: 8),
-                
-                AnimatedBuilder(
-                  animation: _fadeAnimation,
-                  builder: (context, child) {
-                    return FadeTransition(
-                      opacity: _fadeAnimation,
-                      child: Text(
-                        'How would you like to use Dyganox?',
-                        style: GoogleFonts.inter(
-                          fontSize: 16,
-                          color: Colors.white.withOpacity(0.8),
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    );
-                  },
-                ),
-                
-                const SizedBox(height: 40),
                 
                 // User Option
                 AnimatedBuilder(
@@ -288,7 +249,7 @@ class _UserTypeSelectionPageState extends State<UserTypeSelectionPage>
         borderRadius: BorderRadius.circular(20),
         child: Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
           decoration: BoxDecoration(
             color: color,
             borderRadius: BorderRadius.circular(20),
@@ -307,8 +268,8 @@ class _UserTypeSelectionPageState extends State<UserTypeSelectionPage>
           child: Row(
             children: [
               Container(
-                width: 60,
-                height: 60,
+                width: 56,
+                height: 56,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: color == Colors.white
@@ -326,10 +287,10 @@ class _UserTypeSelectionPageState extends State<UserTypeSelectionPage>
                 child: Icon(
                   icon,
                   color: color == Colors.white ? Colors.white : Colors.white.withOpacity(0.9),
-                  size: 28,
+                  size: 26,
                 ),
               ),
-              const SizedBox(width: 20),
+              const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -337,7 +298,7 @@ class _UserTypeSelectionPageState extends State<UserTypeSelectionPage>
                     Text(
                       title,
                       style: GoogleFonts.outfit(
-                        fontSize: 20,
+                        fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: color == Colors.white ? const Color(0xFF1E293B) : Colors.white,
                       ),
@@ -346,19 +307,22 @@ class _UserTypeSelectionPageState extends State<UserTypeSelectionPage>
                     Text(
                       subtitle,
                       style: GoogleFonts.inter(
-                        fontSize: 14,
+                        fontSize: 13,
                         color: color == Colors.white 
                             ? Colors.grey[600] 
                             : Colors.white.withOpacity(0.8),
                       ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
               ),
+              const SizedBox(width: 8),
               Icon(
                 Icons.arrow_forward_ios,
                 color: color == Colors.white ? const Color(0xFF6366F1) : Colors.white.withOpacity(0.8),
-                size: 20,
+                size: 18,
               ),
             ],
           ),
