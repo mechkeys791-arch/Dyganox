@@ -182,7 +182,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         icon: const Icon(Icons.work, color: Colors.white),
                         label: const Text('Help & Earn', style: TextStyle(color: Colors.white)),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF10B981),
+                          backgroundColor: const Color(0xFF706DC7),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -338,12 +338,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withOpacity(0.1),
+                  color: const Color(0xFF706DC7).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
                   Icons.check_circle,
-                  color: Color(0xFF10B981),
+                  color: Color(0xFF706DC7),
                   size: 20,
                 ),
               ),
@@ -375,7 +375,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF10B981).withOpacity(0.1),
+                    color: const Color(0xFF706DC7).withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Column(
@@ -448,12 +448,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF10B981).withOpacity(0.1),
+                      color: const Color(0xFF706DC7).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Icon(
                       Icons.work,
-                      color: Color(0xFF10B981),
+                      color: Color(0xFF706DC7),
                       size: 20,
                     ),
                   ),
@@ -593,12 +593,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withOpacity(0.1),
+                  color: const Color(0xFF706DC7).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
                   Icons.check_circle,
-                  color: Color(0xFF10B981),
+                  color: Color(0xFF706DC7),
                   size: 20,
                 ),
               ),
@@ -746,7 +746,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           ),
                           child: const Icon(
                             Icons.arrow_forward_ios,
-                            color: Color(0xFF6366F1),
+                            color: Color(0xFF706DC7),
                             size: 16,
                           ),
                         ),
@@ -1154,7 +1154,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                               style: GoogleFonts.inter(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color: const Color(0xFF706DC7),
+                                color: const Color(0xFF10B981),
                               ),
                             ),
                           ),
@@ -1185,7 +1185,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             _buildQuickServiceCard(
                               title: 'Emergency',
                               iconPath: 'assets/icons/24-hour-service.png',
-                              color: const Color(0xFF706DC7),
+                              color: const Color(0xFF10B981),
                               onTap: () {
                                 Navigator.push(
                                   context,
@@ -1215,7 +1215,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             _buildQuickServiceCard(
                               title: 'Towing',
                               iconPath: 'assets/icons/tow-truck.png',
-                              color: const Color(0xFF706DC7),
+                              color: const Color(0xFF10B981),
                               onTap: () {
                                 Navigator.push(
                                   context,
@@ -1245,7 +1245,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             _buildQuickServiceCard(
                               title: 'Fuel Refill',
                               iconPath: 'assets/icons/fuel-station.png',
-                              color: const Color(0xFF706DC7),
+                              color: const Color(0xFF10B981),
                               onTap: () {
                                 Navigator.push(
                                   context,
@@ -1275,7 +1275,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             _buildQuickServiceCard(
                               title: 'EV Charging',
                               iconPath: 'assets/icons/charging-station.png',
-                              color: const Color(0xFF706DC7),
+                              color: const Color(0xFF10B981),
                               onTap: () {
                                 Navigator.push(
                                   context,
@@ -1305,7 +1305,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             _buildQuickServiceCard(
                               title: 'Puncture',
                               iconPath: 'assets/icons/punctured-tire.png',
-                              color: const Color(0xFF706DC7),
+                              color: const Color(0xFF10B981),
                               onTap: () {
                                 Navigator.push(
                                   context,
@@ -1335,7 +1335,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             _buildQuickServiceCard(
                               title: 'Minor Repair',
                               iconPath: 'assets/icons/repair-tools.png',
-                              color: const Color(0xFF706DC7),
+                              color: const Color(0xFF10B981),
                               onTap: () {
                                 Navigator.push(
                                   context,
@@ -1447,7 +1447,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                               style: GoogleFonts.inter(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color: const Color(0xFF706DC7),
+                                color: const Color(0xFF10B981),
                               ),
                             ),
                           ),
