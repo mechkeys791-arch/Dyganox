@@ -224,6 +224,7 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
     }
   }
 
+
   void _updateDistances(double userLat, double userLng) {
     setState(() {
       _mechanics = _allMechanics.map((mechanic) {
