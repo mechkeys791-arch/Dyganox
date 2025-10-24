@@ -1287,7 +1287,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             ),
                             _buildQuickServiceCard(
                               title: 'Puncture',
-                              iconPath: 'assets/icons/punctured-tire.png',
+                              iconPath: 'assets/icons/pun.png',
                               color: const Color(0xFF706DC7),
                               onTap: () {
                                 Navigator.push(
@@ -1377,7 +1377,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                            ),
                            _buildQuickServiceCard(
                              title: 'V2V Service',
-                             iconPath: 'assets/icons/user.png',
+                             iconPath: 'assets/icons/v2v.png',
                              color: const Color(0xFF706DC7),
                              onTap: () {
                                _showV2VServiceDialog();
@@ -1708,23 +1708,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   padding: const EdgeInsets.all(16),
                   child: Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.25),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.3),
-                            width: 1.5,
-                          ),
-                        ),
-                        child: Icon(
-                          ad['icon'] as IconData,
-                          color: Colors.white,
-                          size: 28,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1734,7 +1717,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                               ad['title'] as String,
                               style: GoogleFonts.outfit(
                                 color: Colors.white,
-                                fontSize: 16,
+                                fontSize: 30,
                                 fontWeight: FontWeight.bold,
                                 shadows: [
                                   Shadow(
@@ -1750,7 +1733,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                               ad['subtitle'] as String,
                               style: GoogleFonts.inter(
                                 color: Colors.white,
-                                fontSize: 12,
+                                fontSize: 14,
                                 fontWeight: FontWeight.w500,
                                 shadows: [
                                   Shadow(

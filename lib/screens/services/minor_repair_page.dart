@@ -152,14 +152,14 @@ class _MinorRepairPageState extends State<MinorRepairPage> with TickerProviderSt
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF26D0CE).withOpacity(0.1),
+                                  color: const Color(0xFF706DC7).withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Text(
                                   'Starting at $price',
                                   style: GoogleFonts.outfit(
                                     fontSize: 12,
-                                    color: const Color(0xFF26D0CE),
+                                    color: const Color(0xFF706DC7),
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -344,12 +344,12 @@ class _MinorRepairPageState extends State<MinorRepairPage> with TickerProviderSt
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: selectedServiceType == 'on-spot' 
-                          ? const Color(0xFF26D0CE).withOpacity(0.1)
+                          ? const Color(0xFF706DC7).withOpacity(0.1)
                           : Colors.white,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
                         color: selectedServiceType == 'on-spot'
-                            ? const Color(0xFF26D0CE)
+                            ? const Color(0xFF706DC7)
                             : Colors.grey.withOpacity(0.3),
                         width: selectedServiceType == 'on-spot' ? 2 : 1,
                       ),
@@ -360,7 +360,7 @@ class _MinorRepairPageState extends State<MinorRepairPage> with TickerProviderSt
                           Icons.location_on,
                           size: 32,
                           color: selectedServiceType == 'on-spot'
-                              ? const Color(0xFF26D0CE)
+                              ? const Color(0xFF706DC7)
                               : Colors.grey,
                         ),
                         const SizedBox(height: 8),
@@ -370,7 +370,7 @@ class _MinorRepairPageState extends State<MinorRepairPage> with TickerProviderSt
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                             color: selectedServiceType == 'on-spot'
-                                ? const Color(0xFF26D0CE)
+                                ? const Color(0xFF706DC7)
                                 : Colors.grey,
                           ),
                           textAlign: TextAlign.center,
@@ -394,12 +394,12 @@ class _MinorRepairPageState extends State<MinorRepairPage> with TickerProviderSt
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: selectedServiceType == 'pickup' 
-                          ? const Color(0xFF26D0CE).withOpacity(0.1)
+                          ? const Color(0xFF706DC7).withOpacity(0.1)
                           : Colors.white,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
                         color: selectedServiceType == 'pickup'
-                            ? const Color(0xFF26D0CE)
+                            ? const Color(0xFF706DC7)
                             : Colors.grey.withOpacity(0.3),
                         width: selectedServiceType == 'pickup' ? 2 : 1,
                       ),
@@ -410,7 +410,7 @@ class _MinorRepairPageState extends State<MinorRepairPage> with TickerProviderSt
                           Icons.local_shipping,
                           size: 32,
                           color: selectedServiceType == 'pickup'
-                              ? const Color(0xFF26D0CE)
+                              ? const Color(0xFF706DC7)
                               : Colors.grey,
                         ),
                         const SizedBox(height: 8),
@@ -420,7 +420,7 @@ class _MinorRepairPageState extends State<MinorRepairPage> with TickerProviderSt
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                             color: selectedServiceType == 'pickup'
-                                ? const Color(0xFF26D0CE)
+                                ? const Color(0xFF706DC7)
                                 : Colors.grey,
                           ),
                           textAlign: TextAlign.center,
@@ -449,43 +449,25 @@ class _MinorRepairPageState extends State<MinorRepairPage> with TickerProviderSt
       {
         'title': 'Flat Tire Repair',
         'description': 'Puncture repair, tire inflation, spare tire fitting',
-        'icon': 'assets/icons/punctured-tire.png',
+        'icon': 'assets/icons/pun.png',
         'price': '₹199',
       },
       {
         'title': 'Electrical Problems',
         'description': 'Wiring issues, fuse replacement, light repairs',
-        'icon': 'assets/icons/bulb.png',
+        'icon': 'assets/icons/elec.png',
         'price': '₹399',
-      },
-      {
-        'title': 'Engine Diagnostics',
-        'description': 'Basic engine check, diagnostic scan, minor fixes',
-        'icon': 'assets/icons/maintenance.png',
-        'price': '₹499',
       },
       {
         'title': 'Brake Adjustment',
         'description': 'Brake pad check, fluid top-up, minor adjustments',
-        'icon': 'assets/icons/repair-tools.png',
+        'icon': 'assets/icons/break.png',
         'price': '₹399',
-      },
-      {
-        'title': 'Fuel System',
-        'description': 'Fuel pump issues, filter cleaning, fuel delivery',
-        'icon': 'assets/icons/fuel.png',
-        'price': '₹299',
-      },
-      {
-        'title': 'Cooling System',
-        'description': 'Coolant top-up, radiator check, fan repairs',
-        'icon': 'assets/icons/maintenance.png',
-        'price': '₹349',
       },
       {
         'title': 'Key & Lock Issues',
         'description': 'Key programming, lock repairs, emergency unlock',
-        'icon': 'assets/icons/car-key.png',
+        'icon': 'assets/icons/key.png',
         'price': '₹599',
       },
     ];
@@ -536,14 +518,14 @@ class _MinorRepairPageState extends State<MinorRepairPage> with TickerProviderSt
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [Color(0xFF26D0CE), Color(0xFF1A9B98)],
+                    colors: [Color(0xFF706DC7), Color(0xFF5956A8)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF26D0CE).withOpacity(0.3),
+                      color: const Color(0xFF706DC7).withOpacity(0.3),
                       blurRadius: 20,
                       offset: const Offset(0, 10),
                     ),
@@ -663,7 +645,7 @@ class _MinorRepairPageState extends State<MinorRepairPage> with TickerProviderSt
                                 Container(
                                   padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF26D0CE).withOpacity(0.1),
+                                    color: const Color(0xFF706DC7).withOpacity(0.1),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Column(
@@ -673,14 +655,14 @@ class _MinorRepairPageState extends State<MinorRepairPage> with TickerProviderSt
                                           const Icon(
                                             Icons.access_time,
                                             size: 16,
-                                            color: Color(0xFF26D0CE),
+                                            color: Color(0xFF706DC7),
                                           ),
                                           const SizedBox(width: 8),
                                           Text(
                                             'Service available 24/7',
                                             style: GoogleFonts.outfit(
                                               fontSize: 12,
-                                              color: const Color(0xFF26D0CE),
+                                              color: const Color(0xFF706DC7),
                                               fontWeight: FontWeight.w600,
                                             ),
                                           ),
@@ -692,7 +674,7 @@ class _MinorRepairPageState extends State<MinorRepairPage> with TickerProviderSt
                                           const Icon(
                                             Icons.location_on,
                                             size: 16,
-                                            color: Color(0xFF26D0CE),
+                                            color: Color(0xFF706DC7),
                                           ),
                                           const SizedBox(width: 8),
                                           Text(
@@ -701,7 +683,7 @@ class _MinorRepairPageState extends State<MinorRepairPage> with TickerProviderSt
                                                 : 'Pickup & drop service',
                                             style: GoogleFonts.outfit(
                                               fontSize: 12,
-                                              color: const Color(0xFF26D0CE),
+                                              color: const Color(0xFF706DC7),
                                               fontWeight: FontWeight.w600,
                                             ),
                                           ),
@@ -730,7 +712,7 @@ class _MinorRepairPageState extends State<MinorRepairPage> with TickerProviderSt
                                         'Booking ${service['title']} for ${selectedVehicleType.toUpperCase()}',
                                         style: GoogleFonts.outfit(),
                                       ),
-                                      backgroundColor: const Color(0xFF26D0CE),
+                                      backgroundColor: const Color(0xFF706DC7),
                                       behavior: SnackBarBehavior.floating,
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(10),
@@ -739,7 +721,7 @@ class _MinorRepairPageState extends State<MinorRepairPage> with TickerProviderSt
                                   );
                                 },
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF26D0CE),
+                                  backgroundColor: const Color(0xFF706DC7),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(8),
                                   ),
