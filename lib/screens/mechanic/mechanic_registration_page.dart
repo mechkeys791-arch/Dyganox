@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+  import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
@@ -110,7 +110,7 @@ class _MechanicRegistrationPageState extends State<MechanicRegistrationPage> {
 
     try {
       final response = await http.post(
-        Uri.parse("http://192.168.11.74:8081/api/mechanic"),
+        Uri.parse("http://10.73.102.113:8081/api/mechanic"),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode(mechanicData),
       );

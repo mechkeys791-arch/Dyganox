@@ -136,7 +136,7 @@ class _EVProviderScreenState extends State<EVProviderScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse("http://192.168.11.74:8081/api/evprovider"),
+        Uri.parse("http://10.73.102.113:8081/api/evprovider"),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode(providerData),
       );
@@ -568,7 +568,7 @@ class _EVChargingScreenState extends State<EVChargingScreen> {
     try {
       print("EV Charging: Fetching charging stations from database...");
       final response = await http.get(
-        Uri.parse("http://192.168.11.74:8081/api/evprovider"),
+        Uri.parse("http://10.73.102.113:8081/api/evprovider"),
         headers: {"Content-Type": "application/json"},
       );
 

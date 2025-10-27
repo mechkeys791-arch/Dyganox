@@ -101,7 +101,7 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
       // For demo purposes, using mechanic ID 1
       // In a real app, you'd get this from user session/login
       final response = await http.get(
-        Uri.parse("http://192.168.11.74:8081/api/mechanic-requests/mechanic/1/pending"),
+        Uri.parse("http://10.73.102.113:8081/api/mechanic-requests/mechanic/1/pending"),
         headers: {"Content-Type": "application/json"},
       );
 
@@ -126,7 +126,7 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
   Future<void> _acceptRequest(Map<String, dynamic> request) async {
     try {
       final response = await http.put(
-        Uri.parse("http://192.168.11.74:8081/api/mechanic-requests/${request['id']}/accept"),
+        Uri.parse("http://10.73.102.113:8081/api/mechanic-requests/${request['id']}/accept"),
         headers: {"Content-Type": "application/json"},
       );
 
@@ -144,7 +144,7 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
   Future<void> _rejectRequest(Map<String, dynamic> request) async {
     try {
       final response = await http.put(
-        Uri.parse("http://192.168.11.74:8081/api/mechanic-requests/${request['id']}/reject"),
+        Uri.parse("http://10.73.102.113:8081/api/mechanic-requests/${request['id']}/reject"),
         headers: {"Content-Type": "application/json"},
       );
 

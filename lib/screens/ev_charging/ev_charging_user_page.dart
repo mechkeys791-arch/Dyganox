@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class EVChargingUserPage extends StatefulWidget {
   const EVChargingUserPage({super.key});
@@ -11,46 +13,77 @@ class EVChargingUserPage extends StatefulWidget {
 class _EVChargingUserPageState extends State<EVChargingUserPage> {
   final TextEditingController _searchController = TextEditingController();
   List<Map<String, dynamic>> _chargingStations = [];
+  List<Map<String, dynamic>> _allStations = [];
   bool _showMap = false;
   String _locationMessage = '';
-
-  final List<Map<String, dynamic>> _allStations = [
-    {
-      "name": "Ravi's Home Charging",
-      "rating": 4.5,
-      "distance": 0.4,
-      "availableTime": "Available 24/7",
-      "capacity": "7KW",
-      "price": "₹8/KWh",
-      "latitude": 12.9716,
-      "longitude": 77.5946,
-    },
-    {
-      "name": "Green Society Hub",
-      "rating": 4.2,
-      "distance": 0.8,
-      "availableTime": "6AM - 11PM",
-      "capacity": "10KW",
-      "price": "₹10/KWh",
-      "latitude": 12.9756,
-      "longitude": 77.5956,
-    },
-    {
-      "name": "Express Charging Point",
-      "rating": 4.7,
-      "distance": 1.2,
-      "availableTime": "7AM - 10PM",
-      "capacity": "50KW",
-      "price": "₹15/KWh",
-      "latitude": 12.9686,
-      "longitude": 77.5936,
-    },
-  ];
+  bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _chargingStations = _allStations;
+    _fetchEVProviders();
+  }
+
+  Future<void> _fetchEVProviders() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      print("EV Charging User: Fetching EV providers from database...");
+      final response = await http.get(
+        Uri.parse("http://10.73.102.113:8081/api/evprovider"),
+        headers: {"Content-Type": "application/json"},
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        
+        _allStations = data.map((provider) {
+          double rating = 4.0 + ((provider['id'] as int) % 10) * 0.1;
+          double distance = 0.5 + ((provider['id'] as int) % 5) * 0.3;
+          
+          return {
+            "id": provider['id'],
+            "name": provider['name'] ?? 'EV Charging Station',
+            "rating": rating,
+            "distance": distance,
+            "availableTime": provider['availableHours'] ?? 'Available 24/7',
+            "capacity": provider['chargerType'] ?? '7KW',
+            "price": provider['rate'] != null ? '₹${provider['rate']}/KWh' : '₹10/KWh',
+            "latitude": double.tryParse(provider['latitude']?.toString() ?? '0') ?? 0.0,
+            "longitude": double.tryParse(provider['longitude']?.toString() ?? '0') ?? 0.0,
+            "phone": provider['phone'] ?? 'Not available',
+            "address": provider['address'] ?? 'No address provided',
+          };
+        }).toList();
+
+        setState(() {
+          _chargingStations = _allStations;
+        });
+
+        print("EV Charging User: Successfully loaded ${_allStations.length} EV providers");
+      } else {
+        print("EV Charging User: Error fetching providers - HTTP ${response.statusCode}");
+        _showErrorSnackBar("Failed to load charging stations");
+      }
+    } catch (e) {
+      print("EV Charging User: Exception fetching providers - $e");
+      _showErrorSnackBar("Error loading charging stations: $e");
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+      ),
+    );
   }
 
   void _getCurrentLocation() async {
@@ -327,13 +360,56 @@ class _EVChargingUserPageState extends State<EVChargingUserPage> {
           
           const SizedBox(height: 20),
           
-          // Station Cards
-          ..._chargingStations.map((station) => Column(
-            children: [
-              _buildStationCard(station),
-              const SizedBox(height: 16),
-            ],
-          )),
+          // Loading Indicator or Station Cards
+          if (_isLoading)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(40.0),
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF45B7D1)),
+                ),
+              ),
+            )
+          else if (_chargingStations.isEmpty)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(40.0),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.electric_car,
+                      size: 60,
+                      color: Colors.grey[400],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No charging stations found',
+                      style: GoogleFonts.outfit(
+                        fontSize: 16,
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    ElevatedButton.icon(
+                      onPressed: _fetchEVProviders,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Retry'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF45B7D1),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            ..._chargingStations.map((station) => Column(
+              children: [
+                _buildStationCard(station),
+                const SizedBox(height: 16),
+              ],
+            )),
         ],
       ),
     );

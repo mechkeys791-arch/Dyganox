@@ -24,7 +24,7 @@ class _BackendTestPageState extends State<BackendTestPage> {
       
       // Test 1: Check if backend is running
       final response = await http.get(
-        Uri.parse("http://192.168.11.74:8081/api/person"),
+        Uri.parse("http://10.73.102.113:8081/api/person"),
         headers: {"Content-Type": "application/json"},
       ).timeout(const Duration(seconds: 10));
 
@@ -73,7 +73,7 @@ class _BackendTestPageState extends State<BackendTestPage> {
       print("📦 Sending test data: ${jsonEncode(testData)}");
 
       final response = await http.post(
-        Uri.parse("http://192.168.11.74:8081/api/person"),
+        Uri.parse("http://10.73.102.113:8081/api/person"),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode(testData),
       ).timeout(const Duration(seconds: 10));

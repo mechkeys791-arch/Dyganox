@@ -23,7 +23,7 @@ class _TestConnectionPageState extends State<TestConnectionPage> {
     try {
       // Test GET request
       final getResponse = await http.get(
-        Uri.parse("http://192.168.11.74:8081/api/person"),
+        Uri.parse("http://10.73.102.113:8081/api/person"),
         headers: {"Content-Type": "application/json"},
       ).timeout(const Duration(seconds: 10));
 
@@ -43,7 +43,7 @@ class _TestConnectionPageState extends State<TestConnectionPage> {
       };
 
       final postResponse = await http.post(
-        Uri.parse("http://192.168.11.74:8081/api/person"),
+        Uri.parse("http://10.73.102.113:8081/api/person"),
         headers: {
           "Content-Type": "application/json",
           "Accept": "application/json",

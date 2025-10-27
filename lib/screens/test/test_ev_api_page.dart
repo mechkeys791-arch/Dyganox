@@ -27,10 +27,10 @@ class _TestEVAPIPageState extends State<TestEVAPIPage> {
     });
 
     try {
-      _addLog('🔍 Testing: http://192.168.11.74:8081/api/evprovider');
+      _addLog('🔍 Testing: http://10.73.102.113:8081/api/evprovider');
       
       final response = await http.get(
-        Uri.parse('http://192.168.11.74:8081/api/evprovider'),
+        Uri.parse('http://10.73.102.113:8081/api/evprovider'),
       ).timeout(
         const Duration(seconds: 5),
         onTimeout: () {
@@ -69,11 +69,11 @@ class _TestEVAPIPageState extends State<TestEVAPIPage> {
     };
 
     try {
-      _addLog('📤 Sending POST to: http://192.168.11.74:8081/api/evprovider');
+      _addLog('📤 Sending POST to: http://10.73.102.113:8081/api/evprovider');
       _addLog('📦 Data: ${jsonEncode(testData)}');
       
       final response = await http.post(
-        Uri.parse('http://192.168.11.74:8081/api/evprovider'),
+        Uri.parse('http://10.73.102.113:8081/api/evprovider'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(testData),
       ).timeout(
@@ -111,7 +111,7 @@ class _TestEVAPIPageState extends State<TestEVAPIPage> {
     _addLog('STEP 1: Checking connection...');
     try {
       final pingResponse = await http.get(
-        Uri.parse('http://192.168.11.74:8081/api/evprovider'),
+        Uri.parse('http://10.73.102.113:8081/api/evprovider'),
       ).timeout(const Duration(seconds: 5));
       _addLog('✅ Backend is reachable (Status: ${pingResponse.statusCode})');
     } catch (e) {
@@ -125,7 +125,7 @@ class _TestEVAPIPageState extends State<TestEVAPIPage> {
     int initialCount = 0;
     try {
       final getResponse = await http.get(
-        Uri.parse('http://192.168.11.74:8081/api/evprovider'),
+        Uri.parse('http://10.73.102.113:8081/api/evprovider'),
       );
       final data = jsonDecode(getResponse.body);
       initialCount = data.length;
@@ -149,7 +149,7 @@ class _TestEVAPIPageState extends State<TestEVAPIPage> {
     try {
       _addLog('📤 Sending: ${jsonEncode(testData)}');
       final postResponse = await http.post(
-        Uri.parse('http://192.168.11.74:8081/api/evprovider'),
+        Uri.parse('http://10.73.102.113:8081/api/evprovider'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(testData),
       );
@@ -177,7 +177,7 @@ class _TestEVAPIPageState extends State<TestEVAPIPage> {
     
     try {
       final verifyResponse = await http.get(
-        Uri.parse('http://192.168.11.74:8081/api/evprovider'),
+        Uri.parse('http://10.73.102.113:8081/api/evprovider'),
       );
       final data = jsonDecode(verifyResponse.body);
       final newCount = data.length;
@@ -229,7 +229,7 @@ class _TestEVAPIPageState extends State<TestEVAPIPage> {
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'Endpoint: http://192.168.11.74:8081/api/evprovider',
+                  'Endpoint: http://10.73.102.113:8081/api/evprovider',
                   style: TextStyle(fontSize: 12, fontFamily: 'monospace'),
                 ),
                 const SizedBox(height: 16),
