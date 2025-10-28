@@ -158,7 +158,6 @@ class _BikeServicePageState extends State<BikeServicePage> with TickerProviderSt
     final services = [
       {'title': 'Battery', 'icon': 'assets/icons/bike-battery.png'},
       {'title': 'Tyre Care', 'icon': 'assets/icons/bike-tyre.png'},
-      {'title': 'Services', 'icon': 'assets/icons/bike-service.png'},
       {'title': 'Body Works', 'icon': 'assets/icons/bike-body-works.png'},
       {'title': 'Duplicate Key', 'icon': 'assets/icons/duplicate-key.png'},
       {'title': 'Brake Service', 'icon': 'assets/icons/brake-service.png'},
@@ -444,85 +443,6 @@ class _BikeServicePageState extends State<BikeServicePage> with TickerProviderSt
                           },
                         );
                       },
-                    ),
-                  ],
-                ),
-              ),
-
-              // Emergency Section
-              Container(
-                margin: const EdgeInsets.all(20),
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Colors.red.shade400, Colors.red.shade600],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.red.withOpacity(0.3),
-                      blurRadius: 15,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(
-                        Icons.emergency,
-                        color: Colors.white,
-                        size: 24,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Emergency Bike Service',
-                            style: GoogleFonts.outfit(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            '24/7 roadside assistance available',
-                            style: GoogleFonts.inter(
-                              color: Colors.white.withOpacity(0.9),
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    ElevatedButton(
-                      onPressed: () {
-                        HapticFeedback.heavyImpact();
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: Colors.red,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      child: Text(
-                        'Call Now',
-                        style: GoogleFonts.outfit(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12,
-                        ),
-                      ),
                     ),
                   ],
                 ),

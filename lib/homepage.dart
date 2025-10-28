@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:geolocator/geolocator.dart';
 import 'screens/services/car_service_page.dart';
 import 'screens/services/bike_service_page.dart';
 import 'screens/services/minor_repair_page.dart';
@@ -10,6 +11,7 @@ import 'screens/ev_charging/ev_charging_page.dart';
 import 'screens/services/fuel_refill_page.dart';
 import 'screens/services/tyre_care_page.dart';
 import 'screens/mechanic/mechanic_finder_page.dart';
+import 'screens/services/map_service_page.dart';
 import 'emergency_assistance_page.dart';
 
 class HomePage extends StatefulWidget {
@@ -28,6 +30,15 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   late PageController _adPageController;
   int _currentAdIndex = 0;
   
+  // Location variables
+  String _currentLocation = 'Getting location...';
+  // ignore: unused_field
+  Position? _currentPosition;
+  bool _isLoadingLocation = false;
+  
+  // Search functionality
+  List<Map<String, dynamic>> _searchResults = [];
+  final List<Map<String, dynamic>> _allServices = [];
   
   // Responsive design variables
   late double screenWidth;
@@ -56,6 +67,45 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     
     // Auto-scroll ads
     _startAdAutoScroll();
+    
+    // Get current location
+    _getCurrentLocation();
+    
+    // Initialize searchable services
+    _initializeServices();
+    
+    // Add listener to search controller
+    _searchController.addListener(_onSearchChanged);
+  }
+  
+  void _initializeServices() {
+    _allServices.addAll([
+      {'name': 'Car Service', 'icon': Icons.directions_car, 'route': () => Navigator.push(context, MaterialPageRoute(builder: (context) => const CarServicePage()))},
+      {'name': 'Bike Service', 'icon': Icons.two_wheeler, 'route': () => Navigator.push(context, MaterialPageRoute(builder: (context) => const BikeServicePage()))},
+      {'name': 'Emergency', 'icon': Icons.emergency, 'route': () => Navigator.push(context, MaterialPageRoute(builder: (context) => const EmergencyAssistancePage()))},
+      {'name': 'Towing', 'icon': Icons.local_shipping, 'route': () => Navigator.push(context, MaterialPageRoute(builder: (context) => const TowingServicePage()))},
+      {'name': 'Fuel Refill', 'icon': Icons.local_gas_station, 'route': () => Navigator.push(context, MaterialPageRoute(builder: (context) => const FuelRefillPage()))},
+      {'name': 'EV Charging', 'icon': Icons.ev_station, 'route': () => Navigator.push(context, MaterialPageRoute(builder: (context) => const EVChargingPage()))},
+      {'name': 'Puncture', 'icon': Icons.build, 'route': () => Navigator.push(context, MaterialPageRoute(builder: (context) => const TyreCarePage()))},
+      {'name': 'Minor Repair', 'icon': Icons.handyman, 'route': () => Navigator.push(context, MaterialPageRoute(builder: (context) => const MinorRepairPage()))},
+      {'name': 'Battery Jump', 'icon': Icons.battery_charging_full, 'route': () => Navigator.push(context, MaterialPageRoute(builder: (context) => const BatteryJumpPage()))},
+      {'name': 'Find Mechanic', 'icon': Icons.person_search, 'route': () => Navigator.push(context, MaterialPageRoute(builder: (context) => const MechanicFinderPage()))},
+      {'name': 'Map Service', 'icon': Icons.map, 'route': () => _openMapService()},
+      {'name': 'Night Service', 'icon': Icons.nightlight, 'route': () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Night Service coming soon!')))},
+    ]);
+  }
+  
+  void _onSearchChanged() {
+    setState(() {
+      if (_searchController.text.isEmpty) {
+        _searchResults.clear();
+      } else {
+        _searchResults = _allServices
+            .where((service) =>
+                service['name'].toString().toLowerCase().contains(_searchController.text.toLowerCase()))
+            .toList();
+      }
+    });
   }
   
   void _startAdAutoScroll() {
@@ -633,6 +683,86 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
+  Future<void> _getCurrentLocation() async {
+    setState(() {
+      _isLoadingLocation = true;
+    });
+
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        setState(() {
+          _currentLocation = 'Mangalore, Karnataka';
+          _isLoadingLocation = false;
+        });
+        return;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          setState(() {
+            _currentLocation = 'Mangalore, Karnataka';
+            _isLoadingLocation = false;
+          });
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        setState(() {
+          _currentLocation = 'Mangalore, Karnataka';
+          _isLoadingLocation = false;
+        });
+        return;
+      }
+
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      setState(() {
+        _currentPosition = position;
+        // Show formatted coordinates as location
+        _currentLocation = 'Location: ${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}';
+        _isLoadingLocation = false;
+      });
+    } catch (e) {
+      setState(() {
+        _currentLocation = 'Mangalore, Karnataka';
+        _isLoadingLocation = false;
+      });
+    }
+  }
+
+  void _openMapService() {
+    HapticFeedback.lightImpact();
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            const MapServicePage(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(1.0, 0.0),
+              end: Offset.zero,
+            ).animate(CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeOutCubic,
+            )),
+            child: FadeTransition(
+              opacity: animation,
+              child: child,
+            ),
+          );
+        },
+        transitionDuration: const Duration(milliseconds: 400),
+      ),
+    );
+  }
+
 
   Widget _buildServiceCard({
     required String title,
@@ -832,155 +962,324 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Compact Profile Header
+                // Compact Profile Header with Location
                 Container(
                   margin: EdgeInsets.symmetric(
                     horizontal: screenWidth * 0.04, 
                     vertical: screenHeight * 0.004
                   ),
-                  padding: EdgeInsets.symmetric(
-                    horizontal: screenWidth * 0.04,
-                    vertical: screenHeight * 0.008
-                  ),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color.fromARGB(255, 109, 66, 195), Color.fromARGB(255, 94, 50, 215), Color.fromARGB(255, 45, 60, 172)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      stops: [0.0, 0.5, 1.0],
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF10B981).withOpacity(0.2),
-                        blurRadius: 8,
-                        offset: const Offset(0, 3),
-                        spreadRadius: 0,
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(4),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: _openMapService,
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: screenWidth * 0.04,
+                          vertical: screenHeight * 0.008
+                        ),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: const Icon(
-                          Icons.location_on,
-                          color: Colors.white,
-                          size: 14,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Mangalore, Karnataka',
-                          style: GoogleFonts.inter(
-                            color: Colors.white.withValues(alpha: 0.9),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w400,
+                          gradient: const LinearGradient(
+                            colors: [Color.fromARGB(255, 109, 66, 195), Color.fromARGB(255, 94, 50, 215), Color.fromARGB(255, 45, 60, 172)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            stops: [0.0, 0.5, 1.0],
                           ),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF10B981).withOpacity(0.2),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                              spreadRadius: 0,
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: _isLoadingLocation
+                                  ? const SizedBox(
+                                      width: 14,
+                                      height: 14,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                      ),
+                                    )
+                                  : const Icon(
+                                      Icons.location_on,
+                                      color: Colors.white,
+                                      size: 14,
+                                    ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _currentLocation,
+                                style: GoogleFonts.inter(
+                                  color: Colors.white.withValues(alpha: 0.9),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w400,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Icon(
+                                Icons.map,
+                                color: Colors.white,
+                                size: 14,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            // Profile Logo
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(
+                                Icons.person,
+                                color: Colors.white,
+                                size: 18,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      // Profile Logo
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(
-                          Icons.person,
-                          color: Colors.white,
-                          size: 18,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
 
-                // Search Bar
+                // Search Bar with Results
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(_isSearchActive ? 16 : 25),
-                      boxShadow: [
-                        BoxShadow(
-                        color: _isSearchActive 
-                            ? const Color(0xFF6366F1).withValues(alpha: 0.2)
-                            : Colors.black.withValues(alpha: 0.1),
-                          blurRadius: _isSearchActive ? 20 : 15,
-                          offset: const Offset(0, 5),
-                          spreadRadius: _isSearchActive ? 2 : 0,
-                        ),
-                      ],
-                      border: Border.all(
-                        color: _isSearchActive 
-                            ? const Color(0xFF6366F1).withValues(alpha: 0.5)
-                            : Colors.transparent,
-                        width: 1,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.search,
-                          color: _isSearchActive 
-                              ? const Color(0xFF6366F1)
-                              : const Color(0xFFB4BDC4),
-                          size: 20,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: TextField(
-                            controller: _searchController,
-                            textAlign: TextAlign.left,
-                            textAlignVertical: TextAlignVertical.center,
-                            onTap: () {
-                              setState(() {
-                                _isSearchActive = true;
-                              });
-                            },
-                            onSubmitted: (value) {
-                              setState(() {
-                                _isSearchActive = false;
-                              });
-                            },
-                            style: GoogleFonts.inter(
-                              color: Colors.black87,
-                              fontSize: 14,
+                  child: Column(
+                    children: [
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(_isSearchActive ? 16 : 25),
+                          boxShadow: [
+                            BoxShadow(
+                            color: _isSearchActive 
+                                ? const Color(0xFF6366F1).withValues(alpha: 0.2)
+                                : Colors.black.withValues(alpha: 0.1),
+                              blurRadius: _isSearchActive ? 20 : 15,
+                              offset: const Offset(0, 5),
+                              spreadRadius: _isSearchActive ? 2 : 0,
                             ),
-                            decoration: InputDecoration(
-                              hintText: 'Search for services...',
-                              hintStyle: GoogleFonts.inter(
-                                color: const Color(0xFFB4BDC4),
-                                fontSize: 12,
+                          ],
+                          border: Border.all(
+                            color: _isSearchActive 
+                                ? const Color(0xFF6366F1).withValues(alpha: 0.5)
+                                : Colors.transparent,
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.search,
+                              color: _isSearchActive 
+                                  ? const Color(0xFF6366F1)
+                                  : const Color(0xFFB4BDC4),
+                              size: 20,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: TextField(
+                                controller: _searchController,
+                                textAlign: TextAlign.left,
+                                textAlignVertical: TextAlignVertical.center,
+                                onTap: () {
+                                  setState(() {
+                                    _isSearchActive = true;
+                                  });
+                                },
+                                onSubmitted: (value) {
+                                  if (_searchResults.isNotEmpty) {
+                                    // Save the route before clearing
+                                    final firstRoute = _searchResults[0]['route'];
+                                    HapticFeedback.lightImpact();
+                                    setState(() {
+                                      _isSearchActive = false;
+                                      _searchController.clear();
+                                      _searchResults.clear();
+                                    });
+                                    // Navigate to first result when Enter is pressed
+                                    firstRoute();
+                                  } else {
+                                    setState(() {
+                                      _isSearchActive = false;
+                                    });
+                                  }
+                                },
+                                style: GoogleFonts.inter(
+                                  color: Colors.black87,
+                                  fontSize: 14,
+                                ),
+                                decoration: InputDecoration(
+                                  hintText: 'Search for services...',
+                                  hintStyle: GoogleFonts.inter(
+                                    color: const Color(0xFFB4BDC4),
+                                    fontSize: 12,
+                                  ),
+                                  border: InputBorder.none,
+                                  contentPadding: const EdgeInsets.symmetric(vertical: 4),
+                                ),
                               ),
-                              border: InputBorder.none,
-                              contentPadding: const EdgeInsets.symmetric(vertical: 4),
                             ),
+                            if (_isSearchActive && _searchController.text.isNotEmpty)
+                              GestureDetector(
+                                onTap: () {
+                                  _searchController.clear();
+                                  setState(() {
+                                    _searchResults.clear();
+                                  });
+                                },
+                                child: const Icon(
+                                  Icons.clear,
+                                  color: Colors.grey,
+                                  size: 18,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      
+                      // Search Results Dropdown
+                      if (_isSearchActive && _searchResults.isNotEmpty)
+                        Container(
+                          margin: const EdgeInsets.only(top: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 15,
+                                offset: const Offset(0, 5),
+                              ),
+                            ],
+                          ),
+                          child: ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: _searchResults.length > 5 ? 5 : _searchResults.length,
+                            itemBuilder: (context, index) {
+                              final service = _searchResults[index];
+                              final isFirstItem = index == 0;
+                              return Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  onTap: () {
+                                    HapticFeedback.lightImpact();
+                                    setState(() {
+                                      _isSearchActive = false;
+                                      _searchController.clear();
+                                      _searchResults.clear();
+                                    });
+                                    service['route']();
+                                  },
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                    decoration: BoxDecoration(
+                                      color: isFirstItem 
+                                          ? const Color(0xFF6366F1).withOpacity(0.08)
+                                          : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            service['name'],
+                                            style: GoogleFonts.outfit(
+                                              fontSize: 15,
+                                              fontWeight: isFirstItem ? FontWeight.bold : FontWeight.w600,
+                                              color: isFirstItem 
+                                                  ? const Color(0xFF6366F1)
+                                                  : Colors.black87,
+                                            ),
+                                          ),
+                                        ),
+                                        const Icon(
+                                          Icons.arrow_forward_ios,
+                                          size: 14,
+                                          color: Color(0xFF6366F1),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                         ),
-                        if (_isSearchActive && _searchController.text.isNotEmpty)
-                          GestureDetector(
-                            onTap: () {
-                              _searchController.clear();
-                              setState(() {});
-                            },
-                            child: const Icon(
-                              Icons.clear,
-                              color: Colors.grey,
-                              size: 18,
-                            ),
+                      
+                      // No Results Found
+                      if (_isSearchActive && _searchController.text.isNotEmpty && _searchResults.isEmpty)
+                        Container(
+                          margin: const EdgeInsets.only(top: 8),
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 10,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
                           ),
-                      ],
-                    ),
+                          child: Column(
+                            children: [
+                              Icon(
+                                Icons.search_off,
+                                size: 48,
+                                color: Colors.grey[400],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'No services found',
+                                style: GoogleFonts.outfit(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Try searching for "Car", "Bike", or "Emergency"',
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  color: Colors.grey[500],
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
                   ),
                 ),
 
@@ -1105,7 +1404,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ),
                 ),
 
-
                 // Quick Services
                 Container(
                   margin: EdgeInsets.symmetric(
@@ -1166,31 +1464,21 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           childAspectRatio: 0.8,
                           children: [
                             _buildQuickServiceCard(
-                              title: 'Emergency',
+                              title: 'Night Service',
                               iconPath: 'assets/icons/24-hour-service.png',
                               color: const Color(0xFF10B981),
                               onTap: () {
-                                Navigator.push(
-                                  context,
-                                  PageRouteBuilder(
-                                    pageBuilder: (context, animation, secondaryAnimation) =>
-                                        const EmergencyAssistancePage(),
-                                    transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                                      return SlideTransition(
-                                        position: Tween<Offset>(
-                                          begin: const Offset(1.0, 0.0),
-                                          end: Offset.zero,
-                                        ).animate(CurvedAnimation(
-                                          parent: animation,
-                                          curve: Curves.easeOutCubic,
-                                        )),
-                                        child: FadeTransition(
-                                          opacity: animation,
-                                          child: child,
-                                        ),
-                                      );
-                                    },
-                                    transitionDuration: const Duration(milliseconds: 400),
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Night Service (24/7) coming soon!',
+                                      style: GoogleFonts.outfit(),
+                                    ),
+                                    backgroundColor: const Color(0xFF10B981),
+                                    behavior: SnackBarBehavior.floating,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
                                   ),
                                 );
                               },

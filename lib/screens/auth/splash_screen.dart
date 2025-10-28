@@ -20,7 +20,7 @@ class _SplashScreenState extends State<SplashScreen>
     super.initState();
     
     _animationController = AnimationController(
-      duration: const Duration(milliseconds: 2000),
+      duration: const Duration(milliseconds: 1500),
       vsync: this,
     );
 
@@ -42,12 +42,21 @@ class _SplashScreenState extends State<SplashScreen>
 
     _animationController.forward();
 
-    // Navigate to user type selection after 2 seconds
-    Future.delayed(const Duration(seconds: 2), () {
+    // Navigate to user type selection after 3 seconds to allow animation to complete
+    Future.delayed(const Duration(seconds: 3), () {
       if (mounted) {
-        print('Navigating to UserTypeSelectionPage...');
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const UserTypeSelectionPage()),
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) =>
+                const UserTypeSelectionPage(),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return FadeTransition(
+                opacity: animation,
+                child: child,
+              );
+            },
+            transitionDuration: const Duration(milliseconds: 500),
+          ),
         );
       }
     });
@@ -68,13 +77,30 @@ class _SplashScreenState extends State<SplashScreen>
         return Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Icon(
+                Icons.car_repair,
+                size: 60,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 16),
             Text(
               'DYGANOX',
               style: GoogleFonts.outfit(
-                fontSize: 32,
+                fontSize: 28,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
-                letterSpacing: 3,
+                color: Color(0xFF6366F1),
+                letterSpacing: 2,
               ),
             ),
           ],
