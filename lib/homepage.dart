@@ -12,6 +12,7 @@ import 'screens/services/fuel_refill_page.dart';
 import 'screens/services/tyre_care_page.dart';
 import 'screens/mechanic/mechanic_finder_page.dart';
 import 'screens/services/map_service_page.dart';
+import 'screens/services/night_service_page.dart';
 import 'emergency_assistance_page.dart';
 
 class HomePage extends StatefulWidget {
@@ -91,7 +92,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       {'name': 'Battery Jump', 'icon': Icons.battery_charging_full, 'route': () => Navigator.push(context, MaterialPageRoute(builder: (context) => const BatteryJumpPage()))},
       {'name': 'Find Mechanic', 'icon': Icons.person_search, 'route': () => Navigator.push(context, MaterialPageRoute(builder: (context) => const MechanicFinderPage()))},
       {'name': 'Map Service', 'icon': Icons.map, 'route': () => _openMapService()},
-      {'name': 'Night Service', 'icon': Icons.nightlight, 'route': () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Night Service coming soon!')))},
+      {'name': 'Night Service', 'icon': Icons.nightlight, 'route': () => Navigator.push(context, MaterialPageRoute(builder: (context) => const NightServicePage()))},
     ]);
   }
   
@@ -875,6 +876,151 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
+  // Dynamic Night Service Card - changes based on time
+  Widget _buildDynamicNightServiceCard() {
+    final now = DateTime.now();
+    final hour = now.hour;
+    final isNightTime = hour >= 20 || hour < 6; // 8 PM to 6 AM
+    
+    return Container(
+      child: Material(
+        elevation: isNightTime ? 6 : 2,
+        borderRadius: BorderRadius.circular(16),
+        color: isNightTime ? const Color(0xFF1E293B) : Colors.white,
+        shadowColor: isNightTime 
+            ? const Color(0xFF6366F1).withOpacity(0.4)
+            : const Color(0xFF10B981).withOpacity(0.2),
+        child: InkWell(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            Navigator.push(
+              context,
+              PageRouteBuilder(
+                pageBuilder: (context, animation, secondaryAnimation) =>
+                    const NightServicePage(),
+                transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                  return FadeTransition(opacity: animation, child: child);
+                },
+                transitionDuration: const Duration(milliseconds: 400),
+              ),
+            );
+          },
+          borderRadius: BorderRadius.circular(16),
+          child: Stack(
+            children: [
+              // Background gradient
+              Container(
+                padding: EdgeInsets.all(screenWidth * 0.025),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  gradient: LinearGradient(
+                    colors: isNightTime
+                        ? [
+                            const Color(0xFF6366F1).withOpacity(0.3),
+                            const Color(0xFF8B5CF6).withOpacity(0.2),
+                          ]
+                        : [
+                            const Color(0xFF10B981).withOpacity(0.1),
+                            const Color(0xFF10B981).withOpacity(0.05),
+                          ],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: screenWidth * 0.12,
+                      height: screenWidth * 0.12,
+                      decoration: BoxDecoration(
+                        color: isNightTime
+                            ? const Color(0xFF6366F1).withOpacity(0.2)
+                            : const Color(0xFF10B981).withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(12),
+                        border: isNightTime
+                            ? Border.all(
+                                color: const Color(0xFF6366F1).withOpacity(0.5),
+                                width: 1.5,
+                              )
+                            : null,
+                      ),
+                      child: Center(
+                        child: Image.asset(
+                          'assets/icons/24-hour-service.png',
+                          width: screenWidth * 0.06,
+                          height: screenWidth * 0.06,
+                          fit: BoxFit.contain,
+                          color: isNightTime ? Colors.white.withOpacity(0.9) : null,
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: screenHeight * 0.008),
+                    Flexible(
+                      child: Text(
+                        'Night Service',
+                        style: GoogleFonts.outfit(
+                          fontSize: screenWidth * 0.028,
+                          fontWeight: FontWeight.w600,
+                          color: isNightTime ? Colors.white : const Color(0xFF374151),
+                          height: 1.2,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Night mode indicator badge
+              if (isNightTime)
+                Positioned(
+                  top: 6,
+                  right: 6,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981),
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF10B981).withOpacity(0.4),
+                          blurRadius: 8,
+                          spreadRadius: 1,
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.nightlight,
+                          color: Colors.white,
+                          size: 10,
+                        ),
+                        const SizedBox(width: 2),
+                        Text(
+                          'ACTIVE',
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontSize: 8,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildQuickServiceCard({
     required String title,
     required String iconPath,
@@ -1463,26 +1609,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           physics: const NeverScrollableScrollPhysics(),
                           childAspectRatio: 0.8,
                           children: [
-                            _buildQuickServiceCard(
-                              title: 'Night Service',
-                              iconPath: 'assets/icons/24-hour-service.png',
-                              color: const Color(0xFF10B981),
-                              onTap: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      'Night Service (24/7) coming soon!',
-                                      style: GoogleFonts.outfit(),
-                                    ),
-                                    backgroundColor: const Color(0xFF10B981),
-                                    behavior: SnackBarBehavior.floating,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
+                            _buildDynamicNightServiceCard(),
                             _buildQuickServiceCard(
                               title: 'Towing',
                               iconPath: 'assets/icons/tow-truck.png',
