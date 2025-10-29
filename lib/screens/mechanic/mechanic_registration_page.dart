@@ -4,6 +4,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'mechanic_dashboard_page.dart';
+import '../../services/api_config.dart';
 
 class MechanicRegistrationPage extends StatefulWidget {
   const MechanicRegistrationPage({super.key});
@@ -110,7 +111,7 @@ class _MechanicRegistrationPageState extends State<MechanicRegistrationPage> {
 
     try {
       final response = await http.post(
-        Uri.parse("http://10.73.102.113:8081/api/mechanic"),
+        Uri.parse(ApiConfig.mechanicEndpoint),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode(mechanicData),
       );

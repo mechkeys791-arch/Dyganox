@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import '../../services/api_config.dart';
 
 class EVChargingPage extends StatelessWidget {
   const EVChargingPage({super.key});
@@ -136,7 +137,7 @@ class _EVProviderScreenState extends State<EVProviderScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse("http://10.73.102.113:8081/api/evprovider"),
+        Uri.parse(ApiConfig.evProviderEndpoint),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode(providerData),
       );
@@ -568,7 +569,7 @@ class _EVChargingScreenState extends State<EVChargingScreen> {
     try {
       print("EV Charging: Fetching charging stations from database...");
       final response = await http.get(
-        Uri.parse("http://10.73.102.113:8081/api/evprovider"),
+        Uri.parse(ApiConfig.evProviderEndpoint),
         headers: {"Content-Type": "application/json"},
       );
 

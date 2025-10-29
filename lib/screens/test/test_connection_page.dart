@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import '../../services/api_config.dart';
 
 class TestConnectionPage extends StatefulWidget {
   const TestConnectionPage({super.key});
@@ -23,7 +24,7 @@ class _TestConnectionPageState extends State<TestConnectionPage> {
     try {
       // Test GET request
       final getResponse = await http.get(
-        Uri.parse("http://10.73.102.113:8081/api/person"),
+        Uri.parse(ApiConfig.personEndpoint),
         headers: {"Content-Type": "application/json"},
       ).timeout(const Duration(seconds: 10));
 
@@ -43,7 +44,7 @@ class _TestConnectionPageState extends State<TestConnectionPage> {
       };
 
       final postResponse = await http.post(
-        Uri.parse("http://10.73.102.113:8081/api/person"),
+        Uri.parse(ApiConfig.personEndpoint),
         headers: {
           "Content-Type": "application/json",
           "Accept": "application/json",
