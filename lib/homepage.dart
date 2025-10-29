@@ -14,6 +14,7 @@ import 'screens/mechanic/mechanic_finder_page.dart';
 import 'screens/services/map_service_page.dart';
 import 'screens/services/night_service_page.dart';
 import 'emergency_assistance_page.dart';
+import 'screens/profile/profile_page.dart' as profile;
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -153,100 +154,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     _searchController.dispose();
     _adPageController.dispose();
     super.dispose();
-  }
-
-  void _showV2VServiceDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF706DC7).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.people,
-                  color: Color(0xFF706DC7),
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'V2V Service',
-                style: GoogleFonts.outfit(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-            ],
-          ),
-          content: Container(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Choose your service type:',
-                  style: GoogleFonts.outfit(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          _showFindServiceDialog();
-                        },
-                        icon: const Icon(Icons.search, color: Colors.white),
-                        label: const Text('Find Service', style: TextStyle(color: Colors.white)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF706DC7),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          _showHelpEarnDialog();
-                        },
-                        icon: const Icon(Icons.work, color: Colors.white),
-                        label: const Text('Help & Earn', style: TextStyle(color: Colors.white)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF706DC7),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
   }
 
   void _showFindServiceDialog() {
@@ -1979,7 +1886,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         
         // Navigation logic based on label
         if (label == 'Profile') {
-          Navigator.pushNamed(context, '/profile');
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const profile.ProfilePage(),
+            ),
+          );
         }
         // Home stays on current page (already on HomePage)
       },
