@@ -1,9 +1,10 @@
-  import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'mechanic_service_dashboard.dart';
+import '../../services/api_config.dart';
 
 class MechanicRegistrationPage extends StatefulWidget {
   const MechanicRegistrationPage({super.key});
@@ -118,12 +119,13 @@ class _MechanicRegistrationPageState extends State<MechanicRegistrationPage> {
     );
 
     try {
+      print("Mechanic Registration: Using API URL: ${ApiConfig.mechanicEndpoint}");
       final response = await http.post(
-        Uri.parse("http://10.73.102.113:8081/api/mechanics"),
+        Uri.parse(ApiConfig.mechanicEndpoint),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode(mechanicData),
       ).timeout(
-        const Duration(seconds: 5),
+        const Duration(seconds: 10),
         onTimeout: () {
           // If backend is not reachable, navigate anyway for testing
           throw Exception('Backend timeout - navigating to dashboard anyway');
