@@ -22,6 +22,9 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
+// Global key to access HomePage state from other pages
+final GlobalKey<_HomePageState> homePageKey = GlobalKey<_HomePageState>();
+
 class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -40,6 +43,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   // Search functionality
   List<Map<String, dynamic>> _searchResults = [];
   final List<Map<String, dynamic>> _allServices = [];
+  
+  // Navigation bar state
+  int _selectedNavIndex = 0; // 0: Home, 1: Emergency, 2: Profile
   
   // Responsive design variables
   late double screenWidth;
@@ -77,6 +83,15 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     
     // Add listener to search controller
     _searchController.addListener(_onSearchChanged);
+  }
+  
+  // Reset navigation to home when page becomes visible
+  void resetToHome() {
+    if (mounted) {
+      setState(() {
+        _selectedNavIndex = 0;
+      });
+    }
   }
   
   void _initializeServices() {
@@ -1917,33 +1932,33 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         ),
       ),
 
-      // Custom Bottom Navigation Bar with Rounded Design
-      // Features: Rounded container, indicator dots, and elegant styling
+      // Custom Floating Bottom Navigation Bar with FAB Center Button
+      // Design: Rounded white container with centered floating action button
       bottomNavigationBar: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-        padding: const EdgeInsets.symmetric(vertical: 8),
+        margin: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+        height: 70,
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(30),
+          borderRadius: BorderRadius.circular(35),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.15),
-              blurRadius: 12.0,
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 15.0,
               spreadRadius: 2.0,
-              offset: const Offset(0, 4),
+              offset: const Offset(0, 5),
             ),
           ],
         ),
         child: SafeArea(
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              // Home Navigation Item
-              _buildNavItem(Icons.home_filled, 'Home', true),
-              // Emergency Navigation Item - Center with special styling
-              _buildNavItem(Icons.emergency, 'Emergency', false),
-              // Profile Navigation Item
-              _buildNavItem(Icons.account_circle, 'Profile', false),
+              // Home Navigation Item (Left)
+              _buildNavItem(Icons.home_filled, 'Home', _selectedNavIndex == 0, 0),
+              // Emergency FAB - Center with elevated design using road emergency icon
+              _buildFABNavItem(Icons.report_problem_rounded, 'Emergency', _selectedNavIndex == 1, 1),
+              // Profile Navigation Item (Right)
+              _buildNavItem(Icons.account_circle, 'Profile', _selectedNavIndex == 2, 2),
             ],
           ),
         ),
@@ -1951,77 +1966,124 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildNavItem(IconData icon, String label, bool isSelected) {
-    // Custom navigation item with icon and indicator dot
-    // Features indicator dot below selected items for visual feedback
-    final isEmergency = label == 'Emergency';
-    
+  Widget _buildNavItem(IconData icon, String label, bool isSelected, int index) {
+    // Standard navigation item with icon and indicator dot below when selected
     return GestureDetector(
       onTap: () {
-        // Haptic feedback for better user experience
         HapticFeedback.lightImpact();
+        
+        // Update selected index
+        setState(() {
+          _selectedNavIndex = index;
+        });
         
         // Navigation logic based on label
         if (label == 'Profile') {
           Navigator.pushNamed(context, '/profile');
-        } else if (label == 'Emergency') {
-          HapticFeedback.heavyImpact(); // Stronger feedback for emergency
-          Navigator.push(
-            context,
-            PageRouteBuilder(
-              pageBuilder: (context, animation, secondaryAnimation) =>
-                  const EmergencyAssistancePage(),
-              transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                return SlideTransition(
-                  position: Tween<Offset>(
-                    begin: const Offset(0.0, 1.0),
-                    end: Offset.zero,
-                  ).animate(CurvedAnimation(
-                    parent: animation,
-                    curve: Curves.easeOutCubic,
-                  )),
-                  child: FadeTransition(
-                    opacity: animation,
-                    child: child,
-                  ),
-                );
-              },
-              transitionDuration: const Duration(milliseconds: 400),
-            ),
-          );
         }
+        // Home stays on current page (already on HomePage)
       },
       child: Column(
         mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Icon with animation
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 250),
-            padding: const EdgeInsets.all(8),
-            child: Icon(
-              icon,
-              // Color scheme: Purple for selected, red for emergency, grey for inactive
-              color: isSelected
-                  ? const Color(0xFF706DC7) // App theme color
-                  : (isEmergency
-                      ? Colors.red.shade400 // Emergency red
-                      : Colors.grey.shade500), // Inactive grey
-              size: 28, // Clear, accessible icon size
-            ),
+          // Icon with proper sizing
+          Icon(
+            icon,
+            color: isSelected ? const Color(0xFF706DC7) : Colors.grey.shade400,
+            size: 28,
           ),
+          const SizedBox(height: 6),
           // Indicator dot - appears below selected item
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 250),
-            curve: Curves.easeInOut,
-            width: isSelected ? 8 : 0, // Dot appears/disappears with animation
-            height: isSelected ? 8 : 0,
-            margin: const EdgeInsets.only(top: 4),
+          if (isSelected)
+            Container(
+              width: 6,
+              height: 6,
+              decoration: const BoxDecoration(
+                color: Color(0xFF706DC7),
+                shape: BoxShape.circle,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFABNavItem(IconData icon, String label, bool isSelected, int index) {
+    // Center Floating Action Button with elevated circular design
+    // Road emergency icon with prominent red styling
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.heavyImpact(); // Strong feedback for emergency
+        
+        // Update selected index
+        setState(() {
+          _selectedNavIndex = index;
+        });
+        
+        // Navigate to Emergency Assistance page
+        Navigator.push(
+          context,
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) =>
+                const EmergencyAssistancePage(),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0.0, 1.0),
+                  end: Offset.zero,
+                ).animate(CurvedAnimation(
+                  parent: animation,
+                  curve: Curves.easeOutCubic,
+                )),
+                child: FadeTransition(
+                  opacity: animation,
+                  child: child,
+                ),
+              );
+            },
+            transitionDuration: const Duration(milliseconds: 400),
+          ),
+        );
+      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Elevated circular FAB with road emergency icon
+          Container(
+            width: 56,
+            height: 56,
             decoration: BoxDecoration(
-              // Purple indicator for selected items
-              color: const Color(0xFF706DC7),
+              // Emergency red color for the FAB
+              color: Colors.red.shade400,
               shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.red.shade400.withOpacity(0.4),
+                  blurRadius: 12,
+                  spreadRadius: 2,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.report_problem_rounded, // Road emergency warning icon
+              color: Colors.white,
+              size: 28,
             ),
           ),
+          const SizedBox(height: 6),
+          // Small indicator dot below FAB when selected
+          if (isSelected)
+            Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(
+                color: Colors.red.shade400,
+                shape: BoxShape.circle,
+              ),
+            ),
         ],
       ),
     );
