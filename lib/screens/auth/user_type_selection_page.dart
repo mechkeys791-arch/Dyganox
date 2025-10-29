@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../homepage.dart';
-// import '../mechanic/mechanic_registration_page.dart'; // Temporarily disabled for review
-import '../mechanic/mechanic_service_dashboard.dart';
+import '../mechanic/mechanic_registration_page.dart';
 
 class UserTypeSelectionPage extends StatefulWidget {
   const UserTypeSelectionPage({super.key});
@@ -210,39 +209,16 @@ class _UserTypeSelectionPageState extends State<UserTypeSelectionPage>
                       opacity: _fadeAnimation,
                       child: _buildOptionCard(
                         title: 'I\'m a Mechanic',
-                        subtitle: 'View service dashboard',
+                        subtitle: 'Register to provide services',
                         icon: Icons.build_circle,
                         color: Colors.white.withOpacity(0.1),
                         onTap: () {
-                          // Temporarily navigate directly to dashboard for review
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => MechanicServiceDashboard(
-                                mechanicData: {
-                                  'name': 'Rajesh Kumar',
-                                  'specialty': 'General Repair',
-                                  'experience': '5-10 years',
-                                  'phone': '+91 98765 43210',
-                                  'email': 'rajesh.mechanic@example.com',
-                                  'rating': 4.8,
-                                  'completedJobs': 127,
-                                  'latitude': '12.9716',
-                                  'longitude': '77.5946',
-                                  'rate': '500',
-                                  'nightTimeAvailable': true,
-                                },
-                              ),
+                              builder: (context) => const MechanicRegistrationPage(),
                             ),
                           );
-                          
-                          // TODO: Re-enable registration page after review
-                          // Navigator.push(
-                          //   context,
-                          //   MaterialPageRoute(
-                          //     builder: (context) => const MechanicRegistrationPage(),
-                          //   ),
-                          // );
                         },
                       ),
                     );

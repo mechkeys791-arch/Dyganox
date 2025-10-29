@@ -135,19 +135,40 @@ class _MechanicRegistrationPageState extends State<MechanicRegistrationPage> {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         print("Mechanic Registration: Success - Data stored in database");
+        print("Response: ${response.body}");
+        
+        // Parse response to get mechanic data with ID from database
+        Map<String, dynamic> savedMechanicData;
+        try {
+          savedMechanicData = jsonDecode(response.body);
+          // Add default values for new mechanics
+          savedMechanicData['rating'] = savedMechanicData['rating'] ?? 0.0;
+          savedMechanicData['completedJobs'] = savedMechanicData['completedJobs'] ?? 0;
+        } catch (e) {
+          // If parsing fails, use submitted data with defaults
+          savedMechanicData = {
+            ...mechanicData,
+            'rating': 0.0,
+            'completedJobs': 0,
+          };
+        }
+        
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text("Registration submitted successfully!"),
             backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
           ),
         );
         
-        // Navigate to mechanic service dashboard
+        // Wait for snackbar, then navigate to dashboard with database data
+        await Future.delayed(const Duration(milliseconds: 500));
+        
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
             builder: (context) => MechanicServiceDashboard(
-              mechanicData: mechanicData,
+              mechanicData: savedMechanicData,
             ),
           ),
         );
@@ -169,20 +190,24 @@ class _MechanicRegistrationPageState extends State<MechanicRegistrationPage> {
       // Navigate to dashboard anyway (for testing without backend)
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Backend not available - Opening dashboard for preview"),
+          content: Text("Backend not available - Opening dashboard with preview data"),
           backgroundColor: Colors.orange,
           duration: Duration(seconds: 2),
         ),
       );
       
-      // Wait for snackbar to show, then navigate
+      // Wait for snackbar to show, then navigate with default values
       await Future.delayed(const Duration(milliseconds: 500));
       
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
           builder: (context) => MechanicServiceDashboard(
-            mechanicData: mechanicData,
+            mechanicData: {
+              ...mechanicData,
+              'rating': 0.0,
+              'completedJobs': 0,
+            },
           ),
         ),
       );
