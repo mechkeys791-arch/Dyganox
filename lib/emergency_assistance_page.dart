@@ -555,6 +555,120 @@ class _EmergencyAssistancePageState extends State<EmergencyAssistancePage>
           ),
         ),
       ),
+      // Custom Floating Bottom Navigation Bar
+      bottomNavigationBar: _buildBottomNavigationBar(),
+    );
+  }
+
+  // Custom Bottom Navigation Bar Widget
+  Widget _buildBottomNavigationBar() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+      height: 70,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(35),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 15.0,
+            spreadRadius: 2.0,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildNavItem(Icons.home_filled, 'Home', false, 0),
+          _buildFABNavItem(Icons.report_problem_rounded, 'Emergency', true, 1),
+          _buildNavItem(Icons.account_circle, 'Profile', false, 2),
+        ],
+      ),
+    );
+  }
+
+  // Standard navigation item
+  Widget _buildNavItem(IconData icon, String label, bool isSelected, int index) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        if (label == 'Home') {
+          // Pop back to homepage - returns to first route
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        } else if (label == 'Profile') {
+          // Replace with Profile page
+          Navigator.pushReplacementNamed(context, '/profile');
+        }
+      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            icon,
+            color: isSelected ? const Color(0xFF706DC7) : Colors.grey.shade400,
+            size: 28,
+          ),
+          const SizedBox(height: 6),
+          if (isSelected)
+            Container(
+              width: 6,
+              height: 6,
+              decoration: const BoxDecoration(
+                color: Color(0xFF706DC7),
+                shape: BoxShape.circle,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // Center FAB navigation item
+  Widget _buildFABNavItem(IconData icon, String label, bool isSelected, int index) {
+    return GestureDetector(
+      onTap: () {
+        // Already on emergency page, do nothing
+        HapticFeedback.lightImpact();
+      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: Colors.red.shade400,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.red.shade400.withOpacity(0.4),
+                  blurRadius: 12,
+                  spreadRadius: 2,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.report_problem_rounded,
+              color: Colors.white,
+              size: 28,
+            ),
+          ),
+          const SizedBox(height: 6),
+          if (isSelected)
+            Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(
+                color: Colors.red.shade400,
+                shape: BoxShape.circle,
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -1497,5 +1611,6 @@ class _BookingConfirmationPageState extends State<BookingConfirmationPage> {
       ),
     );
   }
+
 }
 

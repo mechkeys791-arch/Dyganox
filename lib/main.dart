@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'screens/auth/splash_screen.dart';
 import 'homepage.dart';
 import 'screens/profile/profile_page.dart';
+import 'emergency_assistance_page.dart';
 import 'screens/test/backend_test_page.dart';
 import 'screens/test/test_ev_api_page.dart';
 import 'screens/auth/user_type_selection_page.dart';
@@ -94,6 +95,7 @@ class ServiceProviderApp extends StatelessWidget {
       routes: {
         '/home': (context) => const HomePage(),
         '/profile': (context) => const ProfilePage(),
+        '/emergency': (context) => const EmergencyAssistancePage(),
         '/backend-test': (context) => const BackendTestPage(),
         '/test-ev-api': (context) => const TestEVAPIPage(),
         '/user-type-selection': (context) => const UserTypeSelectionPage(),
