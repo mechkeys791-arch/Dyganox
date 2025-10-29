@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import '../../services/api_config.dart';
 
 class EVChargingUserPage extends StatefulWidget {
   const EVChargingUserPage({super.key});
@@ -32,7 +33,7 @@ class _EVChargingUserPageState extends State<EVChargingUserPage> {
     try {
       print("EV Charging User: Fetching EV providers from database...");
       final response = await http.get(
-        Uri.parse("http://10.73.102.113:8081/api/evprovider"),
+        Uri.parse(ApiConfig.evProviderEndpoint),
         headers: {"Content-Type": "application/json"},
       );
 

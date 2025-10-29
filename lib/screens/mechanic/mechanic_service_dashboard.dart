@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'mechanic_bookings_page.dart';
+import 'mechanic_services_page.dart';
 
 class MechanicServiceDashboard extends StatefulWidget {
   final Map<String, dynamic>? mechanicData;
@@ -10,14 +12,14 @@ class MechanicServiceDashboard extends StatefulWidget {
   State<MechanicServiceDashboard> createState() => _MechanicServiceDashboardState();
 }
 
-class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> with TickerProviderStateMixin {
-  late TabController _tabController;
+class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> with SingleTickerProviderStateMixin {
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
   
   String _mechanicStatus = 'Available'; // Available, Busy, Offline
   List<Map<String, dynamic>> _bookings = [];
-  List<String> _myServices = [];
+  List<String> _myServices = ['General Repair', 'Engine Service', 'Electrical Works'];
+  // ignore: unused_field
   bool _isLoadingBookings = false;
   
   // Mock data for mechanic profile
@@ -31,22 +33,9 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
     'email': 'john.mechanic@example.com',
   };
   
-  // Available services list
-  final List<Map<String, dynamic>> _availableServices = [
-    {'name': 'General Repair', 'icon': Icons.build, 'color': Color(0xFF6366F1)},
-    {'name': 'Engine Service', 'icon': Icons.settings, 'color': Color(0xFFEF4444)},
-    {'name': 'Electrical Works', 'icon': Icons.electric_bolt, 'color': Color(0xFFF59E0B)},
-    {'name': 'Brake Service', 'icon': Icons.disc_full, 'color': Color(0xFF10B981)},
-    {'name': 'AC Repair', 'icon': Icons.ac_unit, 'color': Color(0xFF3B82F6)},
-    {'name': 'Body Works', 'icon': Icons.car_repair, 'color': Color(0xFF8B5CF6)},
-    {'name': 'Tire Service', 'icon': Icons.circle, 'color': Color(0xFFEC4899)},
-    {'name': 'Battery Service', 'icon': Icons.battery_charging_full, 'color': Color(0xFF14B8A6)},
-  ];
-  
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
     
     // Pulse animation for status indicator
     _pulseController = AnimationController(
@@ -56,9 +45,6 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
     _pulseAnimation = Tween<double>(begin: 0.8, end: 1.2).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
-    
-    // Initialize with some services
-    _myServices = ['General Repair', 'Engine Service'];
     
     // Load mechanic data if provided
     if (widget.mechanicData != null) {
@@ -72,7 +58,6 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
   
   @override
   void dispose() {
-    _tabController.dispose();
     _pulseController.dispose();
     super.dispose();
   }
@@ -155,6 +140,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
             color: Colors.white,
           ),
         ),
+        centerTitle: true,
         actions: [
           // Status dropdown
           _buildStatusDropdown(),
@@ -163,27 +149,8 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
             onPressed: () {},
           ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: Colors.white,
-          indicatorWeight: 3,
-          labelStyle: GoogleFonts.inter(fontWeight: FontWeight.w600),
-          unselectedLabelStyle: GoogleFonts.inter(fontWeight: FontWeight.w400),
-          tabs: const [
-            Tab(text: 'Overview'),
-            Tab(text: 'Bookings'),
-            Tab(text: 'Services'),
-          ],
-        ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildOverviewTab(),
-          _buildBookingsTab(),
-          _buildServicesTab(),
-        ],
-      ),
+      body: _buildOverviewTab(),
     );
   }
   
@@ -242,26 +209,48 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
   
   // OVERVIEW TAB
   Widget _buildOverviewTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Profile Card
-          _buildProfileCard(),
-          const SizedBox(height: 20),
-          
-          // Stats Cards
-          _buildStatsCards(),
-          const SizedBox(height: 20),
-          
-          // Today's Schedule
-          _buildTodaySchedule(),
-          const SizedBox(height: 20),
-          
-          // Earnings Summary
-          _buildEarningsSummary(),
-        ],
+    return RefreshIndicator(
+      onRefresh: () async {
+        await _fetchBookings();
+        _showSnackBar('Dashboard refreshed!', const Color(0xFF10B981));
+      },
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Profile Card with animation
+            AnimatedBuilder(
+              animation: _pulseController,
+              builder: (context, child) => _buildProfileCard(),
+            ),
+            const SizedBox(height: 20),
+            
+            // Quick Actions Section
+            _buildQuickActions(),
+            const SizedBox(height: 20),
+            
+            // Stats Cards with staggered animation
+            _buildStatsCards(),
+            const SizedBox(height: 20),
+            
+            // Performance Metrics
+            _buildPerformanceMetrics(),
+            const SizedBox(height: 20),
+            
+            // Today's Schedule
+            _buildTodaySchedule(),
+            const SizedBox(height: 20),
+            
+            // Recent Activity
+            _buildRecentActivity(),
+            const SizedBox(height: 20),
+            
+            // Earnings Summary with trend
+            _buildEarningsSummary(),
+            const SizedBox(height: 20),
+          ],
+        ),
       ),
     );
   }
@@ -292,7 +281,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
               color: Colors.white,
               border: Border.all(color: Colors.white, width: 3),
             ),
-            child: const Icon(Icons.person, size: 40, color: Color(0xFF6366F1)),
+            child: const Icon(Icons.account_circle, size: 40, color: Color(0xFF6366F1)),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -372,7 +361,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
           child: _buildStatCard(
             'Total Jobs',
             '${_mechanicProfile['completedJobs']}',
-            Icons.check_circle,
+            Icons.check_circle_outline,
             const Color(0xFF10B981),
           ),
         ),
@@ -381,7 +370,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
           child: _buildStatCard(
             'Pending',
             '${_bookings.where((b) => b['status'] == 'Pending').length}',
-            Icons.pending,
+            Icons.pending_actions,
             const Color(0xFFF59E0B),
           ),
         ),
@@ -499,7 +488,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
               color: const Color(0xFF6366F1).withOpacity(0.1),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.directions_car, color: Color(0xFF6366F1)),
+            child: const Icon(Icons.car_repair, color: Color(0xFF6366F1)),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -553,40 +542,122 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFF10B981), Color(0xFF14B8A6)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF10B981).withOpacity(0.4),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'This Month\'s Earnings',
-                style: GoogleFonts.outfit(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'This Month\'s Earnings',
+                    style: GoogleFonts.outfit(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(Icons.trending_up, color: Colors.white, size: 16),
+                      const SizedBox(width: 4),
+                      Text(
+                        '+25% from last month',
+                        style: GoogleFonts.inter(
+                          color: Colors.white.withOpacity(0.9),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              const Icon(Icons.trending_up, color: Colors.white),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.account_balance_wallet, color: Colors.white, size: 28),
+              ),
             ],
           ),
-          const SizedBox(height: 12),
-          Text(
-            '₹12,500',
-            style: GoogleFonts.outfit(
-              color: Colors.white,
-              fontSize: 36,
-              fontWeight: FontWeight.bold,
-            ),
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '₹12,500',
+                    style: GoogleFonts.outfit(
+                      color: Colors.white,
+                      fontSize: 36,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '15 jobs completed',
+                    style: GoogleFonts.inter(
+                      color: Colors.white.withOpacity(0.9),
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+              Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      'Avg: ₹833/job',
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Goal: ₹15,000',
+                    style: GoogleFonts.inter(
+                      color: Colors.white.withOpacity(0.8),
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            '15 jobs completed this month',
-            style: GoogleFonts.inter(
-              color: Colors.white.withOpacity(0.9),
-              fontSize: 14,
+          const SizedBox(height: 16),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: LinearProgressIndicator(
+              value: 12500 / 15000,
+              backgroundColor: Colors.white.withOpacity(0.3),
+              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+              minHeight: 6,
             ),
           ),
         ],
@@ -594,219 +665,305 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
     );
   }
   
-  // BOOKINGS TAB
-  Widget _buildBookingsTab() {
-    return RefreshIndicator(
-      onRefresh: _fetchBookings,
-      child: _isLoadingBookings
-          ? const Center(child: CircularProgressIndicator())
-          : _bookings.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.event_busy, size: 80, color: Colors.grey[400]),
-                      const SizedBox(height: 16),
-                      Text(
-                        'No bookings yet',
-                        style: GoogleFonts.outfit(
-                          fontSize: 20,
-                          color: Colors.grey[600],
-                        ),
+  // QUICK ACTIONS
+  Widget _buildQuickActions() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Quick Actions',
+          style: GoogleFonts.outfit(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildQuickActionButton(
+                'Bookings',
+                Icons.calendar_month,
+                const Color(0xFF6366F1),
+                () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => MechanicBookingsPage(
+                        bookings: _bookings,
+                        onAccept: _acceptBooking,
+                        onReject: _rejectBooking,
+                        onComplete: _completeBooking,
                       ),
-                    ],
-                  ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _bookings.length,
-                  itemBuilder: (context, index) {
-                    return _buildBookingCard(_bookings[index]);
-                  },
-                ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildQuickActionButton(
+                'My Services',
+                Icons.handyman,
+                const Color(0xFF8B5CF6),
+                () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => MechanicServicesPage(
+                        myServices: _myServices,
+                        onAddService: _addService,
+                        onRemoveService: _removeService,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
   
-  Widget _buildBookingCard(Map<String, dynamic> booking) {
-    final isPending = booking['status'] == 'Pending';
+  Widget _buildQuickActionButton(String title, IconData icon, Color color, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [color, color.withOpacity(0.7)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: Colors.white, size: 20),
+            const SizedBox(width: 8),
+            Text(
+              title,
+              style: GoogleFonts.inter(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  // PERFORMANCE METRICS
+  Widget _buildPerformanceMetrics() {
+    final completionRate = (_mechanicProfile['completedJobs'] / 150 * 100).clamp(0, 100);
+    final responseRate = 95.0; // Mock data
+    final customerSatisfaction = _mechanicProfile['rating'] / 5 * 100;
     
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
         ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: isPending 
-                ? const Color(0xFFF59E0B).withOpacity(0.1)
-                : const Color(0xFF10B981).withOpacity(0.1),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Performance',
+                style: GoogleFonts.outfit(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
                   children: [
-                    Icon(
-                      Icons.receipt_long,
-                      color: isPending ? const Color(0xFFF59E0B) : const Color(0xFF10B981),
-                    ),
-                    const SizedBox(width: 8),
+                    const Icon(Icons.trending_up, size: 14, color: Color(0xFF10B981)),
+                    const SizedBox(width: 4),
                     Text(
-                      'Booking #${booking['id']}',
-                      style: GoogleFonts.outfit(
+                      '+12%',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
                         fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                        color: const Color(0xFF10B981),
                       ),
                     ),
                   ],
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: isPending ? const Color(0xFFF59E0B) : const Color(0xFF10B981),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    booking['status'],
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-          
-          // Body
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                _buildBookingInfoRow(Icons.person, 'Customer', booking['customerName']),
-                const SizedBox(height: 12),
-                _buildBookingInfoRow(Icons.phone, 'Phone', booking['customerPhone']),
-                const SizedBox(height: 12),
-                _buildBookingInfoRow(Icons.build, 'Service', booking['service']),
-                const SizedBox(height: 12),
-                _buildBookingInfoRow(Icons.directions_car, 'Vehicle', booking['vehicle']),
-                const SizedBox(height: 12),
-                _buildBookingInfoRow(Icons.location_on, 'Location', booking['location']),
-                const SizedBox(height: 12),
-                _buildBookingInfoRow(Icons.calendar_today, 'Date & Time', '${booking['date']} at ${booking['time']}'),
-                const SizedBox(height: 12),
-                _buildBookingInfoRow(Icons.attach_money, 'Amount', booking['amount']),
-                
-                if (isPending) ...[
-                  const SizedBox(height: 16),
-                  const Divider(),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () => _acceptBooking(booking),
-                          icon: const Icon(Icons.check_circle),
-                          label: const Text('Accept'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF10B981),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () => _rejectBooking(booking),
-                          icon: const Icon(Icons.cancel),
-                          label: const Text('Decline'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFFEF4444),
-                            side: const BorderSide(color: Color(0xFFEF4444)),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ] else ...[
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () => _completeBooking(booking),
-                      icon: const Icon(Icons.task_alt),
-                      label: const Text('Mark as Completed'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF6366F1),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
+          const SizedBox(height: 20),
+          _buildMetricBar('Completion Rate', completionRate, const Color(0xFF6366F1)),
+          const SizedBox(height: 16),
+          _buildMetricBar('Response Rate', responseRate, const Color(0xFF10B981)),
+          const SizedBox(height: 16),
+          _buildMetricBar('Customer Satisfaction', customerSatisfaction, const Color(0xFFF59E0B)),
         ],
       ),
     );
   }
   
-  Widget _buildBookingInfoRow(IconData icon, String label, String value) {
-    return Row(
+  Widget _buildMetricBar(String label, double percentage, Color color) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 20, color: const Color(0xFF6366F1)),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: GoogleFonts.inter(
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                color: Colors.grey[700],
               ),
-              Text(
-                value,
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
+            ),
+            Text(
+              '${percentage.toStringAsFixed(0)}%',
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: color,
               ),
-            ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: LinearProgressIndicator(
+            value: percentage / 100,
+            backgroundColor: color.withOpacity(0.1),
+            valueColor: AlwaysStoppedAnimation<Color>(color),
+            minHeight: 8,
           ),
         ),
       ],
     );
   }
   
+  // RECENT ACTIVITY
+  Widget _buildRecentActivity() {
+    final activities = [
+      {'action': 'Completed job', 'detail': 'Engine Service for Rajesh Kumar', 'time': '2 hours ago', 'icon': Icons.check_circle, 'color': Color(0xFF10B981)},
+      {'action': 'New booking', 'detail': 'Brake Service requested', 'time': '4 hours ago', 'icon': Icons.event, 'color': Color(0xFF6366F1)},
+      {'action': 'Payment received', 'detail': '₹1,500 from Priya Sharma', 'time': '5 hours ago', 'icon': Icons.currency_rupee, 'color': Color(0xFFF59E0B)},
+    ];
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Recent Activity',
+          style: GoogleFonts.outfit(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(16),
+            itemCount: activities.length,
+            separatorBuilder: (context, index) => Divider(
+              height: 20,
+              color: Colors.grey[200],
+            ),
+            itemBuilder: (context, index) {
+              final activity = activities[index];
+              return Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: (activity['color'] as Color).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      activity['icon'] as IconData,
+                      color: activity['color'] as Color,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          activity['action'] as String,
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          activity['detail'] as String,
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    activity['time'] as String,
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      color: Colors.grey[500],
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+  
+  // BOOKING ACTIONS
   void _acceptBooking(Map<String, dynamic> booking) {
     setState(() {
       booking['status'] = 'Accepted';
@@ -829,252 +986,18 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
     _showSnackBar('Job marked as completed! Payment will be processed.', const Color(0xFF10B981));
   }
   
-  // SERVICES TAB
-  Widget _buildServicesTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'My Services',
-            style: GoogleFonts.outfit(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Manage the services you provide to customers',
-            style: GoogleFonts.inter(
-              fontSize: 14,
-              color: Colors.grey[600],
-            ),
-          ),
-          const SizedBox(height: 20),
-          
-          // Active Services
-          _buildActiveServices(),
-          
-          const SizedBox(height: 24),
-          
-          // Available Services to Add
-          Text(
-            'Add More Services',
-            style: GoogleFonts.outfit(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 12),
-          
-          _buildAvailableServices(),
-        ],
-      ),
-    );
-  }
-  
-  Widget _buildActiveServices() {
-    if (_myServices.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(32),
-        decoration: BoxDecoration(
-          color: Colors.grey[100],
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Center(
-          child: Column(
-            children: [
-              Icon(Icons.build_circle_outlined, size: 60, color: Colors.grey[400]),
-              const SizedBox(height: 12),
-              Text(
-                'No services added yet',
-                style: GoogleFonts.inter(
-                  color: Colors.grey[600],
-                  fontSize: 16,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Add services from the list below',
-                style: GoogleFonts.inter(
-                  color: Colors.grey[500],
-                  fontSize: 14,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-    
-    return Wrap(
-      spacing: 12,
-      runSpacing: 12,
-      children: _myServices.map((service) {
-        final serviceData = _availableServices.firstWhere(
-          (s) => s['name'] == service,
-          orElse: () => {'name': service, 'icon': Icons.build, 'color': Color(0xFF6366F1)},
-        );
-        
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: serviceData['color'], width: 2),
-            boxShadow: [
-              BoxShadow(
-                color: (serviceData['color'] as Color).withOpacity(0.2),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(serviceData['icon'], color: serviceData['color'], size: 20),
-              const SizedBox(width: 8),
-              Text(
-                service,
-                style: GoogleFonts.inter(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: () => _removeService(service),
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.close, size: 16, color: Colors.red),
-                ),
-              ),
-            ],
-          ),
-        );
-      }).toList(),
-    );
-  }
-  
-  Widget _buildAvailableServices() {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 1.3,
-      ),
-      itemCount: _availableServices.length,
-      itemBuilder: (context, index) {
-        final service = _availableServices[index];
-        final isAdded = _myServices.contains(service['name']);
-        
-        return GestureDetector(
-          onTap: isAdded ? null : () => _addService(service['name']),
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: isAdded ? Colors.grey[100] : Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: isAdded ? Colors.grey[300]! : (service['color'] as Color).withOpacity(0.3),
-                width: 2,
-              ),
-              boxShadow: [
-                if (!isAdded)
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-              ],
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  service['icon'],
-                  size: 36,
-                  color: isAdded ? Colors.grey[400] : service['color'],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  service['name'],
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: isAdded ? Colors.grey[500] : Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                if (isAdded)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.check, size: 12, color: Colors.green),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Added',
-                          style: GoogleFonts.inter(
-                            fontSize: 10,
-                            color: Colors.green,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                else
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: (service['color'] as Color).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      'Add',
-                      style: GoogleFonts.inter(
-                        fontSize: 10,
-                        color: service['color'],
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-  
+  // SERVICE MANAGEMENT
   void _addService(String service) {
     setState(() {
-      _myServices.add(service);
+      if (!_myServices.contains(service)) {
+        _myServices.add(service);
+      }
     });
-    _showSnackBar('$service added to your services!', const Color(0xFF10B981));
   }
   
   void _removeService(String service) {
     setState(() {
       _myServices.remove(service);
     });
-    _showSnackBar('$service removed from your services.', Colors.orange);
   }
 }
-
