@@ -723,10 +723,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         desiredAccuracy: LocationAccuracy.high,
       );
 
+      // Get address from coordinates using approximate location mapping
+      String locationName = _getApproximateLocation(position.latitude, position.longitude);
+      
       setState(() {
         _currentPosition = position;
-        // Show formatted coordinates as location
-        _currentLocation = 'Location: ${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}';
+        _currentLocation = locationName;
         _isLoadingLocation = false;
       });
     } catch (e) {
@@ -735,6 +737,118 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         _isLoadingLocation = false;
       });
     }
+  }
+  
+  // Specific location mapping based on coordinates
+  String _getApproximateLocation(double latitude, double longitude) {
+    // BANGALORE AREAS (12.8° to 13.2° N, 77.4° to 77.8° E)
+    
+    // South Bangalore
+    if (latitude >= 12.90 && latitude <= 12.94 && longitude >= 77.58 && longitude <= 77.62) {
+      return 'Koramangala, Bangalore';
+    } else if (latitude >= 12.91 && latitude <= 12.95 && longitude >= 77.63 && longitude <= 77.67) {
+      return 'Indiranagar, Bangalore';
+    } else if (latitude >= 12.88 && latitude <= 12.92 && longitude >= 77.59 && longitude <= 77.63) {
+      return 'BTM Layout, Bangalore';
+    } else if (latitude >= 12.93 && latitude <= 12.97 && longitude >= 77.60 && longitude <= 77.64) {
+      return 'MG Road, Bangalore';
+    } else if (latitude >= 12.89 && latitude <= 12.93 && longitude >= 77.56 && longitude <= 77.60) {
+      return 'JP Nagar, Bangalore';
+    } else if (latitude >= 12.92 && latitude <= 12.96 && longitude >= 77.56 && longitude <= 77.60) {
+      return 'Jayanagar, Bangalore';
+    } else if (latitude >= 12.86 && latitude <= 12.90 && longitude >= 77.57 && longitude <= 77.61) {
+      return 'Bannerghatta Road, Bangalore';
+    }
+    
+    // East Bangalore
+    else if (latitude >= 12.96 && latitude <= 13.00 && longitude >= 77.70 && longitude <= 77.76) {
+      return 'Whitefield, Bangalore';
+    } else if (latitude >= 12.98 && latitude <= 13.02 && longitude >= 77.64 && longitude <= 77.68) {
+      return 'Marathahalli, Bangalore';
+    } else if (latitude >= 12.94 && latitude <= 12.98 && longitude >= 77.68 && longitude <= 77.72) {
+      return 'Bellandur, Bangalore';
+    } else if (latitude >= 12.91 && latitude <= 12.95 && longitude >= 77.64 && longitude <= 77.68) {
+      return 'HAL Airport Road, Bangalore';
+    }
+    
+    // North Bangalore
+    else if (latitude >= 13.02 && latitude <= 13.06 && longitude >= 77.58 && longitude <= 77.62) {
+      return 'Hebbal, Bangalore';
+    } else if (latitude >= 13.04 && latitude <= 13.08 && longitude >= 77.62 && longitude <= 77.66) {
+      return 'Yelahanka, Bangalore';
+    } else if (latitude >= 13.00 && latitude <= 13.04 && longitude >= 77.54 && longitude <= 77.58) {
+      return 'Rajajinagar, Bangalore';
+    } else if (latitude >= 12.98 && latitude <= 13.02 && longitude >= 77.56 && longitude <= 77.60) {
+      return 'Malleshwaram, Bangalore';
+    }
+    
+    // West Bangalore
+    else if (latitude >= 12.96 && latitude <= 13.00 && longitude >= 77.50 && longitude <= 77.54) {
+      return 'Rajajinagar, Bangalore';
+    } else if (latitude >= 12.94 && latitude <= 12.98 && longitude >= 77.48 && longitude <= 77.52) {
+      return 'Vijayanagar, Bangalore';
+    } else if (latitude >= 12.90 && latitude <= 12.94 && longitude >= 77.50 && longitude <= 77.54) {
+      return 'Basavanagudi, Bangalore';
+    }
+    
+    // Central Bangalore
+    else if (latitude >= 12.96 && latitude <= 13.00 && longitude >= 77.58 && longitude <= 77.62) {
+      return 'Richmond Town, Bangalore';
+    } else if (latitude >= 12.97 && latitude <= 13.01 && longitude >= 77.59 && longitude <= 77.63) {
+      return 'Shivajinagar, Bangalore';
+    }
+    
+    // General Bangalore area
+    else if (latitude >= 12.85 && latitude <= 13.15 && longitude >= 77.45 && longitude <= 77.80) {
+      return 'Bangalore, Karnataka';
+    }
+    
+    // MANGALORE AREAS (12.7° to 13.0° N, 74.7° to 75.0° E)
+    else if (latitude >= 12.86 && latitude <= 12.90 && longitude >= 74.83 && longitude <= 74.87) {
+      return 'Hampankatta, Mangalore';
+    } else if (latitude >= 12.88 && latitude <= 12.92 && longitude >= 74.84 && longitude <= 74.88) {
+      return 'Kadri, Mangalore';
+    } else if (latitude >= 12.84 && latitude <= 12.88 && longitude >= 74.82 && longitude <= 74.86) {
+      return 'Bejai, Mangalore';
+    } else if (latitude >= 12.90 && latitude <= 12.94 && longitude >= 74.85 && longitude <= 74.89) {
+      return 'Kankanady, Mangalore';
+    } else if (latitude >= 12.80 && latitude <= 13.00 && longitude >= 74.75 && longitude <= 75.00) {
+      return 'Mangalore, Karnataka';
+    }
+    
+    // MYSORE AREAS (12.2° to 12.4° N, 76.5° to 76.8° E)
+    else if (latitude >= 12.28 && latitude <= 12.32 && longitude >= 76.63 && longitude <= 76.67) {
+      return 'Saraswathipuram, Mysore';
+    } else if (latitude >= 12.30 && latitude <= 12.34 && longitude >= 76.65 && longitude <= 76.69) {
+      return 'Gokulam, Mysore';
+    } else if (latitude >= 12.29 && latitude <= 12.33 && longitude >= 76.61 && longitude <= 76.65) {
+      return 'Vijayanagar, Mysore';
+    } else if (latitude >= 12.20 && latitude <= 12.40 && longitude >= 76.50 && longitude <= 76.80) {
+      return 'Mysore, Karnataka';
+    }
+    
+    // HUBLI AREAS
+    else if (latitude >= 15.34 && latitude <= 15.38 && longitude >= 75.11 && longitude <= 75.15) {
+      return 'Vidyanagar, Hubli';
+    } else if (latitude >= 15.30 && latitude <= 15.50 && longitude >= 75.00 && longitude <= 75.20) {
+      return 'Hubli, Karnataka';
+    }
+    
+    // OTHER MAJOR CITIES
+    else if (latitude >= 16.80 && latitude <= 17.00 && longitude >= 74.40 && longitude <= 74.60) {
+      return 'Belgaum, Karnataka';
+    } else if (latitude >= 14.40 && latitude <= 14.60 && longitude >= 75.80 && longitude <= 76.00) {
+      return 'Shimoga, Karnataka';
+    }
+    
+    // GENERAL REGIONS
+    else if (latitude >= 12.0 && latitude <= 18.5 && longitude >= 74.0 && longitude <= 78.5) {
+      return 'Karnataka';
+    } else if (latitude >= 8.0 && latitude <= 37.0 && longitude >= 68.0 && longitude <= 97.0) {
+      return 'India';
+    }
+    
+    return 'Your Location';
   }
 
   void _openMapService() {
