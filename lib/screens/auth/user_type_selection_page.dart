@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../homepage.dart';
-import '../mechanic/mechanic_registration_page.dart';
+// import '../mechanic/mechanic_registration_page.dart'; // Temporarily disabled for review
+import '../mechanic/mechanic_service_dashboard.dart';
 
 class UserTypeSelectionPage extends StatefulWidget {
   const UserTypeSelectionPage({super.key});
@@ -104,6 +105,24 @@ class _UserTypeSelectionPageState extends State<UserTypeSelectionPage>
                               child: Image.asset(
                                 'assets/icons/dyganox_logo.png',
                                 fit: BoxFit.contain,
+                                errorBuilder: (context, error, stackTrace) {
+                                  // Fallback icon if logo doesn't exist
+                                  return Container(
+                                    decoration: BoxDecoration(
+                                      gradient: const LinearGradient(
+                                        colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      ),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: const Icon(
+                                      Icons.car_repair,
+                                      size: 60,
+                                      color: Colors.white,
+                                    ),
+                                  );
+                                },
                               ),
                             ),
                           ),
@@ -191,16 +210,31 @@ class _UserTypeSelectionPageState extends State<UserTypeSelectionPage>
                       opacity: _fadeAnimation,
                       child: _buildOptionCard(
                         title: 'I\'m a Mechanic',
-                        subtitle: 'Register to provide services',
+                        subtitle: 'View service dashboard',
                         icon: Icons.build_circle,
                         color: Colors.white.withOpacity(0.1),
                         onTap: () {
+                          // Temporarily navigate directly to dashboard for review
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const MechanicRegistrationPage(),
+                              builder: (context) => MechanicServiceDashboard(
+                                mechanicData: {
+                                  'name': 'Demo Mechanic',
+                                  'specialty': 'General Repair',
+                                  'experience': '5-10 years',
+                                },
+                              ),
                             ),
                           );
+                          
+                          // TODO: Re-enable registration page after review
+                          // Navigator.push(
+                          //   context,
+                          //   MaterialPageRoute(
+                          //     builder: (context) => const MechanicRegistrationPage(),
+                          //   ),
+                          // );
                         },
                       ),
                     );

@@ -5,7 +5,7 @@ echo Running Flutter App on Mobile Device
 echo ================================================
 echo.
 
-set FLUTTER_PATH=C:\Users\naikh\Desktop\Flutter\flutter\bin
+set FLUTTER_PATH=C:\Users\prems\Documents\flutter\bin
 set PATH=%FLUTTER_PATH%;%PATH%
 
 echo Checking connected devices...
