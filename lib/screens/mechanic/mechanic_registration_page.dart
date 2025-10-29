@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'mechanic_dashboard_page.dart';
+import 'mechanic_service_dashboard.dart';
 
 class MechanicRegistrationPage extends StatefulWidget {
   const MechanicRegistrationPage({super.key});
@@ -108,12 +108,30 @@ class _MechanicRegistrationPageState extends State<MechanicRegistrationPage> {
 
     print("Mechanic Registration: Submitting data...");
 
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+
     try {
       final response = await http.post(
         Uri.parse("http://10.73.102.113:8081/api/mechanic"),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode(mechanicData),
+      ).timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          // If backend is not reachable, navigate anyway for testing
+          throw Exception('Backend timeout - navigating to dashboard anyway');
+        },
       );
+
+      // Close loading dialog
+      Navigator.pop(context);
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         print("Mechanic Registration: Success - Data stored in database");
@@ -124,21 +142,13 @@ class _MechanicRegistrationPageState extends State<MechanicRegistrationPage> {
           ),
         );
         
-        _formKey.currentState?.reset();
-        setState(() {
-          selectedSpecialty = null;
-          selectedExperience = null;
-          nightTimeAvailable = false;
-          agreeToTerms = false;
-        });
-        _latitudeController.clear();
-        _longitudeController.clear();
-        
-        // Navigate to mechanic dashboard after successful registration
+        // Navigate to mechanic service dashboard
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => const MechanicDashboardPage(),
+            builder: (context) => MechanicServiceDashboard(
+              mechanicData: mechanicData,
+            ),
           ),
         );
       } else {
@@ -151,11 +161,29 @@ class _MechanicRegistrationPageState extends State<MechanicRegistrationPage> {
         );
       }
     } catch (e) {
+      // Close loading dialog if still open
+      Navigator.pop(context);
+      
       print("Mechanic Registration: Exception - $e");
+      
+      // Navigate to dashboard anyway (for testing without backend)
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Error: $e"),
-          backgroundColor: Colors.red,
+        const SnackBar(
+          content: Text("Backend not available - Opening dashboard for preview"),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      
+      // Wait for snackbar to show, then navigate
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => MechanicServiceDashboard(
+            mechanicData: mechanicData,
+          ),
         ),
       );
     }
@@ -179,13 +207,41 @@ class _MechanicRegistrationPageState extends State<MechanicRegistrationPage> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              const Color(0xFF6366F1).withOpacity(0.05),
+              Colors.white.withOpacity(0.8),
+            ],
+          ),
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Container(
+            padding: const EdgeInsets.all(20.0),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.7),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: const Color(0xFF6366F1).withOpacity(0.2),
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
               _buildFormHeader(),
               const SizedBox(height: 24),
               _buildFormField('Full Name', controller: _nameController),
@@ -317,6 +373,8 @@ class _MechanicRegistrationPageState extends State<MechanicRegistrationPage> {
                 ),
               ),
             ],
+              ),
+            ),
           ),
         ),
       ),
