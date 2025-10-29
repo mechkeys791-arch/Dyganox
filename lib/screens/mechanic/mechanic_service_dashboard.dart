@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'mechanic_bookings_page.dart';
 import 'mechanic_services_page.dart';
+import 'mechanic_profile_edit_page.dart';
 
 class MechanicServiceDashboard extends StatefulWidget {
   final Map<String, dynamic>? mechanicData;
@@ -51,6 +52,10 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
       _mechanicProfile['name'] = widget.mechanicData!['name'] ?? 'Mechanic';
       _mechanicProfile['specialty'] = widget.mechanicData!['specialty'] ?? 'General Repair';
       _mechanicProfile['experience'] = widget.mechanicData!['experience'] ?? '0-2 years';
+      _mechanicProfile['phone'] = widget.mechanicData!['phone'] ?? '+91 98765 43210';
+      _mechanicProfile['email'] = widget.mechanicData!['email'] ?? 'mechanic@example.com';
+      _mechanicProfile['rating'] = widget.mechanicData!['rating'] ?? 4.5;
+      _mechanicProfile['completedJobs'] = widget.mechanicData!['completedJobs'] ?? 0;
     }
     
     _fetchBookings();
@@ -256,22 +261,42 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
   }
   
   Widget _buildProfileCard() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-        ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF6366F1).withOpacity(0.3),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
+    return GestureDetector(
+      onTap: () async {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => MechanicProfileEditPage(
+              mechanicProfile: _mechanicProfile,
+              onSave: (updatedProfile) {
+                setState(() {
+                  _mechanicProfile['name'] = updatedProfile['name'];
+                  _mechanicProfile['phone'] = updatedProfile['phone'];
+                  _mechanicProfile['email'] = updatedProfile['email'];
+                  _mechanicProfile['specialty'] = updatedProfile['specialty'];
+                  _mechanicProfile['experience'] = updatedProfile['experience'];
+                });
+              },
+            ),
           ),
-        ],
-      ),
-      child: Row(
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF6366F1).withOpacity(0.3),
+              blurRadius: 15,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Row(
         children: [
           Container(
             width: 80,
@@ -297,12 +322,39 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  _mechanicProfile['specialty'],
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    color: Colors.white.withOpacity(0.9),
-                  ),
+                Row(
+                  children: [
+                    Text(
+                      _mechanicProfile['specialty'],
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        color: Colors.white.withOpacity(0.9),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.touch_app, color: Colors.white, size: 10),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Tap to edit',
+                            style: GoogleFonts.inter(
+                              fontSize: 10,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 8),
                 Row(
@@ -349,7 +401,18 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
               ],
             ),
           ),
+          // Edit indicator
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.edit, color: Colors.white, size: 20),
+          ),
         ],
+        ),
       ),
     );
   }

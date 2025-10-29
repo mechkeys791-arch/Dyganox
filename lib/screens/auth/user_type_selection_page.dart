@@ -220,9 +220,17 @@ class _UserTypeSelectionPageState extends State<UserTypeSelectionPage>
                             MaterialPageRoute(
                               builder: (context) => MechanicServiceDashboard(
                                 mechanicData: {
-                                  'name': 'Demo Mechanic',
+                                  'name': 'Rajesh Kumar',
                                   'specialty': 'General Repair',
                                   'experience': '5-10 years',
+                                  'phone': '+91 98765 43210',
+                                  'email': 'rajesh.mechanic@example.com',
+                                  'rating': 4.8,
+                                  'completedJobs': 127,
+                                  'latitude': '12.9716',
+                                  'longitude': '77.5946',
+                                  'rate': '500',
+                                  'nightTimeAvailable': true,
                                 },
                               ),
                             ),
