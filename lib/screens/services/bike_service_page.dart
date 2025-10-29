@@ -168,10 +168,6 @@ class _BikeServicePageState extends State<BikeServicePage> with TickerProviderSt
       {'title': 'Spare Parts', 'icon': 'assets/icons/spare-parts.png'},
       {'title': 'Suspension', 'icon': 'assets/icons/new-bike-suspension.png'},
       {'title': 'Electrical Works', 'icon': 'assets/icons/bike-electrical-works.png'},
-      {'title': 'Fuel Refill', 'icon': 'assets/icons/fuel-station.png'},
-      {'title': 'V2V Service', 'icon': 'assets/icons/smart-car.png'},
-      {'title': 'Night Service', 'icon': 'assets/icons/24-hour-service.png'},
-      {'title': 'Pick & Drop', 'icon': 'assets/icons/delivery-man.png'},
     ];
 
     return Scaffold(
