@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'widgets/custom_nav_bar.dart';
 
 class EmergencyAssistancePage extends StatefulWidget {
   const EmergencyAssistancePage({super.key});
@@ -556,7 +557,7 @@ class _EmergencyAssistancePageState extends State<EmergencyAssistancePage>
         ),
       ),
       // Custom Floating Bottom Navigation Bar
-      bottomNavigationBar: _buildBottomNavigationBar(),
+      bottomNavigationBar: const CustomNavBar(currentIndex: 1),
     );
   }
 

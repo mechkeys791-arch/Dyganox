@@ -8,6 +8,7 @@ import '../vehicles/vehicles_page.dart';
 import 'addresses_page.dart';
 import 'payment_methods_page.dart';
 import 'service_history_page.dart';
+import '../../widgets/custom_nav_bar.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -733,7 +734,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
         ),
       ),
       // Custom Floating Bottom Navigation Bar
-      bottomNavigationBar: _buildBottomNavigationBar(),
+      bottomNavigationBar: const CustomNavBar(currentIndex: 2),
     );
   }
 
