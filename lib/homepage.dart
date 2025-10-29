@@ -1577,7 +1577,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(
-                              '8 Services',
+                              '7 Services',
                               style: GoogleFonts.inter(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
@@ -1790,14 +1790,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                );
                              },
                            ),
-                           _buildQuickServiceCard(
-                             title: 'V2V Service',
-                             iconPath: 'assets/icons/v2v.png',
-                             color: const Color(0xFF706DC7),
-                             onTap: () {
-                               _showV2VServiceDialog();
-                             },
-                           ),
                           ],
                         ),
                       ),
@@ -1925,52 +1917,55 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         ),
       ),
 
-      // Modern Bottom Navigation
+      // Custom Bottom Navigation Bar with Rounded Design
+      // Features: Rounded container, indicator dots, and elegant styling
       bottomNavigationBar: Container(
-        margin: EdgeInsets.zero,
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        padding: const EdgeInsets.symmetric(vertical: 8),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.zero,
+          borderRadius: BorderRadius.circular(30),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 30,
-              offset: const Offset(0, -5),
+              color: Colors.black.withOpacity(0.15),
+              blurRadius: 12.0,
+              spreadRadius: 2.0,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            _buildNavItem(Icons.home_rounded, 'Home', true),
-            _buildNavItem(Icons.help_outline_rounded, 'Help', false),
-            _buildNavItem(Icons.warning_rounded, 'Emergency', false),
-            _buildNavItem(Icons.category_rounded, 'Categories', false),
-            _buildNavItem(Icons.person_outline_rounded, 'Profile', false),
-          ],
+        child: SafeArea(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              // Home Navigation Item
+              _buildNavItem(Icons.home_filled, 'Home', true),
+              // Emergency Navigation Item - Center with special styling
+              _buildNavItem(Icons.emergency, 'Emergency', false),
+              // Profile Navigation Item
+              _buildNavItem(Icons.account_circle, 'Profile', false),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildNavItem(IconData icon, String label, bool isSelected) {
-    // Special styling for Emergency button
+    // Custom navigation item with icon and indicator dot
+    // Features indicator dot below selected items for visual feedback
     final isEmergency = label == 'Emergency';
-    final iconColor = isEmergency 
-        ? Colors.red 
-        : (isSelected ? const Color(0xFF6366F1) : Colors.grey);
-    final labelColor = isEmergency
-        ? Colors.red
-        : (isSelected ? const Color(0xFF6366F1) : Colors.grey);
     
     return GestureDetector(
       onTap: () {
+        // Haptic feedback for better user experience
         HapticFeedback.lightImpact();
+        
+        // Navigation logic based on label
         if (label == 'Profile') {
           Navigator.pushNamed(context, '/profile');
         } else if (label == 'Emergency') {
-          HapticFeedback.heavyImpact();
+          HapticFeedback.heavyImpact(); // Stronger feedback for emergency
           Navigator.push(
             context,
             PageRouteBuilder(
@@ -1996,34 +1991,38 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           );
         }
       },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: isEmergency 
-              ? Colors.red.withValues(alpha: 0.1)
-              : (isSelected ? const Color(0xFF6366F1).withValues(alpha: 0.1) : Colors.transparent),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Icon with animation
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            padding: const EdgeInsets.all(8),
+            child: Icon(
               icon,
-              color: iconColor,
-              size: 24,
+              // Color scheme: Purple for selected, red for emergency, grey for inactive
+              color: isSelected
+                  ? const Color(0xFF706DC7) // App theme color
+                  : (isEmergency
+                      ? Colors.red.shade400 // Emergency red
+                      : Colors.grey.shade500), // Inactive grey
+              size: 28, // Clear, accessible icon size
             ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: GoogleFonts.outfit(
-                fontSize: 11,
-                fontWeight: isEmergency || isSelected ? FontWeight.w600 : FontWeight.w400,
-                color: labelColor,
-              ),
+          ),
+          // Indicator dot - appears below selected item
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeInOut,
+            width: isSelected ? 8 : 0, // Dot appears/disappears with animation
+            height: isSelected ? 8 : 0,
+            margin: const EdgeInsets.only(top: 4),
+            decoration: BoxDecoration(
+              // Purple indicator for selected items
+              color: const Color(0xFF706DC7),
+              shape: BoxShape.circle,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

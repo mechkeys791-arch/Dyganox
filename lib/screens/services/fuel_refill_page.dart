@@ -271,19 +271,6 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
           ),
           child: Row(
             children: [
-              Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF706DC7).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.local_gas_station,
-                  size: 30,
-                  color: Color(0xFF706DC7),
-                ),
-              ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
@@ -374,21 +361,6 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
 
   @override
   Widget build(BuildContext context) {
-    final fuelServices = [
-      {
-        'title': 'Emergency Fuel Delivery',
-        'description': 'On-spot fuel delivery service when you run out of fuel',
-        'icon': 'assets/icons/fuel-station.png',
-        'price': '₹199',
-      },
-      {
-        'title': 'Fuel System Service',
-        'description': 'Clean fuel injectors and fuel system',
-        'icon': 'assets/icons/repair-tools.png',
-        'price': '₹899',
-      },
-    ];
-
     final nearbyStations = [
       {
         'name': 'HP Fuel Station',
@@ -489,26 +461,12 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
                 ),
                 child: Row(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Image.asset(
-                        'assets/icons/fuel-station.png',
-                        width: 30,
-                        height: 40,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(width: 20),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Fuel Solutions',
+                            'Nearby Fuel Stations',
                             style: GoogleFonts.outfit(
                               color: Colors.white,
                               fontSize: 18,
@@ -517,7 +475,7 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Emergency delivery • Quality check • System service',
+                            'Find the nearest fuel station and navigate easily',
                             style: GoogleFonts.inter(
                               color: Colors.white.withOpacity(0.9),
                               fontSize: 12,
@@ -530,167 +488,6 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
                 ),
               ),
 
-              // Available Services Section
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                child: Text(
-                  'Available Fuel Services',
-                  style: GoogleFonts.outfit(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
-              ),
-
-              // Services List
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                itemCount: fuelServices.length,
-                itemBuilder: (context, index) {
-                  final service = fuelServices[index];
-                  return _buildFuelServiceCard(
-                    title: service['title']! as String,
-                    description: service['description']! as String,
-                    iconPath: service['icon']! as String,
-                    price: service['price']! as String,
-                    index: index,
-                    onTap: () {
-                      showDialog(
-                        context: context,
-                        builder: (BuildContext context) {
-                          return AlertDialog(
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            title: Row(
-                              children: [
-                                Image.asset(
-                                  service['icon']! as String,
-                                  width: 24,
-                                  height: 24,
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    service['title']! as String,
-                                    style: GoogleFonts.outfit(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            content: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  service['description']! as String,
-                                  style: GoogleFonts.inter(),
-                                ),
-                                const SizedBox(height: 16),
-                                Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF706DC7).withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      Row(
-                                        children: [
-                                          const Icon(
-                                            Icons.local_gas_station,
-                                            size: 16,
-                                            color: Color(0xFF706DC7),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            'Professional fuel experts',
-                                            style: GoogleFonts.outfit(
-                                              fontSize: 12,
-                                              color: const Color(0xFF706DC7),
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Row(
-                                        children: [
-                                          const Icon(
-                                            Icons.access_time,
-                                            size: 16,
-                                            color: Color(0xFF706DC7),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            'Available 24/7',
-                                            style: GoogleFonts.outfit(
-                                              fontSize: 12,
-                                              color: const Color(0xFF706DC7),
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(context),
-                                child: Text(
-                                  'Close',
-                                  style: GoogleFonts.outfit(),
-                                ),
-                              ),
-                              ElevatedButton(
-                                onPressed: () {
-                                  Navigator.pop(context);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Booking ${service['title']! as String}...',
-                                        style: GoogleFonts.outfit(),
-                                      ),
-                                      backgroundColor: const Color(0xFF706DC7),
-                                      behavior: SnackBarBehavior.floating,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                    ),
-                                  );
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF706DC7),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                ),
-                                child: Text(
-                                  'Book Now',
-                                  style: GoogleFonts.outfit(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          );
-                        },
-                      );
-                    },
-                  );
-                },
-              ),
-
-              const SizedBox(height: 20),
 
               // Nearby Stations Section
               Container(
