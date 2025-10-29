@@ -33,13 +33,13 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
   
   // Available services list
   final List<Map<String, dynamic>> _availableServices = [
-    {'name': 'General Repair', 'icon': Icons.build, 'color': Color(0xFF6366F1)},
-    {'name': 'Engine Service', 'icon': Icons.settings, 'color': Color(0xFFEF4444)},
-    {'name': 'Electrical Works', 'icon': Icons.electric_bolt, 'color': Color(0xFFF59E0B)},
-    {'name': 'Brake Service', 'icon': Icons.disc_full, 'color': Color(0xFF10B981)},
+    {'name': 'General Repair', 'icon': Icons.handyman, 'color': Color(0xFF6366F1)},
+    {'name': 'Engine Service', 'icon': Icons.settings_suggest, 'color': Color(0xFFEF4444)},
+    {'name': 'Electrical Works', 'icon': Icons.electrical_services, 'color': Color(0xFFF59E0B)},
+    {'name': 'Brake Service', 'icon': Icons.speed, 'color': Color(0xFF10B981)},
     {'name': 'AC Repair', 'icon': Icons.ac_unit, 'color': Color(0xFF3B82F6)},
-    {'name': 'Body Works', 'icon': Icons.car_repair, 'color': Color(0xFF8B5CF6)},
-    {'name': 'Tire Service', 'icon': Icons.circle, 'color': Color(0xFFEC4899)},
+    {'name': 'Body Works', 'icon': Icons.directions_car, 'color': Color(0xFF8B5CF6)},
+    {'name': 'Tire Service', 'icon': Icons.album_outlined, 'color': Color(0xFFEC4899)},
     {'name': 'Battery Service', 'icon': Icons.battery_charging_full, 'color': Color(0xFF14B8A6)},
   ];
   
@@ -292,7 +292,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
               color: Colors.white,
               border: Border.all(color: Colors.white, width: 3),
             ),
-            child: const Icon(Icons.person, size: 40, color: Color(0xFF6366F1)),
+            child: const Icon(Icons.account_circle, size: 40, color: Color(0xFF6366F1)),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -372,7 +372,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
           child: _buildStatCard(
             'Total Jobs',
             '${_mechanicProfile['completedJobs']}',
-            Icons.check_circle,
+            Icons.check_circle_outline,
             const Color(0xFF10B981),
           ),
         ),
@@ -381,7 +381,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
           child: _buildStatCard(
             'Pending',
             '${_bookings.where((b) => b['status'] == 'Pending').length}',
-            Icons.pending,
+            Icons.pending_actions,
             const Color(0xFFF59E0B),
           ),
         ),
@@ -499,7 +499,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
               color: const Color(0xFF6366F1).withOpacity(0.1),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.directions_car, color: Color(0xFF6366F1)),
+            child: const Icon(Icons.car_repair, color: Color(0xFF6366F1)),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -697,19 +697,19 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
-                _buildBookingInfoRow(Icons.person, 'Customer', booking['customerName']),
+                _buildBookingInfoRow(Icons.person_outline, 'Customer', booking['customerName']),
                 const SizedBox(height: 12),
                 _buildBookingInfoRow(Icons.phone, 'Phone', booking['customerPhone']),
                 const SizedBox(height: 12),
-                _buildBookingInfoRow(Icons.build, 'Service', booking['service']),
+                _buildBookingInfoRow(Icons.handyman, 'Service', booking['service']),
                 const SizedBox(height: 12),
                 _buildBookingInfoRow(Icons.directions_car, 'Vehicle', booking['vehicle']),
                 const SizedBox(height: 12),
                 _buildBookingInfoRow(Icons.location_on, 'Location', booking['location']),
                 const SizedBox(height: 12),
-                _buildBookingInfoRow(Icons.calendar_today, 'Date & Time', '${booking['date']} at ${booking['time']}'),
+                _buildBookingInfoRow(Icons.event, 'Date & Time', '${booking['date']} at ${booking['time']}'),
                 const SizedBox(height: 12),
-                _buildBookingInfoRow(Icons.attach_money, 'Amount', booking['amount']),
+                _buildBookingInfoRow(Icons.currency_rupee, 'Amount', booking['amount']),
                 
                 if (isPending) ...[
                   const SizedBox(height: 16),
@@ -885,7 +885,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
         child: Center(
           child: Column(
             children: [
-              Icon(Icons.build_circle_outlined, size: 60, color: Colors.grey[400]),
+              Icon(Icons.handyman_outlined, size: 60, color: Colors.grey[400]),
               const SizedBox(height: 12),
               Text(
                 'No services added yet',
