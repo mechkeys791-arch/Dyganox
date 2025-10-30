@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'widgets/custom_nav_bar.dart';
+import 'homepage.dart';
 
 class EmergencyAssistancePage extends StatefulWidget {
   const EmergencyAssistancePage({super.key});
@@ -284,7 +285,13 @@ class _EmergencyAssistancePageState extends State<EmergencyAssistancePage>
             ),
             child: const Icon(Icons.arrow_back, color: Colors.black, size: 20),
           ),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            // Navigate back to homepage specifically
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const HomePage()),
+            );
+          },
         ),
         title: Text(
           'Emergency Assistance',
