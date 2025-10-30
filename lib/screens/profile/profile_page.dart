@@ -368,7 +368,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
             ),
             child: const Icon(Icons.arrow_back, color: Colors.black, size: 20),
           ),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => Navigator.pushReplacementNamed(context, '/home'),
         ),
         title: Text(
           'Profile',
