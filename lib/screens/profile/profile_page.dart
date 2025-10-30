@@ -26,9 +26,6 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
   bool _darkModeEnabled = false;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
-  
-  // Navigation bar state
-  int _selectedNavIndex = 2; // Profile is selected by default
 
   @override
   void initState() {
@@ -738,124 +735,6 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     );
   }
 
-  // Custom Bottom Navigation Bar Widget
-  Widget _buildBottomNavigationBar() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
-      height: 70,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(35),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 15.0,
-            spreadRadius: 2.0,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildNavItem(Icons.home_filled, 'Home', _selectedNavIndex == 0, 0),
-          _buildFABNavItem(Icons.report_problem_rounded, 'Emergency', _selectedNavIndex == 1, 1),
-          _buildNavItem(Icons.account_circle, 'Profile', _selectedNavIndex == 2, 2),
-        ],
-      ),
-    );
-  }
-
-  // Standard navigation item
-  Widget _buildNavItem(IconData icon, String label, bool isSelected, int index) {
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        
-        // Update state immediately for visual feedback
-        setState(() {
-          _selectedNavIndex = index;
-        });
-        
-        if (label == 'Home') {
-          // Pop all pages and return to the very first route (HomePage)
-          Navigator.popUntil(context, (route) => route.isFirst);
-        } else if (label == 'Emergency') {
-          Navigator.pushNamed(context, '/emergency');
-        }
-      },
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            icon,
-            color: isSelected ? const Color(0xFF706DC7) : Colors.grey.shade400,
-            size: 28,
-          ),
-          const SizedBox(height: 6),
-          if (isSelected)
-            Container(
-              width: 6,
-              height: 6,
-              decoration: const BoxDecoration(
-                color: Color(0xFF706DC7),
-                shape: BoxShape.circle,
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  // Center FAB navigation item
-  Widget _buildFABNavItem(IconData icon, String label, bool isSelected, int index) {
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.heavyImpact();
-        // Navigate to emergency page (use Navigator to avoid duplicate imports)
-        Navigator.popUntil(context, (route) => route.isFirst);
-        // Then push emergency page if needed
-      },
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: Colors.red.shade400,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.red.shade400.withOpacity(0.4),
-                  blurRadius: 12,
-                  spreadRadius: 2,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: const Icon(
-              Icons.report_problem_rounded,
-              color: Colors.white,
-              size: 28,
-            ),
-          ),
-          const SizedBox(height: 6),
-          if (isSelected)
-            Container(
-              width: 6,
-              height: 6,
-              decoration: BoxDecoration(
-                color: Colors.red.shade400,
-                shape: BoxShape.circle,
-              ),
-            ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildSectionHeader(String title) {
     return Padding(

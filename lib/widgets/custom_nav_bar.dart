@@ -64,6 +64,7 @@ class CustomNavBar extends StatelessWidget {
   }
 
   Widget _buildNavItem(BuildContext context, IconData icon, String label, bool isSelected, int index) {
+    // Navigation item using theme color #706DC7 for all states
     return GestureDetector(
       onTap: () {
         HapticFeedback.lightImpact();
@@ -90,16 +91,21 @@ class CustomNavBar extends StatelessWidget {
         children: [
           Icon(
             icon,
-            color: isSelected ? const Color(0xFF706DC7) : Colors.grey.shade400,
+            // Selected: Full theme color #706DC7
+            // Inactive: Lighter shade of theme color for consistency
+            color: isSelected 
+                ? const Color(0xFF706DC7) 
+                : const Color(0xFF706DC7).withOpacity(0.35),
             size: 28,
           ),
           const SizedBox(height: 6),
+          // Indicator dot uses theme color
           if (isSelected)
             Container(
               width: 6,
               height: 6,
               decoration: const BoxDecoration(
-                color: Color(0xFF706DC7),
+                color: Color(0xFF706DC7), // Theme color dot
                 shape: BoxShape.circle,
               ),
             ),
