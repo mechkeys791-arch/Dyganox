@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'widgets/custom_nav_bar.dart';
+<<<<<<< HEAD
 import 'homepage.dart';
+=======
+import 'services/phone_call_service.dart';
+>>>>>>> f313c72cfbe8287498ee225c360ddb585b02e962
 
 class EmergencyAssistancePage extends StatefulWidget {
   const EmergencyAssistancePage({super.key});
@@ -756,24 +759,14 @@ class _MechanicsListPageState extends State<MechanicsListPage>
     }
   }
 
+  final PhoneCallService _phoneService = PhoneCallService();
+
   Future<void> _makePhoneCall(String phoneNumber) async {
-    final Uri launchUri = Uri(
-      scheme: 'tel',
-      path: phoneNumber,
+    await _phoneService.makePhoneCall(
+      phoneNumber,
+      context: context,
+      showConfirmation: true,
     );
-    try {
-      if (await canLaunchUrl(launchUri)) {
-        await launchUrl(launchUri);
-      } else {
-        if (mounted) {
-          _showSnackBar('Cannot make phone call', Colors.red);
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        _showSnackBar('Error: $e', Colors.red);
-      }
-    }
   }
 
   void _showSnackBar(String message, Color color) {
