@@ -2,11 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'widgets/custom_nav_bar.dart';
-<<<<<<< HEAD
 import 'homepage.dart';
-=======
 import 'services/phone_call_service.dart';
->>>>>>> f313c72cfbe8287498ee225c360ddb585b02e962
 
 class EmergencyAssistancePage extends StatefulWidget {
   const EmergencyAssistancePage({super.key});
