@@ -127,6 +127,37 @@ public class MechanicRequestController {
         }
     }
 
+    @PutMapping("/{requestId}/complete")
+    public ResponseEntity<Map<String, String>> completeRequest(@PathVariable Long requestId) {
+        System.out.println("✅ Completing request ID: " + requestId);
+        try {
+            Optional<MechanicRequest> optionalRequest = mechanicRequestRepo.findById(requestId);
+            if (optionalRequest.isPresent()) {
+                MechanicRequest request = optionalRequest.get();
+                request.setStatus("COMPLETED");
+                request.setResponseTime(LocalDateTime.now());
+                mechanicRequestRepo.save(request);
+                
+                Map<String, String> response = new HashMap<>();
+                response.put("message", "Request completed successfully");
+                response.put("status", "COMPLETED");
+                
+                System.out.println("✅ Request " + requestId + " completed successfully");
+                return ResponseEntity.ok(response);
+            } else {
+                Map<String, String> response = new HashMap<>();
+                response.put("error", "Request not found");
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+            }
+        } catch (Exception e) {
+            System.err.println("❌ Error completing request: " + e.getMessage());
+            e.printStackTrace();
+            Map<String, String> response = new HashMap<>();
+            response.put("error", "Internal server error");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
+
     @GetMapping
     public ResponseEntity<List<MechanicRequest>> getAllRequests() {
         System.out.println("📤 GET request received - fetching all requests");

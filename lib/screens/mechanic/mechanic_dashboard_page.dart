@@ -7,7 +7,14 @@ import 'dart:convert';
 import '../../services/api_config.dart';
 
 class MechanicDashboardPage extends StatefulWidget {
-  const MechanicDashboardPage({super.key});
+  final Map<String, dynamic>? mechanicData;
+  final int? mechanicId;
+  
+  const MechanicDashboardPage({
+    super.key,
+    this.mechanicData,
+    this.mechanicId,
+  });
 
   @override
   State<MechanicDashboardPage> createState() => _MechanicDashboardPageState();
@@ -21,10 +28,18 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
   bool _isLoadingRequests = false;
   late AnimationController _animationController;
   late Animation<double> _pulseAnimation;
+  int? _mechanicId;
 
   @override
   void initState() {
     super.initState();
+    // Get mechanic ID from widget parameters
+    _mechanicId = widget.mechanicId ?? 
+                  (widget.mechanicData?['id'] is int ? widget.mechanicData!['id'] : 
+                   widget.mechanicData?['id'] is String ? int.tryParse(widget.mechanicData!['id'].toString()) : null);
+    
+    print("Mechanic Dashboard: Using mechanic ID: $_mechanicId");
+    
     _getCurrentLocation();
     _fetchRequests();
     _animationController = AnimationController(
@@ -94,15 +109,28 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
   }
 
   Future<void> _fetchRequests() async {
+    // If no mechanic ID is available, show error
+    if (_mechanicId == null) {
+      print("Error: Mechanic ID is not available. Cannot fetch requests.");
+      _showSnackBar('Mechanic ID not found. Please login or register as a mechanic.', Colors.red);
+      setState(() {
+        _isLoadingRequests = false;
+      });
+      return;
+    }
+
     setState(() {
       _isLoadingRequests = true;
     });
 
     try {
-      // For demo purposes, using mechanic ID 1
-      // In a real app, you'd get this from user session/login
+      final mechanicId = _mechanicId!;
+      final apiUrl = "${ApiConfig.mechanicRequestsEndpoint}/mechanic/$mechanicId/pending";
+      print("Fetching requests for mechanic ID: $mechanicId");
+      print("API URL: $apiUrl");
+      
       final response = await http.get(
-        Uri.parse("${ApiConfig.mechanicRequestsEndpoint}/mechanic/1/pending"),
+        Uri.parse(apiUrl),
         headers: {"Content-Type": "application/json"},
       );
 
@@ -111,12 +139,14 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
         setState(() {
           _requests = data.map((request) => Map<String, dynamic>.from(request)).toList();
         });
-        print("Fetched ${_requests.length} pending requests");
+        print("Fetched ${_requests.length} pending requests for mechanic ID: $mechanicId");
       } else {
-        print("Failed to fetch requests: ${response.statusCode}");
+        print("Failed to fetch requests: ${response.statusCode} - ${response.body}");
+        _showSnackBar('Failed to fetch requests. Please try again.', Colors.orange);
       }
     } catch (e) {
       print("Error fetching requests: $e");
+      _showSnackBar('Network error. Please check your connection.', Colors.red);
     } finally {
       setState(() {
         _isLoadingRequests = false;

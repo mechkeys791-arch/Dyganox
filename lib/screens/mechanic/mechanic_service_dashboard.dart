@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'dart:async';
+import '../../services/api_config.dart';
 import 'mechanic_bookings_page.dart';
 import 'mechanic_services_page.dart';
 import 'mechanic_profile_edit_page.dart';
@@ -22,6 +26,9 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
   List<String> _myServices = ['General Repair', 'Engine Service', 'Electrical Works'];
   // ignore: unused_field
   bool _isLoadingBookings = false;
+  
+  // Auto-refresh timer
+  Timer? _refreshTimer;
   
   // Mock data for mechanic profile
   final Map<String, dynamic> _mechanicProfile = {
@@ -59,11 +66,18 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
     }
     
     _fetchBookings();
+    
+    // Auto-refresh bookings every 30 seconds
+    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+      _fetchBookings();
+      print("🔄 Auto-refreshing mechanic dashboard...");
+    });
   }
   
   @override
   void dispose() {
     _pulseController.dispose();
+    _refreshTimer?.cancel();
     super.dispose();
   }
   
@@ -71,51 +85,56 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
     setState(() => _isLoadingBookings = true);
     
     try {
-      // Mock bookings - replace with actual API call
-      await Future.delayed(const Duration(seconds: 1));
+      // Get mechanic ID from profile data
+      final mechanicId = widget.mechanicData?['id'] ?? 1;
+      print("Mechanic Dashboard: Fetching requests for mechanic ID: $mechanicId");
+      print("API URL: ${ApiConfig.mechanicRequestsEndpoint}/mechanic/$mechanicId/pending");
       
-      setState(() {
-        _bookings = [
-          {
-            'id': 1,
-            'customerName': 'Rajesh Kumar',
-            'customerPhone': '+91 98765 12345',
-            'service': 'Engine Service',
-            'vehicle': 'Honda City 2020',
-            'location': 'Koramangala, Bangalore',
-            'date': '2024-01-15',
-            'time': '10:00 AM',
-            'status': 'Pending',
-            'amount': '₹1,500',
-          },
-          {
-            'id': 2,
-            'customerName': 'Priya Sharma',
-            'customerPhone': '+91 98765 67890',
-            'service': 'Brake Service',
-            'vehicle': 'Maruti Swift 2019',
-            'location': 'Indiranagar, Bangalore',
-            'date': '2024-01-15',
-            'time': '2:00 PM',
-            'status': 'Accepted',
-            'amount': '₹800',
-          },
-          {
-            'id': 3,
-            'customerName': 'Amit Patel',
-            'customerPhone': '+91 98765 11111',
-            'service': 'General Repair',
-            'vehicle': 'Hyundai i20 2021',
-            'location': 'Whitefield, Bangalore',
-            'date': '2024-01-16',
-            'time': '11:30 AM',
-            'status': 'Pending',
-            'amount': '₹2,000',
-          },
-        ];
-      });
+      final response = await http.get(
+        Uri.parse("${ApiConfig.mechanicRequestsEndpoint}/mechanic/$mechanicId/pending"),
+        headers: {"Content-Type": "application/json"},
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        print("Mechanic Dashboard: Received ${data.length} pending requests");
+        
+        setState(() {
+          _bookings = data.map((request) {
+            // Convert backend status (PENDING) to title case (Pending) for UI
+            String status = request['status'] ?? 'PENDING';
+            status = status[0].toUpperCase() + status.substring(1).toLowerCase();
+            
+            return {
+              'id': request['id'],
+              'customerName': request['customerName'] ?? 'Unknown',
+              'customerPhone': request['customerPhone'] ?? 'Not provided',
+              'service': request['serviceType'] ?? 'General Service',
+              'vehicle': 'Customer Vehicle',  // Add vehicle field to backend if needed
+              'location': '${request['latitude']}, ${request['longitude']}',
+              'date': request['createdAt']?.substring(0, 10) ?? 'Today',
+              'time': request['createdAt']?.substring(11, 16) ?? 'Now',
+              'status': status,
+              'amount': '₹${request['amount'] ?? 50}',
+              'description': request['description'] ?? 'Service request',
+              'email': request['customerEmail'] ?? '',
+            };
+          }).toList();
+        });
+        
+        print("Mechanic Dashboard: Loaded ${_bookings.length} bookings successfully");
+      } else {
+        print("Mechanic Dashboard: Failed to fetch requests - Status ${response.statusCode}");
+        // Fallback to empty list if API fails
+        setState(() {
+          _bookings = [];
+        });
+      }
     } catch (e) {
-      _showSnackBar('Error fetching bookings: $e', Colors.red);
+      print("Mechanic Dashboard: Exception - $e");
+      setState(() {
+        _bookings = [];
+      });
     } finally {
       setState(() => _isLoadingBookings = false);
     }
@@ -177,35 +196,17 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
             fontSize: 14,
             fontWeight: FontWeight.w600,
           ),
-          items: ['Available', 'Busy', 'Offline'].map((String value) {
+          items: ['Available', 'Busy', 'Offline'].map((status) {
             return DropdownMenuItem<String>(
-              value: value,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: value == 'Available' 
-                        ? Colors.green 
-                        : value == 'Busy' 
-                          ? Colors.orange 
-                          : Colors.red,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(value),
-                ],
-              ),
+              value: status,
+              child: Text(status),
             );
           }).toList(),
-          onChanged: (String? newValue) {
-            setState(() {
-              _mechanicStatus = newValue!;
-            });
-            _showSnackBar('Status changed to $_mechanicStatus', Colors.green);
+          onChanged: (value) {
+            if (value != null) {
+              setState(() => _mechanicStatus = value);
+              _showSnackBar('Status updated to $value', Colors.green);
+            }
           },
         ),
       ),
@@ -1027,26 +1028,77 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
   }
   
   // BOOKING ACTIONS
-  void _acceptBooking(Map<String, dynamic> booking) {
-    setState(() {
-      booking['status'] = 'Accepted';
-    });
-    _showSnackBar('Booking accepted! Customer has been notified.', const Color(0xFF10B981));
+  Future<void> _acceptBooking(Map<String, dynamic> booking) async {
+    try {
+      print("Accepting booking ID: ${booking['id']}");
+      final response = await http.put(
+        Uri.parse("${ApiConfig.mechanicRequestsEndpoint}/${booking['id']}/accept"),
+        headers: {"Content-Type": "application/json"},
+      );
+
+      if (response.statusCode == 200) {
+        setState(() {
+          booking['status'] = 'Accepted';
+        });
+        _showSnackBar('Booking accepted! Customer has been notified.', const Color(0xFF10B981));
+        print("✅ Booking ${booking['id']} accepted successfully");
+      } else {
+        print("❌ Failed to accept booking: ${response.statusCode}");
+        _showSnackBar('Failed to accept booking. Please try again.', Colors.red);
+      }
+    } catch (e) {
+      print("❌ Error accepting booking: $e");
+      _showSnackBar('Network error. Please try again.', Colors.red);
+    }
   }
   
-  void _rejectBooking(Map<String, dynamic> booking) {
-    setState(() {
-      _bookings.remove(booking);
-    });
-    _showSnackBar('Booking declined.', Colors.orange);
+  Future<void> _rejectBooking(Map<String, dynamic> booking) async {
+    try {
+      print("Rejecting booking ID: ${booking['id']}");
+      final response = await http.put(
+        Uri.parse("${ApiConfig.mechanicRequestsEndpoint}/${booking['id']}/reject"),
+        headers: {"Content-Type": "application/json"},
+      );
+
+      if (response.statusCode == 200) {
+        setState(() {
+          _bookings.remove(booking);
+        });
+        _showSnackBar('Booking declined.', Colors.orange);
+        print("✅ Booking ${booking['id']} rejected successfully");
+      } else {
+        print("❌ Failed to reject booking: ${response.statusCode}");
+        _showSnackBar('Failed to decline booking. Please try again.', Colors.red);
+      }
+    } catch (e) {
+      print("❌ Error rejecting booking: $e");
+      _showSnackBar('Network error. Please try again.', Colors.red);
+    }
   }
   
-  void _completeBooking(Map<String, dynamic> booking) {
-    setState(() {
-      booking['status'] = 'Completed';
-      _mechanicProfile['completedJobs']++;
-    });
-    _showSnackBar('Job marked as completed! Payment will be processed.', const Color(0xFF10B981));
+  Future<void> _completeBooking(Map<String, dynamic> booking) async {
+    try {
+      print("Completing booking ID: ${booking['id']}");
+      final response = await http.put(
+        Uri.parse("${ApiConfig.mechanicRequestsEndpoint}/${booking['id']}/complete"),
+        headers: {"Content-Type": "application/json"},
+      );
+
+      if (response.statusCode == 200) {
+        setState(() {
+          booking['status'] = 'Completed';
+          _mechanicProfile['completedJobs']++;
+        });
+        _showSnackBar('Job marked as completed! Payment will be processed.', const Color(0xFF10B981));
+        print("✅ Booking ${booking['id']} completed successfully");
+      } else {
+        print("❌ Failed to complete booking: ${response.statusCode}");
+        _showSnackBar('Failed to complete booking. Please try again.', Colors.red);
+      }
+    } catch (e) {
+      print("❌ Error completing booking: $e");
+      _showSnackBar('Network error. Please try again.', Colors.red);
+    }
   }
   
   // SERVICE MANAGEMENT

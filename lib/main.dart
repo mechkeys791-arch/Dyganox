@@ -100,7 +100,18 @@ class ServiceProviderApp extends StatelessWidget {
         '/test-ev-api': (context) => const TestEVAPIPage(),
         '/user-type-selection': (context) => const UserTypeSelectionPage(),
         '/mechanic-registration': (context) => const MechanicRegistrationPage(),
-        '/mechanic-dashboard': (context) => const MechanicDashboardPage(),
+        '/mechanic-dashboard': (context) {
+          final args = ModalRoute.of(context)?.settings.arguments;
+          if (args is Map<String, dynamic>) {
+            return MechanicDashboardPage(
+              mechanicData: args['mechanicData'] as Map<String, dynamic>?,
+              mechanicId: args['mechanicId'] as int?,
+            );
+          } else if (args is int) {
+            return MechanicDashboardPage(mechanicId: args);
+          }
+          return const MechanicDashboardPage();
+        },
       },
     );
   }

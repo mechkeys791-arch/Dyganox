@@ -1,5 +1,6 @@
 package com.example.demo.model;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
@@ -21,6 +22,8 @@ public class MechanicRequest {
     private String longitude;
     private String status; // PENDING, ACCEPTED, REJECTED, COMPLETED
     private double amount;
+    
+    @JsonProperty("createdAt")
     private LocalDateTime requestTime;
     private LocalDateTime responseTime;
 
