@@ -462,8 +462,8 @@ class _MapServicePageState extends State<MapServicePage> with SingleTickerProvid
                                   color: Colors.black87,
                                 ),
                               ),
-                              Text(
-                                _currentPosition != null
+                                Text(
+                                  _currentPosition != null
                                     ? 'Lat: ${_currentPosition!.latitude.toStringAsFixed(4)}, Lng: ${_currentPosition!.longitude.toStringAsFixed(4)}'
                                     : 'Getting location...',
                                 style: GoogleFonts.inter(

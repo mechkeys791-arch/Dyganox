@@ -14,6 +14,7 @@ import 'screens/mechanic/mechanic_finder_page.dart';
 import 'screens/services/map_service_page.dart';
 import 'screens/services/night_service_page.dart';
 import 'emergency_assistance_page.dart';
+import 'widgets/custom_nav_bar.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -43,9 +44,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   // Search functionality
   List<Map<String, dynamic>> _searchResults = [];
   final List<Map<String, dynamic>> _allServices = [];
-  
-  // Navigation bar state
-  int _selectedNavIndex = 0; // 0: Home, 1: Emergency, 2: Profile
   
   // Responsive design variables
   late double screenWidth;
@@ -85,15 +83,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     _searchController.addListener(_onSearchChanged);
   }
   
-  // Reset navigation to home when page becomes visible
-  void resetToHome() {
-    if (mounted) {
-      setState(() {
-        _selectedNavIndex = 0;
-      });
-    }
-  }
-  
   void _initializeServices() {
     _allServices.addAll([
       {'name': 'Car Service', 'icon': Icons.directions_car, 'route': () => Navigator.push(context, MaterialPageRoute(builder: (context) => const CarServicePage()))},
@@ -102,7 +91,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       {'name': 'Towing', 'icon': Icons.local_shipping, 'route': () => Navigator.push(context, MaterialPageRoute(builder: (context) => const TowingServicePage()))},
       {'name': 'Fuel Refill', 'icon': Icons.local_gas_station, 'route': () => Navigator.push(context, MaterialPageRoute(builder: (context) => const FuelRefillPage()))},
       {'name': 'EV Charging', 'icon': Icons.ev_station, 'route': () => Navigator.push(context, MaterialPageRoute(builder: (context) => const EVChargingPage()))},
-      {'name': 'Puncture', 'icon': Icons.build, 'route': () => Navigator.push(context, MaterialPageRoute(builder: (context) => const TyreCarePage()))},
+      {'name': 'Tyre Care', 'icon': Icons.build, 'route': () => Navigator.push(context, MaterialPageRoute(builder: (context) => const TyreCarePage()))},
       {'name': 'Minor Repair', 'icon': Icons.handyman, 'route': () => Navigator.push(context, MaterialPageRoute(builder: (context) => const MinorRepairPage()))},
       {'name': 'Battery Jump', 'icon': Icons.battery_charging_full, 'route': () => Navigator.push(context, MaterialPageRoute(builder: (context) => const BatteryJumpPage()))},
       {'name': 'Find Mechanic', 'icon': Icons.person_search, 'route': () => Navigator.push(context, MaterialPageRoute(builder: (context) => const MechanicFinderPage()))},
@@ -153,540 +142,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     _searchController.dispose();
     _adPageController.dispose();
     super.dispose();
-  }
-
-  void _showV2VServiceDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF706DC7).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.people,
-                  color: Color(0xFF706DC7),
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'V2V Service',
-                style: GoogleFonts.outfit(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-            ],
-          ),
-          content: Container(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Choose your service type:',
-                  style: GoogleFonts.outfit(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          _showFindServiceDialog();
-                        },
-                        icon: const Icon(Icons.search, color: Colors.white),
-                        label: const Text('Find Service', style: TextStyle(color: Colors.white)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF706DC7),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          _showHelpEarnDialog();
-                        },
-                        icon: const Icon(Icons.work, color: Colors.white),
-                        label: const Text('Help & Earn', style: TextStyle(color: Colors.white)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF706DC7),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  void _showFindServiceDialog() {
-    String selectedService = '';
-    final TextEditingController customServiceController = TextEditingController();
-    
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              title: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF706DC7).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(
-                      Icons.search,
-                      color: Color(0xFF706DC7),
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    'Find Service',
-                    style: GoogleFonts.outfit(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  ),
-                ],
-              ),
-              content: Container(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Select a quick service:',
-                      style: GoogleFonts.outfit(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
-                      decoration: InputDecoration(
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      ),
-                      hint: const Text('Choose service'),
-                      items: [
-                        'Petrol/Diesel',
-                        'Jump Start',
-                        'Tire Change',
-                        'Minor Repair',
-                        'Towing',
-                        'Other'
-                      ].map((String value) {
-                        return DropdownMenuItem<String>(
-                          value: value,
-                          child: Text(value),
-                        );
-                      }).toList(),
-                      onChanged: (String? newValue) {
-                        setState(() {
-                          selectedService = newValue ?? '';
-                        });
-                      },
-                    ),
-                    if (selectedService == 'Other') ...[
-                      const SizedBox(height: 16),
-                      TextField(
-                        controller: customServiceController,
-                        decoration: InputDecoration(
-                          hintText: 'Describe your problem briefly',
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        ),
-                        maxLines: 2,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text(
-                    'Cancel',
-                    style: GoogleFonts.outfit(
-                      color: Colors.grey[600],
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    _showHelpComingDialog(selectedService == 'Other' ? customServiceController.text : selectedService);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF706DC7),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: const Text('Request Help', style: TextStyle(color: Colors.white)),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  void _showHelpComingDialog(String service) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF706DC7).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.check_circle,
-                  color: Color(0xFF706DC7),
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'Help Coming!',
-                style: GoogleFonts.outfit(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-            ],
-          ),
-          content: Container(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Service Request: $service',
-                  style: GoogleFonts.outfit(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF706DC7).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    children: [
-                      Text(
-                        'John Doe',
-                        style: GoogleFonts.outfit(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF10B981),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Distance: 2.3 km',
-                        style: GoogleFonts.outfit(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'ETA: 15 minutes',
-                        style: GoogleFonts.outfit(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF10B981),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF10B981),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: const Text('Got it!', style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _showHelpEarnDialog() {
-    final TextEditingController nameController = TextEditingController();
-    final TextEditingController phoneController = TextEditingController();
-    final TextEditingController skillsController = TextEditingController();
-    String selectedAvailability = '';
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              title: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF706DC7).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(
-                      Icons.work,
-                      color: Color(0xFF706DC7),
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    'Help & Earn',
-                    style: GoogleFonts.outfit(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  ),
-                ],
-              ),
-              content: Container(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Join as a service provider:',
-                      style: GoogleFonts.outfit(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: nameController,
-                      decoration: InputDecoration(
-                        hintText: 'Your Name',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: phoneController,
-                      decoration: InputDecoration(
-                        hintText: 'Phone Number',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: skillsController,
-                      decoration: InputDecoration(
-                        hintText: 'Your Skills (e.g., Mechanic, Electrician)',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      decoration: InputDecoration(
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      ),
-                      hint: const Text('Availability'),
-                      items: [
-                        'Weekdays Only',
-                        'Weekends Only',
-                        '24/7',
-                        'Evenings Only'
-                      ].map((String value) {
-                        return DropdownMenuItem<String>(
-                          value: value,
-                          child: Text(value),
-                        );
-                      }).toList(),
-                      onChanged: (String? newValue) {
-                        setState(() {
-                          selectedAvailability = newValue ?? '';
-                        });
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text(
-                    'Cancel',
-                    style: GoogleFonts.outfit(
-                      color: Colors.grey[600],
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    if (nameController.text.isNotEmpty && 
-                        phoneController.text.isNotEmpty && 
-                        skillsController.text.isNotEmpty && 
-                        selectedAvailability.isNotEmpty) {
-                      Navigator.pop(context);
-                      _showSubmissionSuccessDialog();
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Please fill all fields'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF10B981),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: const Text('Submit', style: TextStyle(color: Colors.white)),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  void _showSubmissionSuccessDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF706DC7).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.check_circle,
-                  color: Color(0xFF706DC7),
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'Application Submitted!',
-                style: GoogleFonts.outfit(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-            ],
-          ),
-          content: Container(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            child: Text(
-              'Thank you for your interest! We\'ll review your application and get back to you within 24-48 hours.',
-              style: GoogleFonts.outfit(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
-            ),
-          ),
-          actions: [
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF10B981),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: const Text('OK', style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   void _showFindMechanicDialog() {
@@ -826,10 +281,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           width: 70,
                           height: 70,
                             decoration: BoxDecoration(
-                              color: const Color(0xFF6366F1).withValues(alpha: 0.15),
+                              color: const Color(0xFF706DC7).withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
-                                color: const Color(0xFF6366F1).withValues(alpha: 0.3),
+                                color: const Color(0xFF706DC7).withValues(alpha: 0.3),
                                 width: 1.5,
                               ),
                             ),
@@ -870,7 +325,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF6366F1).withValues(alpha: 0.15),
+                            color: const Color(0xFF706DC7).withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: const Icon(
@@ -903,8 +358,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         borderRadius: BorderRadius.circular(16),
         color: isNightTime ? const Color(0xFF1E293B) : Colors.white,
         shadowColor: isNightTime 
-            ? const Color(0xFF6366F1).withOpacity(0.4)
-            : const Color(0xFF10B981).withOpacity(0.2),
+            ? const Color(0xFF706DC7).withOpacity(0.4)
+            : const Color(0xFF706DC7).withOpacity(0.2),
         child: InkWell(
           onTap: () {
             HapticFeedback.lightImpact();
@@ -931,12 +386,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   gradient: LinearGradient(
                     colors: isNightTime
                         ? [
-                            const Color(0xFF6366F1).withOpacity(0.3),
-                            const Color(0xFF8B5CF6).withOpacity(0.2),
+                            const Color(0xFF706DC7).withOpacity(0.3),
+                            const Color(0xFF706DC7).withOpacity(0.2),
                           ]
                         : [
-                            const Color(0xFF10B981).withOpacity(0.1),
-                            const Color(0xFF10B981).withOpacity(0.05),
+                            const Color(0xFF706DC7).withOpacity(0.1),
+                            const Color(0xFF706DC7).withOpacity(0.05),
                           ],
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
@@ -951,12 +406,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       height: screenWidth * 0.12,
                       decoration: BoxDecoration(
                         color: isNightTime
-                            ? const Color(0xFF6366F1).withOpacity(0.2)
-                            : const Color(0xFF10B981).withOpacity(0.15),
+                            ? const Color(0xFF706DC7).withOpacity(0.2)
+                            : const Color(0xFF706DC7).withOpacity(0.15),
                         borderRadius: BorderRadius.circular(12),
                         border: isNightTime
                             ? Border.all(
-                                color: const Color(0xFF6366F1).withOpacity(0.5),
+                                color: const Color(0xFF706DC7).withOpacity(0.5),
                                 width: 1.5,
                               )
                             : null,
@@ -997,11 +452,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF10B981),
+                      color: const Color(0xFF706DC7),
                       borderRadius: BorderRadius.circular(8),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF10B981).withOpacity(0.4),
+                          color: const Color(0xFF706DC7).withOpacity(0.4),
                           blurRadius: 8,
                           spreadRadius: 1,
                         ),
@@ -1141,15 +596,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         ),
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
-                            colors: [Color.fromARGB(255, 109, 66, 195), Color.fromARGB(255, 94, 50, 215), Color.fromARGB(255, 45, 60, 172)],
+                            colors: [Color(0xFF706DC7), Color(0xFF5956A8)],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
-                            stops: [0.0, 0.5, 1.0],
                           ),
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF10B981).withOpacity(0.2),
+                              color: const Color(0xFF706DC7).withOpacity(0.2),
                               blurRadius: 8,
                               offset: const Offset(0, 3),
                               spreadRadius: 0,
@@ -1240,7 +694,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           boxShadow: [
                             BoxShadow(
                             color: _isSearchActive 
-                                ? const Color(0xFF6366F1).withValues(alpha: 0.2)
+                                ? const Color(0xFF706DC7).withValues(alpha: 0.2)
                                 : Colors.black.withValues(alpha: 0.1),
                               blurRadius: _isSearchActive ? 20 : 15,
                               offset: const Offset(0, 5),
@@ -1249,7 +703,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           ],
                           border: Border.all(
                             color: _isSearchActive 
-                                ? const Color(0xFF6366F1).withValues(alpha: 0.5)
+                                ? const Color(0xFF706DC7).withValues(alpha: 0.5)
                                 : Colors.transparent,
                             width: 1,
                           ),
@@ -1259,7 +713,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             Icon(
                               Icons.search,
                               color: _isSearchActive 
-                                  ? const Color(0xFF6366F1)
+                                  ? const Color(0xFF706DC7)
                                   : const Color(0xFFB4BDC4),
                               size: 20,
                             ),
@@ -1364,7 +818,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                                     decoration: BoxDecoration(
                                       color: isFirstItem 
-                                          ? const Color(0xFF6366F1).withOpacity(0.08)
+                                          ? const Color(0xFF706DC7).withOpacity(0.08)
                                           : Colors.transparent,
                                       borderRadius: BorderRadius.circular(12),
                                     ),
@@ -1377,7 +831,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                               fontSize: 15,
                                               fontWeight: isFirstItem ? FontWeight.bold : FontWeight.w600,
                                               color: isFirstItem 
-                                                  ? const Color(0xFF6366F1)
+                                                  ? const Color(0xFF706DC7)
                                                   : Colors.black87,
                                             ),
                                           ),
@@ -1385,7 +839,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                         const Icon(
                                           Icons.arrow_forward_ios,
                                           size: 14,
-                                          color: Color(0xFF6366F1),
+                                          color: Color(0xFF706DC7),
                                         ),
                                       ],
                                     ),
@@ -1474,7 +928,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         height: 8,
                         decoration: BoxDecoration(
                           color: _currentAdIndex == index 
-                              ? const Color(0xFF6366F1) 
+                              ? const Color(0xFF706DC7) 
                               : Colors.grey[300],
                           borderRadius: BorderRadius.circular(4),
                         ),
@@ -1500,14 +954,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
-                            colors: [Color(0xFF6366F1), Color(0xFF8B7ED8)],
+                            colors: [Color(0xFF706DC7), Color(0xFF8B7ED8)],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF6366F1).withOpacity(0.3),
+                              color: const Color(0xFF706DC7).withOpacity(0.3),
                               blurRadius: 15,
                               offset: const Offset(0, 5),
                               spreadRadius: 1,
@@ -1596,7 +1050,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                               style: GoogleFonts.inter(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color: const Color(0xFF10B981),
+                                color: const Color(0xFF706DC7),
                               ),
                             ),
                           ),
@@ -1628,7 +1082,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             _buildQuickServiceCard(
                               title: 'Towing',
                               iconPath: 'assets/icons/tow-truck.png',
-                              color: const Color(0xFF10B981),
+                              color: const Color(0xFF706DC7),
                               onTap: () {
                                 Navigator.push(
                                   context,
@@ -1658,7 +1112,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             _buildQuickServiceCard(
                               title: 'Fuel Refill',
                               iconPath: 'assets/icons/fuel-station.png',
-                              color: const Color(0xFF10B981),
+                              color: const Color(0xFF706DC7),
                               onTap: () {
                                 Navigator.push(
                                   context,
@@ -1688,7 +1142,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             _buildQuickServiceCard(
                               title: 'EV Charging',
                               iconPath: 'assets/icons/charging-station.png',
-                              color: const Color(0xFF10B981),
+                              color: const Color(0xFF706DC7),
                               onTap: () {
                                 Navigator.push(
                                   context,
@@ -1716,9 +1170,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                               },
                             ),
                             _buildQuickServiceCard(
-                              title: 'Puncture',
-                              iconPath: 'assets/icons/pun.png',
-                              color: const Color(0xFF10B981),
+                              title: 'Tyre Care',
+                              iconPath: 'assets/icons/tyre.png',
+                              color: const Color(0xFF706DC7),
                               onTap: () {
                                 Navigator.push(
                                   context,
@@ -1748,7 +1202,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             _buildQuickServiceCard(
                               title: 'Minor Repair',
                               iconPath: 'assets/icons/repair-tools.png',
-                              color: const Color(0xFF10B981),
+                              color: const Color(0xFF706DC7),
                               onTap: () {
                                 Navigator.push(
                                   context,
@@ -1852,7 +1306,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                               style: GoogleFonts.inter(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color: const Color(0xFF10B981),
+                                color: const Color(0xFF706DC7),
                               ),
                             ),
                           ),
@@ -1932,160 +1386,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         ),
       ),
 
-      // Custom Floating Bottom Navigation Bar with FAB Center Button
-      // Design: Rounded white container with centered floating action button
-      bottomNavigationBar: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
-        height: 70,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(35),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 15.0,
-              spreadRadius: 2.0,
-              offset: const Offset(0, 5),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              // Home Navigation Item (Left)
-              _buildNavItem(Icons.home_filled, 'Home', _selectedNavIndex == 0, 0),
-              // Emergency FAB - Center with elevated design using road emergency icon
-              _buildFABNavItem(Icons.report_problem_rounded, 'Emergency', _selectedNavIndex == 1, 1),
-              // Profile Navigation Item (Right)
-              _buildNavItem(Icons.account_circle, 'Profile', _selectedNavIndex == 2, 2),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNavItem(IconData icon, String label, bool isSelected, int index) {
-    // Standard navigation item with icon and indicator dot below when selected
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        
-        // Update selected index
-        setState(() {
-          _selectedNavIndex = index;
-        });
-        
-        // Navigation logic based on label
-        if (label == 'Profile') {
-          Navigator.pushNamed(context, '/profile');
-        }
-        // Home stays on current page (already on HomePage)
-      },
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Icon with proper sizing
-          Icon(
-            icon,
-            color: isSelected ? const Color(0xFF706DC7) : Colors.grey.shade400,
-            size: 28,
-          ),
-          const SizedBox(height: 6),
-          // Indicator dot - appears below selected item
-          if (isSelected)
-            Container(
-              width: 6,
-              height: 6,
-              decoration: const BoxDecoration(
-                color: Color(0xFF706DC7),
-                shape: BoxShape.circle,
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFABNavItem(IconData icon, String label, bool isSelected, int index) {
-    // Center Floating Action Button with elevated circular design
-    // Road emergency icon with prominent red styling
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.heavyImpact(); // Strong feedback for emergency
-        
-        // Update selected index
-        setState(() {
-          _selectedNavIndex = index;
-        });
-        
-        // Navigate to Emergency Assistance page
-        Navigator.push(
-          context,
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) =>
-                const EmergencyAssistancePage(),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              return SlideTransition(
-                position: Tween<Offset>(
-                  begin: const Offset(0.0, 1.0),
-                  end: Offset.zero,
-                ).animate(CurvedAnimation(
-                  parent: animation,
-                  curve: Curves.easeOutCubic,
-                )),
-                child: FadeTransition(
-                  opacity: animation,
-                  child: child,
-                ),
-              );
-            },
-            transitionDuration: const Duration(milliseconds: 400),
-          ),
-        );
-      },
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Elevated circular FAB with road emergency icon
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              // Emergency red color for the FAB
-              color: Colors.red.shade400,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.red.shade400.withOpacity(0.4),
-                  blurRadius: 12,
-                  spreadRadius: 2,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: const Icon(
-              Icons.report_problem_rounded, // Road emergency warning icon
-              color: Colors.white,
-              size: 28,
-            ),
-          ),
-          const SizedBox(height: 6),
-          // Small indicator dot below FAB when selected
-          if (isSelected)
-            Container(
-              width: 6,
-              height: 6,
-              decoration: BoxDecoration(
-                color: Colors.red.shade400,
-                shape: BoxShape.circle,
-              ),
-            ),
-        ],
-      ),
+      // Custom Floating Bottom Navigation Bar
+      bottomNavigationBar: const CustomNavBar(currentIndex: 0),
     );
   }
 
@@ -2103,16 +1405,16 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         'title': 'Premium Car Service',
         'subtitle': 'Expert Mechanics at Your Doorstep',
         'icon': Icons.build_circle,
-        'color': const Color(0xFF10B981),
-        'gradient': [const Color(0xFF10B981), const Color(0xFF059669)],
+        'color': const Color(0xFF706DC7),
+        'gradient': [const Color(0xFF706DC7), const Color(0xFF059669)],
         'image': 'assets/icons/luxcar.png',
       },
       {
         'title': 'EV Charging Network',
         'subtitle': 'Find Nearest Charging Stations',
         'icon': Icons.electric_car,
-        'color': const Color(0xFF8B5CF6),
-        'gradient': [const Color(0xFF8B5CF6), const Color(0xFF7C3AED)],
+        'color': const Color(0xFF706DC7),
+        'gradient': [const Color(0xFF706DC7), const Color(0xFF7C3AED)],
         'image': 'assets/icons/evnw.png',
       },
     ];

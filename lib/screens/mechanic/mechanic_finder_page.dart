@@ -4,10 +4,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../../services/api_config.dart';
+import '../../services/phone_call_service.dart';
 
 class MechanicFinderPage extends StatefulWidget {
   const MechanicFinderPage({super.key});
@@ -501,20 +501,14 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
     );
   }
 
+  final PhoneCallService _phoneService = PhoneCallService();
+
   void _makePhoneCall(String phoneNumber) async {
-    final Uri url = Uri(scheme: 'tel', path: phoneNumber);
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url);
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Could not make call', style: GoogleFonts.inter()),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
+    await _phoneService.makePhoneCall(
+      phoneNumber,
+      context: context,
+      showConfirmation: true,
+    );
   }
 
   void _showServicesDropdown(BuildContext context, List<String> services, String mechanicName) {

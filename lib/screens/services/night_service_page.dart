@@ -1048,17 +1048,10 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
   }
 
   Widget _buildEmergencyFAB() {
-    return FloatingActionButton.extended(
+    return FloatingActionButton(
       onPressed: () => _showEmergencyDialog(),
       backgroundColor: const Color(0xFFEF4444),
-      icon: const Icon(Icons.emergency, color: Colors.white),
-      label: Text(
-        'SOS',
-        style: GoogleFonts.outfit(
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
+      child: const Icon(Icons.report_problem_rounded, color: Colors.white),
     );
   }
 
