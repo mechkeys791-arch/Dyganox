@@ -30,6 +30,63 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
   // Auto-refresh timer
   Timer? _refreshTimer;
   
+  // Earnings data
+  double _monthlyEarnings = 12500.0;
+  double _monthlyGoal = 15000.0;
+  int _completedJobs = 15;
+  List<Map<String, dynamic>> _transactions = [
+    {
+      'id': 'TXN001',
+      'customerName': 'Rajesh Kumar',
+      'service': 'Engine Service',
+      'amount': 1200.0,
+      'date': '2024-11-05',
+      'time': '11:00 AM',
+      'status': 'Completed',
+      'paymentMethod': 'UPI',
+    },
+    {
+      'id': 'TXN002',
+      'customerName': 'Anita Desai',
+      'service': 'Brake Service',
+      'amount': 850.0,
+      'date': '2024-11-04',
+      'time': '03:30 PM',
+      'status': 'Completed',
+      'paymentMethod': 'Cash',
+    },
+    {
+      'id': 'TXN003',
+      'customerName': 'Suresh Patel',
+      'service': 'Full Car Service',
+      'amount': 1500.0,
+      'date': '2024-11-03',
+      'time': '10:15 AM',
+      'status': 'Completed',
+      'paymentMethod': 'Card',
+    },
+    {
+      'id': 'TXN004',
+      'customerName': 'Meena Shah',
+      'service': 'Tyre Replacement',
+      'amount': 950.0,
+      'date': '2024-11-02',
+      'time': '02:00 PM',
+      'status': 'Completed',
+      'paymentMethod': 'UPI',
+    },
+    {
+      'id': 'TXN005',
+      'customerName': 'Amit Verma',
+      'service': 'Electrical Works',
+      'amount': 600.0,
+      'date': '2024-11-01',
+      'time': '04:45 PM',
+      'status': 'Pending',
+      'paymentMethod': 'Cash',
+    },
+  ];
+  
   // Mock data for mechanic profile
   final Map<String, dynamic> _mechanicProfile = {
     'name': 'John Mechanic',
@@ -601,7 +658,12 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
   }
   
   Widget _buildEarningsSummary() {
-    return Container(
+    final progress = _monthlyEarnings / _monthlyGoal;
+    final avgPerJob = _completedJobs > 0 ? _monthlyEarnings / _completedJobs : 0.0;
+    
+    return GestureDetector(
+      onTap: _showEarningsDetailsDialog,
+      child: Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
@@ -609,7 +671,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF10B981).withOpacity(0.4),
@@ -619,6 +681,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
         ],
       ),
       child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -630,8 +693,8 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
                     'This Month\'s Earnings',
                     style: GoogleFonts.outfit(
                       color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -642,8 +705,9 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
                       Text(
                         '+25% from last month',
                         style: GoogleFonts.inter(
-                          color: Colors.white.withOpacity(0.9),
-                          fontSize: 12,
+                            color: Colors.white.withOpacity(0.95),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
                         ),
                       ),
                     ],
@@ -663,21 +727,23 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
           const SizedBox(height: 20),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '₹12,500',
+                      '₹${_monthlyEarnings.toStringAsFixed(0)}',
                     style: GoogleFonts.outfit(
                       color: Colors.white,
-                      fontSize: 36,
+                        fontSize: 42,
                       fontWeight: FontWeight.bold,
+                        height: 1,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '15 jobs completed',
+                      '$_completedJobs jobs completed',
                     style: GoogleFonts.inter(
                       color: Colors.white.withOpacity(0.9),
                       fontSize: 14,
@@ -686,6 +752,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
                 ],
               ),
               Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -694,7 +761,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
-                      'Avg: ₹833/job',
+                        'Avg: ₹${avgPerJob.toStringAsFixed(0)}/job',
                       style: GoogleFonts.inter(
                         color: Colors.white,
                         fontSize: 13,
@@ -704,10 +771,10 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Goal: ₹15,000',
+                      'Goal: ₹${_monthlyGoal.toStringAsFixed(0)}',
                     style: GoogleFonts.inter(
-                      color: Colors.white.withOpacity(0.8),
-                      fontSize: 11,
+                        color: Colors.white.withOpacity(0.9),
+                        fontSize: 13,
                     ),
                   ),
                 ],
@@ -715,14 +782,372 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
             ],
           ),
           const SizedBox(height: 16),
+            Column(
+              children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
             child: LinearProgressIndicator(
-              value: 12500 / 15000,
+                    value: progress,
               backgroundColor: Colors.white.withOpacity(0.3),
               valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-              minHeight: 6,
+                    minHeight: 8,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      '${(progress * 100).toStringAsFixed(0)}% achieved',
+                      style: GoogleFonts.inter(
+                        color: Colors.white.withOpacity(0.85),
+                        fontSize: 11,
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        Text(
+                          'View Details',
+                          style: GoogleFonts.inter(
+                            color: Colors.white.withOpacity(0.85),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.arrow_forward_ios,
+                          size: 10,
+                          color: Colors.white.withOpacity(0.85),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
             ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  void _showEarningsDetailsDialog() {
+    final progress = _monthlyEarnings / _monthlyGoal;
+    final avgPerJob = _completedJobs > 0 ? _monthlyEarnings / _completedJobs : 0.0;
+    
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Container(
+            constraints: const BoxConstraints(maxHeight: 600),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header with gradient
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFF10B981), Color(0xFF059669)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(20),
+                      topRight: Radius.circular(20),
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              Icons.account_balance_wallet,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Monthly Earnings',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                Text(
+                                  'November 2024',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    color: Colors.white.withOpacity(0.9),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close, color: Colors.white),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            '₹${_monthlyEarnings.toStringAsFixed(0)}',
+                            style: GoogleFonts.outfit(
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          Text(
+                            'of ₹${_monthlyGoal.toStringAsFixed(0)}',
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              color: Colors.white.withOpacity(0.9),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: LinearProgressIndicator(
+                          value: progress,
+                          minHeight: 10,
+                          backgroundColor: Colors.white.withOpacity(0.3),
+                          valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '${(progress * 100).toStringAsFixed(0)}% of monthly goal achieved',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: Colors.white.withOpacity(0.9),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                // Stats Row
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _buildEarningStatCard(
+                          'Completed Jobs',
+                          _completedJobs.toString(),
+                          Icons.check_circle,
+                          const Color(0xFF10B981),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildEarningStatCard(
+                          'Avg per Job',
+                          '₹${avgPerJob.toStringAsFixed(0)}',
+                          Icons.trending_up,
+                          const Color(0xFF6366F1),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                // Transaction History Header
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.history, size: 20, color: Color(0xFF64748B)),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Transaction History',
+                        style: GoogleFonts.outfit(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                
+                // Transaction List
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    itemCount: _transactions.length,
+                    itemBuilder: (context, index) {
+                      final transaction = _transactions[index];
+                      return _buildTransactionItem(transaction);
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildEarningStatCard(String title, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 24),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: GoogleFonts.outfit(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(
+              fontSize: 11,
+              color: const Color(0xFF64748B),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTransactionItem(Map<String, dynamic> transaction) {
+    final isCompleted = transaction['status'] == 'Completed';
+    final statusColor = isCompleted ? const Color(0xFF10B981) : const Color(0xFFF59E0B);
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 5,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: statusColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              isCompleted ? Icons.check_circle : Icons.pending,
+              color: statusColor,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  transaction['customerName'],
+                  style: GoogleFonts.outfit(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  transaction['service'],
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(Icons.calendar_today, size: 10, color: Colors.grey[500]),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${transaction['date']} • ${transaction['time']}',
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        color: Colors.grey[500],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '₹${transaction['amount'].toStringAsFixed(0)}',
+                style: GoogleFonts.outfit(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: statusColor,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  transaction['paymentMethod'],
+                  style: GoogleFonts.inter(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: statusColor,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),

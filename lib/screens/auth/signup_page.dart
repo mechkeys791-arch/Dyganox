@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../vehicles/vehicle_selection_page.dart';
 
 class SignupPage extends StatefulWidget {
@@ -102,6 +103,13 @@ class _SignupPageState extends State<SignupPage> with TickerProviderStateMixin {
       
       // Simulate signup process
       await Future.delayed(const Duration(seconds: 2));
+      
+      // Save user data to SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('userName', _nameController.text);
+      await prefs.setString('userEmail', _emailController.text);
+      await prefs.setString('userPhone', _phoneController.text);
+      await prefs.setBool('isLoggedIn', true);
       
       if (mounted) {
         setState(() {

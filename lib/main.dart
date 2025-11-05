@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'screens/auth/splash_screen.dart';
+import 'screens/auth/login_page.dart';
 import 'homepage.dart';
 import 'screens/profile/profile_page.dart';
 import 'emergency_assistance_page.dart';
@@ -93,6 +94,7 @@ class ServiceProviderApp extends StatelessWidget {
       ),
       home: const SplashScreen(),
       routes: {
+        '/login': (context) => const LoginPage(),
         '/home': (context) => const HomePage(),
         '/profile': (context) => const ProfilePage(),
         '/emergency': (context) => const EmergencyAssistancePage(),
