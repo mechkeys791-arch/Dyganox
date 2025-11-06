@@ -19,6 +19,8 @@ dependencies:
   http: ^1.1.0
   shared_preferences: ^2.2.2
   image_picker: ^1.0.7
+  # Payment gateway - Square (for testing)
+  # Note: We're using HTTP-based approach, no Square SDK needed in Flutter
 
 dev_dependencies:
   flutter_test:

@@ -39,6 +39,21 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- Square Payment SDK -->
+        <!-- Temporarily commented out due to Maven repository issue
+        <dependency>
+            <groupId>com.squareup.square</groupId>
+            <artifactId>square</artifactId>
+            <version>29.0.0.20230816</version>
+        </dependency>
+        -->
+        
+        <!-- Using OkHttp for HTTP requests instead -->
+        <dependency>
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>okhttp</artifactId>
+            <version>4.12.0</version>
+        </dependency>
     </dependencies>
 
     <build>
