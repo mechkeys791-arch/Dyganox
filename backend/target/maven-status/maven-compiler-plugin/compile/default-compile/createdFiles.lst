@@ -5,6 +5,9 @@ com\example\demo\controller\MechanicController.class
 com\example\demo\model\MechanicRequest.class
 com\example\demo\model\EVProvider.class
 com\example\demo\repository\MechanicRepo.class
+com\example\demo\controller\SquarePaymentController.class
+com\example\demo\model\Payment.class
+com\example\demo\repository\PaymentRepo.class
 com\example\demo\controller\PersonController.class
 com\example\demo\repository\EVProviderRepo.class
 com\example\demo\corsconfig.class

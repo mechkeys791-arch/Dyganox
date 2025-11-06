@@ -4,9 +4,12 @@ C:\Users\naikh\Dyganox\backend\src\main\java\com\example\demo\model\Mechanic.jav
 C:\Users\naikh\Dyganox\backend\src\main\java\com\example\demo\corsconfig.java
 C:\Users\naikh\Dyganox\backend\src\main\java\com\example\demo\repository\MechanicRequestRepo.java
 C:\Users\naikh\Dyganox\backend\src\main\java\com\example\demo\model\MechanicRequest.java
+C:\Users\naikh\Dyganox\backend\src\main\java\com\example\demo\repository\PaymentRepo.java
 C:\Users\naikh\Dyganox\backend\src\main\java\com\example\demo\controller\MechanicController.java
 C:\Users\naikh\Dyganox\backend\src\main\java\com\example\demo\model\Person.java
+C:\Users\naikh\Dyganox\backend\src\main\java\com\example\demo\model\Payment.java
 C:\Users\naikh\Dyganox\backend\src\main\java\com\example\demo\repository\EVProviderRepo.java
+C:\Users\naikh\Dyganox\backend\src\main\java\com\example\demo\controller\SquarePaymentController.java
 C:\Users\naikh\Dyganox\backend\src\main\java\com\example\demo\repository\MechanicRepo.java
 C:\Users\naikh\Dyganox\backend\src\main\java\com\example\demo\controller\PersonController.java
 C:\Users\naikh\Dyganox\backend\src\main\java\com\example\demo\model\EVProvider.java

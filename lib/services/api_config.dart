@@ -50,6 +50,10 @@ class ApiConfig {
   static String get evProviderEndpoint => '$baseUrl/api/evprovider';
   static String get personEndpoint => '$baseUrl/api/person';
   
+  // Payment Endpoints
+  static String get paymentEndpoint => '$baseUrl/api/payment';
+  static String get squarePaymentEndpoint => '$baseUrl/api/payment/square';
+  
   // Helper method to get full URL
   static String getUrl(String endpoint) => '$baseUrl$endpoint';
   

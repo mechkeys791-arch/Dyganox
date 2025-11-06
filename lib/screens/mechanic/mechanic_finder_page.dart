@@ -8,6 +8,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../../services/api_config.dart';
 import '../../services/phone_call_service.dart';
+import '../../services/payment/payment_config.dart';
+import '../../services/payment/payment_gateway.dart';
 
 class MechanicFinderPage extends StatefulWidget {
   const MechanicFinderPage({super.key});
@@ -33,12 +35,17 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
   bool _isLoading = false;
 
   List<Map<String, dynamic>> _allMechanics = [];
+  late PaymentGateway _paymentGateway;
 
   @override
   void initState() {
     super.initState();
     _fetchMechanics();
     _getCurrentLocation();
+    
+    // Initialize payment gateway
+    _paymentGateway = PaymentConfig.getPaymentGateway();
+    _paymentGateway.initialize(context);
     
     _slideController = AnimationController(
       duration: const Duration(milliseconds: 300),
@@ -181,6 +188,7 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
     _searchController.dispose();
     _slideController.dispose();
     _fadeController.dispose();
+    _paymentGateway.dispose();
     super.dispose();
   }
 
@@ -904,6 +912,46 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
   }
 
   void _processMechanicRequest(Map<String, dynamic> mechanic) async {
+    // Process payment directly (confirmation dialog already shown in _showRequestMechanicDialog)
+    final orderId = 'order_${DateTime.now().millisecondsSinceEpoch}';
+    final amount = 50.0;
+    
+    try {
+      // Update payment gateway context to ensure it's current
+      _paymentGateway.initialize(context);
+      
+      print('💳 Processing payment for mechanic: ${mechanic['name']}');
+      print('   Order ID: $orderId');
+      print('   Amount: ₹$amount');
+      print('   API Base URL: ${ApiConfig.baseUrl}');
+      
+      await _paymentGateway.makePayment(
+        amount: amount,
+        orderId: orderId,
+        customerName: 'Customer', // You can get this from user profile
+        customerEmail: 'customer@example.com', // You can get this from user profile
+        customerPhone: '+91 98765 43210', // You can get this from user profile
+        onSuccess: () {
+          print('✅ Payment successful, sending request to mechanic...');
+          // Payment successful, now send request to mechanic
+          _sendRequestToMechanic(mechanic, amount, orderId);
+        },
+        onFailure: (error) {
+          print('❌ Payment failed: $error');
+          _showErrorDialog('Payment failed: $error');
+        },
+      );
+    } catch (e) {
+      print('❌ Payment exception: $e');
+      _showErrorDialog('Payment error: $e');
+    }
+  }
+
+  Future<void> _sendRequestToMechanic(
+    Map<String, dynamic> mechanic,
+    double amount,
+    String orderId,
+  ) async {
     // Show loading dialog
     showDialog(
       context: context,
@@ -944,7 +992,8 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
         'description': 'Customer needs help with vehicle service',
         'latitude': _currentPosition?.latitude.toString() ?? '0',
         'longitude': _currentPosition?.longitude.toString() ?? '0',
-        'amount': 50.0,
+        'amount': amount,
+        'paymentOrderId': orderId, // Link payment to request
       };
 
       print("Sending mechanic request: $requestData");
