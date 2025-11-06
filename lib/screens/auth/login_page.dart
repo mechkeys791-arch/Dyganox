@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'signup_page.dart';
 import '../vehicles/vehicle_selection_page.dart';
 
@@ -95,6 +96,22 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       
       // Simulate login process
       await Future.delayed(const Duration(seconds: 2));
+      
+      // Save user data to SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('userEmail', _emailController.text);
+      await prefs.setBool('isLoggedIn', true);
+      
+      // Extract name from email (before @) or use default
+      String userName = _emailController.text.split('@')[0];
+      // Capitalize first letter
+      userName = userName[0].toUpperCase() + userName.substring(1);
+      await prefs.setString('userName', userName);
+      
+      // Set default phone if not available
+      if (!prefs.containsKey('userPhone')) {
+        await prefs.setString('userPhone', '+91 98765 43210');
+      }
       
       if (mounted) {
         setState(() {
