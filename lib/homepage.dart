@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 import 'screens/services/car_service_page.dart';
 import 'screens/services/bike_service_page.dart';
 import 'screens/services/minor_repair_page.dart';
@@ -195,14 +196,76 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
       setState(() {
         _currentPosition = position;
-        // Show formatted coordinates as location
-        _currentLocation = 'Location: ${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}';
+        _currentLocation = 'Loading address...';
+      });
+
+      // Get actual address from coordinates using reverse geocoding
+      await _getAddressFromCoordinates(position.latitude, position.longitude);
+      
+      setState(() {
         _isLoadingLocation = false;
       });
     } catch (e) {
+      print('Location error: $e');
       setState(() {
         _currentLocation = 'Mangalore, Karnataka';
         _isLoadingLocation = false;
+      });
+    }
+  }
+
+  Future<void> _getAddressFromCoordinates(double latitude, double longitude) async {
+    try {
+      print('Fetching address for coordinates: $latitude, $longitude');
+      List<Placemark> placemarks = await placemarkFromCoordinates(latitude, longitude);
+      
+      print('Placemarks found: ${placemarks.length}');
+      
+      if (placemarks.isNotEmpty) {
+        Placemark place = placemarks[0];
+        
+        print('Place details:');
+        print('  Name: ${place.name}');
+        print('  Street: ${place.street}');
+        print('  Locality: ${place.locality}');
+        print('  SubLocality: ${place.subLocality}');
+        print('  Administrative Area: ${place.administrativeArea}');
+        print('  Country: ${place.country}');
+        
+        // Build a concise address string for display
+        String finalAddress = '';
+        
+        if (place.locality != null && place.locality!.isNotEmpty) {
+          finalAddress = place.locality!;
+          if (place.administrativeArea != null && place.administrativeArea!.isNotEmpty) {
+            finalAddress += ', ${place.administrativeArea!}';
+          }
+        } else if (place.subLocality != null && place.subLocality!.isNotEmpty) {
+          finalAddress = place.subLocality!;
+          if (place.administrativeArea != null && place.administrativeArea!.isNotEmpty) {
+            finalAddress += ', ${place.administrativeArea!}';
+          }
+        } else if (place.administrativeArea != null && place.administrativeArea!.isNotEmpty) {
+          finalAddress = place.administrativeArea!;
+        } else {
+          finalAddress = '${latitude.toStringAsFixed(4)}, ${longitude.toStringAsFixed(4)}';
+        }
+        
+        setState(() {
+          _currentLocation = finalAddress;
+        });
+        
+        print('Final address: $finalAddress');
+      } else {
+        print('No placemarks found');
+        setState(() {
+          _currentLocation = '${latitude.toStringAsFixed(4)}, ${longitude.toStringAsFixed(4)}';
+        });
+      }
+    } catch (e) {
+      print('Geocoding error: $e');
+      setState(() {
+        _currentLocation = '${latitude.toStringAsFixed(4)}, ${longitude.toStringAsFixed(4)}';
       });
     }
   }

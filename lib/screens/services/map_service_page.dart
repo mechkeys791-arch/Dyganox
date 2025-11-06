@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class MapServicePage extends StatefulWidget {
@@ -16,6 +17,7 @@ class _MapServicePageState extends State<MapServicePage> with SingleTickerProvid
   GoogleMapController? mapController;
   LatLng _center = const LatLng(12.9141, 74.8560); // Mangalore coordinates
   Position? _currentPosition;
+  String? _currentAddress;
   final TextEditingController _searchController = TextEditingController();
   final Set<Marker> _markers = {};
   late AnimationController _fadeController;
@@ -98,16 +100,21 @@ class _MapServicePageState extends State<MapServicePage> with SingleTickerProvid
         _currentPosition = position;
         _center = LatLng(position.latitude, position.longitude);
         _isLoading = false;
-        
-        // Add marker for current location
+      });
+
+      // Get actual address from coordinates
+      await _getAddressFromCoordinates(position.latitude, position.longitude);
+
+      // Add marker with actual address
+      setState(() {
         _markers.add(
           Marker(
             markerId: const MarkerId('current_location'),
             position: _center,
             icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
-            infoWindow: const InfoWindow(
+            infoWindow: InfoWindow(
               title: 'Your Location',
-              snippet: 'You are here',
+              snippet: _currentAddress ?? 'Loading address...',
             ),
           ),
         );
@@ -121,6 +128,50 @@ class _MapServicePageState extends State<MapServicePage> with SingleTickerProvid
         _isLoading = false;
       });
       _showErrorDialog('Failed to get location: $e');
+    }
+  }
+
+  Future<void> _getAddressFromCoordinates(double latitude, double longitude) async {
+    try {
+      List<Placemark> placemarks = await placemarkFromCoordinates(latitude, longitude);
+      
+      if (placemarks.isNotEmpty) {
+        Placemark place = placemarks[0];
+        
+        // Build a comprehensive address string
+        List<String> addressParts = [];
+        
+        if (place.name != null && place.name!.isNotEmpty) {
+          addressParts.add(place.name!);
+        }
+        if (place.street != null && place.street!.isNotEmpty && place.street != place.name) {
+          addressParts.add(place.street!);
+        }
+        if (place.subLocality != null && place.subLocality!.isNotEmpty) {
+          addressParts.add(place.subLocality!);
+        }
+        if (place.locality != null && place.locality!.isNotEmpty) {
+          addressParts.add(place.locality!);
+        }
+        if (place.administrativeArea != null && place.administrativeArea!.isNotEmpty) {
+          addressParts.add(place.administrativeArea!);
+        }
+        if (place.postalCode != null && place.postalCode!.isNotEmpty) {
+          addressParts.add(place.postalCode!);
+        }
+        
+        setState(() {
+          _currentAddress = addressParts.join(', ');
+        });
+        
+        print('Current Address: $_currentAddress');
+        print('Coordinates: $latitude, $longitude');
+      }
+    } catch (e) {
+      print('Error getting address: $e');
+      setState(() {
+        _currentAddress = 'Lat: ${latitude.toStringAsFixed(6)}, Lng: ${longitude.toStringAsFixed(6)}';
+      });
     }
   }
 
