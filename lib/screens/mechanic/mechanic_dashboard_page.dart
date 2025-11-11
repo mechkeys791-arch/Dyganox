@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../../services/api_config.dart';
@@ -23,6 +24,7 @@ class MechanicDashboardPage extends StatefulWidget {
 class _MechanicDashboardPageState extends State<MechanicDashboardPage> with TickerProviderStateMixin {
   GoogleMapController? _mapController;
   LatLng? _currentPosition;
+  String? _currentAddress;
   List<Map<String, dynamic>> _requests = [];
   String _status = 'Available'; // Available, Busy, Offline
   bool _isLoadingRequests = false;
@@ -116,7 +118,6 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
   }
 
   Future<void> _getCurrentLocation() async {
-
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
@@ -146,6 +147,9 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
         _currentPosition = LatLng(position.latitude, position.longitude);
       });
 
+      // Get actual address from coordinates using reverse geocoding
+      await _getAddressFromCoordinates(position.latitude, position.longitude);
+
       if (_mapController != null) {
         _mapController!.animateCamera(
           CameraUpdate.newLatLng(_currentPosition!),
@@ -153,6 +157,50 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
       }
     } catch (e) {
       _showSnackBar('Error getting location: $e', Colors.red);
+    }
+  }
+
+  Future<void> _getAddressFromCoordinates(double latitude, double longitude) async {
+    try {
+      List<Placemark> placemarks = await placemarkFromCoordinates(latitude, longitude);
+      
+      if (placemarks.isNotEmpty) {
+        Placemark place = placemarks[0];
+        
+        // Build a comprehensive address string
+        List<String> addressParts = [];
+        
+        if (place.name != null && place.name!.isNotEmpty) {
+          addressParts.add(place.name!);
+        }
+        if (place.street != null && place.street!.isNotEmpty && place.street != place.name) {
+          addressParts.add(place.street!);
+        }
+        if (place.subLocality != null && place.subLocality!.isNotEmpty) {
+          addressParts.add(place.subLocality!);
+        }
+        if (place.locality != null && place.locality!.isNotEmpty) {
+          addressParts.add(place.locality!);
+        }
+        if (place.administrativeArea != null && place.administrativeArea!.isNotEmpty) {
+          addressParts.add(place.administrativeArea!);
+        }
+        if (place.postalCode != null && place.postalCode!.isNotEmpty) {
+          addressParts.add(place.postalCode!);
+        }
+        
+        setState(() {
+          _currentAddress = addressParts.join(', ');
+        });
+        
+        print('Current Address: $_currentAddress');
+        print('Coordinates: $latitude, $longitude');
+      }
+    } catch (e) {
+      print('Error getting address: $e');
+      setState(() {
+        _currentAddress = 'Lat: ${latitude.toStringAsFixed(6)}, Lng: ${longitude.toStringAsFixed(6)}';
+      });
     }
   }
 
@@ -1059,9 +1107,9 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
                           Marker(
                             markerId: const MarkerId('current_location'),
                             position: _currentPosition!,
-                            infoWindow: const InfoWindow(
+                            infoWindow: InfoWindow(
                               title: 'Your Location',
-                              snippet: 'You are here',
+                              snippet: _currentAddress ?? 'Loading address...',
                             ),
                             icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
                           ),
