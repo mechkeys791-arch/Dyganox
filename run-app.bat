@@ -12,6 +12,7 @@ if %errorlevel% neq 0 (
     set PATH=%PATH%;C:\Users\naikh\OneDrive\Desktop\Flutter\flutter\bin
 )
 
+
 echo Checking connected devices...
 flutter devices
 

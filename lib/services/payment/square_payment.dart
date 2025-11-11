@@ -35,7 +35,7 @@ class SquarePayment implements PaymentGateway {
     try {
       print('💳 Starting Square payment: ₹$amount');
       print('   Order ID: $orderId');
-      print('   API URL: ${ApiConfig.baseUrl}/api/payment/square/create-intent');
+      print('   API URL: ${ApiConfig.baseUrl}/api/payment/square/create-intent');//explain:
       
       // Validate context
       if (_context == null || !_context!.mounted) {
