@@ -270,10 +270,10 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
         _showSnackBar('Request accepted successfully!', Colors.green);
         _fetchRequests(); // Refresh requests
       } else {
-        _showSnackBar('Failed to accept request', Colors.red);
+        _showSnackBar('Failed to accept request', const Color.fromARGB(255, 221, 29, 15));
       }
     } catch (e) {
-      _showSnackBar('Error accepting request: $e', Colors.red);
+      _showSnackBar('Error accepting request: $e', const Color.fromARGB(255, 230, 27, 12));
     }
   }
 

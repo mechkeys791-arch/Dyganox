@@ -331,6 +331,3 @@ class SquarePayment implements PaymentGateway {
     // Cleanup if needed
   }
 }
-
-
-

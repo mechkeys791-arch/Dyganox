@@ -19,9 +19,11 @@ class ApiConfig {
   // CONFIGURATION - Change this based on your setup
   static const bool _useLocalServer = false; // Set to true for local server, false for EC2
   static const bool _useEmulator = false; // Set to true for Android emulator
+  static const bool _forceHttps = false; // Set to true only when your remote server has HTTPS enabled
   
   // AWS EC2 Instance Public IP
-  static const String _ec2PublicIp = '98.93.125.193';
+  // TODO: Update this with your new EC2 instance IP after creating it
+  static const String _ec2PublicIp = '54.175.33.37';
   
   // Your computer's local IP address (for local testing)
   static const String _localIpAddress = '192.168.11.73';
@@ -40,7 +42,8 @@ class ApiConfig {
       }
     } else {
       // For AWS EC2 (production/remote)
-      return 'http://$_ec2PublicIp:$_port';
+      final scheme = _forceHttps ? 'https' : 'http';
+      return '$scheme://$_ec2PublicIp:$_port';
     }
   }
   
