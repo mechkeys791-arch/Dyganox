@@ -37,6 +37,9 @@ public class SquarePaymentController {
      * POST /api/payment/square/create-intent
      * 
      * SANDBOX MODE: This is a mock implementation for testing
+     * 
+     * NOTE: Payment functionality is currently disabled in the frontend.
+     * This endpoint may still be called but payments are bypassed via NoPayment gateway.
      */
     @PostMapping("/create-intent")
     public ResponseEntity<Map<String, Object>> createPaymentIntent(@RequestBody Map<String, Object> request) {
@@ -87,6 +90,9 @@ public class SquarePaymentController {
      * POST /api/payment/square/process
      * 
      * SANDBOX MODE: This is a mock implementation for testing
+     * 
+     * NOTE: Payment functionality is currently disabled in the frontend.
+     * This endpoint may still be called but payments are bypassed via NoPayment gateway.
      */
     @PostMapping("/process")
     public ResponseEntity<Map<String, Object>> processPayment(@RequestBody Map<String, Object> request) {

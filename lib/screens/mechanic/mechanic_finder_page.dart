@@ -827,33 +827,33 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFEF3C7),
+                  color: const Color(0xFFF0FDF4),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.3)),
+                  border: Border.all(color: const Color(0xFF10B981).withOpacity(0.3)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.info_outline, color: Color(0xFFF59E0B), size: 16),
+                        const Icon(Icons.info_outline, color: Color(0xFF10B981), size: 16),
                         const SizedBox(width: 8),
                         Text(
-                          'Service Fee: ₹50',
+                          'Payments Disabled',
                           style: GoogleFonts.inter(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
-                            color: const Color(0xFFF59E0B),
+                            color: const Color(0xFF10B981),
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'This amount will be refunded when the mechanic completes the service.',
+                      'Booking will be sent directly to the mechanic. No payment required.',
                       style: GoogleFonts.inter(
                         fontSize: 12,
-                        color: const Color(0xFFF59E0B),
+                        color: const Color(0xFF10B981),
                       ),
                     ),
                   ],
@@ -898,7 +898,7 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
                 ),
               ),
               child: Text(
-                'Pay ₹50 & Request',
+                'Request Mechanic',
                 style: GoogleFonts.outfit(
                   color: Colors.white,
                   fontWeight: FontWeight.w600,
@@ -1087,7 +1087,7 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '• Mechanic will respond within 15 minutes\n• ₹50 will be refunded after service completion\n• You can call ${mechanic['phone']} for urgent help',
+                      '• Mechanic will respond within 15 minutes\n• Booking sent successfully\n• You can call ${mechanic['phone']} for urgent help',
                       style: GoogleFonts.inter(
                         fontSize: 12,
                         color: const Color(0xFF10B981),
