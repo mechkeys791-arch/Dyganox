@@ -14,78 +14,117 @@ class EVChargingPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              'Welcome to EV Charging',
-              style: GoogleFonts.outfit(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: const Color(0xFF706DC7),
-              ),
+      backgroundColor: const Color(0xFFF8FAFC),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-            const SizedBox(height: 40),
-            SizedBox(
-              width: 300,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const EVChargingScreen(),
+            child: const Icon(Icons.arrow_back, color: Colors.black, size: 20),
+          ),
+          onPressed: () {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            }
+          },
+        ),
+        title: Text(
+          'EV Charging',
+          style: GoogleFonts.outfit(
+            color: Colors.black,
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        centerTitle: true,
+        automaticallyImplyLeading: false,
+      ),
+      body: SafeArea(
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'Welcome to EV Charging',
+                style: GoogleFonts.outfit(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF706DC7),
+                ),
+              ),
+              const SizedBox(height: 40),
+              SizedBox(
+                width: 300,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const EVChargingScreen(),
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF706DC7),
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF706DC7),
-                  padding: const EdgeInsets.symmetric(vertical: 20),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
                   ),
-                ),
-                child: Text(
-                  'Search for nearest charging provider',
-                  style: GoogleFonts.outfit(
-                    fontSize: 18, 
-                    color: Colors.white,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: 300,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const EVProviderScreen(),
+                  child: Text(
+                    'Search for nearest charging provider',
+                    style: GoogleFonts.outfit(
+                      fontSize: 18, 
+                      color: Colors.white,
                     ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 20),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    side: const BorderSide(color: Color(0xFF706DC7)),
+                    textAlign: TextAlign.center,
                   ),
-                ),
-                child: Text(
-                  'Want to share charge and earn?',
-                  style: GoogleFonts.outfit(
-                    fontSize: 18,
-                    color: const Color(0xFF706DC7),
-                  ),
-                  textAlign: TextAlign.center,
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 20),
+              SizedBox(
+                width: 300,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const EVProviderScreen(),
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: const BorderSide(color: Color(0xFF706DC7)),
+                    ),
+                  ),
+                  child: Text(
+                    'Want to share charge and earn?',
+                    style: GoogleFonts.outfit(
+                      fontSize: 18,
+                      color: const Color(0xFF706DC7),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -192,6 +231,15 @@ class _EVProviderScreenState extends State<EVProviderScreen> {
           ),
         ),
         centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            }
+          },
+        ),
+        automaticallyImplyLeading: false,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -922,6 +970,15 @@ class _EVChargingScreenState extends State<EVChargingScreen> {
           style: GoogleFonts.outfit(),
         ),
         backgroundColor: const Color(0xFF706DC7),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            }
+          },
+        ),
+        automaticallyImplyLeading: false,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -1435,13 +1492,45 @@ class _EVChargingScreenState extends State<EVChargingScreen> {
               Expanded(
                 child: ElevatedButton.icon(
                   onPressed: () {
-                    // Find the destination marker and open Google Maps
+                    // Find the destination marker and station info, then show embedded map
                     if (_markers.isNotEmpty) {
+                      LatLng? destination;
+                      Map<String, dynamic>? stationInfo;
+                      
+                      LatLng? foundDestination;
+                      Map<String, dynamic>? foundStationInfo;
+                      
                       for (Marker marker in _markers) {
                         if (marker.markerId.value == 'destination') {
-                          _openGoogleMaps(marker.position);
+                          foundDestination = marker.position;
+                          // Find station info from the list
+                          try {
+                            foundStationInfo = _allStations.firstWhere(
+                              (s) {
+                                double lat = (s['latitude'] as num?)?.toDouble() ?? 0.0;
+                                double lng = (s['longitude'] as num?)?.toDouble() ?? 0.0;
+                                return lat == foundDestination!.latitude && lng == foundDestination!.longitude;
+                              },
+                              orElse: () => <String, dynamic>{},
+                            );
+                          } catch (e) {
+                            foundStationInfo = <String, dynamic>{};
+                          }
                           break;
                         }
+                      }
+                      
+                      if (foundDestination != null) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => NavigationMapScreen(
+                              destination: foundDestination!,
+                              currentPosition: _currentPosition,
+                              stationInfo: foundStationInfo ?? <String, dynamic>{},
+                            ),
+                          ),
+                        );
                       }
                     }
                   },
@@ -1479,6 +1568,15 @@ class BookingScreen extends StatelessWidget {
           style: GoogleFonts.outfit(),
         ),
         backgroundColor: const Color(0xFF706DC7),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            }
+          },
+        ),
+        automaticallyImplyLeading: false,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -1498,15 +1596,20 @@ class BookingScreen extends StatelessWidget {
             Text('Availability: ${station['availableTime']}'),
             const SizedBox(height: 30),
             ElevatedButton(
-              onPressed: () async {
-                final url = 'https://www.google.com/maps/dir/?api=1&destination=${station['latitude']},${station['longitude']}';
-                if (await canLaunchUrl(Uri.parse(url))) {
-                  await launchUrl(Uri.parse(url));
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Could not launch maps')),
-                  );
-                }
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => NavigationMapScreen(
+                      destination: LatLng(
+                        station['latitude'] ?? 0.0,
+                        station['longitude'] ?? 0.0,
+                      ),
+                      currentPosition: null,
+                      stationInfo: station,
+                    ),
+                  ),
+                );
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF706DC7),
@@ -1521,5 +1624,607 @@ class BookingScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Embedded Navigation Map Screen
+/// Shows an in-app map with route to charging station and detailed station information
+class NavigationMapScreen extends StatefulWidget {
+  final LatLng destination;
+  final Position? currentPosition;
+  final Map<String, dynamic> stationInfo;
+  
+  const NavigationMapScreen({
+    super.key,
+    required this.destination,
+    this.currentPosition,
+    required this.stationInfo,
+  });
+
+  @override
+  State<NavigationMapScreen> createState() => _NavigationMapScreenState();
+}
+
+class _NavigationMapScreenState extends State<NavigationMapScreen> {
+  GoogleMapController? _mapController;
+  final Set<Marker> _markers = {};
+  final Set<Polyline> _polylines = {};
+  Position? _currentPosition;
+  bool _isLoadingRoute = false;
+  double _routeDistance = 0.0;
+  int _routeDurationMinutes = 0;
+  PolylinePoints polylinePoints = PolylinePoints();
+  bool _showStationInfo = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentPosition = widget.currentPosition;
+    _initializeMap();
+    if (_currentPosition != null) {
+      _createRoute();
+    } else {
+      _getCurrentLocation();
+    }
+  }
+
+  Future<void> _getCurrentLocation() async {
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return;
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) return;
+      }
+
+      if (permission == LocationPermission.deniedForever) return;
+
+      Position position = await Geolocator.getCurrentPosition();
+      setState(() {
+        _currentPosition = position;
+      });
+      _createRoute();
+    } catch (e) {
+      print('Error getting location: $e');
+    }
+  }
+
+  void _initializeMap() {
+    setState(() {
+      _markers.clear();
+      
+      // Add destination marker
+      _markers.add(Marker(
+        markerId: const MarkerId('destination'),
+        position: widget.destination,
+        infoWindow: InfoWindow(
+          title: widget.stationInfo['name'] ?? 'Charging Station',
+          snippet: widget.stationInfo['address'] ?? '',
+        ),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+      ));
+      
+      // Add current location marker if available
+      if (_currentPosition != null) {
+        _markers.add(Marker(
+          markerId: const MarkerId('currentLocation'),
+          position: LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+          infoWindow: const InfoWindow(title: 'Your Location'),
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+        ));
+      }
+    });
+  }
+
+  Future<void> _createRoute() async {
+    if (_currentPosition == null) {
+      _createFallbackRoute();
+      return;
+    }
+
+    setState(() {
+      _isLoadingRoute = true;
+    });
+
+    try {
+      const String apiKey = 'AIzaSyB82H7s8dM-Z9v5E_3HIl301m0iM3e6ctc';
+      
+      if (apiKey == 'AIzaSyB82H7s8dM-Z9v5E_3HIl301m0iM3e6ctc') {
+        _createFallbackRoute();
+        return;
+      }
+
+      PolylineResult result = await polylinePoints.getRouteBetweenCoordinates(
+        request: PolylineRequest(
+          mode: TravelMode.driving,
+          origin: PointLatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+          destination: PointLatLng(widget.destination.latitude, widget.destination.longitude),
+        ),
+      );
+
+      if (result.points.isNotEmpty) {
+        List<LatLng> polylineCoordinates = [];
+        for (PointLatLng point in result.points) {
+          polylineCoordinates.add(LatLng(point.latitude, point.longitude));
+        }
+
+        // Calculate distance
+        double distance = Geolocator.distanceBetween(
+          _currentPosition!.latitude,
+          _currentPosition!.longitude,
+          widget.destination.latitude,
+          widget.destination.longitude,
+        ) / 1000; // Convert to km
+
+        // Estimate duration (assuming average speed of 40 km/h)
+        int durationMinutes = (distance / 40 * 60).round();
+
+        setState(() {
+          _polylines.clear();
+          _polylines.add(
+            Polyline(
+              polylineId: const PolylineId('route'),
+              points: polylineCoordinates,
+              color: const Color(0xFF706DC7),
+              width: 5,
+              patterns: [],
+            ),
+          );
+          _routeDistance = distance;
+          _routeDurationMinutes = durationMinutes;
+          _isLoadingRoute = false;
+        });
+
+        _animateToShowRoute();
+      } else {
+        _createFallbackRoute();
+      }
+    } catch (e) {
+      print('Error creating route: $e');
+      _createFallbackRoute();
+    }
+  }
+
+  void _createFallbackRoute() {
+    if (_currentPosition == null) {
+      setState(() {
+        _isLoadingRoute = false;
+      });
+      return;
+    }
+
+    double distance = Geolocator.distanceBetween(
+      _currentPosition!.latitude,
+      _currentPosition!.longitude,
+      widget.destination.latitude,
+      widget.destination.longitude,
+    ) / 1000;
+
+    int durationMinutes = (distance / 40 * 60).round();
+
+    setState(() {
+      _polylines.clear();
+      _polylines.add(
+        Polyline(
+          polylineId: const PolylineId('route'),
+          points: [
+            LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+            widget.destination,
+          ],
+          color: const Color(0xFF706DC7),
+          width: 5,
+          patterns: [],
+        ),
+      );
+      _routeDistance = distance;
+      _routeDurationMinutes = durationMinutes;
+      _isLoadingRoute = false;
+    });
+
+    _animateToShowRoute();
+  }
+
+  void _animateToShowRoute() {
+    if (_mapController == null || _markers.isEmpty) return;
+
+    try {
+      double minLat = double.infinity;
+      double maxLat = -double.infinity;
+      double minLng = double.infinity;
+      double maxLng = -double.infinity;
+
+      for (Marker marker in _markers) {
+        minLat = minLat < marker.position.latitude ? minLat : marker.position.latitude;
+        maxLat = maxLat > marker.position.latitude ? maxLat : marker.position.latitude;
+        minLng = minLng < marker.position.longitude ? minLng : marker.position.longitude;
+        maxLng = maxLng > marker.position.longitude ? maxLng : marker.position.longitude;
+      }
+
+      LatLngBounds bounds = LatLngBounds(
+        southwest: LatLng(minLat - 0.01, minLng - 0.01),
+        northeast: LatLng(maxLat + 0.01, maxLng + 0.01),
+      );
+
+      _mapController!.animateCamera(
+        CameraUpdate.newLatLngBounds(bounds, 100),
+      );
+    } catch (e) {
+      print('Error animating camera: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Map View
+          GoogleMap(
+            onMapCreated: (GoogleMapController controller) {
+              _mapController = controller;
+              _initializeMap();
+              if (_currentPosition != null) {
+                _createRoute();
+              }
+            },
+            initialCameraPosition: CameraPosition(
+              target: widget.destination,
+              zoom: 14.0,
+            ),
+            markers: _markers,
+            polylines: _polylines,
+            myLocationEnabled: true,
+            myLocationButtonEnabled: true,
+            mapType: MapType.normal,
+            zoomControlsEnabled: true,
+            compassEnabled: true,
+            onTap: (LatLng position) {
+              // Toggle station info panel on map tap
+              setState(() {
+                _showStationInfo = !_showStationInfo;
+              });
+            },
+          ),
+          
+          // Top App Bar
+          SafeArea(
+            child: Container(
+              margin: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Color(0xFF706DC7)),
+                    onPressed: () {
+                      if (Navigator.canPop(context)) {
+                        Navigator.pop(context);
+                      } else {
+                        // Fallback: navigate to a safe route if pop is not possible
+                        Navigator.of(context).popUntil((route) => route.isFirst);
+                      }
+                    },
+                  ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Navigate to Station',
+                          style: GoogleFonts.outfit(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: const Color(0xFF1E293B),
+                          ),
+                        ),
+                        if (_isLoadingRoute)
+                          Text(
+                            'Calculating route...',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                          )
+                        else if (_routeDistance > 0)
+                          Text(
+                            '${_routeDistance.toStringAsFixed(1)} km • ~$_routeDurationMinutes min',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      _showStationInfo ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_up,
+                      color: const Color(0xFF706DC7),
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _showStationInfo = !_showStationInfo;
+                      });
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          
+          // Station Information Panel (Bottom Sheet)
+          if (_showStationInfo)
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: DraggableScrollableSheet(
+                initialChildSize: 0.35,
+                minChildSize: 0.2,
+                maxChildSize: 0.7,
+                builder: (context, scrollController) {
+                  return Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 10,
+                          offset: const Offset(0, -2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        // Drag Handle
+                        Container(
+                          margin: const EdgeInsets.only(top: 12),
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[300],
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                        
+                        // Scrollable Content
+                        Expanded(
+                          child: ListView(
+                            controller: scrollController,
+                            padding: const EdgeInsets.all(20),
+                            children: [
+                              // Station Name and Rating
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          widget.stationInfo['name'] ?? 'Charging Station',
+                                          style: GoogleFonts.outfit(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 22,
+                                            color: const Color(0xFF1E293B),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        if (widget.stationInfo['rating'] != null)
+                                          Row(
+                                            children: [
+                                              const Icon(Icons.star, color: Colors.amber, size: 18),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                widget.stationInfo['rating'].toString(),
+                                                style: GoogleFonts.outfit(
+                                                  fontWeight: FontWeight.w600,
+                                                  fontSize: 14,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF706DC7).withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: const Icon(
+                                      Icons.electric_car,
+                                      color: Color(0xFF706DC7),
+                                      size: 32,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              
+                              const SizedBox(height: 20),
+                              
+                              // Route Information
+                              if (_routeDistance > 0)
+                                Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF706DC7).withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.route, color: Color(0xFF706DC7)),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'Route Information',
+                                              style: GoogleFonts.outfit(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 14,
+                                                color: const Color(0xFF706DC7),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              'Distance: ${_routeDistance.toStringAsFixed(1)} km • Estimated Time: ~$_routeDurationMinutes minutes',
+                                              style: GoogleFonts.inter(
+                                                fontSize: 12,
+                                                color: Colors.grey[700],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              
+                              const SizedBox(height: 16),
+                              
+                              // Station Details
+                              _buildInfoRow(
+                                Icons.flash_on,
+                                'Charger Type',
+                                widget.stationInfo['capacity'] ?? widget.stationInfo['chargerType'] ?? 'Not specified',
+                              ),
+                              const SizedBox(height: 12),
+                              _buildInfoRow(
+                                Icons.attach_money,
+                                'Price',
+                                widget.stationInfo['price'] ?? 'Not specified',
+                              ),
+                              const SizedBox(height: 12),
+                              _buildInfoRow(
+                                Icons.access_time,
+                                'Available Hours',
+                                widget.stationInfo['availableTime'] ?? 'Not specified',
+                              ),
+                              const SizedBox(height: 12),
+                              if (widget.stationInfo['phone'] != null && widget.stationInfo['phone'].toString().isNotEmpty)
+                                _buildInfoRow(
+                                  Icons.phone,
+                                  'Contact',
+                                  widget.stationInfo['phone'] ?? 'Not available',
+                                ),
+                              const SizedBox(height: 12),
+                              if (widget.stationInfo['address'] != null && widget.stationInfo['address'].toString().isNotEmpty)
+                                _buildInfoRow(
+                                  Icons.location_on,
+                                  'Address',
+                                  widget.stationInfo['address'] ?? 'Not available',
+                                ),
+                              
+                              const SizedBox(height: 20),
+                              
+                              // Action Buttons
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: ElevatedButton.icon(
+                                      onPressed: _getCurrentLocation,
+                                      icon: const Icon(Icons.my_location),
+                                      label: const Text('Update Location'),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.grey[200],
+                                        foregroundColor: const Color(0xFF706DC7),
+                                        padding: const EdgeInsets.symmetric(vertical: 12),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: ElevatedButton.icon(
+                                      onPressed: () {
+                                        // Option to open in external maps app
+                                        final url = 'https://www.google.com/maps/dir/?api=1&destination=${widget.destination.latitude},${widget.destination.longitude}';
+                                        launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+                                      },
+                                      icon: const Icon(Icons.open_in_new),
+                                      label: const Text('Open Maps'),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(0xFF706DC7),
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(vertical: 12),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              
+                              const SizedBox(height: 20),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(IconData icon, String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 20, color: const Color(0xFF706DC7)),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: GoogleFonts.outfit(
+                  fontSize: 14,
+                  color: const Color(0xFF1E293B),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  @override
+  void dispose() {
+    _mapController?.dispose();
+    super.dispose();
   }
 }
