@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @CrossOrigin(origins = "*")
@@ -53,6 +54,58 @@ public class MechanicController {
         if (mechanic.isPresent()) {
             System.out.println("✅ Found mechanic: " + mechanic.get());
             return ResponseEntity.ok(mechanic.get());
+        } else {
+            System.out.println("❌ Mechanic not found with ID: " + id);
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @PutMapping("/{id}/status")
+    public ResponseEntity<Mechanic> updateMechanicStatus(@PathVariable Long id, @RequestBody Map<String, String> request) {
+        System.out.println("🔄 PUT request to update status for mechanic ID: " + id);
+        System.out.println("📥 New status: " + request.get("status"));
+        
+        Optional<Mechanic> mechanicOpt = mechanicRepo.findById(id);
+        if (mechanicOpt.isPresent()) {
+            Mechanic mechanic = mechanicOpt.get();
+            String newStatus = request.get("status");
+            
+            if (newStatus != null && (newStatus.equals("Available") || newStatus.equals("Busy") || newStatus.equals("Offline"))) {
+                mechanic.setStatus(newStatus);
+                Mechanic updatedMechanic = mechanicRepo.save(mechanic);
+                System.out.println("✅ Mechanic status updated successfully to: " + newStatus);
+                return ResponseEntity.ok(updatedMechanic);
+            } else {
+                System.out.println("❌ Invalid status: " + newStatus);
+                return ResponseEntity.badRequest().build();
+            }
+        } else {
+            System.out.println("❌ Mechanic not found with ID: " + id);
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<Mechanic> updateMechanic(@PathVariable Long id, @RequestBody Mechanic updatedMechanic) {
+        System.out.println("🔄 PUT request to update mechanic ID: " + id);
+        Optional<Mechanic> mechanicOpt = mechanicRepo.findById(id);
+        if (mechanicOpt.isPresent()) {
+            Mechanic mechanic = mechanicOpt.get();
+            
+            // Update fields
+            if (updatedMechanic.getName() != null) mechanic.setName(updatedMechanic.getName());
+            if (updatedMechanic.getEmail() != null) mechanic.setEmail(updatedMechanic.getEmail());
+            if (updatedMechanic.getPhone() != null) mechanic.setPhone(updatedMechanic.getPhone());
+            if (updatedMechanic.getSpecialty() != null) mechanic.setSpecialty(updatedMechanic.getSpecialty());
+            if (updatedMechanic.getExperience() != null) mechanic.setExperience(updatedMechanic.getExperience());
+            if (updatedMechanic.getLatitude() != null) mechanic.setLatitude(updatedMechanic.getLatitude());
+            if (updatedMechanic.getLongitude() != null) mechanic.setLongitude(updatedMechanic.getLongitude());
+            mechanic.setNightTimeAvailable(updatedMechanic.isNightTimeAvailable());
+            if (updatedMechanic.getStatus() != null) mechanic.setStatus(updatedMechanic.getStatus());
+            
+            Mechanic savedMechanic = mechanicRepo.save(mechanic);
+            System.out.println("✅ Mechanic updated successfully");
+            return ResponseEntity.ok(savedMechanic);
         } else {
             System.out.println("❌ Mechanic not found with ID: " + id);
             return ResponseEntity.notFound().build();

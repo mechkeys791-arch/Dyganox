@@ -101,6 +101,7 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
     
     _getCurrentLocation();
     _fetchRequests();
+    _loadMechanicStatus(); // Load current status from backend
     _animationController = AnimationController(
       duration: const Duration(seconds: 2),
       vsync: this,
@@ -109,6 +110,60 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
     _animationController.repeat(reverse: true);
+  }
+  
+  Future<void> _loadMechanicStatus() async {
+    if (_mechanicId == null) return;
+    
+    try {
+      final response = await http.get(
+        Uri.parse("${ApiConfig.mechanicEndpoint}/${_mechanicId}"),
+        headers: {"Content-Type": "application/json"},
+      );
+      
+      if (response.statusCode == 200) {
+        final mechanic = jsonDecode(response.body);
+        final status = mechanic['status'] ?? 'Available';
+        setState(() {
+          _status = status;
+        });
+        print("Mechanic Dashboard: Loaded status from backend: $status");
+      }
+    } catch (e) {
+      print("Mechanic Dashboard: Error loading status: $e");
+    }
+  }
+  
+  Future<void> _updateMechanicStatus(String newStatus) async {
+    if (_mechanicId == null) {
+      _showSnackBar('Mechanic ID not found', Colors.red);
+      return;
+    }
+    
+    try {
+      final response = await http.put(
+        Uri.parse("${ApiConfig.mechanicEndpoint}/${_mechanicId}/status"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"status": newStatus}),
+      );
+      
+      if (response.statusCode == 200) {
+        _showSnackBar('Status updated to $newStatus', Colors.green);
+        print("Mechanic Dashboard: Status updated successfully to: $newStatus");
+      } else {
+        _showSnackBar('Failed to update status', Colors.orange);
+        // Revert local state on failure
+        setState(() {
+          _status = 'Available'; // Default fallback
+        });
+      }
+    } catch (e) {
+      _showSnackBar('Error updating status: $e', Colors.red);
+      // Revert local state on error
+      setState(() {
+        _status = 'Available'; // Default fallback
+      });
+    }
   }
 
   @override
@@ -456,12 +511,15 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
   Widget _buildStatusOption(String status, String emoji, String description) {
     final isSelected = _status == status;
     return GestureDetector(
-      onTap: () {
+      onTap: () async {
+        // Update local state immediately for better UX
         setState(() {
           _status = status;
         });
         Navigator.pop(context);
-        _showSnackBar('Status updated to $status', Colors.green);
+        
+        // Update status on backend
+        await _updateMechanicStatus(status);
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),

@@ -99,9 +99,7 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
             "lat": lat,
             "lng": lng,
             "distance": 0.0,
-            "availability": mechanic['nightTimeAvailable'] == true 
-                ? 'Available 24/7' 
-                : 'Available Now',
+            "availability": _getAvailabilityStatus(mechanic),
           };
         }).toList();
 
@@ -122,6 +120,31 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
       setState(() {
         _isLoading = false;
       });
+    }
+  }
+
+  String _getAvailabilityStatus(Map<String, dynamic> mechanic) {
+    // Check status from database first
+    final status = mechanic['status'] ?? '';
+    
+    if (status == 'Offline') {
+      return 'Offline';
+    } else if (status == 'Busy') {
+      return 'Busy';
+    } else if (status == 'Available') {
+      // If available, check if 24/7 based on nightTimeAvailable
+      if (mechanic['nightTimeAvailable'] == true) {
+        return 'Available 24/7';
+      } else {
+        return 'Available Now';
+      }
+    } else {
+      // Fallback for old data without status field
+      if (mechanic['nightTimeAvailable'] == true) {
+        return 'Available 24/7';
+      } else {
+        return 'Available Now';
+      }
     }
   }
 
@@ -1376,7 +1399,8 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
   }
 
   Widget _buildEnhancedMechanicCard(Map<String, dynamic> mechanic, int index) {
-    final isAvailableNow = mechanic['availability'] == 'Available Now';
+    final availability = mechanic['availability'] ?? 'Available Now';
+    final isAvailableNow = availability == 'Available Now' || availability == 'Available 24/7';
     
     return TweenAnimationBuilder(
       duration: Duration(milliseconds: 300 + (index * 100)),
@@ -1581,44 +1605,70 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
                   const SizedBox(height: 8),
                   
                   // Availability status
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: isAvailableNow
-                            ? [
-                                const Color(0xFF10B981).withOpacity(0.15),
-                                const Color(0xFF06B6D4).withOpacity(0.15),
-                              ]
-                            : [
-                                Colors.orange.withOpacity(0.15),
-                                Colors.orange.withOpacity(0.1),
-                              ],
-                      ),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 6,
-                          height: 6,
-                          decoration: BoxDecoration(
-                            color: isAvailableNow ? const Color(0xFF10B981) : Colors.orange,
-                            shape: BoxShape.circle,
-                          ),
+                  Builder(
+                    builder: (context) {
+                      final availability = mechanic['availability'] ?? 'Available Now';
+                      final isAvailable = availability == 'Available Now' || availability == 'Available 24/7';
+                      final isBusy = availability == 'Busy';
+                      final isOffline = availability == 'Offline';
+                      
+                      Color statusColor;
+                      Color statusBgColor;
+                      List<Color> gradientColors;
+                      
+                      if (isAvailable) {
+                        statusColor = const Color(0xFF10B981);
+                        statusBgColor = const Color(0xFF10B981).withOpacity(0.15);
+                        gradientColors = [
+                          const Color(0xFF10B981).withOpacity(0.15),
+                          const Color(0xFF06B6D4).withOpacity(0.15),
+                        ];
+                      } else if (isBusy) {
+                        statusColor = Colors.orange[800]!;
+                        statusBgColor = Colors.orange.withOpacity(0.15);
+                        gradientColors = [
+                          Colors.orange.withOpacity(0.15),
+                          Colors.orange.withOpacity(0.1),
+                        ];
+                      } else { // Offline
+                        statusColor = Colors.grey[700]!;
+                        statusBgColor = Colors.grey.withOpacity(0.15);
+                        gradientColors = [
+                          Colors.grey.withOpacity(0.15),
+                          Colors.grey.withOpacity(0.1),
+                        ];
+                      }
+                      
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(colors: gradientColors),
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                        const SizedBox(width: 6),
-                        Text(
-                          mechanic['availability'],
-                          style: GoogleFonts.outfit(
-                            fontSize: 10,
-                            color: isAvailableNow ? const Color(0xFF10B981) : Colors.orange[800],
-                            fontWeight: FontWeight.w600,
-                          ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                color: statusColor,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              availability,
+                              style: GoogleFonts.outfit(
+                                fontSize: 10,
+                                color: statusColor,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      );
+                    },
                   ),
                   
                   const SizedBox(height: 10),
@@ -1695,7 +1745,8 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
 
   Widget _buildCompactMechanicCard(Map<String, dynamic> mechanic, int index) {
     final isSelected = _selectedMechanicIndex == index;
-    final isAvailableNow = mechanic['availability'] == 'Available Now';
+    final availability = mechanic['availability'] ?? 'Available Now';
+    final isAvailableNow = availability == 'Available Now' || availability == 'Available 24/7';
     
     return GestureDetector(
       onTap: () {
@@ -1797,22 +1848,45 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
                         ),
                       ),
                       const SizedBox(width: 12),
-                      Container(
-                        width: 6,
-                        height: 6,
-                        decoration: BoxDecoration(
-                          color: isAvailableNow ? const Color(0xFF10B981) : Colors.orange,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        mechanic['availability'],
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          color: isAvailableNow ? const Color(0xFF10B981) : Colors.orange[800],
-                          fontWeight: FontWeight.w600,
-                        ),
+                      Builder(
+                        builder: (context) {
+                          final availStatus = mechanic['availability'] ?? 'Available Now';
+                          final isAvail = availStatus == 'Available Now' || availStatus == 'Available 24/7';
+                          final isBusy = availStatus == 'Busy';
+                          final isOffline = availStatus == 'Offline';
+                          
+                          Color statusColor;
+                          if (isAvail) {
+                            statusColor = const Color(0xFF10B981);
+                          } else if (isBusy) {
+                            statusColor = Colors.orange[800]!;
+                          } else { // Offline
+                            statusColor = Colors.grey[700]!;
+                          }
+                          
+                          return Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 6,
+                                height: 6,
+                                decoration: BoxDecoration(
+                                  color: statusColor,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                availStatus,
+                                style: GoogleFonts.inter(
+                                  fontSize: 11,
+                                  color: statusColor,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          );
+                        },
                       ),
                     ],
                   ),

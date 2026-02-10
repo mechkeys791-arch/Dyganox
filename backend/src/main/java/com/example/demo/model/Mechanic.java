@@ -18,6 +18,7 @@ public class Mechanic {
     private boolean nightTimeAvailable;
     private String latitude;
     private String longitude;
+    private String status = "Available"; // Available, Busy, Offline
 
     public Mechanic() {}
 
@@ -30,6 +31,7 @@ public class Mechanic {
         this.nightTimeAvailable = nightTimeAvailable;
         this.latitude = latitude;
         this.longitude = longitude;
+        this.status = "Available"; // Default status
     }
 
     // Getters & Setters
@@ -60,6 +62,9 @@ public class Mechanic {
     public String getLongitude() { return longitude; }
     public void setLongitude(String longitude) { this.longitude = longitude; }
 
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+
     @Override
     public String toString() {
         return "Mechanic{" +
@@ -72,6 +77,7 @@ public class Mechanic {
                 ", nightTimeAvailable=" + nightTimeAvailable +
                 ", latitude='" + latitude + '\'' +
                 ", longitude='" + longitude + '\'' +
+                ", status='" + status + '\'' +
                 '}';
     }
 }
