@@ -126,7 +126,11 @@ class _EVChargingUserPageState extends State<EVChargingUserPage> {
             ),
             child: const Icon(Icons.arrow_back, color: Colors.black, size: 20),
           ),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            }
+          },
         ),
         title: Text(
           'EV Charging Stations',
@@ -647,7 +651,11 @@ class _EVChargingUserPageState extends State<EVChargingUserPage> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () {
+                if (Navigator.canPop(context)) {
+                  Navigator.pop(context);
+                }
+              },
               child: Text(
                 'Cancel',
                 style: GoogleFonts.outfit(
@@ -658,7 +666,9 @@ class _EVChargingUserPageState extends State<EVChargingUserPage> {
             ),
             ElevatedButton(
               onPressed: () {
-                Navigator.pop(context);
+                if (Navigator.canPop(context)) {
+                  Navigator.pop(context);
+                }
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(

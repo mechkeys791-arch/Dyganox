@@ -744,13 +744,11 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: ElevatedButton.icon(
+                      child: ElevatedButton(
                         onPressed: () {
                           Navigator.pop(context);
                           _showRequestMechanicDialog(mechanic);
                         },
-                        icon: const Icon(Icons.request_quote, size: 20),
-                        label: const Text('Request'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF10B981),
                           foregroundColor: Colors.white,
@@ -759,6 +757,7 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
+                        child: const Text('Request'),
                       ),
                     ),
                   ],
@@ -811,29 +810,12 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.request_quote,
-                  color: Color(0xFF10B981),
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'Request Mechanic',
-                style: GoogleFonts.outfit(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                ),
-              ),
-            ],
+          title: Text(
+            'Request Mechanic',
+            style: GoogleFonts.outfit(
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+            ),
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -846,43 +828,7 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFEF3C7),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.3)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.info_outline, color: Color(0xFFF59E0B), size: 16),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Service Fee: ₹50',
-                          style: GoogleFonts.inter(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: const Color(0xFFF59E0B),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'This amount will be refunded when the mechanic completes the service.',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: const Color(0xFFF59E0B),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               Row(
                 children: [
                   const Icon(Icons.phone, color: Color(0xFF6366F1), size: 16),
@@ -921,7 +867,7 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
                 ),
               ),
               child: Text(
-                'Pay ₹50 & Request',
+                'Request Mechanic',
                 style: GoogleFonts.outfit(
                   color: Colors.white,
                   fontWeight: FontWeight.w600,
@@ -1110,7 +1056,7 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '• Mechanic will respond within 15 minutes\n• ₹50 will be refunded after service completion\n• You can call ${mechanic['phone']} for urgent help',
+                      '• Mechanic will respond within 15 minutes\n• Booking sent successfully\n• You can call ${mechanic['phone']} for urgent help',
                       style: GoogleFonts.inter(
                         fontSize: 12,
                         color: const Color(0xFF10B981),

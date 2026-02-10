@@ -1,5 +1,6 @@
 import 'payment_gateway.dart';
-import 'square_payment.dart';
+// import 'square_payment.dart'; // Unused - payments disabled
+import 'no_payment.dart';
 
 /// Payment Gateway Configuration
 /// 
@@ -11,15 +12,16 @@ import 'square_payment.dart';
 class PaymentConfig {
   /// Get the payment gateway instance
   /// 
-  /// Currently using: Square (Sandbox for testing)
-  /// To switch to Razorpay: Change return statement to RazorpayPayment()
+  /// PAYMENTS DISABLED: Currently using NoPayment gateway (bypasses all payment processing)
+  /// To re-enable payments: Change return statement to SquarePayment() or RazorpayPayment()
   static PaymentGateway getPaymentGateway() {
-    // 🔥 CURRENTLY USING: Square Payment (Sandbox)
-    return SquarePayment();
+    // 🔥 PAYMENTS DISABLED: NoPayment gateway (bypasses payment, always succeeds)
+    return NoPayment();
     
-    // 🔥 TO SWITCH TO RAZORPAY (when ready):
-    // Uncomment below and comment above:
-    // return RazorpayPayment();
+    // 🔥 TO RE-ENABLE PAYMENTS:
+    // Uncomment one of the options below and comment above:
+    // return SquarePayment(); // Square Payment (Sandbox for testing)
+    // return RazorpayPayment(); // Razorpay Payment (when ready)
   }
   
   /// Get payment amount in the correct currency

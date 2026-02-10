@@ -335,121 +335,47 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
         ),
         centerTitle: true,
       ),
-      body: _paymentMethods.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.payment_outlined,
-                    size: 80,
-                    color: Colors.grey[400],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No Payment Methods',
-                    style: GoogleFonts.outfit(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF64748B),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Add your first payment method',
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      color: const Color(0xFF94A3B8),
-                    ),
-                  ),
-                ],
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF3C7).withOpacity(0.3),
+                shape: BoxShape.circle,
               ),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(20),
-              itemCount: _paymentMethods.length,
-              itemBuilder: (context, index) {
-                final payment = _paymentMethods[index];
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 5),
-                      ),
-                    ],
-                  ),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.all(16),
-                    leading: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF6366F1).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        _getPaymentIcon(payment['type']),
-                        color: const Color(0xFF6366F1),
-                        size: 24,
-                      ),
-                    ),
-                    title: Text(
-                      payment['label'],
-                      style: GoogleFonts.outfit(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
-                      ),
-                    ),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 4),
-                        Text(
-                          _getPaymentTypeName(payment['type']),
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            color: const Color(0xFF94A3B8),
-                          ),
-                        ),
-                        Text(
-                          payment['details'],
-                          style: GoogleFonts.inter(
-                            fontSize: 14,
-                            color: const Color(0xFF64748B),
-                          ),
-                        ),
-                      ],
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.edit, color: Color(0xFF6366F1)),
-                          onPressed: () => _showAddEditPaymentDialog(payment: payment, index: index),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.delete, color: Color(0xFFEF4444)),
-                          onPressed: () => _deletePaymentMethod(index),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
+              child: Icon(
+                Icons.payment_outlined,
+                size: 80,
+                color: Colors.orange[400],
+              ),
             ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAddEditPaymentDialog(),
-        backgroundColor: const Color(0xFF6366F1),
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: Text(
-          'Add Payment',
-          style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.w600),
+            const SizedBox(height: 24),
+            Text(
+              'Payments Disabled',
+              style: GoogleFonts.outfit(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: const Color(0xFF64748B),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 40),
+              child: Text(
+                'Payment functionality is currently disabled in the system. Bookings can be made without payment.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  color: const Color(0xFF94A3B8),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
+      // FloatingActionButton removed - payments are disabled
     );
   }
 }

@@ -679,7 +679,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                                   // Navigate to login and remove all previous routes
                                   Navigator.pushNamedAndRemoveUntil(
                                     context,
-                                    '/login',
+                                    '/user-type-selection',
                                     (route) => false,
                                   );
                                 }

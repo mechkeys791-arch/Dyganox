@@ -28,7 +28,11 @@ class EVChargingSelectionPage extends StatelessWidget {
             ),
             child: const Icon(Icons.arrow_back, color: Colors.black, size: 20),
           ),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            }
+          },
         ),
         title: Text(
           'EV Charging',
