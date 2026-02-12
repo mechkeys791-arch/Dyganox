@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
 import 'dart:async';
+import 'dart:convert';
+import '../../services/api_config.dart';
 
 class NightServicePage extends StatefulWidget {
   const NightServicePage({super.key});
@@ -40,37 +43,10 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
   String _selectedService = '';
   // ignore: unused_field
   bool _emergencyMode = false;
+  bool _isLoadingProviders = false;
   
-  // Night service providers (this can be fetched from backend)
-  final List<Map<String, dynamic>> _nightProviders = [
-    {
-      'name': 'QuickFix Night Services',
-      'rating': 4.8,
-      'distance': '2.3 km',
-      'available': true,
-      'services': ['Towing', 'Puncture', 'Battery Jump', 'Minor Repair'],
-      'contact': '+91 98765 43210',
-      'surcharge': '30%',
-    },
-    {
-      'name': '24/7 Emergency Assist',
-      'rating': 4.9,
-      'distance': '3.1 km',
-      'available': true,
-      'services': ['Emergency', 'Towing', 'Fuel Refill'],
-      'contact': '+91 98765 43211',
-      'surcharge': '25%',
-    },
-    {
-      'name': 'Midnight Mechanics',
-      'rating': 4.7,
-      'distance': '4.5 km',
-      'available': false,
-      'services': ['All Services'],
-      'contact': '+91 98765 43212',
-      'surcharge': '35%',
-    },
-  ];
+  // Night service providers (fetched from backend)
+  List<Map<String, dynamic>> _nightProviders = [];
 
   final List<Map<String, dynamic>> _nightServices = [
     {
@@ -177,6 +153,74 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
     _checkNightTime();
     _startTimeUpdate();
     _getCurrentLocation();
+    _fetchNightProviders();
+  }
+  
+  Future<void> _fetchNightProviders() async {
+    setState(() {
+      _isLoadingProviders = true;
+    });
+    
+    try {
+      print("Night Service: Fetching night service providers...");
+      final response = await http.get(
+        Uri.parse(ApiConfig.mechanicEndpoint),
+        headers: {"Content-Type": "application/json"},
+      );
+      
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        
+        // Filter mechanics with nightTimeAvailable = true
+        final nightMechanics = data.where((mechanic) {
+          return mechanic['nightTimeAvailable'] == true;
+        }).toList();
+        
+        // Transform to match the expected format
+        _nightProviders = nightMechanics.map((mechanic) {
+          // Calculate rating (you can replace with actual rating if available)
+          double rating = 4.0 + ((mechanic['id'] as int) % 10) * 0.1;
+          
+          // Calculate distance (placeholder - you can implement actual distance calculation)
+          double distance = 1.0 + ((mechanic['id'] as int) % 5) * 0.5;
+          
+          // Get status
+          String status = mechanic['status']?.toString() ?? 'Available';
+          bool isAvailable = status.toLowerCase() == 'available';
+          
+          // Get specialty/services
+          String specialty = mechanic['specialty']?.toString() ?? 'General Service';
+          List<String> services = specialty.split(',').map((s) => s.trim()).toList();
+          if (services.isEmpty) services = ['All Services'];
+          
+          return {
+            'name': mechanic['name']?.toString() ?? 'Unknown',
+            'rating': rating,
+            'distance': '${distance.toStringAsFixed(1)} km',
+            'available': isAvailable,
+            'services': services,
+            'contact': mechanic['phone']?.toString() ?? 'N/A',
+            'surcharge': '${20 + ((mechanic['id'] as int) % 20)}%',
+            'id': mechanic['id'],
+            'email': mechanic['email']?.toString(),
+            'latitude': mechanic['latitude']?.toString(),
+            'longitude': mechanic['longitude']?.toString(),
+          };
+        }).toList();
+        
+        print("Night Service: Found ${_nightProviders.length} night service providers");
+      } else {
+        print("Night Service: Failed to fetch providers. Status: ${response.statusCode}");
+        // Keep empty list or show error
+      }
+    } catch (e) {
+      print("Night Service: Error fetching providers: $e");
+      // Keep empty list on error
+    } finally {
+      setState(() {
+        _isLoadingProviders = false;
+      });
+    }
   }
 
   @override
@@ -445,7 +489,28 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
                       // Available Providers
                       _buildSectionTitle('Night Service Providers'),
                       const SizedBox(height: 12),
-                      _buildProvidersList(),
+                      _isLoadingProviders 
+                        ? Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(20.0),
+                              child: CircularProgressIndicator(
+                                color: _isNightTime ? const Color(0xFF6366F1) : const Color(0xFF706DC7),
+                              ),
+                            ),
+                          )
+                        : _nightProviders.isEmpty
+                          ? Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(20.0),
+                                child: Text(
+                                  'No night service providers available',
+                                  style: GoogleFonts.inter(
+                                    color: _isNightTime ? Colors.grey[400] : Colors.grey[600],
+                                  ),
+                                ),
+                              ),
+                            )
+                          : _buildProvidersList(),
                       
                       const SizedBox(height: 24),
 

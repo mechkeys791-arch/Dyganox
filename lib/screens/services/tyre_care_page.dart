@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import '../../services/api_config.dart';
 
 class TyreCarePage extends StatefulWidget {
   const TyreCarePage({super.key});
@@ -17,6 +20,8 @@ class _TyreCarePageState extends State<TyreCarePage> with TickerProviderStateMix
 
   String selectedVehicleType = 'car';
   String selectedTyreSize = '155/65R14';
+  bool _isLoadingMechanics = false;
+  List<Map<String, dynamic>> _tyreMechanics = [];
 
   @override
   void initState() {
@@ -50,6 +55,61 @@ class _TyreCarePageState extends State<TyreCarePage> with TickerProviderStateMix
 
     _fadeController.forward();
     _slideController.forward();
+    _fetchTyreMechanics();
+  }
+  
+  Future<void> _fetchTyreMechanics() async {
+    setState(() {
+      _isLoadingMechanics = true;
+    });
+    
+    try {
+      print("Tyre Care: Fetching tyre mechanics...");
+      final response = await http.get(
+        Uri.parse(ApiConfig.mechanicEndpoint),
+        headers: {"Content-Type": "application/json"},
+      );
+      
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        
+        // Filter mechanics with specialty containing "tyre" (case-insensitive)
+        final tyreMechanics = data.where((mechanic) {
+          String specialty = (mechanic['specialty']?.toString() ?? '').toLowerCase();
+          return specialty.contains('tyre') || specialty.contains('tire');
+        }).toList();
+        
+        // Transform to match the expected format
+        _tyreMechanics = tyreMechanics.map((mechanic) {
+          // Calculate rating
+          double rating = 4.0 + ((mechanic['id'] as int) % 10) * 0.1;
+          
+          // Calculate distance (placeholder)
+          double distance = 1.0 + ((mechanic['id'] as int) % 5) * 0.5;
+          
+          return {
+            'name': mechanic['name']?.toString() ?? 'Unknown',
+            'experience': mechanic['experience']?.toString() ?? 'Not specified',
+            'rating': rating.toStringAsFixed(1),
+            'distance': '${distance.toStringAsFixed(1)} km',
+            'speciality': mechanic['specialty']?.toString() ?? 'Tyre Expert',
+            'id': mechanic['id'],
+            'phone': mechanic['phone']?.toString(),
+            'email': mechanic['email']?.toString(),
+          };
+        }).toList();
+        
+        print("Tyre Care: Found ${_tyreMechanics.length} tyre mechanics");
+      } else {
+        print("Tyre Care: Failed to fetch mechanics. Status: ${response.statusCode}");
+      }
+    } catch (e) {
+      print("Tyre Care: Error fetching mechanics: $e");
+    } finally {
+      setState(() {
+        _isLoadingMechanics = false;
+      });
+    }
   }
 
   @override
@@ -298,10 +358,17 @@ class _TyreCarePageState extends State<TyreCarePage> with TickerProviderStateMix
               ElevatedButton(
                 onPressed: () {
                   HapticFeedback.lightImpact();
+                  // Find the mechanic in the list to get phone number
+                  final mechanic = _tyreMechanics.firstWhere(
+                    (m) => m['name'] == name,
+                    orElse: () => {'phone': 'N/A'},
+                  );
+                  final phone = mechanic['phone'] ?? 'N/A';
+                  
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
-                        'Calling $name...',
+                        phone != 'N/A' ? 'Calling $name at $phone...' : 'Phone number not available',
                         style: GoogleFonts.outfit(),
                       ),
                       backgroundColor: const Color(0xFF706DC7),
@@ -364,36 +431,8 @@ class _TyreCarePageState extends State<TyreCarePage> with TickerProviderStateMix
       },
     ];
 
-    final nearbyMechanics = [
-      {
-        'name': 'Pradeep Kumar',
-        'experience': '9 years',
-        'rating': '4.8',
-        'distance': '1.1 km',
-        'speciality': 'Tyre & Puncture Expert',
-      },
-      {
-        'name': 'Manoj Tyres',
-        'experience': '15 years',
-        'rating': '4.9',
-        'distance': '1.8 km',
-        'speciality': 'Wheel Alignment Pro',
-      },
-      {
-        'name': 'Speedway Tyres',
-        'experience': '6 years',
-        'rating': '4.7',
-        'distance': '2.3 km',
-        'speciality': 'Quick Puncture Fix',
-      },
-      {
-        'name': 'MRF Tyre Shop',
-        'experience': '11 years',
-        'rating': '4.8',
-        'distance': '1.5 km',
-        'speciality': 'Premium Tyre Specialist',
-      },
-    ];
+    // Use live data from API instead of dummy data
+    final nearbyMechanics = _tyreMechanics.isEmpty ? [] : _tyreMechanics;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
@@ -673,22 +712,43 @@ class _TyreCarePageState extends State<TyreCarePage> with TickerProviderStateMix
               ),
 
               // Mechanics List
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: nearbyMechanics.length,
-                itemBuilder: (context, index) {
-                  final mechanic = nearbyMechanics[index];
-                  return _buildMechanicCard(
-                    name: mechanic['name']!,
-                    experience: mechanic['experience']!,
-                    rating: mechanic['rating']!,
-                    distance: mechanic['distance']!,
-                    speciality: mechanic['speciality']!,
-                    index: index,
-                  );
-                },
-              ),
+              _isLoadingMechanics
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: CircularProgressIndicator(
+                        color: const Color(0xFF706DC7),
+                      ),
+                    ),
+                  )
+                : nearbyMechanics.isEmpty
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(20.0),
+                        child: Text(
+                          'No tyre care mechanics available',
+                          style: GoogleFonts.inter(
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ),
+                    )
+                  : ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: nearbyMechanics.length,
+                      itemBuilder: (context, index) {
+                        final mechanic = nearbyMechanics[index];
+                        return _buildMechanicCard(
+                          name: mechanic['name'] ?? 'Unknown',
+                          experience: mechanic['experience'] ?? 'Not specified',
+                          rating: mechanic['rating'] ?? '4.0',
+                          distance: mechanic['distance'] ?? 'N/A',
+                          speciality: mechanic['speciality'] ?? 'Tyre Expert',
+                          index: index,
+                        );
+                      },
+                    ),
 
               const SizedBox(height: 20),
             ],
