@@ -21,15 +21,67 @@ public class PersonController {
     public Person createPerson(@RequestBody Person person) {
         System.out.println("📥 Received Person data: " + person);
         System.out.println("📥 Name: " + person.getName());
+        System.out.println("📥 Email: " + person.getEmail());
         System.out.println("📥 Phone: " + person.getPhone());
         System.out.println("📥 Address: " + person.getAddress());
         System.out.println("📥 Charger Type: " + person.getChargerType());
         System.out.println("📥 Rate: " + person.getRate());
         System.out.println("📥 Available Hours: " + person.getAvailableHours());
+        System.out.println("📥 DOB: " + person.getDateOfBirth());
+        System.out.println("📥 Gender: " + person.getGender());
         
         try {
+            // If email is provided, check if person already exists and update instead of creating new
+            if (person.getEmail() != null && !person.getEmail().isEmpty()) {
+                Optional<Person> existingPerson = personRepo.findByEmail(person.getEmail());
+                if (existingPerson.isPresent()) {
+                    // Update existing person
+                    Person existing = existingPerson.get();
+                    existing.setEmail(person.getEmail()); // Ensure email is set
+                    if (person.getName() != null && !person.getName().isEmpty()) {
+                        existing.setName(person.getName());
+                    }
+                    if (person.getPhone() != null && !person.getPhone().isEmpty()) {
+                        existing.setPhone(person.getPhone());
+                    }
+                    // Always update dateOfBirth and gender (handle null and empty strings)
+                    String dob = (person.getDateOfBirth() != null && !person.getDateOfBirth().isEmpty()) 
+                        ? person.getDateOfBirth() : null;
+                    String gender = (person.getGender() != null && !person.getGender().isEmpty()) 
+                        ? person.getGender() : null;
+                    existing.setDateOfBirth(dob);
+                    existing.setGender(gender);
+                    System.out.println("   Setting DOB: " + dob);
+                    System.out.println("   Setting Gender: " + gender);
+                    
+                    if (person.getAddress() != null) existing.setAddress(person.getAddress());
+                    if (person.getChargerType() != null) existing.setChargerType(person.getChargerType());
+                    if (person.getRate() != null) existing.setRate(person.getRate());
+                    if (person.getAvailableHours() != null) existing.setAvailableHours(person.getAvailableHours());
+                    
+                    Person saved = personRepo.save(existing);
+                    System.out.println("✅ Updated existing person with email: " + saved.getEmail() + ", ID: " + saved.getId());
+                    System.out.println("   Saved email in DB: " + saved.getEmail());
+                    System.out.println("   Saved DOB in DB: " + saved.getDateOfBirth());
+                    System.out.println("   Saved Gender in DB: " + saved.getGender());
+                    return saved;
+                }
+            }
+            
+            // Create new person - ensure dateOfBirth and gender are properly set
+            // Handle empty strings as null
+            if (person.getDateOfBirth() != null && person.getDateOfBirth().isEmpty()) {
+                person.setDateOfBirth(null);
+            }
+            if (person.getGender() != null && person.getGender().isEmpty()) {
+                person.setGender(null);
+            }
+            
             Person savedPerson = personRepo.save(person);
             System.out.println("✅ Person saved successfully with ID: " + savedPerson.getId());
+            System.out.println("   Saved email in DB: " + savedPerson.getEmail());
+            System.out.println("   Saved DOB in DB: " + savedPerson.getDateOfBirth());
+            System.out.println("   Saved Gender in DB: " + savedPerson.getGender());
             return savedPerson;
         } catch (Exception e) {
             System.err.println("❌ Error saving person: " + e.getMessage());
@@ -75,16 +127,26 @@ public class PersonController {
     @GetMapping("/email/{email}")
     public ResponseEntity<Person> getPersonByEmail(@PathVariable String email) {
         System.out.println("🔍 GET request for email: " + email);
+        
+        // Try to find by exact email match
         Optional<Person> person = personRepo.findByEmail(email);
         
         if (person.isPresent()) {
             Person found = person.get();
             System.out.println("✅ Found user: ID=" + found.getId() + ", Name=" + found.getName());
+            System.out.println("   Email in DB: " + found.getEmail());
             System.out.println("   DOB: " + found.getDateOfBirth());
             System.out.println("   Gender: " + found.getGender());
             return ResponseEntity.ok(found);
         } else {
+            // Debug: List all persons to see what emails exist
             System.out.println("⚠️ User not found with email: " + email);
+            System.out.println("🔍 Debug: Checking all persons in database...");
+            List<Person> allPersons = personRepo.findAll();
+            System.out.println("   Total persons in DB: " + allPersons.size());
+            for (Person p : allPersons) {
+                System.out.println("   Person ID=" + p.getId() + ", Email=" + p.getEmail() + ", Name=" + p.getName());
+            }
             return ResponseEntity.status(404).body(null);
         }
     }
@@ -109,17 +171,36 @@ public class PersonController {
         if (existingPerson.isPresent()) {
             // Update existing user
             Person existing = existingPerson.get();
-            existing.setName(person.getName());
-            existing.setPhone(person.getPhone());
-            existing.setDateOfBirth(person.getDateOfBirth());
-            existing.setGender(person.getGender());
+            if (person.getName() != null) existing.setName(person.getName());
+            if (person.getPhone() != null) existing.setPhone(person.getPhone());
+            // Handle empty strings for dateOfBirth and gender
+            String dob = (person.getDateOfBirth() != null && !person.getDateOfBirth().isEmpty()) 
+                ? person.getDateOfBirth() : null;
+            String gender = (person.getGender() != null && !person.getGender().isEmpty()) 
+                ? person.getGender() : null;
+            existing.setDateOfBirth(dob);
+            existing.setGender(gender);
+            System.out.println("   Setting DOB: " + dob);
+            System.out.println("   Setting Gender: " + gender);
+            
             Person saved = personRepo.save(existing);
             System.out.println("✅ Updated existing user profile: ID=" + saved.getId());
+            System.out.println("   Saved DOB: " + saved.getDateOfBirth());
+            System.out.println("   Saved Gender: " + saved.getGender());
             return saved;
         } else {
-            // Create new user profile
+            // Create new user profile - handle empty strings
+            if (person.getDateOfBirth() != null && person.getDateOfBirth().isEmpty()) {
+                person.setDateOfBirth(null);
+            }
+            if (person.getGender() != null && person.getGender().isEmpty()) {
+                person.setGender(null);
+            }
+            
             Person saved = personRepo.save(person);
             System.out.println("✅ Created new user profile: ID=" + saved.getId());
+            System.out.println("   Saved DOB: " + saved.getDateOfBirth());
+            System.out.println("   Saved Gender: " + saved.getGender());
             return saved;
         }
     }

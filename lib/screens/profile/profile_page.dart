@@ -402,6 +402,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     final phoneController = TextEditingController(text: _userPhone);
     final genderController = TextEditingController(text: _gender);
     DateTime? selectedDate = _dateOfBirth;
+    String selectedGender = _gender; // Local variable for gender in dialog
 
     showDialog(
       context: context,
@@ -508,65 +509,73 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                         ),
                         const SizedBox(height: 16),
                         // Date of Birth
-                        InkWell(
-                          onTap: () async {
-                            final DateTime? picked = await showDatePicker(
-                              context: context,
-                              initialDate: selectedDate ?? DateTime.now().subtract(const Duration(days: 365 * 18)),
-                              firstDate: DateTime(1950),
-                              lastDate: DateTime.now(),
+                        StatefulBuilder(
+                          builder: (BuildContext context, StateSetter setDialogState) {
+                            return InkWell(
+                              onTap: () async {
+                                final DateTime? picked = await showDatePicker(
+                                  context: context,
+                                  initialDate: selectedDate ?? DateTime.now().subtract(const Duration(days: 365 * 18)),
+                                  firstDate: DateTime(1950),
+                                  lastDate: DateTime.now(),
+                                );
+                                if (picked != null) {
+                                  setDialogState(() {
+                                    selectedDate = picked;
+                                  });
+                                }
+                              },
+                              child: InputDecorator(
+                                decoration: InputDecoration(
+                                  labelText: 'Date of Birth',
+                                  prefixIcon: const Icon(Icons.calendar_today),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  filled: true,
+                                  fillColor: Colors.grey[50],
+                                ),
+                                child: Text(
+                                  selectedDate != null
+                                      ? DateFormat('yyyy-MM-dd').format(selectedDate!)
+                                      : 'Select Date of Birth',
+                                  style: GoogleFonts.inter(
+                                    color: selectedDate != null ? Colors.black87 : Colors.grey,
+                                  ),
+                                ),
+                              ),
                             );
-                            if (picked != null) {
-                              setState(() {
-                                selectedDate = picked;
-                              });
-                            }
                           },
-                          child: InputDecorator(
-                            decoration: InputDecoration(
-                              labelText: 'Date of Birth',
-                              prefixIcon: const Icon(Icons.calendar_today),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              filled: true,
-                              fillColor: Colors.grey[50],
-                            ),
-                            child: Text(
-                              selectedDate != null
-                                  ? DateFormat('yyyy-MM-dd').format(selectedDate!)
-                                  : 'Select Date of Birth',
-                              style: GoogleFonts.inter(
-                                color: selectedDate != null ? Colors.black87 : Colors.grey,
-                              ),
-                            ),
-                          ),
                         ),
                         const SizedBox(height: 16),
                         // Gender
-                        DropdownButtonFormField<String>(
-                          value: _gender.isNotEmpty ? _gender : null,
-                          decoration: InputDecoration(
-                            labelText: 'Gender',
-                            prefixIcon: const Icon(Icons.person_outline),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            filled: true,
-                            fillColor: Colors.grey[50],
-                          ),
-                          items: ['Male', 'Female', 'Other'].map((String value) {
-                            return DropdownMenuItem<String>(
-                              value: value,
-                              child: Text(value),
+                        StatefulBuilder(
+                          builder: (BuildContext context, StateSetter setDialogState) {
+                            return DropdownButtonFormField<String>(
+                              value: selectedGender.isNotEmpty ? selectedGender : null,
+                              decoration: InputDecoration(
+                                labelText: 'Gender',
+                                prefixIcon: const Icon(Icons.person_outline),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                filled: true,
+                                fillColor: Colors.grey[50],
+                              ),
+                              items: ['Male', 'Female', 'Other'].map((String value) {
+                                return DropdownMenuItem<String>(
+                                  value: value,
+                                  child: Text(value),
+                                );
+                              }).toList(),
+                              onChanged: (String? newValue) {
+                                if (newValue != null) {
+                                  setDialogState(() {
+                                    selectedGender = newValue;
+                                  });
+                                }
+                              },
                             );
-                          }).toList(),
-                          onChanged: (String? newValue) {
-                            if (newValue != null) {
-                              setState(() {
-                                _gender = newValue;
-                              });
-                            }
                           },
                         ),
                       ],
@@ -604,6 +613,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                             _userEmail = emailController.text;
                             _userPhone = phoneController.text;
                             _dateOfBirth = selectedDate;
+                            _gender = selectedGender; // Update gender from dialog
                           });
                           _saveUserData();
                           Navigator.pop(context);

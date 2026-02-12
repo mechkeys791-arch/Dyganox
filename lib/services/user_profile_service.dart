@@ -27,15 +27,35 @@ class UserProfileService {
       print('   Phone: $phone');
       print('   DOB: $dateOfBirth');
       print('   Gender: $gender');
-      print('   URL: ${ApiConfig.baseUrl}/api/person/profile');
       
-      final response = await http.post(
-        Uri.parse('${ApiConfig.baseUrl}/api/person/profile'),
+      final jsonBody = jsonEncode(requestBody);
+      print('   Request JSON: $jsonBody');
+      
+      // Try the /profile endpoint first, fallback to base /api/person if it fails
+      String endpoint = '${ApiConfig.baseUrl}/api/person/profile';
+      print('   URL: $endpoint');
+      
+      var response = await http.post(
+        Uri.parse(endpoint),
         headers: {
           'Content-Type': 'application/json',
         },
-        body: jsonEncode(requestBody),
+        body: jsonBody,
       ).timeout(const Duration(seconds: 10));
+      
+      // If 405 Method Not Allowed, try the base POST endpoint as fallback
+      if (response.statusCode == 405) {
+        print('⚠️ /profile endpoint returned 405, trying base /api/person endpoint');
+        endpoint = '${ApiConfig.baseUrl}/api/person';
+        print('   Fallback URL: $endpoint');
+        response = await http.post(
+          Uri.parse(endpoint),
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: jsonBody,
+        ).timeout(const Duration(seconds: 10));
+      }
 
       print('📡 Response status: ${response.statusCode}');
       print('📡 Response body: ${response.body}');
