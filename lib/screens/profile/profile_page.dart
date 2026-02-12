@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:io';
 import 'package:image_picker/image_picker.dart';
+import 'dart:typed_data';
+import 'dart:convert';
+import 'package:intl/intl.dart';
 import '../vehicles/vehicles_page.dart';
 import 'addresses_page.dart';
 import 'payment_methods_page.dart';
 import 'service_history_page.dart';
 import '../../widgets/custom_nav_bar.dart';
+import '../../services/cognito_service.dart';
+import '../../services/user_profile_service.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -18,10 +23,13 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStateMixin {
-  String _userName = 'John Doe';
-  String _userEmail = 'john.doe@example.com';
-  String _userPhone = '+91 98765 43210';
+  String _userName = '';
+  String _userEmail = '';
+  String _userPhone = '';
+  DateTime? _dateOfBirth;
+  String _gender = '';
   String? _profileImagePath;
+  Uint8List? _profileImageBytes;
   bool _notificationsEnabled = true;
   bool _darkModeEnabled = false;
   late AnimationController _animationController;
@@ -49,26 +57,177 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
 
   Future<void> _loadUserData() async {
     final prefs = await SharedPreferences.getInstance();
+    
+    // Load from Cognito service keys (matching what CognitoService saves)
+    final userData = await CognitoService.getCurrentUser();
+    
+    final email = userData['email'] ?? prefs.getString('user_email') ?? '';
+    
     setState(() {
-      _userName = prefs.getString('userName') ?? 'John Doe';
-      _userEmail = prefs.getString('userEmail') ?? 'john.doe@example.com';
-      _userPhone = prefs.getString('userPhone') ?? '+91 98765 43210';
+      _userName = userData['name'] ?? prefs.getString('user_name') ?? '';
+      _userEmail = email;
+      _userPhone = userData['phone'] ?? prefs.getString('user_phone') ?? '';
+    });
+    
+    // Load Date of Birth and Gender from database
+    if (email.isNotEmpty) {
+      try {
+        final profileResult = await UserProfileService.getUserProfile(email);
+        if (profileResult['success'] == true && profileResult['data'] != null) {
+          final profileData = profileResult['data'];
+          setState(() {
+            // Update DOB from database
+            if (profileData['dateOfBirth'] != null && profileData['dateOfBirth'].toString().isNotEmpty) {
+              _dateOfBirth = DateTime.tryParse(profileData['dateOfBirth']);
+              // Also save to local storage as backup
+              if (_dateOfBirth != null) {
+                prefs.setString('user_date_of_birth', _dateOfBirth!.toIso8601String());
+              }
+            } else {
+              // Fallback to local storage if database doesn't have it
+              final dobString = prefs.getString('user_date_of_birth');
+              if (dobString != null) {
+                _dateOfBirth = DateTime.tryParse(dobString);
+              }
+            }
+            
+            // Update Gender from database
+            if (profileData['gender'] != null && profileData['gender'].toString().isNotEmpty) {
+              _gender = profileData['gender'].toString();
+              // Also save to local storage as backup
+              prefs.setString('user_gender', _gender);
+            } else {
+              // Fallback to local storage if database doesn't have it
+              _gender = prefs.getString('user_gender') ?? '';
+            }
+          });
+        } else {
+          // Database doesn't have profile, load from local storage
+          _loadFromLocalStorage(prefs);
+        }
+      } catch (e) {
+        // If database fails, load from local storage
+        print('Warning: Could not load profile from database: $e');
+        _loadFromLocalStorage(prefs);
+      }
+    } else {
+      // No email, load from local storage only
+      _loadFromLocalStorage(prefs);
+    }
+    
+    // Load profile image and settings from local storage
+    setState(() {
       _profileImagePath = prefs.getString('profileImage');
+      final imageBytesBase64 = prefs.getString('profileImageBytes');
+      if (imageBytesBase64 != null) {
+        try {
+          _profileImageBytes = base64Decode(imageBytesBase64);
+        } catch (e) {
+          _profileImageBytes = null;
+        }
+      }
+      
       _notificationsEnabled = prefs.getBool('notifications') ?? true;
       _darkModeEnabled = prefs.getBool('darkMode') ?? false;
+    });
+  }
+  
+  void _loadFromLocalStorage(SharedPreferences prefs) {
+    setState(() {
+      // Load Date of Birth from local storage
+      final dobString = prefs.getString('user_date_of_birth');
+      if (dobString != null) {
+        _dateOfBirth = DateTime.tryParse(dobString);
+      }
+      
+      // Load Gender from local storage
+      _gender = prefs.getString('user_gender') ?? '';
     });
   }
 
   Future<void> _saveUserData() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('userName', _userName);
-    await prefs.setString('userEmail', _userEmail);
-    await prefs.setString('userPhone', _userPhone);
+    
+    // Save using Cognito service keys (matching what CognitoService uses)
+    await prefs.setString('user_name', _userName);
+    await prefs.setString('user_email', _userEmail);
+    await prefs.setString('user_phone', _userPhone);
+    
+    // Save Date of Birth to local storage
+    if (_dateOfBirth != null) {
+      await prefs.setString('user_date_of_birth', _dateOfBirth!.toIso8601String());
+    } else {
+      await prefs.remove('user_date_of_birth');
+    }
+    
+    // Save Gender to local storage
+    if (_gender.isNotEmpty) {
+      await prefs.setString('user_gender', _gender);
+    } else {
+      await prefs.remove('user_gender');
+    }
+    
+    // Save Date of Birth and Gender to database
+    if (_userEmail.isNotEmpty) {
+      try {
+        final dobString = _dateOfBirth != null ? _dateOfBirth!.toIso8601String().split('T')[0] : null;
+        final result = await UserProfileService.saveUserProfile(
+          email: _userEmail,
+          name: _userName,
+          phone: _userPhone,
+          dateOfBirth: dobString,
+          gender: _gender.isNotEmpty ? _gender : null,
+        );
+        
+        if (result['success'] == true) {
+          print('✅ Profile saved to database successfully');
+        } else {
+          print('❌ Failed to save profile to database: ${result['error']}');
+          // Show error to user
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Warning: Could not save to database. Data saved locally only.'),
+                backgroundColor: Colors.orange,
+                duration: Duration(seconds: 3),
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        // If database save fails, data is still saved locally
+        print('❌ Exception saving profile to database: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Warning: Could not save to database. Data saved locally only.'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    }
+    
+    // Save profile image
     if (_profileImagePath != null) {
       await prefs.setString('profileImage', _profileImagePath!);
     }
+    if (_profileImageBytes != null) {
+      await prefs.setString('profileImageBytes', base64Encode(_profileImageBytes!));
+    } else {
+      await prefs.remove('profileImageBytes');
+    }
+    
     await prefs.setBool('notifications', _notificationsEnabled);
     await prefs.setBool('darkMode', _darkModeEnabled);
+  }
+
+  ImageProvider? _getProfileImageProvider() {
+    if (_profileImageBytes != null) {
+      return MemoryImage(_profileImageBytes!);
+    }
+    return null;
   }
 
   Future<void> _pickImage() async {
@@ -104,38 +263,33 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  _buildImageSourceOption(
-                    icon: Icons.camera_alt,
-                    label: 'Camera',
-                    onTap: () async {
-                      Navigator.pop(context);
-                      final XFile? image = await picker.pickImage(
-                        source: ImageSource.camera,
-                        imageQuality: 80,
-                      );
-                      if (image != null) {
-                        setState(() {
-                          _profileImagePath = image.path;
-                        });
-                        _saveUserData();
-                      }
-                    },
-                  ),
+                  if (!kIsWeb)
+                    _buildImageSourceOption(
+                      icon: Icons.camera_alt,
+                      label: 'Camera',
+                      onTap: () async {
+                        Navigator.pop(context);
+                        final XFile? image = await picker.pickImage(
+                          source: ImageSource.camera,
+                          imageQuality: 80,
+                        );
+                        if (image != null) {
+                          await _saveProfileImage(image);
+                        }
+                      },
+                    ),
                   _buildImageSourceOption(
                     icon: Icons.photo_library,
-                    label: 'Gallery',
+                    label: kIsWeb ? 'Choose Image' : 'Gallery',
                     onTap: () async {
                       Navigator.pop(context);
                       final XFile? image = await picker.pickImage(
-                        source: ImageSource.gallery,
+                        source: kIsWeb ? ImageSource.gallery : ImageSource.gallery,
                         imageQuality: 80,
                       );
-                      if (image != null) {
-                        setState(() {
-                          _profileImagePath = image.path;
-                        });
-                        _saveUserData();
-                      }
+                        if (image != null) {
+                          await _saveProfileImage(image);
+                        }
                     },
                   ),
                   if (_profileImagePath != null)
@@ -159,6 +313,55 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
         );
       },
     );
+  }
+
+  /// Save profile image locally
+  Future<void> _saveProfileImage(XFile image) async {
+    try {
+      // Read image bytes
+      final bytes = await image.readAsBytes();
+      
+      // Save to local storage
+      setState(() {
+        _profileImagePath = image.path;
+        _profileImageBytes = bytes;
+      });
+      
+      // Persist to SharedPreferences
+      await _saveUserData();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Profile picture saved successfully!',
+              style: GoogleFonts.inter(color: Colors.white),
+            ),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Error saving profile picture: $e',
+              style: GoogleFonts.inter(color: Colors.white),
+            ),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildImageSourceOption({
@@ -194,149 +397,251 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
   }
 
   void _showEditProfileDialog() {
-    final nameController = TextEditingController();
-    final emailController = TextEditingController();
-    final phoneController = TextEditingController();
+    final nameController = TextEditingController(text: _userName);
+    final emailController = TextEditingController(text: _userEmail);
+    final phoneController = TextEditingController(text: _userPhone);
+    final genderController = TextEditingController(text: _gender);
+    DateTime? selectedDate = _dateOfBirth;
 
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
+        return Dialog(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF6366F1).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.edit,
-                  color: Color(0xFF6366F1),
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'Edit Profile',
-                style: GoogleFonts.outfit(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                ),
-              ),
-            ],
-          ),
-          content: SingleChildScrollView(
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.9,
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
-                  controller: nameController,
-                  decoration: InputDecoration(
-                    labelText: 'Full Name',
-                    hintText: _userName,
-                    hintStyle: TextStyle(
-                      color: Colors.grey.withOpacity(0.5),
+                // Header
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF6366F1),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(20),
+                      topRight: Radius.circular(20),
                     ),
-                    prefixIcon: const Icon(Icons.person),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.edit,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Edit Personal Information',
+                          style: GoogleFonts.outfit(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.white),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                ),
+                // Content
+                Flexible(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        TextField(
+                          controller: nameController,
+                          decoration: InputDecoration(
+                            labelText: 'Full Name',
+                            prefixIcon: const Icon(Icons.person),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            filled: true,
+                            fillColor: Colors.grey[50],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: emailController,
+                          decoration: InputDecoration(
+                            labelText: 'Email',
+                            prefixIcon: const Icon(Icons.email),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            filled: true,
+                            fillColor: Colors.grey[50],
+                          ),
+                          keyboardType: TextInputType.emailAddress,
+                        ),
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: phoneController,
+                          decoration: InputDecoration(
+                            labelText: 'Phone Number',
+                            prefixIcon: const Icon(Icons.phone),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            filled: true,
+                            fillColor: Colors.grey[50],
+                          ),
+                          keyboardType: TextInputType.phone,
+                        ),
+                        const SizedBox(height: 16),
+                        // Date of Birth
+                        InkWell(
+                          onTap: () async {
+                            final DateTime? picked = await showDatePicker(
+                              context: context,
+                              initialDate: selectedDate ?? DateTime.now().subtract(const Duration(days: 365 * 18)),
+                              firstDate: DateTime(1950),
+                              lastDate: DateTime.now(),
+                            );
+                            if (picked != null) {
+                              setState(() {
+                                selectedDate = picked;
+                              });
+                            }
+                          },
+                          child: InputDecorator(
+                            decoration: InputDecoration(
+                              labelText: 'Date of Birth',
+                              prefixIcon: const Icon(Icons.calendar_today),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              filled: true,
+                              fillColor: Colors.grey[50],
+                            ),
+                            child: Text(
+                              selectedDate != null
+                                  ? DateFormat('yyyy-MM-dd').format(selectedDate!)
+                                  : 'Select Date of Birth',
+                              style: GoogleFonts.inter(
+                                color: selectedDate != null ? Colors.black87 : Colors.grey,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        // Gender
+                        DropdownButtonFormField<String>(
+                          value: _gender.isNotEmpty ? _gender : null,
+                          decoration: InputDecoration(
+                            labelText: 'Gender',
+                            prefixIcon: const Icon(Icons.person_outline),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            filled: true,
+                            fillColor: Colors.grey[50],
+                          ),
+                          items: ['Male', 'Female', 'Other'].map((String value) {
+                            return DropdownMenuItem<String>(
+                              value: value,
+                              child: Text(value),
+                            );
+                          }).toList(),
+                          onChanged: (String? newValue) {
+                            if (newValue != null) {
+                              setState(() {
+                                _gender = newValue;
+                              });
+                            }
+                          },
+                        ),
+                      ],
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: emailController,
-                  decoration: InputDecoration(
-                    labelText: 'Email',
-                    hintText: _userEmail,
-                    hintStyle: TextStyle(
-                      color: Colors.grey.withOpacity(0.5),
-                    ),
-                    prefixIcon: const Icon(Icons.email),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                // Actions
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(20),
+                      bottomRight: Radius.circular(20),
                     ),
                   ),
-                  keyboardType: TextInputType.emailAddress,
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: phoneController,
-                  decoration: InputDecoration(
-                    labelText: 'Phone Number',
-                    hintText: _userPhone,
-                    hintStyle: TextStyle(
-                      color: Colors.grey.withOpacity(0.5),
-                    ),
-                    prefixIcon: const Icon(Icons.phone),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: Text(
+                          'Cancel',
+                          style: GoogleFonts.outfit(
+                            color: const Color(0xFF64748B),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      ElevatedButton(
+                        onPressed: () {
+                          setState(() {
+                            _userName = nameController.text;
+                            _userEmail = emailController.text;
+                            _userPhone = phoneController.text;
+                            _dateOfBirth = selectedDate;
+                          });
+                          _saveUserData();
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Profile updated successfully!',
+                                style: GoogleFonts.inter(color: Colors.white),
+                              ),
+                              backgroundColor: Colors.green,
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF6366F1),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        ),
+                        child: Text(
+                          'Save',
+                          style: GoogleFonts.outfit(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  keyboardType: TextInputType.phone,
                 ),
               ],
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(
-                'Cancel',
-                style: GoogleFonts.outfit(
-                  color: const Color(0xFF64748B),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                setState(() {
-                  if (nameController.text.isNotEmpty) {
-                    _userName = nameController.text;
-                  }
-                  if (emailController.text.isNotEmpty) {
-                    _userEmail = emailController.text;
-                  }
-                  if (phoneController.text.isNotEmpty) {
-                    _userPhone = phoneController.text;
-                  }
-                });
-                _saveUserData();
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Profile updated successfully!',
-                      style: GoogleFonts.inter(color: Colors.white),
-                    ),
-                    backgroundColor: Colors.green,
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF6366F1),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: Text(
-                'Save',
-                style: GoogleFonts.outfit(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
         );
       },
     );
@@ -383,7 +688,10 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
       body: FadeTransition(
         opacity: _fadeAnimation,
         child: SingleChildScrollView(
-          padding: EdgeInsets.all(screenWidth * 0.05),
+          padding: EdgeInsets.symmetric(
+            horizontal: screenWidth * 0.04,
+            vertical: screenHeight * 0.02,
+          ),
           child: Column(
             children: [
               // Profile Header with Image
@@ -394,10 +702,8 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                       CircleAvatar(
                         radius: screenWidth * 0.15,
                         backgroundColor: const Color(0xFF706DC7),
-                        backgroundImage: _profileImagePath != null
-                            ? FileImage(File(_profileImagePath!))
-                            : null,
-                        child: _profileImagePath == null
+                        backgroundImage: _getProfileImageProvider(),
+                        child: _getProfileImageProvider() == null
                             ? Icon(
                                 Icons.person,
                                 size: screenWidth * 0.15,
@@ -467,12 +773,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
               _buildSectionHeader('Settings'),
               const SizedBox(height: 12),
               
-              _buildProfileOption(
-                icon: Icons.person_outline,
-                title: 'Personal Information',
-                subtitle: 'Update your personal details',
-                onTap: _showEditProfileDialog,
-              ),
+              _buildPersonalInfoCard(),
               
               _buildSwitchOption(
                 icon: Icons.notifications_outlined,
@@ -1137,6 +1438,128 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
           Text(value, style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
         ],
       ),
+    );
+  }
+
+  Widget _buildPersonalInfoCard() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        elevation: 2,
+        shadowColor: Colors.black.withOpacity(0.05),
+        child: InkWell(
+          onTap: _showEditProfileDialog,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF6366F1).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.person_outline,
+                        color: Color(0xFF6366F1),
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Personal Information',
+                            style: GoogleFonts.outfit(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFF1E293B),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Tap to update your details',
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              color: const Color(0xFF64748B),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(
+                      Icons.arrow_forward_ios,
+                      color: Color(0xFF94A3B8),
+                      size: 16,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                const Divider(),
+                const SizedBox(height: 16),
+                // Name
+                _buildInfoRow(Icons.person, 'Name', _userName.isNotEmpty ? _userName : 'Not set'),
+                const SizedBox(height: 16),
+                // Email
+                _buildInfoRow(Icons.email, 'Email', _userEmail.isNotEmpty ? _userEmail : 'Not set'),
+                const SizedBox(height: 16),
+                // Phone
+                _buildInfoRow(Icons.phone, 'Phone', _userPhone.isNotEmpty ? _userPhone : 'Not set'),
+                const SizedBox(height: 16),
+                // Date of Birth
+                _buildInfoRow(
+                  Icons.calendar_today,
+                  'Date of Birth',
+                  _dateOfBirth != null ? DateFormat('yyyy-MM-dd').format(_dateOfBirth!) : 'Not set',
+                ),
+                const SizedBox(height: 16),
+                // Gender
+                _buildInfoRow(Icons.person_outline, 'Gender', _gender.isNotEmpty ? _gender : 'Not set'),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(IconData icon, String label, String value) {
+    return Row(
+      children: [
+        Icon(icon, size: 20, color: const Color(0xFF64748B)),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  color: const Color(0xFF64748B),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                value,
+                style: GoogleFonts.outfit(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF1E293B),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

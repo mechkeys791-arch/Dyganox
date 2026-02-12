@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_fonts/google_fonts.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:io';
+import 'dart:typed_data';
 
 class MechanicProfileEditPage extends StatefulWidget {
   final Map<String, dynamic> mechanicProfile;
@@ -30,7 +31,7 @@ class _MechanicProfileEditPageState extends State<MechanicProfileEditPage> {
   late TextEditingController _longitudeController;
   late TextEditingController _rateController;
   
-  File? _profileImage;
+  Uint8List? _profileImageBytes;
   bool _isAvailableForNightService = false;
   bool _isCurrentlyAvailable = true;
   
@@ -69,8 +70,9 @@ class _MechanicProfileEditPageState extends State<MechanicProfileEditPage> {
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
     
     if (pickedFile != null) {
+      final bytes = await pickedFile.readAsBytes();
       setState(() {
-        _profileImage = File(pickedFile.path);
+        _profileImageBytes = bytes;
       });
     }
   }
@@ -356,9 +358,9 @@ class _MechanicProfileEditPageState extends State<MechanicProfileEditPage> {
                       ),
                     ],
                   ),
-                  child: _profileImage != null
+                  child: _profileImageBytes != null
                       ? ClipOval(
-                          child: Image.file(_profileImage!, fit: BoxFit.cover),
+                          child: Image.memory(_profileImageBytes!, fit: BoxFit.cover),
                         )
                       : const Icon(Icons.account_circle, size: 60, color: Colors.white),
                 ),

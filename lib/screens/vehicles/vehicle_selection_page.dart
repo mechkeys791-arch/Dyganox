@@ -233,7 +233,7 @@ class _VehicleSelectionPageState extends State<VehicleSelectionPage> with Ticker
         margin: const EdgeInsets.all(8),
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: isSelected ? vehicle['color'].withValues(alpha: 0.1) : Colors.white,
+          color: isSelected ? vehicle['color'].withOpacity(0.1) : Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isSelected ? vehicle['color'] : Colors.grey[300]!,
@@ -242,8 +242,8 @@ class _VehicleSelectionPageState extends State<VehicleSelectionPage> with Ticker
           boxShadow: [
             BoxShadow(
               color: isSelected 
-                  ? vehicle['color'].withValues(alpha: 0.2)
-                  : Colors.black.withValues(alpha: 0.05),
+                  ? vehicle['color'].withOpacity(0.2)
+                  : Colors.black.withOpacity(0.05),
               blurRadius: isSelected ? 15 : 10,
               offset: const Offset(0, 5),
             ),
@@ -255,8 +255,8 @@ class _VehicleSelectionPageState extends State<VehicleSelectionPage> with Ticker
               padding: const EdgeInsets.all(5),
               decoration: BoxDecoration(
                 color: isSelected 
-                    ? vehicle['color'].withValues(alpha: 0.2)
-                    : vehicle['color'].withValues(alpha: 0.1),
+                    ? vehicle['color'].withOpacity(0.2)
+                    : vehicle['color'].withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
@@ -304,8 +304,8 @@ class _VehicleSelectionPageState extends State<VehicleSelectionPage> with Ticker
           boxShadow: [
             BoxShadow(
               color: isSelected 
-                  ? const Color(0xFF6366F1).withValues(alpha: 0.2)
-                  : Colors.black.withValues(alpha: 0.05),
+                  ? const Color(0xFF6366F1).withOpacity(0.2)
+                  : Colors.black.withOpacity(0.05),
               blurRadius: 8,
               offset: const Offset(0, 3),
             ),
@@ -340,7 +340,7 @@ class _VehicleSelectionPageState extends State<VehicleSelectionPage> with Ticker
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.1),
+                        color: Colors.black.withOpacity(0.1),
                         blurRadius: 10,
                         offset: const Offset(0, 5),
                       ),
@@ -464,7 +464,7 @@ class _VehicleSelectionPageState extends State<VehicleSelectionPage> with Ticker
                               border: Border.all(color: Colors.grey[300]!),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.05),
+                                  color: Colors.black.withOpacity(0.05),
                                   blurRadius: 10,
                                   offset: const Offset(0, 5),
                                 ),
@@ -505,7 +505,7 @@ class _VehicleSelectionPageState extends State<VehicleSelectionPage> with Ticker
                             borderRadius: BorderRadius.circular(16),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFF6366F1).withValues(alpha: 0.3),
+                                color: const Color(0xFF6366F1).withOpacity(0.3),
                                 blurRadius: 15,
                                 offset: const Offset(0, 8),
                               ),
@@ -578,10 +578,10 @@ class _VehicleSelectionPageState extends State<VehicleSelectionPage> with Ticker
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: const Color(0xFF6366F1).withValues(alpha: 0.1),
+            color: const Color(0xFF6366F1).withOpacity(0.1),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: const Color(0xFF6366F1).withValues(alpha: 0.3),
+              color: const Color(0xFF6366F1).withOpacity(0.3),
               width: 1,
             ),
           ),
@@ -625,7 +625,7 @@ class _VehicleSelectionPageState extends State<VehicleSelectionPage> with Ticker
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
+                    color: Colors.black.withOpacity(0.05),
                     blurRadius: 10,
                     offset: const Offset(0, 5),
                   ),
@@ -681,7 +681,7 @@ class _VehicleSelectionPageState extends State<VehicleSelectionPage> with Ticker
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
+                    color: Colors.black.withOpacity(0.05),
                     blurRadius: 10,
                     offset: const Offset(0, 5),
                   ),
@@ -742,7 +742,7 @@ class _VehicleSelectionPageState extends State<VehicleSelectionPage> with Ticker
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
+                    color: Colors.black.withOpacity(0.05),
                     blurRadius: 10,
                     offset: const Offset(0, 5),
                   ),

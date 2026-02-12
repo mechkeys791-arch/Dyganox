@@ -5,7 +5,7 @@ publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.4.4 <4.0.0'
+  sdk: '>=3.6.0 <4.0.0'
 
 dependencies:
   flutter:
@@ -20,6 +20,14 @@ dependencies:
   http: ^1.1.0
   shared_preferences: ^2.2.2
   image_picker: ^1.0.7
+  amazon_cognito_identity_dart_2: ^3.8.1
+  intl: ^0.19.0
+  # aws_s3_upload is incompatible with Dart 3.x (only supports Dart 2.x)
+  # aws_common and aws_signature_v4 require http ^1.3.0, but amazon_cognito needs http ^1.1.0
+  # For S3, use backend API approach (see AWS_S3_PROFILE_PICTURE_SETUP.md)
+  # aws_s3_upload: ^1.5.0
+  # aws_common: ^0.7.12
+  # aws_signature_v4: ^0.3.0
   # Payment gateway - Square (for testing)
   # Note: We're using HTTP-based approach, no Square SDK needed in Flutter
 

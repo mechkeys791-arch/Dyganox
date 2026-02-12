@@ -11,11 +11,14 @@ public class Person {
     private Long id;
 
     private String name;
+    private String email; // User email (unique identifier)
     private String phone;
     private String address;
     private String chargerType;
     private String rate;
     private String availableHours;
+    private String dateOfBirth; // Date of Birth (ISO format: YYYY-MM-DD)
+    private String gender; // Gender (Male, Female, Other)
 
     public Person() {}
 
@@ -26,6 +29,15 @@ public class Person {
         this.chargerType = chargerType;
         this.rate = rate;
         this.availableHours = availableHours;
+    }
+
+    // Constructor for user profile
+    public Person(String name, String email, String phone, String dateOfBirth, String gender) {
+        this.name = name;
+        this.email = email;
+        this.phone = phone;
+        this.dateOfBirth = dateOfBirth;
+        this.gender = gender;
     }
 
     // Getters & Setters
@@ -49,4 +61,13 @@ public class Person {
 
     public String getAvailableHours() { return availableHours; }
     public void setAvailableHours(String availableHours) { this.availableHours = availableHours; }
+
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
+
+    public String getDateOfBirth() { return dateOfBirth; }
+    public void setDateOfBirth(String dateOfBirth) { this.dateOfBirth = dateOfBirth; }
+
+    public String getGender() { return gender; }
+    public void setGender(String gender) { this.gender = gender; }
 }
