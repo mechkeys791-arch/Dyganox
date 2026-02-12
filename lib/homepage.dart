@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:geocoding/geocoding.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:typed_data';
+import 'dart:convert';
 import 'screens/services/car_service_page.dart';
 import 'screens/services/bike_service_page.dart';
 import 'screens/services/minor_repair_page.dart';
@@ -49,6 +51,20 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   // Responsive design variables
   late double screenWidth;
   late double screenHeight;
+  
+  // Get profile image from SharedPreferences
+  Future<Uint8List?> _getProfileImage() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final imageBytesBase64 = prefs.getString('profileImageBytes');
+      if (imageBytesBase64 != null) {
+        return base64Decode(imageBytesBase64);
+      }
+    } catch (e) {
+      // If decoding fails, return null
+    }
+    return null;
+  }
 
   @override
   void initState() {
@@ -196,76 +212,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
       setState(() {
         _currentPosition = position;
-        _currentLocation = 'Loading address...';
-      });
-
-      // Get actual address from coordinates using reverse geocoding
-      await _getAddressFromCoordinates(position.latitude, position.longitude);
-      
-      setState(() {
+        // Show formatted coordinates as location
+        _currentLocation = 'Location: ${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}';
         _isLoadingLocation = false;
       });
     } catch (e) {
-      print('Location error: $e');
       setState(() {
         _currentLocation = 'Mangalore, Karnataka';
         _isLoadingLocation = false;
-      });
-    }
-  }
-
-  Future<void> _getAddressFromCoordinates(double latitude, double longitude) async {
-    try {
-      print('Fetching address for coordinates: $latitude, $longitude');
-      List<Placemark> placemarks = await placemarkFromCoordinates(latitude, longitude);
-      
-      print('Placemarks found: ${placemarks.length}');
-      
-      if (placemarks.isNotEmpty) {
-        Placemark place = placemarks[0];
-        
-        print('Place details:');
-        print('  Name: ${place.name}');
-        print('  Street: ${place.street}');
-        print('  Locality: ${place.locality}');
-        print('  SubLocality: ${place.subLocality}');
-        print('  Administrative Area: ${place.administrativeArea}');
-        print('  Country: ${place.country}');
-        
-        // Build a concise address string for display
-        String finalAddress = '';
-        
-        if (place.locality != null && place.locality!.isNotEmpty) {
-          finalAddress = place.locality!;
-          if (place.administrativeArea != null && place.administrativeArea!.isNotEmpty) {
-            finalAddress += ', ${place.administrativeArea!}';
-          }
-        } else if (place.subLocality != null && place.subLocality!.isNotEmpty) {
-          finalAddress = place.subLocality!;
-          if (place.administrativeArea != null && place.administrativeArea!.isNotEmpty) {
-            finalAddress += ', ${place.administrativeArea!}';
-          }
-        } else if (place.administrativeArea != null && place.administrativeArea!.isNotEmpty) {
-          finalAddress = place.administrativeArea!;
-        } else {
-          finalAddress = '${latitude.toStringAsFixed(4)}, ${longitude.toStringAsFixed(4)}';
-        }
-        
-        setState(() {
-          _currentLocation = finalAddress;
-        });
-        
-        print('Final address: $finalAddress');
-      } else {
-        print('No placemarks found');
-        setState(() {
-          _currentLocation = '${latitude.toStringAsFixed(4)}, ${longitude.toStringAsFixed(4)}';
-        });
-      }
-    } catch (e) {
-      print('Geocoding error: $e');
-      setState(() {
-        _currentLocation = '${latitude.toStringAsFixed(4)}, ${longitude.toStringAsFixed(4)}';
       });
     }
   }
@@ -315,10 +269,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               child: Container(
                 margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 child: Material(
-                  elevation: 8,
-                  borderRadius: BorderRadius.circular(16),
                   color: Colors.white,
-                  shadowColor: Colors.grey.withValues(alpha: 0.3),
                 child: InkWell(
                   onTap: () {
                     HapticFeedback.lightImpact();
@@ -341,21 +292,17 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     child: Row(
                       children: [
                         Container(
-                          width: 70,
-                          height: 70,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF706DC7).withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: const Color(0xFF706DC7).withValues(alpha: 0.3),
-                                width: 1.5,
-                              ),
-                            ),
+                          width: 56,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF2563EB).withOpacity(0.15),
+                            shape: BoxShape.circle,
+                          ),
                           child: Center(
                             child: Image.asset(
                               iconPath,
-                              width: 40,
-                              height: 40,
+                              width: 32,
+                              height: 32,
                               fit: BoxFit.contain,
                             ),
                           ),
@@ -388,12 +335,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF706DC7).withValues(alpha: 0.15),
+                            color: const Color(0xFF2563EB).withOpacity(0.15),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: const Icon(
                             Icons.arrow_forward_ios,
-                            color: Color(0xFF706DC7),
+                            color: Color(0xFF2563EB),
                             size: 16,
                           ),
                         ),
@@ -417,12 +364,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     
     return Container(
       child: Material(
-        elevation: isNightTime ? 6 : 2,
-        borderRadius: BorderRadius.circular(16),
         color: isNightTime ? const Color(0xFF1E293B) : Colors.white,
-        shadowColor: isNightTime 
-            ? const Color(0xFF706DC7).withOpacity(0.4)
-            : const Color(0xFF706DC7).withOpacity(0.2),
         child: InkWell(
           onTap: () {
             HapticFeedback.lightImpact();
@@ -449,12 +391,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   gradient: LinearGradient(
                     colors: isNightTime
                         ? [
-                            const Color(0xFF706DC7).withOpacity(0.3),
-                            const Color(0xFF706DC7).withOpacity(0.2),
+                            const Color(0xFF2563EB).withOpacity(0.3),
+                            const Color(0xFF2563EB).withOpacity(0.2),
                           ]
                         : [
-                            const Color(0xFF706DC7).withOpacity(0.1),
-                            const Color(0xFF706DC7).withOpacity(0.05),
+                            const Color(0xFF2563EB).withOpacity(0.1),
+                            const Color(0xFF2563EB).withOpacity(0.05),
                           ],
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
@@ -469,15 +411,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       height: screenWidth * 0.12,
                       decoration: BoxDecoration(
                         color: isNightTime
-                            ? const Color(0xFF706DC7).withOpacity(0.2)
-                            : const Color(0xFF706DC7).withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(12),
-                        border: isNightTime
-                            ? Border.all(
-                                color: const Color(0xFF706DC7).withOpacity(0.5),
-                                width: 1.5,
-                              )
-                            : null,
+                            ? const Color(0xFF2563EB).withOpacity(0.2)
+                            : const Color(0xFF2563EB).withOpacity(0.15),
+                        shape: BoxShape.circle,
                       ),
                       child: Center(
                         child: Image.asset(
@@ -515,11 +451,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF706DC7),
+                      color: const Color(0xFF2563EB),
                       borderRadius: BorderRadius.circular(8),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF706DC7).withOpacity(0.4),
+                          color: const Color(0xFF2563EB).withOpacity(0.4),
                           blurRadius: 8,
                           spreadRadius: 1,
                         ),
@@ -562,10 +498,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }) {
     return Container(
       child: Material(
-        elevation: 2,
-        borderRadius: BorderRadius.circular(16),
-        color: Colors.white,
-        shadowColor: color.withOpacity(0.2),
+        color: Colors.transparent,
         child: InkWell(
           onTap: () {
             HapticFeedback.lightImpact();
@@ -574,17 +507,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           borderRadius: BorderRadius.circular(16),
           child: Container(
             padding: EdgeInsets.all(screenWidth * 0.025),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              gradient: LinearGradient(
-                colors: [
-                  color.withOpacity(0.1),
-                  color.withOpacity(0.05),
-                ],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
-            ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               mainAxisSize: MainAxisSize.min,
@@ -594,7 +516,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   height: screenWidth * 0.12,
                   decoration: BoxDecoration(
                     color: color.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(12),
+                    shape: BoxShape.circle,
                   ),
                   child: Center(
                     child: Image.asset(
@@ -641,144 +563,257 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Compact Profile Header with Location
+                // Vibrant Colorful Header Section (Zomato/Swiggy Style)
                 Container(
-                  margin: EdgeInsets.symmetric(
-                    horizontal: screenWidth * 0.04, 
-                    vertical: screenHeight * 0.004
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        const Color(0xFFFF6B35), // Vibrant Orange
+                        const Color(0xFFFF8C42), // Light Orange
+                        const Color(0xFFFFA500), // Orange
+                        const Color(0xFFFFB347), // Yellow Orange
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      stops: const [0.0, 0.3, 0.7, 1.0],
+                    ),
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(30),
+                      bottomRight: Radius.circular(30),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFFF6B35).withOpacity(0.3),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
+                        spreadRadius: 5,
+                      ),
+                    ],
                   ),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: _openMapService,
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
+                  child: Column(
+                    children: [
+                      // Top Bar with Location and Profile
+                      Padding(
                         padding: EdgeInsets.symmetric(
                           horizontal: screenWidth * 0.04,
-                          vertical: screenHeight * 0.008
-                        ),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF706DC7), Color(0xFF5956A8)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF706DC7).withOpacity(0.2),
-                              blurRadius: 8,
-                              offset: const Offset(0, 3),
-                              spreadRadius: 0,
-                            ),
-                          ],
+                          vertical: screenHeight * 0.015,
                         ),
                         child: Row(
                           children: [
-                            Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: _isLoadingLocation
-                                  ? const SizedBox(
-                                      width: 14,
-                                      height: 14,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                      ),
-                                    )
-                                  : const Icon(
-                                      Icons.location_on,
-                                      color: Colors.white,
-                                      size: 14,
-                                    ),
-                            ),
-                            const SizedBox(width: 8),
+                            // Location Section
                             Expanded(
-                              child: Text(
-                                _currentLocation,
-                                style: GoogleFonts.inter(
-                                  color: Colors.white.withValues(alpha: 0.9),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w400,
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  onTap: _openMapService,
+                                  borderRadius: BorderRadius.circular(15),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 10,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.25),
+                                      borderRadius: BorderRadius.circular(15),
+                                      border: Border.all(
+                                        color: Colors.white.withOpacity(0.3),
+                                        width: 1.5,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        _isLoadingLocation
+                                            ? const SizedBox(
+                                                width: 16,
+                                                height: 16,
+                                                child: CircularProgressIndicator(
+                                                  strokeWidth: 2,
+                                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                                ),
+                                              )
+                                            : const Icon(
+                                                Icons.location_on_rounded,
+                                                color: Colors.white,
+                                                size: 20,
+                                              ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            _currentLocation,
+                                            style: GoogleFonts.outfit(
+                                              color: Colors.white,
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        const Icon(
+                                          Icons.keyboard_arrow_down_rounded,
+                                          color: Colors.white,
+                                          size: 20,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: const Icon(
-                                Icons.map,
-                                color: Colors.white,
-                                size: 14,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            // Profile Logo
-                            Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Icon(
-                                Icons.person,
-                                color: Colors.white,
-                                size: 18,
+                            const SizedBox(width: 12),
+                            // Profile Picture/Icon
+                            Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: () {
+                                  Navigator.pushNamed(context, '/profile');
+                                },
+                                borderRadius: BorderRadius.circular(20),
+                                child: FutureBuilder<Uint8List?>(
+                                  future: _getProfileImage(),
+                                  builder: (context, snapshot) {
+                                    if (snapshot.hasData && snapshot.data != null) {
+                                      return Container(
+                                        width: 40,
+                                        height: 40,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: Colors.white.withOpacity(0.5),
+                                            width: 2,
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withOpacity(0.2),
+                                              blurRadius: 8,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ],
+                                        ),
+                                        child: ClipOval(
+                                          child: Image.memory(
+                                            snapshot.data!,
+                                            fit: BoxFit.cover,
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                    return Container(
+                                      width: 40,
+                                      height: 40,
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withOpacity(0.25),
+                                        borderRadius: BorderRadius.circular(20),
+                                        border: Border.all(
+                                          color: Colors.white.withOpacity(0.3),
+                                          width: 1.5,
+                                        ),
+                                      ),
+                                      child: const Icon(
+                                        Icons.person_rounded,
+                                        color: Colors.white,
+                                        size: 22,
+                                      ),
+                                    );
+                                  },
+                                ),
                               ),
                             ),
                           ],
                         ),
                       ),
-                    ),
+                      
+                      // Welcome Message
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: screenWidth * 0.04,
+                          vertical: screenHeight * 0.008,
+                        ),
+                        child: Row(
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Hello! 👋',
+                                  style: GoogleFonts.outfit(
+                                    color: Colors.white,
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'What service do you need today?',
+                                  style: GoogleFonts.inter(
+                                    color: Colors.white.withOpacity(0.95),
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 20),
+                    ],
                   ),
                 ),
 
-                // Search Bar with Results
+                // Search Bar with Results - Colorful Design
                 Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                  margin: EdgeInsets.only(
+                    left: screenWidth * 0.04,
+                    right: screenWidth * 0.04,
+                    top: screenHeight * 0.02,
+                    bottom: 8,
+                  ),
                   child: Column(
                     children: [
                       AnimatedContainer(
                         duration: const Duration(milliseconds: 300),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(_isSearchActive ? 16 : 25),
+                          borderRadius: BorderRadius.circular(_isSearchActive ? 20 : 30),
                           boxShadow: [
                             BoxShadow(
-                            color: _isSearchActive 
-                                ? const Color(0xFF706DC7).withValues(alpha: 0.2)
-                                : Colors.black.withValues(alpha: 0.1),
-                              blurRadius: _isSearchActive ? 20 : 15,
-                              offset: const Offset(0, 5),
-                              spreadRadius: _isSearchActive ? 2 : 0,
+                              color: _isSearchActive 
+                                  ? const Color(0xFFFF6B35).withOpacity(0.3)
+                                  : Colors.black.withOpacity(0.15),
+                              blurRadius: _isSearchActive ? 25 : 20,
+                              offset: const Offset(0, 8),
+                              spreadRadius: _isSearchActive ? 3 : 2,
                             ),
                           ],
                           border: Border.all(
                             color: _isSearchActive 
-                                ? const Color(0xFF706DC7).withValues(alpha: 0.5)
+                                ? const Color(0xFFFF6B35).withOpacity(0.6)
                                 : Colors.transparent,
-                            width: 1,
+                            width: 2,
                           ),
                         ),
                         child: Row(
                           children: [
-                            Icon(
-                              Icons.search,
-                              color: _isSearchActive 
-                                  ? const Color(0xFF706DC7)
-                                  : const Color(0xFFB4BDC4),
-                              size: 20,
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: _isSearchActive 
+                                    ? const Color(0xFFFF6B35).withOpacity(0.1)
+                                    : const Color(0xFFFF6B35).withOpacity(0.05),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Icon(
+                                Icons.search_rounded,
+                                color: _isSearchActive 
+                                    ? const Color(0xFFFF6B35)
+                                    : const Color(0xFFFF6B35).withOpacity(0.7),
+                                size: 22,
+                              ),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
@@ -811,16 +846,17 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                 },
                                 style: GoogleFonts.inter(
                                   color: Colors.black87,
-                                  fontSize: 14,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w500,
                                 ),
                                 decoration: InputDecoration(
                                   hintText: 'Search for services...',
                                   hintStyle: GoogleFonts.inter(
-                                    color: const Color(0xFFB4BDC4),
-                                    fontSize: 12,
+                                    color: Colors.grey[500],
+                                    fontSize: 14,
                                   ),
                                   border: InputBorder.none,
-                                  contentPadding: const EdgeInsets.symmetric(vertical: 4),
+                                  contentPadding: const EdgeInsets.symmetric(vertical: 8),
                                 ),
                               ),
                             ),
@@ -832,30 +868,42 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                     _searchResults.clear();
                                   });
                                 },
-                                child: const Icon(
-                                  Icons.clear,
-                                  color: Colors.grey,
-                                  size: 18,
+                                child: Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[200],
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(
+                                    Icons.close_rounded,
+                                    color: Colors.grey,
+                                    size: 18,
+                                  ),
                                 ),
                               ),
                           ],
                         ),
                       ),
                       
-                      // Search Results Dropdown
+                      // Search Results Dropdown - Colorful
                       if (_isSearchActive && _searchResults.isNotEmpty)
                         Container(
-                          margin: const EdgeInsets.only(top: 8),
+                          margin: const EdgeInsets.only(top: 12),
                           decoration: BoxDecoration(
                             color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(20),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
-                                blurRadius: 15,
-                                offset: const Offset(0, 5),
+                                color: const Color(0xFFFF6B35).withOpacity(0.2),
+                                blurRadius: 20,
+                                offset: const Offset(0, 8),
+                                spreadRadius: 2,
                               ),
                             ],
+                            border: Border.all(
+                              color: const Color(0xFFFF6B35).withOpacity(0.2),
+                              width: 1.5,
+                            ),
                           ),
                           child: ListView.builder(
                             shrinkWrap: true,
@@ -876,33 +924,52 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                     });
                                     service['route']();
                                   },
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(16),
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
                                     decoration: BoxDecoration(
                                       color: isFirstItem 
-                                          ? const Color(0xFF706DC7).withOpacity(0.08)
+                                          ? const Color(0xFFFF6B35).withOpacity(0.1)
                                           : Colors.transparent,
-                                      borderRadius: BorderRadius.circular(12),
+                                      borderRadius: BorderRadius.circular(16),
                                     ),
                                     child: Row(
                                       children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(8),
+                                          decoration: BoxDecoration(
+                                            color: isFirstItem 
+                                                ? const Color(0xFFFF6B35).withOpacity(0.15)
+                                                : Colors.grey[100],
+                                            borderRadius: BorderRadius.circular(10),
+                                          ),
+                                          child: Icon(
+                                            Icons.search_rounded,
+                                            color: isFirstItem 
+                                                ? const Color(0xFFFF6B35)
+                                                : Colors.grey[600],
+                                            size: 18,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
                                         Expanded(
                                           child: Text(
                                             service['name'],
                                             style: GoogleFonts.outfit(
-                                              fontSize: 15,
+                                              fontSize: 16,
                                               fontWeight: isFirstItem ? FontWeight.bold : FontWeight.w600,
                                               color: isFirstItem 
-                                                  ? const Color(0xFF706DC7)
+                                                  ? const Color(0xFFFF6B35)
                                                   : Colors.black87,
                                             ),
                                           ),
                                         ),
-                                        const Icon(
-                                          Icons.arrow_forward_ios,
-                                          size: 14,
-                                          color: Color(0xFF706DC7),
+                                        Icon(
+                                          Icons.arrow_forward_ios_rounded,
+                                          size: 16,
+                                          color: isFirstItem 
+                                              ? const Color(0xFFFF6B35)
+                                              : Colors.grey[400],
                                         ),
                                       ],
                                     ),
@@ -961,9 +1028,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ),
                 ),
 
-                // Sliding Advertisement Section
+                // Sliding Advertisement Section - Colorful
                 Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  margin: EdgeInsets.symmetric(
+                    horizontal: screenWidth * 0.04,
+                    vertical: 8,
+                  ),
                   height: 200,
                   child: PageView.builder(
                     controller: _adPageController,
@@ -979,73 +1049,92 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ),
                 ),
                 
-                // Page Indicators
+                // Page Indicators - Orange Theme
                 Container(
-                  margin: const EdgeInsets.only(bottom: 4),
+                  margin: const EdgeInsets.only(bottom: 8),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: List.generate(3, (index) {
-                      return Container(
+                      return AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
                         margin: const EdgeInsets.symmetric(horizontal: 4),
-                        width: _currentAdIndex == index ? 20 : 8,
+                        width: _currentAdIndex == index ? 24 : 8,
                         height: 8,
                         decoration: BoxDecoration(
                           color: _currentAdIndex == index 
-                              ? const Color(0xFF706DC7) 
+                              ? const Color(0xFFFF6B35) 
                               : Colors.grey[300],
                           borderRadius: BorderRadius.circular(4),
+                          boxShadow: _currentAdIndex == index ? [
+                            BoxShadow(
+                              color: const Color(0xFFFF6B35).withOpacity(0.5),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ] : null,
                         ),
                       );
                     }),
                   ),
                 ),
 
-                // Find Nearest Mechanic - Compact Feature
+                // Find Nearest Mechanic - Vibrant Colorful Card
                 Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  margin: EdgeInsets.symmetric(
+                    horizontal: screenWidth * 0.04,
+                    vertical: 12,
+                  ),
                   child: Material(
-                    elevation: 4,
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(20),
                     child: InkWell(
                       onTap: () {
                         HapticFeedback.lightImpact();
                         _showFindMechanicDialog();
                       },
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(20),
                       child: Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.all(18),
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF706DC7), Color(0xFF8B7ED8)],
+                          gradient: LinearGradient(
+                            colors: [
+                              const Color(0xFFFF6B35),
+                              const Color(0xFFFF8C42),
+                              const Color(0xFFFFA500),
+                            ],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
+                            stops: const [0.0, 0.5, 1.0],
                           ),
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(20),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF706DC7).withOpacity(0.3),
-                              blurRadius: 15,
-                              offset: const Offset(0, 5),
-                              spreadRadius: 1,
+                              color: const Color(0xFFFF6B35).withOpacity(0.4),
+                              blurRadius: 20,
+                              offset: const Offset(0, 8),
+                              spreadRadius: 3,
                             ),
                           ],
                         ),
                         child: Row(
                           children: [
                             Container(
-                              padding: const EdgeInsets.all(12),
+                              padding: const EdgeInsets.all(14),
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(12),
+                                color: Colors.white.withOpacity(0.25),
+                                borderRadius: BorderRadius.circular(15),
+                                border: Border.all(
+                                  color: Colors.white.withOpacity(0.4),
+                                  width: 2,
+                                ),
                               ),
                               child: const Icon(
-                                Icons.location_searching,
+                                Icons.location_searching_rounded,
                                 color: Colors.white,
-                                size: 24,
+                                size: 28,
                               ),
                             ),
-                            const SizedBox(width: 16),
+                            const SizedBox(width: 18),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1054,26 +1143,34 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                     'Find Nearest Mechanic',
                                     style: GoogleFonts.outfit(
                                       color: Colors.white,
-                                      fontSize: 18,
+                                      fontSize: 20,
                                       fontWeight: FontWeight.bold,
+                                      letterSpacing: 0.5,
                                     ),
                                   ),
-                                  const SizedBox(height: 4),
+                                  const SizedBox(height: 6),
                                   Text(
                                     'Tap to see mechanics near you',
                                     style: GoogleFonts.inter(
-                                      color: Colors.white.withOpacity(0.9),
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w400,
+                                      color: Colors.white.withOpacity(0.95),
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
                                     ),
                                   ),
                                 ],
                               ),
                             ),
-                            const Icon(
-                              Icons.arrow_forward_ios,
-                              color: Colors.white,
-                              size: 16,
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.25),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(
+                                Icons.arrow_forward_ios_rounded,
+                                color: Colors.white,
+                                size: 18,
+                              ),
                             ),
                           ],
                         ),
@@ -1093,27 +1190,58 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     children: [
                       Row(
                         children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  const Color(0xFFFF6B35),
+                                  const Color(0xFFFF8C42),
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '⚡',
+                              style: TextStyle(fontSize: 20),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
                           Text(
                             'Quick Services',
                             style: GoogleFonts.outfit(
                               fontSize: screenWidth * 0.055,
                               fontWeight: FontWeight.bold,
                               color: const Color(0xFF1F2937),
+                              letterSpacing: 0.5,
                             ),
                           ),
                           const Spacer(),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF706DC7).withOpacity(0.1),
+                              gradient: LinearGradient(
+                                colors: [
+                                  const Color(0xFFFF6B35).withOpacity(0.15),
+                                  const Color(0xFFFF8C42).withOpacity(0.15),
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
                               borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: const Color(0xFFFF6B35).withOpacity(0.3),
+                                width: 1.5,
+                              ),
                             ),
                             child: Text(
                               '7 Services',
                               style: GoogleFonts.inter(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: const Color(0xFF706DC7),
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFFFF6B35),
                               ),
                             ),
                           ),
@@ -1145,7 +1273,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             _buildQuickServiceCard(
                               title: 'Towing',
                               iconPath: 'assets/icons/tow-truck.png',
-                              color: const Color(0xFF706DC7),
+                              color: const Color(0xFF2563EB),
                               onTap: () {
                                 Navigator.push(
                                   context,
@@ -1175,7 +1303,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             _buildQuickServiceCard(
                               title: 'Fuel Refill',
                               iconPath: 'assets/icons/fuel-station.png',
-                              color: const Color(0xFF706DC7),
+                              color: const Color(0xFF2563EB),
                               onTap: () {
                                 Navigator.push(
                                   context,
@@ -1205,7 +1333,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             _buildQuickServiceCard(
                               title: 'EV Charging',
                               iconPath: 'assets/icons/charging-station.png',
-                              color: const Color(0xFF706DC7),
+                              color: const Color(0xFF2563EB),
                               onTap: () {
                                 Navigator.push(
                                   context,
@@ -1235,7 +1363,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             _buildQuickServiceCard(
                               title: 'Tyre Care',
                               iconPath: 'assets/icons/tyre.png',
-                              color: const Color(0xFF706DC7),
+                              color: const Color(0xFF2563EB),
                               onTap: () {
                                 Navigator.push(
                                   context,
@@ -1265,7 +1393,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             _buildQuickServiceCard(
                               title: 'Minor Repair',
                               iconPath: 'assets/icons/repair-tools.png',
-                              color: const Color(0xFF706DC7),
+                              color: const Color(0xFF2563EB),
                               onTap: () {
                                 Navigator.push(
                                   context,
@@ -1295,7 +1423,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                            _buildQuickServiceCard(
                              title: 'Battery Jump',
                              iconPath: 'assets/icons/jump-start.png',
-                             color: const Color(0xFF706DC7),
+                             color: const Color(0xFF2563EB),
                              onTap: () {
                                Navigator.push(
                                  context,
@@ -1339,12 +1467,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF706DC7).withOpacity(0.1),
+                              color: const Color(0xFF2563EB).withOpacity(0.1),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: const Icon(
                               Icons.build,
-                              color: Color(0xFF706DC7),
+                              color: Color(0xFF2563EB),
                               size: 24,
                             ),
                           ),
@@ -1361,7 +1489,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF706DC7).withOpacity(0.1),
+                              color: const Color(0xFF2563EB).withOpacity(0.1),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(
@@ -1369,7 +1497,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                               style: GoogleFonts.inter(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color: const Color(0xFF706DC7),
+                                color: const Color(0xFF2563EB),
                               ),
                             ),
                           ),
@@ -1460,24 +1588,24 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         'title': 'Emergency Roadside Assistance',
         'subtitle': '24/7 Support Available',
         'icon': Icons.emergency,
-        'color': const Color(0xFFEF4444),
-        'gradient': [const Color(0xFFEF4444), const Color(0xFFDC2626)],
+        'color': const Color(0xFFFF6B35),
+        'gradient': [const Color(0xFFFF6B35), const Color(0xFFFF8C42), const Color(0xFFFFA500)],
         'image': 'assets/icons/eva_on_road.png',
       },
       {
         'title': 'Premium Car Service',
         'subtitle': 'Expert Mechanics at Your Doorstep',
         'icon': Icons.build_circle,
-        'color': const Color(0xFF706DC7),
-        'gradient': [const Color(0xFF706DC7), const Color(0xFF059669)],
+        'color': const Color(0xFFFF6B35),
+        'gradient': [const Color(0xFFFF8C42), const Color(0xFFFFA500), const Color(0xFFFFB347)],
         'image': 'assets/icons/luxcar.png',
       },
       {
         'title': 'EV Charging Network',
         'subtitle': 'Find Nearest Charging Stations',
         'icon': Icons.electric_car,
-        'color': const Color(0xFF706DC7),
-        'gradient': [const Color(0xFF706DC7), const Color(0xFF7C3AED)],
+        'color': const Color(0xFFFF6B35),
+        'gradient': [const Color(0xFFFF6B35), const Color(0xFFFF8C42), const Color(0xFFFFA500)],
         'image': 'assets/icons/evnw.png',
       },
     ];
@@ -1521,14 +1649,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 },
               ),
             ),
-            // Subtle dark overlay for text readability only
+            // Subtle overlay for text readability - lighter to show vibrant colors
             Positioned.fill(
               child: Container(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      Colors.black.withOpacity(0.3),
-                      Colors.black.withOpacity(0.4),
+                      Colors.black.withOpacity(0.15),
+                      Colors.black.withOpacity(0.25),
                     ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
@@ -1599,50 +1727,3 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

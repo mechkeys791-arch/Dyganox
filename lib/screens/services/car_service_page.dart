@@ -78,10 +78,7 @@ class _CarServicePageState extends State<CarServicePage> with TickerProviderStat
             child: Container(
               margin: const EdgeInsets.all(8),
               child: Material(
-                elevation: 6,
-                borderRadius: BorderRadius.circular(16),
                 color: Colors.white,
-                shadowColor: const Color(0xFF706DC7).withOpacity(0.2),
                 child: InkWell(
                   onTap: () {
                     HapticFeedback.lightImpact();
@@ -94,38 +91,23 @@ class _CarServicePageState extends State<CarServicePage> with TickerProviderStat
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(16),
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.white,
-                          const Color(0xFF706DC7).withOpacity(0.05),
-                        ],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                      ),
-                      border: Border.all(
-                        color: const Color(0xFF706DC7).withOpacity(0.15),
-                        width: 1,
-                      ),
+                      color: Colors.white,
                     ),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Container(
-                          width: 55,
-                          height: 55,
+                          width: 48,
+                          height: 48,
                           decoration: BoxDecoration(
-                            color: const Color(0xFF706DC7).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(
-                              color: const Color(0xFF706DC7).withOpacity(0.2),
-                              width: 1,
-                            ),
+                            color: const Color(0xFF2563EB).withOpacity(0.15),
+                            shape: BoxShape.circle,
                           ),
                           child: Center(
                             child: Image.asset(
                               iconPath,
-                              width: 35,
-                              height: 35,
+                              width: 28,
+                              height: 28,
                               fit: BoxFit.contain,
                             ),
                           ),
@@ -221,14 +203,14 @@ class _CarServicePageState extends State<CarServicePage> with TickerProviderStat
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [Color(0xFF706DC7), Color(0xFF9C89F6)],
+                    colors: [Color(0xFF2563EB), Color(0xFF3B82F6)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF706DC7).withOpacity(0.3),
+                      color: const Color(0xFF2563EB).withOpacity(0.3),
                       blurRadius: 20,
                       offset: const Offset(0, 10),
                     ),
@@ -394,7 +376,7 @@ class _CarServicePageState extends State<CarServicePage> with TickerProviderStat
                                         Container(
                                           padding: const EdgeInsets.all(12),
                                           decoration: BoxDecoration(
-                                            color: const Color(0xFF706DC7).withOpacity(0.1),
+                                            color: const Color(0xFF2563EB).withOpacity(0.1),
                                             borderRadius: BorderRadius.circular(8),
                                           ),
                                           child: Row(
@@ -402,14 +384,14 @@ class _CarServicePageState extends State<CarServicePage> with TickerProviderStat
                                               const Icon(
                                                 Icons.access_time,
                                                 size: 16,
-                                                color: Color(0xFF706DC7),
+                                                color: Color(0xFF2563EB),
                                               ),
                                               const SizedBox(width: 8),
                                               Text(
                                                 'Service available 24/7',
                                                 style: GoogleFonts.outfit(
                                                   fontSize: 12,
-                                                  color: const Color(0xFF706DC7),
+                                                  color: const Color(0xFF2563EB),
                                                   fontWeight: FontWeight.w600,
                                                 ),
                                               ),
@@ -429,7 +411,7 @@ class _CarServicePageState extends State<CarServicePage> with TickerProviderStat
                                       ElevatedButton(
                                         onPressed: () => Navigator.pop(context),
                                         style: ElevatedButton.styleFrom(
-                                          backgroundColor: const Color(0xFF706DC7),
+                                          backgroundColor: const Color(0xFF2563EB),
                                           shape: RoundedRectangleBorder(
                                             borderRadius: BorderRadius.circular(8),
                                           ),

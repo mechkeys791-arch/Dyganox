@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../services/cognito_service.dart';
+import '../../homepage.dart';
 import 'user_type_selection_page.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -42,13 +44,14 @@ class _SplashScreenState extends State<SplashScreen>
 
     _animationController.forward();
 
-    // Navigate to user type selection after 3 seconds to allow animation to complete
-    Future.delayed(const Duration(seconds: 3), () {
+    // Check login status and navigate accordingly
+    Future.delayed(const Duration(seconds: 3), () async {
       if (mounted) {
+        final isLoggedIn = await CognitoService.isLoggedIn();
         Navigator.of(context).pushReplacement(
           PageRouteBuilder(
             pageBuilder: (context, animation, secondaryAnimation) =>
-                const UserTypeSelectionPage(),
+                isLoggedIn ? const HomePage() : const UserTypeSelectionPage(),
             transitionsBuilder: (context, animation, secondaryAnimation, child) {
               return FadeTransition(
                 opacity: animation,

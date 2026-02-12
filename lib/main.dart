@@ -6,7 +6,12 @@ import 'screens/profile/profile_page.dart';
 import 'emergency_assistance_page.dart';
 import 'screens/test/backend_test_page.dart';
 import 'screens/test/test_ev_api_page.dart';
+import 'screens/auth/login_page.dart';
+import 'screens/auth/signup_page.dart';
+import 'screens/auth/otp_verification_page.dart';
 import 'screens/auth/user_type_selection_page.dart';
+import 'screens/auth/forgot_password_page.dart';
+import 'screens/auth/reset_password_page.dart';
 import 'screens/mechanic/mechanic_registration_page.dart';
 import 'screens/mechanic/mechanic_dashboard_page.dart';
 
@@ -98,7 +103,8 @@ class ServiceProviderApp extends StatelessWidget {
         '/emergency': (context) => const EmergencyAssistancePage(),
         '/backend-test': (context) => const BackendTestPage(),
         '/test-ev-api': (context) => const TestEVAPIPage(),
-        '/user-type-selection': (context) => const UserTypeSelectionPage(),
+        '/login': (context) => const LoginPage(),
+        '/signup': (context) => const SignupPage(),
         '/mechanic-registration': (context) => const MechanicRegistrationPage(),
         '/mechanic-dashboard': (context) {
           final args = ModalRoute.of(context)?.settings.arguments;

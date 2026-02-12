@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../services/cognito_service.dart';
 import '../../homepage.dart';
+import 'login_page.dart';
 import '../mechanic/mechanic_registration_page.dart';
 
 class UserTypeSelectionPage extends StatefulWidget {
@@ -50,202 +52,190 @@ class _UserTypeSelectionPageState extends State<UserTypeSelectionPage>
     super.dispose();
   }
 
+  Future<void> _checkLoginStatus() async {
+    final isLoggedIn = await CognitoService.isLoggedIn();
+    if (isLoggedIn && mounted) {
+      Navigator.of(context).pushReplacement(
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) => const HomePage(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+          transitionDuration: const Duration(milliseconds: 400),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Check login status on build
+    _checkLoginStatus();
+
     return Scaffold(
-      backgroundColor: const Color(0xFF6366F1),
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
+            colors: [
+              const Color(0xFFFF6B35),
+              const Color(0xFFFF8C42),
+              const Color(0xFFFFA500),
+            ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF6366F1), // Indigo-500
-              Color(0xFF8B5CF6), // Violet-500
-              Color(0xFF06B6D4), // Cyan-500
-            ],
-            stops: [0.0, 0.5, 1.0],
+            stops: const [0.0, 0.5, 1.0],
           ),
         ),
         child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              children: [
-                const Spacer(),
-                
-                // Logo Animation
-                AnimatedBuilder(
-                  animation: _animationController,
-                  builder: (context, child) {
-                    return FadeTransition(
-                      opacity: _fadeAnimation,
-                      child: ScaleTransition(
-                        scale: _scaleAnimation,
-                        child: Container(
-                          width: 140,
-                          height: 140,
-                          decoration: BoxDecoration(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Logo Animation
+                  AnimatedBuilder(
+                    animation: _animationController,
+                    builder: (context, child) {
+                      return FadeTransition(
+                        opacity: _fadeAnimation,
+                        child: ScaleTransition(
+                          scale: _scaleAnimation,
+                          child: Container(
+                            width: 120,
+                            height: 120,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(30),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.2),
+                                  blurRadius: 30,
+                                  offset: const Offset(0, 10),
+                                  spreadRadius: 5,
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.car_repair_rounded,
+                              size: 60,
+                              color: Color(0xFFFF6B35),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  
+                  const SizedBox(height: 50),
+                  
+                  // Title
+                  AnimatedBuilder(
+                    animation: _fadeAnimation,
+                    builder: (context, child) {
+                      return FadeTransition(
+                        opacity: _fadeAnimation,
+                        child: Text(
+                          'Welcome to Dyganox',
+                          style: GoogleFonts.outfit(
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
                             color: Colors.white,
-                            borderRadius: BorderRadius.circular(30),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.2),
-                                blurRadius: 20,
-                                offset: const Offset(0, 10),
-                                spreadRadius: 0,
-                              ),
-                            ],
+                            letterSpacing: 0.5,
                           ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(30),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Image.asset(
-                                'assets/icons/dyganox_logo.png',
-                                fit: BoxFit.contain,
-                                errorBuilder: (context, error, stackTrace) {
-                                  // Fallback icon if logo doesn't exist
-                                  return Container(
-                                    decoration: BoxDecoration(
-                                      gradient: const LinearGradient(
-                                        colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                      ),
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: const Icon(
-                                      Icons.car_repair,
-                                      size: 60,
-                                      color: Colors.white,
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
+                          textAlign: TextAlign.center,
+                        ),
+                      );
+                    },
+                  ),
+                  
+                  const SizedBox(height: 12),
+                  
+                  AnimatedBuilder(
+                    animation: _fadeAnimation,
+                    builder: (context, child) {
+                      return FadeTransition(
+                        opacity: _fadeAnimation,
+                        child: Text(
+                          'Choose your account type',
+                          style: GoogleFonts.inter(
+                            fontSize: 16,
+                            color: Colors.white.withOpacity(0.9),
                           ),
+                          textAlign: TextAlign.center,
                         ),
-                      ),
-                    );
-                  },
-                ),
-                
-                const SizedBox(height: 30),
-                
-                // App Name Animation
-                AnimatedBuilder(
-                  animation: _fadeAnimation,
-                  builder: (context, child) {
-                    return FadeTransition(
-                      opacity: _fadeAnimation,
-                      child: Text(
-                        'Dyganox',
-                        style: GoogleFonts.outfit(
-                          fontSize: 36,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          letterSpacing: 2,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                
-                const SizedBox(height: 8),
-                
-                // Tagline Animation
-                AnimatedBuilder(
-                  animation: _fadeAnimation,
-                  builder: (context, child) {
-                    return FadeTransition(
-                      opacity: _fadeAnimation,
-                      child: Text(
-                        'Vehicle Service Provider',
-                        style: GoogleFonts.inter(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w400,
-                          color: Colors.white.withOpacity(0.9),
-                          letterSpacing: 1,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                
-                const SizedBox(height: 60),
-                
-                // User Option
-                AnimatedBuilder(
-                  animation: _fadeAnimation,
-                  builder: (context, child) {
-                    return FadeTransition(
-                      opacity: _fadeAnimation,
-                      child: _buildOptionCard(
-                        title: 'I\'m a User',
-                        subtitle: 'Find nearby mechanics and services',
-                        icon: Icons.person,
-                        color: Colors.white,
-                        onTap: () {
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const HomePage(),
+                      );
+                    },
+                  ),
+                  
+                  const SizedBox(height: 60),
+                  
+                  // User Type Cards
+                  AnimatedBuilder(
+                    animation: _fadeAnimation,
+                    builder: (context, child) {
+                      return FadeTransition(
+                        opacity: _fadeAnimation,
+                        child: Column(
+                          children: [
+                            // User Card
+                            _buildTypeCard(
+                              icon: Icons.person_rounded,
+                              title: 'I\'m a User',
+                              subtitle: 'Find mechanics and get services',
+                              color: Colors.white,
+                              onTap: () {
+                                Navigator.of(context).pushReplacement(
+                                  PageRouteBuilder(
+                                    pageBuilder: (context, animation, secondaryAnimation) =>
+                                        const LoginPage(),
+                                    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                                      return SlideTransition(
+                                        position: Tween<Offset>(
+                                          begin: const Offset(1.0, 0.0),
+                                          end: Offset.zero,
+                                        ).animate(animation),
+                                        child: child,
+                                      );
+                                    },
+                                  ),
+                                );
+                              },
                             ),
-                          );
-                        },
-                      ),
-                    );
-                  },
-                ),
-                
-                const SizedBox(height: 20),
-                
-                // Mechanic Option
-                AnimatedBuilder(
-                  animation: _fadeAnimation,
-                  builder: (context, child) {
-                    return FadeTransition(
-                      opacity: _fadeAnimation,
-                      child: _buildOptionCard(
-                        title: 'I\'m a Mechanic',
-                        subtitle: 'Register to provide services',
-                        icon: Icons.build_circle,
-                        color: Colors.white.withOpacity(0.1),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const MechanicRegistrationPage(),
+                            
+                            const SizedBox(height: 24),
+                            
+                            // Mechanic Card
+                            _buildTypeCard(
+                              icon: Icons.build_rounded,
+                              title: 'I\'m a Mechanic',
+                              subtitle: 'Register and offer services',
+                              color: Colors.white.withOpacity(0.9),
+                              onTap: () {
+                                Navigator.of(context).pushReplacement(
+                                  PageRouteBuilder(
+                                    pageBuilder: (context, animation, secondaryAnimation) =>
+                                        const MechanicRegistrationPage(),
+                                    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                                      return SlideTransition(
+                                        position: Tween<Offset>(
+                                          begin: const Offset(1.0, 0.0),
+                                          end: Offset.zero,
+                                        ).animate(animation),
+                                        child: child,
+                                      );
+                                    },
+                                  ),
+                                );
+                              },
                             ),
-                          );
-                        },
-                      ),
-                    );
-                  },
-                ),
-                
-                const Spacer(),
-                
-                // Footer
-                AnimatedBuilder(
-                  animation: _fadeAnimation,
-                  builder: (context, child) {
-                    return FadeTransition(
-                      opacity: _fadeAnimation,
-                      child: Text(
-                        'Join thousands of satisfied customers',
-                        style: GoogleFonts.inter(
-                          fontSize: 14,
-                          color: Colors.white.withOpacity(0.7),
+                          ],
                         ),
-                      ),
-                    );
-                  },
-                ),
-                
-                const SizedBox(height: 20),
-              ],
+                      );
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -253,10 +243,10 @@ class _UserTypeSelectionPageState extends State<UserTypeSelectionPage>
     );
   }
 
-  Widget _buildOptionCard({
+  Widget _buildTypeCard({
+    required IconData icon,
     required String title,
     required String subtitle,
-    required IconData icon,
     required Color color,
     required VoidCallback onTap,
   }) {
@@ -264,51 +254,44 @@ class _UserTypeSelectionPageState extends State<UserTypeSelectionPage>
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(24),
         child: Container(
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+          padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
             color: color,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.2),
-              width: 1,
-            ),
+            borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.1),
-                blurRadius: 10,
-                offset: const Offset(0, 5),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
               ),
             ],
           ),
           child: Row(
             children: [
               Container(
-                width: 56,
-                height: 56,
+                width: 70,
+                height: 70,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: color == Colors.white
-                        ? [
-                            const Color(0xFF6366F1).withOpacity(0.8),
-                            const Color(0xFF8B7ED8),
-                          ]
-                        : [
-                            Colors.white.withOpacity(0.2),
-                            Colors.white.withOpacity(0.1),
-                          ],
+                    colors: [
+                      const Color(0xFFFF6B35),
+                      const Color(0xFFFF8C42),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(18),
                 ),
                 child: Icon(
                   icon,
-                  color: color == Colors.white ? Colors.white : Colors.white.withOpacity(0.9),
-                  size: 26,
+                  size: 35,
+                  color: Colors.white,
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 20),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -316,31 +299,26 @@ class _UserTypeSelectionPageState extends State<UserTypeSelectionPage>
                     Text(
                       title,
                       style: GoogleFonts.outfit(
-                        fontSize: 18,
+                        fontSize: 22,
                         fontWeight: FontWeight.bold,
-                        color: color == Colors.white ? const Color(0xFF1E293B) : Colors.white,
+                        color: const Color(0xFF1E293B),
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 6),
                     Text(
                       subtitle,
                       style: GoogleFonts.inter(
-                        fontSize: 13,
-                        color: color == Colors.white 
-                            ? Colors.grey[600] 
-                            : Colors.white.withOpacity(0.8),
+                        fontSize: 14,
+                        color: Colors.grey[600],
                       ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
               Icon(
-                Icons.arrow_forward_ios,
-                color: color == Colors.white ? const Color(0xFF6366F1) : Colors.white.withOpacity(0.8),
-                size: 18,
+                Icons.arrow_forward_ios_rounded,
+                color: Colors.grey[400],
+                size: 20,
               ),
             ],
           ),
