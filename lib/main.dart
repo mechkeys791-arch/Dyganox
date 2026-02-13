@@ -105,6 +105,7 @@ class ServiceProviderApp extends StatelessWidget {
         '/test-ev-api': (context) => const TestEVAPIPage(),
         '/login': (context) => const LoginPage(),
         '/signup': (context) => const SignupPage(),
+        '/user-type-selection': (context) => const UserTypeSelectionPage(),
         '/mechanic-registration': (context) => const MechanicRegistrationPage(),
         '/mechanic-dashboard': (context) {
           final args = ModalRoute.of(context)?.settings.arguments;

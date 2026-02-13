@@ -10,4 +10,7 @@ import java.util.List;
 public interface MechanicRequestRepo extends JpaRepository<MechanicRequest, Long> {
     List<MechanicRequest> findByMechanicIdAndStatus(Long mechanicId, String status);
     List<MechanicRequest> findByMechanicIdOrderByRequestTimeDesc(Long mechanicId);
+    List<MechanicRequest> findByCustomerEmailOrderByRequestTimeDesc(String customerEmail);
+    List<MechanicRequest> findByCustomerPhoneOrderByRequestTimeDesc(String customerPhone);
+    List<MechanicRequest> findByStatus(String status); // For active jobs (ACCEPTED status)
 }

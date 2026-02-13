@@ -23,6 +23,10 @@ public class MechanicController {
         System.out.println("📥 Received Mechanic data: " + mechanic);
         
         try {
+            // Set default approval status to PENDING for new mechanics
+            if (mechanic.getApprovalStatus() == null || mechanic.getApprovalStatus().isEmpty()) {
+                mechanic.setApprovalStatus("PENDING");
+            }
             Mechanic savedMechanic = mechanicRepo.save(mechanic);
             System.out.println("✅ Mechanic saved successfully with ID: " + savedMechanic.getId());
             return ResponseEntity.status(HttpStatus.CREATED).body(savedMechanic);
@@ -34,11 +38,21 @@ public class MechanicController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Mechanic>> getAllMechanics() {
+    public ResponseEntity<List<Mechanic>> getAllMechanics(@RequestParam(required = false) String approved) {
         System.out.println("📤 GET request received - fetching all mechanics");
         try {
             List<Mechanic> mechanics = mechanicRepo.findAll();
-            System.out.println("📤 Found " + mechanics.size() + " mechanics in database");
+            
+            // If approved=true parameter is passed, filter to only approved mechanics
+            if ("true".equalsIgnoreCase(approved)) {
+                mechanics = mechanics.stream()
+                        .filter(m -> m.getApprovalStatus() != null && m.getApprovalStatus().equals("APPROVED"))
+                        .collect(java.util.stream.Collectors.toList());
+                System.out.println("📤 Found " + mechanics.size() + " approved mechanics");
+            } else {
+                System.out.println("📤 Found " + mechanics.size() + " mechanics in database");
+            }
+            
             return ResponseEntity.ok(mechanics);
         } catch (Exception e) {
             System.err.println("❌ Error fetching mechanics: " + e.getMessage());

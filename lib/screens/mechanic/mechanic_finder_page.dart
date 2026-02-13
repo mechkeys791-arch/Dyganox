@@ -66,15 +66,22 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
     });
 
     try {
-      print("Mechanic Finder: Fetching mechanics from database...");
+      print("Mechanic Finder: Fetching approved mechanics from database...");
+      // Only fetch approved mechanics for users
       final response = await http.get(
-        Uri.parse(ApiConfig.mechanicEndpoint),
+        Uri.parse("${ApiConfig.mechanicEndpoint}?approved=true"),
         headers: {"Content-Type": "application/json"},
       );
 
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
-        _allMechanics = data.map((mechanic) {
+        // Filter to only approved mechanics (double check on client side)
+        final approvedMechanics = data.where((mechanic) {
+          String approvalStatus = mechanic['approvalStatus']?.toString() ?? 'PENDING';
+          return approvalStatus == 'APPROVED';
+        }).toList();
+        
+        _allMechanics = approvedMechanics.map((mechanic) {
           double lat = double.tryParse(mechanic['latitude']?.toString() ?? '0') ?? 0.0;
           double lng = double.tryParse(mechanic['longitude']?.toString() ?? '0') ?? 0.0;
           

@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dyganox Admin Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-tools"></i>
+                    <h2>Dyganox Admin</h2>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" data-section="dashboard">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#" class="nav-item" data-section="mechanics">
+                    <i class="fas fa-users-cog"></i>
+                    <span>Mechanics</span>
+                </a>
+                <a href="#" class="nav-item" data-section="pending">
+                    <i class="fas fa-user-clock"></i>
+                    <span>Pending Approvals</span>
+                    <span class="badge" id="pending-badge">0</span>
+                </a>
+                <a href="#" class="nav-item" data-section="requests">
+                    <i class="fas fa-clipboard-list"></i>
+                    <span>Service Requests</span>
+                </a>
+                <a href="#" class="nav-item" data-section="tracking">
+                    <i class="fas fa-route"></i>
+                    <span>Request Tracking</span>
+                </a>
+                <a href="#" class="nav-item" data-section="analytics">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>Analytics</span>
+                </a>
+                <a href="#" class="nav-item" data-section="users">
+                    <i class="fas fa-user-friends"></i>
+                    <span>User Management</span>
+                </a>
+                <a href="#" class="nav-item" data-section="live-tracking">
+                    <i class="fas fa-map-marked-alt"></i>
+                    <span>Live Tracking</span>
+                </a>
+                <a href="#" class="nav-item" data-section="active-jobs">
+                    <i class="fas fa-briefcase"></i>
+                    <span>Active Jobs</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="header">
+                <h1 id="page-title">Dashboard Overview</h1>
+                <div class="header-actions">
+                    <button class="btn-refresh" onclick="refreshData()">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                    <div class="user-info">
+                        <i class="fas fa-user-circle"></i>
+                        <span>Admin</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Dashboard Section -->
+            <section id="dashboard-section" class="content-section active">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon blue">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="stat-total-mechanics">0</h3>
+                            <p>Total Mechanics</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon green">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="stat-approved-mechanics">0</h3>
+                            <p>Approved Mechanics</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon orange">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="stat-pending-mechanics">0</h3>
+                            <p>Pending Approvals</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon purple">
+                            <i class="fas fa-clipboard-list"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="stat-total-requests">0</h3>
+                            <p>Total Requests</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon teal">
+                            <i class="fas fa-check-double"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="stat-completed-requests">0</h3>
+                            <p>Completed Requests</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon red">
+                            <i class="fas fa-dollar-sign"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="stat-revenue">₹0</h3>
+                            <p>Total Revenue</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <h3>Requests by Status</h3>
+                        <canvas id="requests-chart"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Requests by Service Type</h3>
+                        <canvas id="service-type-chart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Mechanics Section -->
+            <section id="mechanics-section" class="content-section">
+                <div class="section-header">
+                    <h2>All Mechanics</h2>
+                    <div class="filter-controls">
+                        <select id="mechanic-filter" onchange="filterMechanics()">
+                            <option value="all">All Mechanics</option>
+                            <option value="APPROVED">Approved</option>
+                            <option value="PENDING">Pending</option>
+                            <option value="REJECTED">Rejected</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Phone</th>
+                                <th>Specialty</th>
+                                <th>Experience</th>
+                                <th>Status</th>
+                                <th>Approval</th>
+                                <th>Blocked</th>
+                                <th>Suspended</th>
+                                <th>Online</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="mechanics-table-body">
+                            <tr>
+                                <td colspan="9" class="loading">Loading mechanics...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Pending Approvals Section -->
+            <section id="pending-section" class="content-section">
+                <div class="section-header">
+                    <h2>Pending Mechanic Approvals</h2>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Phone</th>
+                                <th>Specialty</th>
+                                <th>Experience</th>
+                                <th>Location</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pending-table-body">
+                            <tr>
+                                <td colspan="8" class="loading">Loading pending mechanics...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Service Requests Section -->
+            <section id="requests-section" class="content-section">
+                <div class="section-header">
+                    <h2>Service Requests</h2>
+                    <div class="filter-controls">
+                        <select id="request-filter" onchange="filterRequests()">
+                            <option value="all">All Requests</option>
+                            <option value="PENDING">Pending</option>
+                            <option value="ACCEPTED">Accepted</option>
+                            <option value="COMPLETED">Completed</option>
+                            <option value="REJECTED">Rejected</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Customer</th>
+                                <th>Service Type</th>
+                                <th>Mechanic ID</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                                <th>Request Time</th>
+                                <th>Response Time</th>
+                            </tr>
+                        </thead>
+                        <tbody id="requests-table-body">
+                            <tr>
+                                <td colspan="8" class="loading">Loading requests...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Request Tracking Section -->
+            <section id="tracking-section" class="content-section">
+                <div class="section-header">
+                    <h2>Mechanic Request Tracking</h2>
+                    <p class="section-subtitle">Monitor which mechanics are responding to service requests</p>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Mechanic ID</th>
+                                <th>Mechanic Name</th>
+                                <th>Total Requests</th>
+                                <th>Accepted</th>
+                                <th>Completed</th>
+                                <th>Pending</th>
+                                <th>Avg Response Time</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tracking-table-body">
+                            <tr>
+                                <td colspan="8" class="loading">Loading tracking data...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Analytics Section -->
+            <section id="analytics-section" class="content-section">
+                <div class="section-header">
+                    <h2>Detailed Analytics</h2>
+                </div>
+                <div class="analytics-grid">
+                    <div class="analytics-card">
+                        <h3>Mechanic Statistics</h3>
+                        <div class="analytics-content" id="mechanic-stats"></div>
+                    </div>
+                    <div class="analytics-card">
+                        <h3>Request Statistics</h3>
+                        <div class="analytics-content" id="request-stats"></div>
+                    </div>
+                    <div class="analytics-card">
+                        <h3>Revenue Statistics</h3>
+                        <div class="analytics-content" id="revenue-stats"></div>
+                    </div>
+                    <div class="analytics-card">
+                        <h3>Payment Statistics</h3>
+                        <div class="analytics-content" id="payment-stats"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- User Management Section -->
+            <section id="users-section" class="content-section">
+                <div class="section-header">
+                    <h2>User Management</h2>
+                    <div class="filter-controls">
+                        <input type="text" id="user-search" placeholder="Search by phone/email..." 
+                               onkeyup="searchUsers()" style="padding: 10px 16px; border: 1px solid var(--border-color); border-radius: 8px; width: 300px;">
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Phone</th>
+                                <th>Date of Birth</th>
+                                <th>Gender</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-table-body">
+                            <tr>
+                                <td colspan="7" class="loading">Loading users...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Live Tracking Section -->
+            <section id="live-tracking-section" class="content-section">
+                <div class="section-header">
+                    <h2>Live Mechanic Tracking</h2>
+                    <div class="filter-controls">
+                        <select id="location-filter" onchange="filterLocations()">
+                            <option value="all">All Mechanics</option>
+                            <option value="online">Online Only</option>
+                            <option value="offline">Offline Only</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>Status</th>
+                                    <th>Location</th>
+                                    <th>Last Update</th>
+                                </tr>
+                            </thead>
+                            <tbody id="locations-table-body">
+                                <tr>
+                                    <td colspan="5" class="loading">Loading locations...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="chart-card" style="height: 500px;">
+                        <h3>Mechanic Locations Map</h3>
+                        <div id="map" style="width: 100%; height: 450px; border-radius: 8px;"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Active Jobs Section -->
+            <section id="active-jobs-section" class="content-section">
+                <div class="section-header">
+                    <h2>Active Jobs</h2>
+                    <p class="section-subtitle">Currently active service requests being handled by mechanics</p>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Request ID</th>
+                                    <th>Customer</th>
+                                    <th>Service Type</th>
+                                    <th>Mechanic</th>
+                                    <th>Amount</th>
+                                    <th>Request Time</th>
+                                </tr>
+                            </thead>
+                            <tbody id="active-jobs-table-body">
+                                <tr>
+                                    <td colspan="6" class="loading">Loading active jobs...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="chart-card" style="height: 500px;">
+                        <h3>Active Jobs Map</h3>
+                        <div id="jobs-map" style="width: 100%; height: 450px; border-radius: 8px;"></div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modal for Mechanic Details -->
+    <div id="mechanic-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Mechanic Performance</h2>
+            <div id="mechanic-performance-content"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Maps API - Replace YOUR_GOOGLE_MAPS_API_KEY with your actual API key -->
+    <!-- Get your API key from: https://console.cloud.google.com/google/maps-apis -->
+    <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&callback=initMaps" async defer></script>
+    <!-- If you don't have a Google Maps API key, comment out the line above and maps will not load -->
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

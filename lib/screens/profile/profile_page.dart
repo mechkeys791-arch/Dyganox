@@ -983,11 +983,10 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                             ),
                             ElevatedButton(
                               onPressed: () async {
-                                final prefs = await SharedPreferences.getInstance();
-                                await prefs.clear();
+                                await CognitoService.signOut();
                                 if (context.mounted) {
                                   Navigator.pop(context); // Close dialog
-                                  // Navigate to login and remove all previous routes
+                                  // Navigate to user type selection and remove all previous routes
                                   Navigator.pushNamedAndRemoveUntil(
                                     context,
                                     '/user-type-selection',
