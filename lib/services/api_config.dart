@@ -23,7 +23,7 @@ class ApiConfig {
   
   // AWS EC2 Instance Public IP
   // TODO: Update this with your new EC2 instance IP after creating it
-  static const String _ec2PublicIp = '54.175.33.37';
+  static const String _ec2PublicIp = '34.228.113.212';
   
   // Your computer's local IP address (for local testing)
   static const String _localIpAddress = '192.168.11.73';

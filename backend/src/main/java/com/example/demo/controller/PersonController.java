@@ -9,7 +9,6 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Optional;
 
-@CrossOrigin(origins = "*") // allow Flutter requests
 @RestController
 @RequestMapping("/api/person")
 public class PersonController {

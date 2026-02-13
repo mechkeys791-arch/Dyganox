@@ -13,10 +13,10 @@ public class corsconfig {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/**")
-                        .allowedOriginPatterns("*") // Allow all origins (for Flutter web, mobile, etc.)
+                        .allowedOriginPatterns("*") // Allow all origins (Flutter web, mobile, etc.)
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
                         .allowedHeaders("*")
-                        .allowCredentials(true)
+                        .allowCredentials(false) // Must be false when using * origin (browser CORS spec)
                         .maxAge(3600);
             }
         };

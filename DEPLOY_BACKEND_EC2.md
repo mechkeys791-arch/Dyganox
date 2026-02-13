@@ -15,7 +15,7 @@ This will create: `backend/target/ev-charging-backend-0.0.1-SNAPSHOT.jar`
 
 **Option A: Using SCP (from your local machine)**
 ```bash
-scp -i /path/to/your-key.pem backend/target/ev-charging-backend-0.0.1-SNAPSHOT.jar ec2-user@54.175.33.37:/home/ec2-user/
+scp -i /path/to/your-key.pem backend/target/ev-charging-backend-0.0.1-SNAPSHOT.jar ec2-user@34.228.113.212:/home/ec2-user/
 ```
 
 **Option B: Using AWS Console**
@@ -24,7 +24,7 @@ scp -i /path/to/your-key.pem backend/target/ev-charging-backend-0.0.1-SNAPSHOT.j
 ### 3. SSH into EC2 Instance
 
 ```bash
-ssh -i /path/to/your-key.pem ec2-user@54.175.33.37
+ssh -i /path/to/your-key.pem ec2-user@34.228.113.212
 ```
 
 ### 4. Stop the Running Backend (if running as a service)
@@ -116,8 +116,8 @@ curl -X POST http://localhost:8081/api/person/profile \
 
 ```bash
 cd backend && mvn clean package -DskipTests && \
-scp -i ~/.ssh/your-key.pem target/ev-charging-backend-0.0.1-SNAPSHOT.jar ec2-user@54.175.33.37:/home/ec2-user/ && \
-ssh -i ~/.ssh/your-key.pem ec2-user@54.175.33.37 "sudo systemctl restart dyganox-backend"
+scp -i ~/.ssh/your-key.pem target/ev-charging-backend-0.0.1-SNAPSHOT.jar ec2-user@34.228.113.212:/home/ec2-user/ && \
+ssh -i ~/.ssh/your-key.pem ec2-user@34.228.113.212 "sudo systemctl restart dyganox-backend"
 ```
 
 ## Notes

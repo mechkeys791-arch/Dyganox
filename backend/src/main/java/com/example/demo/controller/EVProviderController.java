@@ -10,7 +10,6 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Optional;
 
-@CrossOrigin(origins = "*") // allow Flutter and Postman requests
 @RestController
 @RequestMapping("/api/evprovider")
 public class EVProviderController {
