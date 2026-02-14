@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:geocoding/geocoding.dart';
 import 'dart:convert';
+import '../../services/user_profile_service.dart';
+import '../../services/cognito_service.dart';
 
 class AddressesPage extends StatefulWidget {
   const AddressesPage({super.key});
@@ -20,6 +23,44 @@ class _AddressesPageState extends State<AddressesPage> {
   }
 
   Future<void> _loadAddresses() async {
+    // Try to load from database first
+    try {
+      final userData = await CognitoService.getCurrentUser();
+      final email = userData['email'];
+      
+      if (email != null) {
+        final result = await UserProfileService.getUserAddresses(email);
+        if (result['success'] == true && result['data'] != null) {
+          final List<dynamic> dbAddresses = result['data'];
+          setState(() {
+            _addresses = dbAddresses.map((addr) {
+              return {
+                'id': addr['id'].toString(),
+                'label': addr['label'] ?? '',
+                'addressLine1': addr['addressLine1'] ?? addr['fullAddress'] ?? '',
+                'addressLine2': addr['addressLine2'] ?? '',
+                'city': addr['city'] ?? '',
+                'pincode': addr['pincode'] ?? '',
+                'type': addr['type'] ?? 'other',
+                'fullAddress': addr['fullAddress'] ?? '',
+                'latitude': addr['latitude'],
+                'longitude': addr['longitude'],
+                'isSelected': addr['isSelected'] ?? false,
+              };
+            }).toList();
+          });
+          
+          // Also save to local storage for offline access
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('addresses', json.encode(_addresses));
+          return;
+        }
+      }
+    } catch (e) {
+      print('Error loading addresses from database: $e');
+    }
+    
+    // Fallback to local storage
     final prefs = await SharedPreferences.getInstance();
     final String? addressesJson = prefs.getString('addresses');
     if (addressesJson != null) {
@@ -30,8 +71,26 @@ class _AddressesPageState extends State<AddressesPage> {
   }
 
   Future<void> _saveAddresses() async {
+    // Save to local storage
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('addresses', json.encode(_addresses));
+    
+    // Save to database
+    try {
+      final userData = await CognitoService.getCurrentUser();
+      final email = userData['email'];
+      
+      if (email != null) {
+        for (var address in _addresses) {
+          await UserProfileService.saveUserAddress(
+            email: email,
+            address: address,
+          );
+        }
+      }
+    } catch (e) {
+      print('Error saving addresses to database: $e');
+    }
   }
 
   void _showAddEditAddressDialog({Map<String, dynamic>? address, int? index}) {
@@ -157,57 +216,149 @@ class _AddressesPageState extends State<AddressesPage> {
               ),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 if (labelController.text.isNotEmpty &&
                     addressLine1Controller.text.isNotEmpty &&
                     cityController.text.isNotEmpty &&
                     pincodeController.text.isNotEmpty) {
-                  setState(() {
-                    if (index != null) {
-                      _addresses[index] = {
-                        'label': labelController.text,
-                        'addressLine1': addressLine1Controller.text,
-                        'addressLine2': addressLine2Controller.text,
-                        'city': cityController.text,
-                        'pincode': pincodeController.text,
-                        'type': selectedType,
-                      };
-                    } else {
-                      _addresses.add({
-                        'label': labelController.text,
-                        'addressLine1': addressLine1Controller.text,
-                        'addressLine2': addressLine2Controller.text,
-                        'city': cityController.text,
-                        'pincode': pincodeController.text,
-                        'type': selectedType,
-                      });
-                    }
-                  });
-                  _saveAddresses();
+                  
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        address == null ? 'Address added successfully!' : 'Address updated successfully!',
-                        style: GoogleFonts.inter(color: Colors.white),
-                      ),
-                      backgroundColor: Colors.green,
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
-                  );
+                  
+                  // Prepare address data
+                  final addressData = {
+                    'label': labelController.text,
+                    'addressLine1': addressLine1Controller.text,
+                    'addressLine2': addressLine2Controller.text,
+                    'city': cityController.text,
+                    'pincode': pincodeController.text,
+                    'type': selectedType,
+                    'fullAddress': '${addressLine1Controller.text}, ${addressLine2Controller.text.isNotEmpty ? addressLine2Controller.text + ", " : ""}${cityController.text}, ${pincodeController.text}',
+                  };
+                  
+                  // If updating, preserve the ID and other fields
+                  if (index != null && _addresses[index]['id'] != null) {
+                    addressData['id'] = _addresses[index]['id'];
+                    addressData['latitude'] = _addresses[index]['latitude'];
+                    addressData['longitude'] = _addresses[index]['longitude'];
+                    addressData['isSelected'] = _addresses[index]['isSelected'] ?? false;
+                  }
+                  
+                  // Save to database
+                  try {
+                    final userData = await CognitoService.getCurrentUser();
+                    final email = userData['email'];
+                    
+                    if (email != null) {
+                      final result = await UserProfileService.saveUserAddress(
+                        email: email,
+                        address: addressData,
+                      );
+                      
+                      if (result['success'] == true) {
+                        final savedAddress = result['data'];
+                        
+                        // Update local state
+                        setState(() {
+                          if (index != null) {
+                            _addresses[index] = {
+                              'id': savedAddress['id']?.toString() ?? _addresses[index]['id'],
+                              'label': savedAddress['label'] ?? labelController.text,
+                              'addressLine1': savedAddress['addressLine1'] ?? addressLine1Controller.text,
+                              'addressLine2': savedAddress['addressLine2'] ?? addressLine2Controller.text,
+                              'city': savedAddress['city'] ?? cityController.text,
+                              'pincode': savedAddress['pincode'] ?? pincodeController.text,
+                              'type': savedAddress['type'] ?? selectedType,
+                              'fullAddress': savedAddress['fullAddress'] ?? addressData['fullAddress'],
+                              'latitude': savedAddress['latitude'] ?? _addresses[index]['latitude'],
+                              'longitude': savedAddress['longitude'] ?? _addresses[index]['longitude'],
+                              'isSelected': savedAddress['isSelected'] ?? false,
+                            };
+                          } else {
+                            _addresses.add({
+                              'id': savedAddress['id']?.toString(),
+                              'label': savedAddress['label'] ?? labelController.text,
+                              'addressLine1': savedAddress['addressLine1'] ?? addressLine1Controller.text,
+                              'addressLine2': savedAddress['addressLine2'] ?? addressLine2Controller.text,
+                              'city': savedAddress['city'] ?? cityController.text,
+                              'pincode': savedAddress['pincode'] ?? pincodeController.text,
+                              'type': savedAddress['type'] ?? selectedType,
+                              'fullAddress': savedAddress['fullAddress'] ?? addressData['fullAddress'],
+                              'latitude': savedAddress['latitude'],
+                              'longitude': savedAddress['longitude'],
+                              'isSelected': savedAddress['isSelected'] ?? false,
+                            });
+                          }
+                        });
+                        
+                        // Update local storage
+                        final prefs = await SharedPreferences.getInstance();
+                        await prefs.setString('addresses', json.encode(_addresses));
+                        
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                index != null ? 'Address updated successfully!' : 'Address saved successfully!',
+                                style: GoogleFonts.inter(color: Colors.white)),
+                              backgroundColor: Colors.green,
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                          );
+                        }
+                      } else {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Failed to save address: ${result['error'] ?? 'Unknown error'}',
+                                style: GoogleFonts.inter(color: Colors.white)),
+                              backgroundColor: Colors.red,
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                          );
+                        }
+                      }
+                    } else {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('User not logged in', style: GoogleFonts.inter(color: Colors.white)),
+                            backgroundColor: Colors.red,
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        );
+                      }
+                    }
+                  } catch (e) {
+                    print('Error saving address: $e');
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Error saving address: $e', style: GoogleFonts.inter(color: Colors.white)),
+                          backgroundColor: Colors.red,
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      );
+                    }
+                  }
                 } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Please fill all required fields',
-                        style: GoogleFonts.inter(color: Colors.white),
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Please fill all required fields',
+                          style: GoogleFonts.inter(color: Colors.white),
+                        ),
+                        backgroundColor: const Color(0xFFEF4444),
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
-                      backgroundColor: const Color(0xFFEF4444),
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
-                  );
+                    );
+                  }
                 }
               },
               style: ElevatedButton.styleFrom(
@@ -225,7 +376,12 @@ class _AddressesPageState extends State<AddressesPage> {
     );
   }
 
-  void _deleteAddress(int index) {
+  Future<void> _deleteAddress(int index) async {
+    if (index >= _addresses.length) return;
+    
+    final address = _addresses[index];
+    final addressId = address['id'];
+    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -254,20 +410,78 @@ class _AddressesPageState extends State<AddressesPage> {
             child: Text('Cancel', style: GoogleFonts.outfit(color: const Color(0xFF64748B))),
           ),
           ElevatedButton(
-            onPressed: () {
-              setState(() {
-                _addresses.removeAt(index);
-              });
-              _saveAddresses();
+            onPressed: () async {
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Address deleted successfully!', style: GoogleFonts.inter(color: Colors.white)),
-                  backgroundColor: const Color(0xFFEF4444),
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-              );
+              
+              // Delete from database
+              try {
+                final userData = await CognitoService.getCurrentUser();
+                final email = userData['email'];
+                
+                if (email != null && addressId != null) {
+                  final result = await UserProfileService.deleteUserAddress(
+                    email: email,
+                    addressId: addressId,
+                  );
+                  
+                  if (result['success'] == true) {
+                    // Remove from local state
+                    setState(() {
+                      _addresses.removeAt(index);
+                    });
+                    
+                    // Update local storage
+                    final prefs = await SharedPreferences.getInstance();
+                    await prefs.setString('addresses', json.encode(_addresses));
+                    
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Address deleted successfully!', style: GoogleFonts.inter(color: Colors.white)),
+                          backgroundColor: const Color(0xFFEF4444),
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      );
+                    }
+                  } else {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Failed to delete address: ${result['error'] ?? 'Unknown error'}', 
+                            style: GoogleFonts.inter(color: Colors.white)),
+                          backgroundColor: Colors.red,
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      );
+                    }
+                  }
+                } else {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('User not logged in', style: GoogleFonts.inter(color: Colors.white)),
+                        backgroundColor: Colors.red,
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                    );
+                  }
+                }
+              } catch (e) {
+                print('Error deleting address: $e');
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error deleting address: $e', style: GoogleFonts.inter(color: Colors.white)),
+                      backgroundColor: Colors.red,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  );
+                }
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFEF4444),

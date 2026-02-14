@@ -830,12 +830,10 @@ class _EVChargingScreenState extends State<EVChargingScreen> {
   }
 
   Future<void> _createPolylineRoute(LatLng destination) async {
-    // TODO: Replace with your actual Google Maps API key
-    // Get your API key from: https://console.cloud.google.com/google/maps-apis
-    const String apiKey = 'AIzaSyB82H7s8dM-Z9v5E_3HIl301m0iM3e6ctc';
+    const String apiKey = 'AIzaSyCkWqRCPB-EovWgvPFuLirPBDKU30wYDzc';
     
     // If no API key is provided, use fallback route
-    if (apiKey == 'AIzaSyB82H7s8dM-Z9v5E_3HIl301m0iM3e6ctc') {
+    if (apiKey.isEmpty) {
       print('No Google Maps API key provided. Using straight line route.');
       _createFallbackRoute(destination);
       return;
@@ -1729,9 +1727,9 @@ class _NavigationMapScreenState extends State<NavigationMapScreen> {
     });
 
     try {
-      const String apiKey = 'AIzaSyB82H7s8dM-Z9v5E_3HIl301m0iM3e6ctc';
+      const String apiKey = 'AIzaSyCkWqRCPB-EovWgvPFuLirPBDKU30wYDzc';
       
-      if (apiKey == 'AIzaSyB82H7s8dM-Z9v5E_3HIl301m0iM3e6ctc') {
+      if (apiKey.isEmpty) {
         _createFallbackRoute();
         return;
       }

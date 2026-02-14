@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../services/cognito_service.dart';
 import '../../homepage.dart';
+import '../mechanic/mechanic_registration_comprehensive_page.dart';
 
 class OTPVerificationPage extends StatefulWidget {
   final String phoneNumber;
@@ -10,6 +11,8 @@ class OTPVerificationPage extends StatefulWidget {
   final String name;
   final String password;
   final bool isSignIn; // Flag to indicate if this is sign-in OTP
+  /// After verify, go to mechanic registration form instead of HomePage.
+  final bool forMechanicSignUp;
 
   const OTPVerificationPage({
     super.key,
@@ -18,6 +21,7 @@ class OTPVerificationPage extends StatefulWidget {
     required this.name,
     required this.password,
     this.isSignIn = false,
+    this.forMechanicSignUp = false,
   });
 
   @override
@@ -116,13 +120,18 @@ class _OTPVerificationPageState extends State<OTPVerificationPage>
     // Trim and ensure code is exactly 6 digits
     final trimmedOtp = otp.trim();
     
-    // OTP verification is only for signup (not sign-in)
-    // For forgot password, use confirmPasswordReset
-    final result = await CognitoService.verifyOTP(
-      email: widget.email,
-      code: trimmedOtp,
-      password: widget.password,
-    );
+    // OTP verification: use mechanic pool when forMechanicSignUp
+    final result = widget.forMechanicSignUp
+        ? await CognitoService.verifyOTPForMechanic(
+            email: widget.email,
+            code: trimmedOtp,
+            password: widget.password,
+          )
+        : await CognitoService.verifyOTP(
+            email: widget.email,
+            code: trimmedOtp,
+            password: widget.password,
+          );
 
     if (!mounted) return;
 
@@ -131,17 +140,31 @@ class _OTPVerificationPageState extends State<OTPVerificationPage>
     });
 
     if (result['success'] == true) {
-      // Navigate to home page
-      Navigator.of(context).pushAndRemoveUntil(
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => const HomePage(),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return FadeTransition(opacity: animation, child: child);
-          },
-          transitionDuration: const Duration(milliseconds: 400),
-        ),
-        (route) => false,
-      );
+      if (widget.forMechanicSignUp) {
+        // Mechanic: go to registration form with name, email, phone from account (read-only)
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (context) => MechanicRegistrationComprehensivePage(
+              prefilledName: widget.name,
+              prefilledEmail: widget.email,
+              prefilledPhone: widget.phoneNumber,
+            ),
+          ),
+          (route) => false,
+        );
+      } else {
+        // User: go to home page
+        Navigator.of(context).pushAndRemoveUntil(
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) => const HomePage(),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return FadeTransition(opacity: animation, child: child);
+            },
+            transitionDuration: const Duration(milliseconds: 400),
+          ),
+          (route) => false,
+        );
+      }
     } else {
       // Clear OTP fields on error
       for (var controller in _otpControllers) {
@@ -166,8 +189,10 @@ class _OTPVerificationPageState extends State<OTPVerificationPage>
       _isResending = true;
     });
 
-    // Resend OTP (only for signup, not sign-in)
-    final result = await CognitoService.resendOTP(widget.email);
+    // Resend OTP: use mechanic pool when forMechanicSignUp
+    final result = widget.forMechanicSignUp
+        ? await CognitoService.resendOTPForMechanic(widget.email)
+        : await CognitoService.resendOTP(widget.email);
 
     if (!mounted) return;
 

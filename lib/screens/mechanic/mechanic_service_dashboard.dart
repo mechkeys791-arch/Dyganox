@@ -120,6 +120,14 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
       _mechanicProfile['email'] = widget.mechanicData!['email'] ?? 'mechanic@example.com';
       _mechanicProfile['rating'] = widget.mechanicData!['rating'] ?? 4.5;
       _mechanicProfile['completedJobs'] = widget.mechanicData!['completedJobs'] ?? 0;
+      
+      // Load services from mechanic data
+      if (widget.mechanicData!['services'] != null) {
+        final servicesStr = widget.mechanicData!['services'].toString();
+        if (servicesStr.isNotEmpty) {
+          _myServices = servicesStr.split(',').map((s) => s.trim()).toList();
+        }
+      }
     }
     
     _fetchBookings();

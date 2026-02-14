@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:typed_data';
 import 'dart:convert';
@@ -16,6 +17,9 @@ import 'screens/services/tyre_care_page.dart';
 import 'screens/mechanic/mechanic_finder_page.dart';
 import 'screens/services/map_service_page.dart';
 import 'screens/services/night_service_page.dart';
+import 'screens/profile/location_selection_page.dart';
+import 'services/user_profile_service.dart';
+import 'services/cognito_service.dart';
 import 'emergency_assistance_page.dart';
 import 'widgets/custom_nav_bar.dart';
 
@@ -90,7 +94,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     // Auto-scroll ads
     _startAdAutoScroll();
     
-    // Get current location
+    // Load selected address from database first
+    _loadSelectedAddress();
+    
+    // Get current location (as fallback)
     _getCurrentLocation();
     
     // Initialize searchable services
@@ -171,7 +178,69 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
+  // Load selected address from database (user_addresses table) for top-left display
+  Future<void> _loadSelectedAddress() async {
+    try {
+      final userData = await CognitoService.getCurrentUser();
+      final email = userData['email'];
+
+      if (email == null) {
+        if (!mounted) return;
+        setState(() => _currentLocation = 'Select your location');
+        return;
+      }
+
+      // Get user's saved addresses (tries PersonController then UserAddressController)
+      final result = await UserProfileService.getUserAddresses(email);
+
+      if (!mounted) return;
+      if (result['success'] == true && result['data'] != null) {
+        final addresses = List<Map<String, dynamic>>.from(result['data']);
+        if (addresses.isEmpty) {
+          setState(() => _currentLocation = 'Tap to select location');
+          return;
+        }
+
+        // Prefer address with isSelected == true; otherwise use first address
+        Map<String, dynamic> selectedAddress = addresses.firstWhere(
+          (addr) => addr['isSelected'] == true,
+          orElse: () => addresses.first,
+        );
+
+        final label = selectedAddress['label'] ?? '';
+        final addressText = selectedAddress['fullAddress'] ??
+            selectedAddress['addressLine1'] ??
+            '${selectedAddress['city'] ?? ''}, ${selectedAddress['state'] ?? ''}'.trim();
+        final displayText = label.isNotEmpty
+            ? '$label - $addressText'
+            : addressText.isNotEmpty
+                ? addressText
+                : 'Location selected';
+
+        setState(() => _currentLocation = displayText);
+        return;
+      }
+
+      setState(() => _currentLocation = 'Tap to select location');
+    } catch (e) {
+      print('Error loading selected address: $e');
+      if (!mounted) return;
+      setState(() => _currentLocation = 'Tap to select location');
+    }
+  }
+
   Future<void> _getCurrentLocation() async {
+    // Only use this as fallback if no address is selected
+    // Don't override the selected address display
+    
+    // Check if we already have a selected address
+    if (_currentLocation != 'Tap to select location' && 
+        _currentLocation != 'Select your location' &&
+        _currentLocation != 'Getting location...') {
+      // Already have a selected address, don't override
+      return;
+    }
+
     setState(() {
       _isLoadingLocation = true;
     });
@@ -180,7 +249,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         setState(() {
-          _currentLocation = 'Mangalore, Karnataka';
+          if (_currentLocation == 'Tap to select location' || 
+              _currentLocation == 'Select your location') {
+            _currentLocation = 'Enable location services';
+          }
           _isLoadingLocation = false;
         });
         return;
@@ -191,7 +263,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
           setState(() {
-            _currentLocation = 'Mangalore, Karnataka';
+            if (_currentLocation == 'Tap to select location' || 
+                _currentLocation == 'Select your location') {
+              _currentLocation = 'Allow location access';
+            }
             _isLoadingLocation = false;
           });
           return;
@@ -200,7 +275,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
       if (permission == LocationPermission.deniedForever) {
         setState(() {
-          _currentLocation = 'Mangalore, Karnataka';
+          if (_currentLocation == 'Tap to select location' || 
+              _currentLocation == 'Select your location') {
+            _currentLocation = 'Enable location in settings';
+          }
           _isLoadingLocation = false;
         });
         return;
@@ -210,15 +288,68 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         desiredAccuracy: LocationAccuracy.high,
       );
 
-      setState(() {
-        _currentPosition = position;
-        // Show formatted coordinates as location
-        _currentLocation = 'Location: ${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}';
-        _isLoadingLocation = false;
-      });
+      // Convert coordinates to address text
+      try {
+        List<Placemark> placemarks = await placemarkFromCoordinates(
+          position.latitude,
+          position.longitude,
+        );
+
+        if (placemarks.isNotEmpty) {
+          Placemark place = placemarks[0];
+          List<String> addressParts = [];
+
+          if (place.locality != null && place.locality!.isNotEmpty) {
+            addressParts.add(place.locality!);
+          }
+          if (place.administrativeArea != null && place.administrativeArea!.isNotEmpty) {
+            addressParts.add(place.administrativeArea!);
+          }
+          if (place.postalCode != null && place.postalCode!.isNotEmpty) {
+            addressParts.add(place.postalCode!);
+          }
+
+          String addressText = addressParts.isNotEmpty 
+              ? addressParts.join(', ')
+              : 'Current location';
+
+          setState(() {
+            _currentPosition = position;
+            // Only update if we don't have a selected address
+            if (_currentLocation == 'Tap to select location' || 
+                _currentLocation == 'Select your location' ||
+                _currentLocation == 'Getting location...') {
+              _currentLocation = addressText;
+            }
+            _isLoadingLocation = false;
+          });
+        } else {
+          setState(() {
+            _currentPosition = position;
+            if (_currentLocation == 'Tap to select location' || 
+                _currentLocation == 'Select your location') {
+              _currentLocation = 'Current location';
+            }
+            _isLoadingLocation = false;
+          });
+        }
+      } catch (e) {
+        // If geocoding fails, show a default message
+        setState(() {
+          _currentPosition = position;
+          if (_currentLocation == 'Tap to select location' || 
+              _currentLocation == 'Select your location') {
+            _currentLocation = 'Current location';
+          }
+          _isLoadingLocation = false;
+        });
+      }
     } catch (e) {
       setState(() {
-        _currentLocation = 'Mangalore, Karnataka';
+        if (_currentLocation == 'Tap to select location' || 
+            _currentLocation == 'Select your location') {
+          _currentLocation = 'Unable to get location';
+        }
         _isLoadingLocation = false;
       });
     }
@@ -605,7 +736,16 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                               child: Material(
                                 color: Colors.transparent,
                                 child: InkWell(
-                                  onTap: _openMapService,
+                                  onTap: () async {
+                                    final result = await Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => const LocationSelectionPage(),
+                                      ),
+                                    );
+                                    // Reload selected address after returning
+                                    _loadSelectedAddress();
+                                  },
                                   borderRadius: BorderRadius.circular(15),
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(
@@ -638,15 +778,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                               ),
                                         const SizedBox(width: 8),
                                         Expanded(
-                                          child: Text(
-                                            _currentLocation,
+                                          child: _ScrollingLocationText(
+                                            text: _currentLocation,
                                             style: GoogleFonts.outfit(
                                               color: Colors.white,
                                               fontSize: 14,
                                               fontWeight: FontWeight.w600,
                                             ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
                                           ),
                                         ),
                                         const Icon(
@@ -1724,6 +1862,138 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           ],
         ),
       ),
+    );
+  }
+}
+
+// Scrolling Location Text Widget (Breaking News Style)
+class _ScrollingLocationText extends StatefulWidget {
+  final String text;
+  final TextStyle style;
+
+  const _ScrollingLocationText({
+    required this.text,
+    required this.style,
+  });
+
+  @override
+  State<_ScrollingLocationText> createState() => _ScrollingLocationTextState();
+}
+
+class _ScrollingLocationTextState extends State<_ScrollingLocationText>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+  bool _needsScrolling = false;
+  double _textWidth = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(seconds: 20), // Smooth, slow scrolling
+      vsync: this,
+    );
+
+    _animation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: Curves.linear,
+      ),
+    );
+  }
+
+  void _checkIfScrollingNeeded(double containerWidth) {
+    final textPainter = TextPainter(
+      text: TextSpan(text: widget.text, style: widget.style),
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+    );
+    textPainter.layout();
+    _textWidth = textPainter.size.width;
+
+    final needsScroll = _textWidth > containerWidth && containerWidth > 0;
+    
+    if (needsScroll != _needsScrolling) {
+      setState(() {
+        _needsScrolling = needsScroll;
+      });
+      
+      if (_needsScrolling) {
+        _controller.repeat(reverse: true); // Scroll left-right, then right-left
+      } else {
+        _controller.stop();
+        _controller.reset();
+      }
+    }
+  }
+
+  @override
+  void didUpdateWidget(_ScrollingLocationText oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.text != widget.text) {
+      _controller.reset();
+      _needsScrolling = false;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final containerWidth = constraints.maxWidth;
+        
+        // Check if scrolling is needed
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _checkIfScrollingNeeded(containerWidth);
+        });
+
+        if (!_needsScrolling || _textWidth <= containerWidth) {
+          // Text fits, no scrolling needed
+          return Text(
+            widget.text,
+            style: widget.style,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          );
+        }
+
+        // Text overflows, show scrolling animation
+        final scrollDistance = _textWidth - containerWidth + 30; // Add padding
+
+        return ClipRect(
+          child: AnimatedBuilder(
+            animation: _animation,
+            builder: (context, child) {
+              // Calculate position: goes from 0 to scrollDistance and back
+              double position;
+              if (_animation.value < 0.5) {
+                // First half: scroll left (text moves right, revealing end)
+                position = _animation.value * 2 * scrollDistance;
+              } else {
+                // Second half: scroll right (text moves left, revealing start)
+                position = (1 - (_animation.value - 0.5) * 2) * scrollDistance;
+              }
+
+              return Transform.translate(
+                offset: Offset(-position, 0),
+                child: Text(
+                  widget.text,
+                  style: widget.style,
+                  maxLines: 1,
+                  textAlign: TextAlign.left,
+                ),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 }

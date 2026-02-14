@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../services/cognito_service.dart';
 import '../../homepage.dart';
 import 'login_page.dart';
-import '../mechanic/mechanic_registration_page.dart';
+import '../mechanic/mechanic_login_request_page.dart';
 
 class UserTypeSelectionPage extends StatefulWidget {
   const UserTypeSelectionPage({super.key});
@@ -215,7 +215,7 @@ class _UserTypeSelectionPageState extends State<UserTypeSelectionPage>
                                 Navigator.of(context).pushReplacement(
                                   PageRouteBuilder(
                                     pageBuilder: (context, animation, secondaryAnimation) =>
-                                        const MechanicRegistrationPage(),
+                                        const MechanicLoginRequestPage(),
                                     transitionsBuilder: (context, animation, secondaryAnimation, child) {
                                       return SlideTransition(
                                         position: Tween<Offset>(

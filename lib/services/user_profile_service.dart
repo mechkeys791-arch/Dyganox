@@ -175,4 +175,170 @@ class UserProfileService {
       };
     }
   }
+
+  /// Save user address to database
+  static Future<Map<String, dynamic>> saveUserAddress({
+    required String email,
+    required Map<String, dynamic> address,
+  }) async {
+    try {
+      final requestBody = {
+        'userEmail': email,
+        'label': address['label'],
+        'fullAddress': address['fullAddress'],
+        'addressLine1': address['addressLine1'],
+        'addressLine2': address['addressLine2'] ?? '',
+        'city': address['city'] ?? '',
+        'pincode': address['pincode'] ?? '',
+        'state': address['state'] ?? '',
+        'country': address['country'] ?? '',
+        'latitude': address['latitude'],
+        'longitude': address['longitude'],
+        'type': address['type'] ?? 'other',
+        'isSelected': address['isSelected'] ?? false,
+        if (address.containsKey('id')) 'id': address['id'],
+      };
+
+      print('💾 Saving user address to database:');
+      print('   Email: $email');
+      print('   Label: ${address['label']}');
+      print('   City: ${address['city']}');
+      print('   State: ${address['state']}');
+      print('   Country: ${address['country']}');
+      print('   Pincode: ${address['pincode']}');
+
+      // Try PersonController first; if 404/405 (EC2 without new endpoints), fallback to UserAddressController
+      var response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/api/person/addresses'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(requestBody),
+      ).timeout(const Duration(seconds: 10));
+      if (response.statusCode == 404 || response.statusCode == 405) {
+        print('📡 Fallback to /api/user-addresses');
+        response = await http.post(
+          Uri.parse('${ApiConfig.baseUrl}/api/user-addresses'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode(requestBody),
+        ).timeout(const Duration(seconds: 10));
+      }
+      print('📡 Response status: ${response.statusCode}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        print('✅ Address saved successfully to database');
+        return {
+          'success': true,
+          'data': data,
+        };
+      } else {
+        print('❌ Failed to save address to database: ${response.statusCode} - ${response.body}');
+        return {
+          'success': false,
+          'error': 'Failed to save address: ${response.statusCode} - ${response.body}',
+        };
+      }
+    } catch (e) {
+      print('❌ Exception saving address to database: $e');
+      return {
+        'success': false,
+        'error': e.toString(),
+      };
+    }
+  }
+
+  /// Get user addresses from database.
+  /// Tries PersonController first; if 404, fallback to UserAddressController (for old EC2).
+  static Future<Map<String, dynamic>> getUserAddresses(String email) async {
+    try {
+      var response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}/api/person/email/${Uri.encodeComponent(email)}/addresses'),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(const Duration(seconds: 10));
+      if (response.statusCode == 404) {
+        response = await http.get(
+          Uri.parse('${ApiConfig.baseUrl}/api/user-addresses/user/${Uri.encodeComponent(email)}'),
+          headers: {'Content-Type': 'application/json'},
+        ).timeout(const Duration(seconds: 10));
+      }
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {
+          'success': true,
+          'data': data,
+        };
+      } else {
+        return {
+          'success': false,
+          'error': 'Failed to get addresses: ${response.statusCode}',
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'error': e.toString(),
+      };
+    }
+  }
+
+  /// Delete user address from database.
+  /// Tries PersonController first; if 404/405, fallback to UserAddressController.
+  static Future<Map<String, dynamic>> deleteUserAddress({
+    required String email,
+    required dynamic addressId, // Can be int or String
+  }) async {
+    try {
+      final id = addressId.toString();
+      print('🗑️ Deleting address from database: Email=$email, ID=$id');
+
+      var response = await http.delete(
+        Uri.parse('${ApiConfig.baseUrl}/api/person/addresses/$id?userEmail=${Uri.encodeComponent(email)}'),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(const Duration(seconds: 10));
+      if (response.statusCode == 404 || response.statusCode == 405) {
+        response = await http.delete(
+          Uri.parse('${ApiConfig.baseUrl}/api/user-addresses/$id?userEmail=${Uri.encodeComponent(email)}'),
+          headers: {'Content-Type': 'application/json'},
+        ).timeout(const Duration(seconds: 10));
+      }
+      print('📡 Response status: ${response.statusCode}');
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        print('✅ Address deleted successfully from database');
+        return {'success': true};
+      } else {
+        print('❌ Failed to delete address: ${response.statusCode} - ${response.body}');
+        return {
+          'success': false,
+          'error': 'Failed to delete address: ${response.statusCode} - ${response.body}',
+        };
+      }
+    } catch (e) {
+      print('❌ Exception deleting address: $e');
+      return {
+        'success': false,
+        'error': e.toString(),
+      };
+    }
+  }
+
+  /// Set address as selected. Tries PersonController first; if 404/405, fallback to UserAddressController.
+  static Future<bool> selectUserAddress({required String email, required String addressId}) async {
+    try {
+      var response = await http.put(
+        Uri.parse('${ApiConfig.baseUrl}/api/person/addresses/$addressId/select?userEmail=${Uri.encodeComponent(email)}'),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(const Duration(seconds: 10));
+      if (response.statusCode == 404 || response.statusCode == 405) {
+        response = await http.put(
+          Uri.parse('${ApiConfig.baseUrl}/api/user-addresses/$addressId/select?userEmail=${Uri.encodeComponent(email)}'),
+          headers: {'Content-Type': 'application/json'},
+        ).timeout(const Duration(seconds: 10));
+      }
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error selecting address: $e');
+      return false;
+    }
+  }
 }

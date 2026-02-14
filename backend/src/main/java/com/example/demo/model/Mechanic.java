@@ -35,6 +35,24 @@ public class Mechanic {
     // Document storage (JSON array or comma-separated URLs)
     @Column(length = 2000)
     private String documentUrls; // Store document URLs/paths
+    
+    // Additional registration fields
+    private String profilePhotoUrl; // Profile photo URL
+    private String aadharNumber; // Aadhar card number for verification
+    private String shopName; // Name of mechanic shop
+    private String shopAddress; // Full shop address
+    private String shopCity;
+    private String shopState;
+    private String shopPincode;
+    private String shopCountry;
+    @Column(length = 2000)
+    private String services; // Comma-separated or JSON array of services
+    private String openingTime; // Shop opening time (HH:mm format)
+    private String closingTime; // Shop closing time (HH:mm format)
+    @Column(length = 100)
+    private String workingDays; // Comma-separated working days
+    private String password; // Password (hashed) - set after admin approval
+    private boolean passwordSet = false; // Whether password has been set
 
     public Mechanic() {}
 
@@ -104,6 +122,48 @@ public class Mechanic {
 
     public String getDocumentUrls() { return documentUrls; }
     public void setDocumentUrls(String documentUrls) { this.documentUrls = documentUrls; }
+
+    public String getProfilePhotoUrl() { return profilePhotoUrl; }
+    public void setProfilePhotoUrl(String profilePhotoUrl) { this.profilePhotoUrl = profilePhotoUrl; }
+
+    public String getAadharNumber() { return aadharNumber; }
+    public void setAadharNumber(String aadharNumber) { this.aadharNumber = aadharNumber; }
+
+    public String getShopName() { return shopName; }
+    public void setShopName(String shopName) { this.shopName = shopName; }
+
+    public String getShopAddress() { return shopAddress; }
+    public void setShopAddress(String shopAddress) { this.shopAddress = shopAddress; }
+
+    public String getShopCity() { return shopCity; }
+    public void setShopCity(String shopCity) { this.shopCity = shopCity; }
+
+    public String getShopState() { return shopState; }
+    public void setShopState(String shopState) { this.shopState = shopState; }
+
+    public String getShopPincode() { return shopPincode; }
+    public void setShopPincode(String shopPincode) { this.shopPincode = shopPincode; }
+
+    public String getShopCountry() { return shopCountry; }
+    public void setShopCountry(String shopCountry) { this.shopCountry = shopCountry; }
+
+    public String getServices() { return services; }
+    public void setServices(String services) { this.services = services; }
+
+    public String getOpeningTime() { return openingTime; }
+    public void setOpeningTime(String openingTime) { this.openingTime = openingTime; }
+
+    public String getClosingTime() { return closingTime; }
+    public void setClosingTime(String closingTime) { this.closingTime = closingTime; }
+
+    public String getWorkingDays() { return workingDays; }
+    public void setWorkingDays(String workingDays) { this.workingDays = workingDays; }
+
+    public String getPassword() { return password; }
+    public void setPassword(String password) { this.password = password; }
+
+    public boolean isPasswordSet() { return passwordSet; }
+    public void setPasswordSet(boolean passwordSet) { this.passwordSet = passwordSet; }
 
     @Override
     public String toString() {

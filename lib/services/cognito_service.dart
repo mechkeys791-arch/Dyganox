@@ -3,17 +3,26 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'user_profile_service.dart';
 
 class CognitoService {
-  // TODO: Replace with your AWS Cognito User Pool details
-  static const String _userPoolId = 'us-east-1_vXPHD9qbi'; // e.g., 'us-east-1_XXXXXXXXX'
-  static const String _clientId = '7o5vr364ksd1vbduhm05ea7odq'; // e.g., '1a2b3c4d5e6f7g8h9i0j'
-  static const String _region = 'us-east-1'; // Your AWS region
+  // ---------- User pool (customers / app users) ----------
+  static const String _userPoolId = 'us-east-1_vXPHD9qbi';
+  static const String _clientId = '7o5vr364ksd1vbduhm05ea7odq';
+  static const String _region = 'us-east-1';
 
   static final CognitoUserPool _userPool = CognitoUserPool(
     _userPoolId,
     _clientId,
   );
 
-  // SharedPreferences keys
+  // ---------- Mechanic pool (separate User Pool for mechanics) ----------
+  static const String _mechanicUserPoolId = 'us-east-1_Jmv2RA63T';
+  static const String _mechanicClientId = '3pc2dui9en0pvp3bageoklj32v';
+
+  static late final CognitoUserPool _mechanicUserPool = CognitoUserPool(
+    _mechanicUserPoolId,
+    _mechanicClientId,
+  );
+
+  // SharedPreferences keys (user)
   static const String _keyIsLoggedIn = 'is_logged_in';
   static const String _keyUserId = 'user_id';
   static const String _keyUserEmail = 'user_email';
@@ -22,6 +31,15 @@ class CognitoService {
   static const String _keyAccessToken = 'access_token';
   static const String _keyIdToken = 'id_token';
   static const String _keyRefreshToken = 'refresh_token';
+
+  // SharedPreferences keys (mechanic - separate session)
+  static const String _keyMechanicIsLoggedIn = 'mechanic_is_logged_in';
+  static const String _keyMechanicUserEmail = 'mechanic_user_email';
+  static const String _keyMechanicUserPhone = 'mechanic_user_phone';
+  static const String _keyMechanicUserName = 'mechanic_user_name';
+  static const String _keyMechanicAccessToken = 'mechanic_access_token';
+  static const String _keyMechanicIdToken = 'mechanic_id_token';
+  static const String _keyMechanicRefreshToken = 'mechanic_refresh_token';
 
   // Check if user is logged in
   static Future<bool> isLoggedIn() async {
@@ -284,9 +302,191 @@ class CognitoService {
       };
     }
   }
-  
 
-  // Save authentication data
+  // ==================== MECHANIC POOL (separate Cognito User Pool) ====================
+
+  static Future<bool> isMechanicLoggedIn() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyMechanicIsLoggedIn) ?? false;
+  }
+
+  static Future<Map<String, String?>> getCurrentMechanicUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    return {
+      'email': prefs.getString(_keyMechanicUserEmail),
+      'phone': prefs.getString(_keyMechanicUserPhone),
+      'name': prefs.getString(_keyMechanicUserName),
+    };
+  }
+
+  static Future<void> _saveMechanicAuthData({
+    required String email,
+    String? phone,
+    String? name,
+    required String accessToken,
+    required String idToken,
+    required String refreshToken,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyMechanicIsLoggedIn, true);
+    await prefs.setString(_keyMechanicUserEmail, email);
+    if (phone != null) await prefs.setString(_keyMechanicUserPhone, phone);
+    if (name != null) await prefs.setString(_keyMechanicUserName, name);
+    await prefs.setString(_keyMechanicAccessToken, accessToken);
+    await prefs.setString(_keyMechanicIdToken, idToken);
+    await prefs.setString(_keyMechanicRefreshToken, refreshToken);
+  }
+
+  static Future<void> signOutMechanic() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_keyMechanicIsLoggedIn);
+    await prefs.remove(_keyMechanicUserEmail);
+    await prefs.remove(_keyMechanicUserPhone);
+    await prefs.remove(_keyMechanicUserName);
+    await prefs.remove(_keyMechanicAccessToken);
+    await prefs.remove(_keyMechanicIdToken);
+    await prefs.remove(_keyMechanicRefreshToken);
+  }
+
+  static Future<Map<String, dynamic>> signUpForMechanic({
+    required String email,
+    required String phone,
+    required String password,
+    required String name,
+  }) async {
+    try {
+      final userAttributes = [
+        AttributeArg(name: 'email', value: email),
+        AttributeArg(name: 'phone_number', value: phone),
+        AttributeArg(name: 'name', value: name),
+      ];
+      final result = await _mechanicUserPool.signUp(
+        email,
+        password,
+        userAttributes: userAttributes,
+      );
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_keyMechanicUserEmail, email);
+      await prefs.setString(_keyMechanicUserPhone, phone);
+      await prefs.setString(_keyMechanicUserName, name);
+      return {
+        'success': true,
+        'message': 'Sign up successful. Please verify OTP sent to your email.',
+        'userSub': result.userSub ?? '',
+      };
+    } catch (e) {
+      String msg = e.toString();
+      if (msg.contains('UsernameExistsException') || msg.contains('AliasExistsException') ||
+          msg.contains('already exists')) {
+        return {'success': false, 'message': 'This email or phone is already registered.'};
+      }
+      return {'success': false, 'message': msg.replaceAll('Exception: ', '').replaceAll('CognitoClientException: ', '')};
+    }
+  }
+
+  static Future<Map<String, dynamic>> verifyOTPForMechanic({
+    required String email,
+    required String code,
+    required String password,
+  }) async {
+    try {
+      final cognitoUser = CognitoUser(email, _mechanicUserPool);
+      final trimmedCode = code.trim();
+      final confirmationResult = await cognitoUser.confirmRegistration(trimmedCode);
+      if (confirmationResult == true) {
+        final authResult = await cognitoUser.authenticateUser(
+          AuthenticationDetails(username: email, password: password),
+        );
+        final userAttributes = await cognitoUser.getUserAttributes();
+        String phone = '';
+        String name = '';
+        if (userAttributes != null) {
+          for (var attr in userAttributes) {
+            if (attr.getName() == 'phone_number') phone = attr.getValue() ?? '';
+            if (attr.getName() == 'name') name = attr.getValue() ?? '';
+          }
+        }
+        await _saveMechanicAuthData(
+          email: email,
+          phone: phone,
+          name: name,
+          accessToken: authResult?.accessToken?.getJwtToken() ?? '',
+          idToken: authResult?.idToken?.getJwtToken() ?? '',
+          refreshToken: authResult?.refreshToken?.getToken() ?? '',
+        );
+        return {'success': true, 'message': 'OTP verified successfully'};
+      }
+      return {'success': false, 'message': 'OTP verification failed.'};
+    } catch (e) {
+      String msg = e.toString();
+      if (msg.contains('CodeMismatchException') || msg.contains('Invalid verification code')) {
+        return {'success': false, 'message': 'Invalid verification code. Please try again.'};
+      }
+      if (msg.contains('ExpiredCodeException')) {
+        return {'success': false, 'message': 'Code expired. Please request a new one.'};
+      }
+      return {'success': false, 'message': msg.replaceAll('Exception: ', '')};
+    }
+  }
+
+  static Future<Map<String, dynamic>> resendOTPForMechanic(String email) async {
+    try {
+      final cognitoUser = CognitoUser(email, _mechanicUserPool);
+      await cognitoUser.resendConfirmationCode();
+      return {'success': true, 'message': 'OTP resent successfully'};
+    } catch (e) {
+      return {'success': false, 'message': e.toString().replaceAll('Exception: ', '')};
+    }
+  }
+
+  static Future<Map<String, dynamic>> signInForMechanic({
+    required String username,
+    required String password,
+  }) async {
+    try {
+      final cognitoUser = CognitoUser(username, _mechanicUserPool);
+      final authResult = await cognitoUser.authenticateUser(
+        AuthenticationDetails(username: username, password: password),
+      );
+      if (authResult != null) {
+        final userAttributes = await cognitoUser.getUserAttributes();
+        String email = username;
+        String phone = '';
+        String name = '';
+        if (userAttributes != null) {
+          for (var attr in userAttributes) {
+            if (attr.getName() == 'email') email = attr.getValue() ?? username;
+            if (attr.getName() == 'phone_number') phone = attr.getValue() ?? '';
+            if (attr.getName() == 'name') name = attr.getValue() ?? '';
+          }
+        }
+        await _saveMechanicAuthData(
+          email: email,
+          phone: phone,
+          name: name,
+          accessToken: authResult.accessToken.getJwtToken() ?? '',
+          idToken: authResult.idToken.getJwtToken() ?? '',
+          refreshToken: authResult.refreshToken?.getToken() ?? '',
+        );
+        return {'success': true, 'message': 'Sign in successful'};
+      }
+      return {'success': false, 'message': 'Authentication failed.'};
+    } catch (e) {
+      String msg = e.toString();
+      if (msg.contains('NotAuthorizedException') || msg.contains('Incorrect username or password')) {
+        return {'success': false, 'message': 'Incorrect email or password.'};
+      }
+      if (msg.contains('UserNotFoundException')) {
+        return {'success': false, 'message': 'Account not found. Please create an account first.'};
+      }
+      if (msg.contains('UserNotConfirmedException')) {
+        return {'success': false, 'message': 'Please verify your email first.'};
+      }
+      return {'success': false, 'message': msg.replaceAll('Exception: ', '')};
+    }
+  }
+
+  // Save authentication data (user)
   static Future<void> _saveAuthData({
     required String email,
     String? phone,
@@ -328,10 +528,19 @@ class CognitoService {
     }
   }
 
-  // Sign out
+  // Sign out (user only; mechanic session is separate)
   static Future<void> signOut() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
+    await prefs.remove(_keyIsLoggedIn);
+    await prefs.remove(_keyUserId);
+    await prefs.remove(_keyUserEmail);
+    await prefs.remove(_keyUserPhone);
+    await prefs.remove(_keyUserName);
+    await prefs.remove(_keyAccessToken);
+    await prefs.remove(_keyIdToken);
+    await prefs.remove(_keyRefreshToken);
+    await prefs.remove('user_date_of_birth');
+    await prefs.remove('user_gender');
   }
 
   // Get current user data

@@ -360,9 +360,9 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
 
   Future<void> _createPolylineRoute(LatLng destination) async {
     // Google Maps API key from the EV charging page
-    const String apiKey = 'AIzaSyB82H7s8dM-Z9v5E_3HIl301m0iM3e6ctc';
+    const String apiKey = 'AIzaSyCkWqRCPB-EovWgvPFuLirPBDKU30wYDzc';
     
-    if (apiKey == 'AIzaSyB82H7s8dM-Z9v5E_3HIl301m0iM3e6ctc') {
+    if (apiKey.isEmpty) {
       print('Using API key for route. Creating route...');
       _createFallbackRoute(destination);
       return;
