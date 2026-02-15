@@ -42,6 +42,7 @@ public class AdminController {
             return ResponseEntity.ok(mechanics);
         } catch (Exception e) {
             System.err.println("❌ Error fetching mechanics: " + e.getMessage());
+            e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
@@ -118,6 +119,7 @@ public class AdminController {
     @GetMapping("/analytics")
     public ResponseEntity<Map<String, Object>> getAnalytics() {
         try {
+            System.out.println("[Admin] /analytics requested");
             Map<String, Object> analytics = new HashMap<>();
             
             // Total mechanics
@@ -155,16 +157,23 @@ public class AdminController {
                     .mapToDouble(MechanicRequest::getAmount)
                     .sum();
             
-            // Payment stats
-            List<Payment> allPayments = paymentRepo.findAll();
-            long totalPayments = allPayments.size();
-            long successfulPayments = allPayments.stream()
-                    .filter(p -> p.getStatus() != null && p.getStatus().equals("SUCCESS"))
-                    .count();
-            double paymentRevenue = allPayments.stream()
-                    .filter(p -> p.getStatus() != null && p.getStatus().equals("SUCCESS"))
-                    .mapToDouble(Payment::getAmount)
-                    .sum();
+            // Payment stats (defensive: payments table may not exist yet)
+            long totalPayments = 0;
+            long successfulPayments = 0;
+            double paymentRevenue = 0.0;
+            try {
+                List<Payment> allPayments = paymentRepo.findAll();
+                totalPayments = allPayments.size();
+                successfulPayments = allPayments.stream()
+                        .filter(p -> p.getStatus() != null && p.getStatus().equals("SUCCESS"))
+                        .count();
+                paymentRevenue = allPayments.stream()
+                        .filter(p -> p.getStatus() != null && p.getStatus().equals("SUCCESS"))
+                        .mapToDouble(Payment::getAmount)
+                        .sum();
+            } catch (Exception pe) {
+                System.err.println("⚠️ Payment stats skipped: " + pe.getMessage());
+            }
             
             // Active mechanics (Available status)
             long activeMechanics = allMechanics.stream()

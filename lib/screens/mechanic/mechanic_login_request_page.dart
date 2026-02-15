@@ -53,6 +53,24 @@ class _MechanicLoginRequestPageState extends State<MechanicLoginRequestPage> {
         final data = jsonDecode(res.body);
         final status = data['approvalStatus'] ?? 'PENDING';
         if (status == 'PENDING') {
+          // Check if mechanic is already APPROVED in mechanics table
+          final mechanicRes = await http.get(
+            Uri.parse('${ApiConfig.baseUrl}/api/mechanic/email/${Uri.encodeComponent(pendingEmail)}'),
+          ).timeout(const Duration(seconds: 10));
+          if (mechanicRes.statusCode == 200 && mounted) {
+            final mechanicData = jsonDecode(mechanicRes.body);
+            if ((mechanicData['approvalStatus'] ?? '').toString().toUpperCase() == 'APPROVED') {
+              await prefs.remove('mechanic_pending_email');
+              setState(() => _checkingPending = false);
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => MechanicApprovedPage(email: data['email'] ?? pendingEmail),
+                ),
+              );
+              return;
+            }
+          }
           setState(() => _checkingPending = false);
           Navigator.pushReplacement(
             context,
@@ -110,6 +128,22 @@ class _MechanicLoginRequestPageState extends State<MechanicLoginRequestPage> {
         final status = data['approvalStatus'] ?? 'PENDING';
         if (!mounted) return true;
         if (status == 'PENDING') {
+          // Registration request still PENDING — but mechanic may already be APPROVED in mechanics table (e.g. approved from "Pending Approvals")
+          final mechanicRes = await http.get(
+            Uri.parse('${ApiConfig.baseUrl}/api/mechanic/email/${Uri.encodeComponent(email)}'),
+          ).timeout(const Duration(seconds: 10));
+          if (mechanicRes.statusCode == 200 && mounted) {
+            final mechanicData = jsonDecode(mechanicRes.body);
+            if ((mechanicData['approvalStatus'] ?? '').toString().toUpperCase() == 'APPROVED') {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => MechanicApprovedPage(email: data['email'] ?? email),
+                ),
+              );
+              return true;
+            }
+          }
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('mechanic_pending_email', email);
           Navigator.pushReplacement(

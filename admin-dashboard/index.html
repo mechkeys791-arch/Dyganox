@@ -27,6 +27,11 @@
                     <i class="fas fa-users-cog"></i>
                     <span>Mechanics</span>
                 </a>
+                <a href="#" class="nav-item" data-section="registration-requests">
+                    <i class="fas fa-user-plus"></i>
+                    <span>Registration Requests</span>
+                    <span class="badge" id="registration-requests-badge">0</span>
+                </a>
                 <a href="#" class="nav-item" data-section="pending">
                     <i class="fas fa-user-clock"></i>
                     <span>Pending Approvals</span>
@@ -180,6 +185,34 @@
                         <tbody id="mechanics-table-body">
                             <tr>
                                 <td colspan="9" class="loading">Loading mechanics...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Registration Requests Section (new mechanic applications from app) -->
+            <section id="registration-requests-section" class="content-section">
+                <div class="section-header">
+                    <h2>Registration Requests</h2>
+                    <p class="section-subtitle">New mechanic applications from the app. Approve to create their account (password will be generated).</p>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Phone</th>
+                                <th>Shop</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="registration-requests-table-body">
+                            <tr>
+                                <td colspan="7" class="loading">Loading registration requests...</td>
                             </tr>
                         </tbody>
                     </table>

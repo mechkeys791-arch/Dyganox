@@ -1,7 +1,10 @@
 package com.example.demo.controller;
 
+import com.example.demo.model.Mechanic;
 import com.example.demo.model.MechanicRequest;
+import com.example.demo.repository.MechanicRepo;
 import com.example.demo.repository.MechanicRequestRepo;
+import com.example.demo.service.FcmService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,14 +23,40 @@ public class MechanicRequestController {
     @Autowired
     private MechanicRequestRepo mechanicRequestRepo;
 
+    @Autowired
+    private MechanicRepo mechanicRepo;
+
+    @Autowired
+    private FcmService fcmService;
+
     @PostMapping
     public ResponseEntity<MechanicRequest> createRequest(@RequestBody MechanicRequest request) {
-        System.out.println("📥 Received Mechanic Request: " + request);
+        System.out.println("📥 [Request] Received mechanicId=" + request.getMechanicId() + " customer=" + request.getCustomerName());
         try {
             request.setStatus("PENDING");
             request.setRequestTime(LocalDateTime.now());
             MechanicRequest savedRequest = mechanicRequestRepo.save(request);
-            System.out.println("✅ Request saved successfully with ID: " + savedRequest.getId());
+            Long requestId = savedRequest.getId();
+            Long mechanicId = savedRequest.getMechanicId();
+            System.out.println("✅ Request saved: requestId=" + requestId + ", mechanicId=" + mechanicId);
+
+            // Send FCM to mechanic so they get Accept/Reject notification
+            Optional<Mechanic> mechanicOpt = mechanicRepo.findById(mechanicId);
+            if (!mechanicOpt.isPresent()) {
+                System.err.println("⚠️ [FCM] Mechanic not found for mechanicId=" + mechanicId + ". Cannot send notification.");
+            } else {
+                Mechanic mechanic = mechanicOpt.get();
+                String fcmToken = mechanic.getFcmToken();
+                boolean hasToken = fcmToken != null && !fcmToken.isBlank();
+                String tokenHint = hasToken ? "length=" + fcmToken.length() + ", tail=..." + (fcmToken.length() > 8 ? fcmToken.substring(fcmToken.length() - 8) : "?") : "null/empty";
+                System.out.println("[FCM] mechanicId=" + mechanicId + ", requestId=" + requestId + ", fcmToken=" + tokenHint);
+                fcmService.sendMechanicRequestNotification(
+                        fcmToken,
+                        requestId,
+                        savedRequest.getCustomerName(),
+                        savedRequest.getServiceType());
+            }
+
             return ResponseEntity.status(HttpStatus.CREATED).body(savedRequest);
         } catch (Exception e) {
             System.err.println("❌ Error saving request: " + e.getMessage());

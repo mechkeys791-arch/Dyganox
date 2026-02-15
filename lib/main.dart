@@ -14,8 +14,12 @@ import 'screens/auth/forgot_password_page.dart';
 import 'screens/auth/reset_password_page.dart';
 import 'screens/mechanic/mechanic_registration_page.dart';
 import 'screens/mechanic/mechanic_dashboard_page.dart';
+import 'services/fcm_notification_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await FcmNotificationService.initialize();
+  await FcmNotificationService.processLaunchNotificationResponse();
   runApp(const ServiceProviderApp());
 }
 

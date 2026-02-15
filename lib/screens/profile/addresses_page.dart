@@ -23,34 +23,37 @@ class _AddressesPageState extends State<AddressesPage> {
   }
 
   Future<void> _loadAddresses() async {
-    // Try to load from database first
+    // Always try database first - user_addresses table
     try {
       final userData = await CognitoService.getCurrentUser();
       final email = userData['email'];
       
-      if (email != null) {
+      if (email != null && email.isNotEmpty) {
         final result = await UserProfileService.getUserAddresses(email);
         if (result['success'] == true && result['data'] != null) {
-          final List<dynamic> dbAddresses = result['data'];
-          setState(() {
-            _addresses = dbAddresses.map((addr) {
-              return {
-                'id': addr['id'].toString(),
-                'label': addr['label'] ?? '',
-                'addressLine1': addr['addressLine1'] ?? addr['fullAddress'] ?? '',
-                'addressLine2': addr['addressLine2'] ?? '',
-                'city': addr['city'] ?? '',
-                'pincode': addr['pincode'] ?? '',
-                'type': addr['type'] ?? 'other',
-                'fullAddress': addr['fullAddress'] ?? '',
-                'latitude': addr['latitude'],
-                'longitude': addr['longitude'],
-                'isSelected': addr['isSelected'] ?? false,
-              };
-            }).toList();
-          });
-          
-          // Also save to local storage for offline access
+          final List<dynamic> dbAddresses = result['data'] is List
+              ? result['data'] as List
+              : [];
+          final List<Map<String, dynamic>> parsed = [];
+          for (final raw in dbAddresses) {
+            if (raw is! Map) continue;
+            final addr = Map<String, dynamic>.from(raw);
+            parsed.add({
+              'id': addr['id']?.toString(),
+              'label': addr['label']?.toString() ?? '',
+              'addressLine1': addr['addressLine1']?.toString() ?? addr['fullAddress']?.toString() ?? '',
+              'addressLine2': addr['addressLine2']?.toString() ?? '',
+              'city': addr['city']?.toString() ?? '',
+              'pincode': addr['pincode']?.toString() ?? '',
+              'type': addr['type']?.toString() ?? 'other',
+              'fullAddress': addr['fullAddress']?.toString() ?? '',
+              'latitude': addr['latitude'],
+              'longitude': addr['longitude'],
+              'isSelected': addr['isSelected'] == true,
+            });
+          }
+          setState(() => _addresses = parsed);
+          // Save to local storage for offline access
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('addresses', json.encode(_addresses));
           return;
@@ -60,13 +63,17 @@ class _AddressesPageState extends State<AddressesPage> {
       print('Error loading addresses from database: $e');
     }
     
-    // Fallback to local storage
+    // Fallback to local storage only when database fails
     final prefs = await SharedPreferences.getInstance();
     final String? addressesJson = prefs.getString('addresses');
     if (addressesJson != null) {
-      setState(() {
-        _addresses = List<Map<String, dynamic>>.from(json.decode(addressesJson));
-      });
+      try {
+        setState(() {
+          _addresses = List<Map<String, dynamic>>.from(
+            json.decode(addressesJson).map((e) => Map<String, dynamic>.from(e as Map)),
+          );
+        });
+      } catch (_) {}
     }
   }
 
@@ -224,15 +231,20 @@ class _AddressesPageState extends State<AddressesPage> {
                   
                   Navigator.pop(context);
                   
-                  // Prepare address data
-                  final addressData = {
+                  // Prepare address data - include all fields for user_addresses table
+                  final addressData = <String, dynamic>{
                     'label': labelController.text,
                     'addressLine1': addressLine1Controller.text,
                     'addressLine2': addressLine2Controller.text,
                     'city': cityController.text,
                     'pincode': pincodeController.text,
+                    'state': address?['state'] ?? '',
+                    'country': address?['country'] ?? '',
                     'type': selectedType,
                     'fullAddress': '${addressLine1Controller.text}, ${addressLine2Controller.text.isNotEmpty ? addressLine2Controller.text + ", " : ""}${cityController.text}, ${pincodeController.text}',
+                    'latitude': address?['latitude'],
+                    'longitude': address?['longitude'],
+                    'isSelected': false,
                   };
                   
                   // If updating, preserve the ID and other fields
@@ -620,7 +632,7 @@ class _AddressesPageState extends State<AddressesPage> {
                             color: const Color(0xFF64748B),
                           ),
                         ),
-                        if (address['addressLine2'].isNotEmpty)
+                        if ((address['addressLine2'] ?? '').toString().isNotEmpty)
                           Text(
                             address['addressLine2'],
                             style: GoogleFonts.inter(

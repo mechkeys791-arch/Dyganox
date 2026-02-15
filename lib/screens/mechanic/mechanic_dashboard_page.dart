@@ -6,6 +6,7 @@ import 'package:geocoding/geocoding.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../../services/api_config.dart';
+import '../../services/fcm_notification_service.dart';
 
 class MechanicDashboardPage extends StatefulWidget {
   final Map<String, dynamic>? mechanicData;
@@ -98,7 +99,10 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
                    widget.mechanicData?['id'] is String ? int.tryParse(widget.mechanicData!['id'].toString()) : null);
     
     print("Mechanic Dashboard: Using mechanic ID: $_mechanicId");
-    
+
+    // Register FCM token so mechanic receives request notifications (Accept/Reject)
+    if (_mechanicId != null) FcmNotificationService.registerMechanicToken(_mechanicId!);
+
     _getCurrentLocation();
     _fetchRequests();
     _loadMechanicStatus(); // Load current status from backend

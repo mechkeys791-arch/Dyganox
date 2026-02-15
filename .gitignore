@@ -44,3 +44,6 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Firebase backend service account key (do not commit - keep secret)
+**/firebase-service-account.json

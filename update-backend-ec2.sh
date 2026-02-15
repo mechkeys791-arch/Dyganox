@@ -15,10 +15,17 @@ echo "📍 EC2 IP: $EC2_IP"
 echo ""
 
 # Upload source code
+if [ ! -d "backend" ]; then
+    echo "❌ Error: ./backend folder not found. Run this script from the project root (e.g. ~/Desktop/Dyganox)."
+    exit 1
+fi
 echo "📤 Uploading backend source code..."
-tar -czf backend-src.tar.gz backend/ --exclude="backend/target" --exclude="backend/.idea" 2>/dev/null
+tar --exclude="backend/target" --exclude="backend/.idea" -czf backend-src.tar.gz backend/ || {
+    echo "❌ Failed to create backend-src.tar.gz"
+    exit 1
+}
 scp -i "$KEY_PATH" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null backend-src.tar.gz "$EC2_USER@$EC2_IP:/home/$EC2_USER/" || {
-    echo "❌ Failed to upload. Make sure your SSH key path is correct."
+    echo "❌ Failed to upload. Check: 1) Key path 2) EC2 IP 3) Security group allows SSH (port 22)."
     exit 1
 }
 rm -f backend-src.tar.gz

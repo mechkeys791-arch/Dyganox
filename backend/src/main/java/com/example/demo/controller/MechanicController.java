@@ -319,6 +319,21 @@ public class MechanicController {
         }
     }
 
+    // Register FCM token for push notifications (mechanic request accept/reject)
+    @PutMapping("/{id}/fcm-token")
+    public ResponseEntity<Mechanic> updateFcmToken(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        String fcmToken = body != null ? body.get("fcmToken") : null;
+        Optional<Mechanic> mechanicOpt = mechanicRepo.findById(id);
+        if (mechanicOpt.isPresent()) {
+            Mechanic mechanic = mechanicOpt.get();
+            mechanic.setFcmToken(fcmToken);
+            mechanicRepo.save(mechanic);
+            System.out.println("✅ FCM token updated for mechanic ID: " + id);
+            return ResponseEntity.ok(mechanic);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
     // Get mechanic by email (for password setup check)
     @GetMapping("/email/{email}")
     public ResponseEntity<Mechanic> getMechanicByEmail(@PathVariable String email) {

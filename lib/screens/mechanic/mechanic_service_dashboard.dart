@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
 import '../../services/api_config.dart';
+import '../../services/fcm_notification_service.dart';
 import 'mechanic_bookings_page.dart';
 import 'mechanic_services_page.dart';
 import 'mechanic_profile_edit_page.dart';
@@ -131,7 +132,14 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
     }
     
     _fetchBookings();
-    
+
+    // Register FCM token so mechanic receives request notifications (Accept/Reject)
+    final mechanicId = widget.mechanicData?['id'];
+    if (mechanicId != null) {
+      final id = mechanicId is int ? mechanicId : int.tryParse(mechanicId.toString());
+      if (id != null) FcmNotificationService.registerMechanicToken(id);
+    }
+
     // Auto-refresh bookings every 30 seconds
     _refreshTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
       _fetchBookings();

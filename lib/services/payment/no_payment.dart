@@ -9,10 +9,8 @@ import 'payment_gateway.dart';
 /// This is used when payment functionality is disabled in the system.
 class NoPayment implements PaymentGateway {
   @override
-  void initialize(BuildContext context) {
-    print('✅ NoPayment gateway initialized (payments disabled)');
-  }
-  
+  void initialize(BuildContext context) {}
+
   @override
   Future<void> makePayment({
     required double amount,
@@ -23,14 +21,7 @@ class NoPayment implements PaymentGateway {
     required VoidCallback onSuccess,
     required Function(String) onFailure,
   }) async {
-    print('💳 Payment bypassed (payments disabled)');
-    print('   Order ID: $orderId');
-    print('   Amount: ₹$amount (not charged)');
-    print('   Customer: $customerName');
-    
-    // Immediately call success callback to proceed with booking
-    // No actual payment processing occurs
-    await Future.delayed(const Duration(milliseconds: 300)); // Small delay for UX
+    await Future.delayed(const Duration(milliseconds: 300));
     onSuccess();
   }
   

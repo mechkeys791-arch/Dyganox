@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "194363075643",
+    "project_id": "dyganox-8371c",
+    "storage_bucket": "dyganox-8371c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:194363075643:android:f59a6c4f519d5309a1801e",
+        "android_client_info": {
+          "package_name": "com.example.dyganox"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAewvH2JUmovR2gTwmRD1oFTErvETkFGco"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

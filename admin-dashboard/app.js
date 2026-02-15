@@ -41,6 +41,7 @@ function switchSection(section) {
     const titles = {
         'dashboard': 'Dashboard Overview',
         'mechanics': 'All Mechanics',
+        'registration-requests': 'Registration Requests',
         'pending': 'Pending Approvals',
         'requests': 'Service Requests',
         'tracking': 'Request Tracking',
@@ -58,6 +59,9 @@ function switchSection(section) {
             break;
         case 'mechanics':
             loadMechanics();
+            break;
+        case 'registration-requests':
+            loadRegistrationRequests();
             break;
         case 'pending':
             loadPendingMechanics();
@@ -254,6 +258,93 @@ function filterMechanics() {
     }
     
     displayMechanics(filtered);
+}
+
+// Registration Requests (new mechanic applications from app)
+async function loadRegistrationRequests() {
+    try {
+        const response = await fetch(getApiUrl(API_CONFIG.endpoints.registrationRequests));
+        const list = await response.json();
+        const pending = (list || []).filter(r => (r.approvalStatus || '').toUpperCase() === 'PENDING');
+        const badge = document.getElementById('registration-requests-badge');
+        if (badge) badge.textContent = pending.length;
+        displayRegistrationRequests(list || []);
+    } catch (error) {
+        console.error('Error loading registration requests:', error);
+        showError('Failed to load registration requests');
+    }
+}
+
+function displayRegistrationRequests(list) {
+    const tbody = document.getElementById('registration-requests-table-body');
+    if (!tbody) return;
+    if (list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="loading">No registration requests</td></tr>';
+        return;
+    }
+    tbody.innerHTML = list.map(r => {
+        const status = (r.approvalStatus || 'PENDING').toUpperCase();
+        const statusClass = status === 'APPROVED' ? 'approved' : status === 'REJECTED' ? 'rejected' : 'pending';
+        const actions = status === 'PENDING'
+            ? `<button class="btn-action btn-approve" onclick="approveRegistrationRequest(${r.id})">Approve</button>
+               <button class="btn-action btn-reject" onclick="rejectRegistrationRequest(${r.id})">Reject</button>`
+            : '<span class="status-badge ' + statusClass + '">' + status + '</span>';
+        return `
+        <tr>
+            <td>${r.id}</td>
+            <td><strong>${r.name || 'N/A'}</strong></td>
+            <td>${r.email || 'N/A'}</td>
+            <td>${r.phone || 'N/A'}</td>
+            <td>${r.shopName || 'N/A'}</td>
+            <td><span class="status-badge ${statusClass}">${status}</span></td>
+            <td>${actions}</td>
+        </tr>`;
+    }).join('');
+}
+
+async function approveRegistrationRequest(id) {
+    if (!confirm('Approve this mechanic? A temporary password will be generated. Send it to the mechanic (e.g. via WhatsApp).')) return;
+    try {
+        const response = await fetch(
+            `${getApiUrl(API_CONFIG.endpoints.registrationRequests)}/${id}/approve`,
+            { method: 'PUT' }
+        );
+        const data = await response.json().catch(() => ({}));
+        if (response.ok) {
+            const msg = data.tempPassword
+                ? `Approved. Send this password to ${data.email || 'mechanic'}: ${data.tempPassword}`
+                : 'Mechanic approved successfully';
+            showSuccess(msg);
+            loadRegistrationRequests();
+            loadDashboard();
+        } else {
+            showError('Failed to approve');
+        }
+    } catch (error) {
+        console.error('Error approving registration:', error);
+        showError('Failed to approve');
+    }
+}
+
+async function rejectRegistrationRequest(id) {
+    const reason = prompt('Rejection reason (optional):');
+    if (reason === null) return; // cancelled
+    try {
+        const response = await fetch(
+            `${getApiUrl(API_CONFIG.endpoints.registrationRequests)}/${id}/reject`,
+            { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason: reason || '' }) }
+        );
+        if (response.ok) {
+            showSuccess('Registration rejected');
+            loadRegistrationRequests();
+            loadDashboard();
+        } else {
+            showError('Failed to reject');
+        }
+    } catch (error) {
+        console.error('Error rejecting registration:', error);
+        showError('Failed to reject');
+    }
 }
 
 // Pending Mechanics

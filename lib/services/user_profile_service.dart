@@ -247,25 +247,37 @@ class UserProfileService {
   }
 
   /// Get user addresses from database.
-  /// Tries PersonController first; if 404, fallback to UserAddressController (for old EC2).
+  /// Tries PersonController first; if 404/405, fallback to UserAddressController (for old EC2).
   static Future<Map<String, dynamic>> getUserAddresses(String email) async {
     try {
+      print('📍 Loading user addresses from database: Email=$email');
       var response = await http.get(
         Uri.parse('${ApiConfig.baseUrl}/api/person/email/${Uri.encodeComponent(email)}/addresses'),
         headers: {'Content-Type': 'application/json'},
       ).timeout(const Duration(seconds: 10));
-      if (response.statusCode == 404) {
+      if (response.statusCode == 404 || response.statusCode == 405) {
+        print('📡 PersonController returned ${response.statusCode}, trying UserAddressController fallback');
         response = await http.get(
           Uri.parse('${ApiConfig.baseUrl}/api/user-addresses/user/${Uri.encodeComponent(email)}'),
           headers: {'Content-Type': 'application/json'},
         ).timeout(const Duration(seconds: 10));
       }
 
+      print('📡 getUserAddresses response: ${response.statusCode}, body length: ${response.body.length}');
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        // Handle both raw array [{}] and wrapped response {data:[], content:[]}
+        final List<dynamic> addresses = data is List
+            ? data
+            : (data is Map && data['content'] != null)
+                ? List<dynamic>.from(data['content'] as List)
+                : (data is Map && data['data'] != null)
+                    ? List<dynamic>.from(data['data'] as List)
+                    : [];
+        print('✅ Loaded ${addresses.length} addresses from database');
         return {
           'success': true,
-          'data': data,
+          'data': addresses,
         };
       } else {
         return {

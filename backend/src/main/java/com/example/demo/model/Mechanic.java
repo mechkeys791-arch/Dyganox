@@ -52,7 +52,11 @@ public class Mechanic {
     @Column(length = 100)
     private String workingDays; // Comma-separated working days
     private String password; // Password (hashed) - set after admin approval
-    private boolean passwordSet = false; // Whether password has been set
+    private Boolean passwordSet; // Whether password has been set (Boolean so DB NULL is safe)
+
+    // FCM token for push notifications (mechanic request accept/reject)
+    @Column(length = 500)
+    private String fcmToken;
 
     public Mechanic() {}
 
@@ -162,8 +166,11 @@ public class Mechanic {
     public String getPassword() { return password; }
     public void setPassword(String password) { this.password = password; }
 
-    public boolean isPasswordSet() { return passwordSet; }
-    public void setPasswordSet(boolean passwordSet) { this.passwordSet = passwordSet; }
+    public boolean isPasswordSet() { return Boolean.TRUE.equals(passwordSet); }
+    public void setPasswordSet(Boolean passwordSet) { this.passwordSet = passwordSet; }
+
+    public String getFcmToken() { return fcmToken; }
+    public void setFcmToken(String fcmToken) { this.fcmToken = fcmToken; }
 
     @Override
     public String toString() {

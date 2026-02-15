@@ -28,6 +28,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
   String _userPhone = '';
   DateTime? _dateOfBirth;
   String _gender = '';
+  String _selectedLocation = '';
   String? _profileImagePath;
   Uint8List? _profileImageBytes;
   bool _notificationsEnabled = true;
@@ -104,6 +105,47 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
         } else {
           // Database doesn't have profile, load from local storage
           _loadFromLocalStorage(prefs);
+        }
+        
+        // Load selected address/location from user_addresses table
+        try {
+          final addressResult = await UserProfileService.getUserAddresses(email);
+          if (addressResult['success'] == true && addressResult['data'] != null) {
+            final rawList = addressResult['data'];
+            final List<Map<String, dynamic>> addresses = rawList is List
+                ? (rawList as List)
+                    .where((e) => e is Map)
+                    .map((e) => Map<String, dynamic>.from(e as Map))
+                    .toList()
+                : [];
+            if (addresses.isNotEmpty) {
+              Map<String, dynamic> selected = addresses.firstWhere(
+                (addr) => addr['isSelected'] == true,
+                orElse: () => addresses.first,
+              );
+              final label = selected['label'] ?? '';
+              final addressText = selected['fullAddress'] ??
+                  selected['addressLine1'] ??
+                  '${selected['city'] ?? ''}, ${selected['state'] ?? ''}'.trim();
+              final displayText = label.isNotEmpty
+                  ? '$label - $addressText'
+                  : addressText.isNotEmpty
+                      ? addressText
+                      : 'Location set';
+              if (!mounted) return;
+              setState(() => _selectedLocation = displayText);
+            } else {
+              if (!mounted) return;
+              setState(() => _selectedLocation = 'No address saved');
+            }
+          } else {
+            if (!mounted) return;
+            setState(() => _selectedLocation = 'No address saved');
+          }
+        } catch (e) {
+          print('Warning: Could not load location from database: $e');
+          if (!mounted) return;
+          setState(() => _selectedLocation = 'No address saved');
         }
       } catch (e) {
         // If database fails, load from local storage
@@ -832,11 +874,12 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                 icon: Icons.location_on_outlined,
                 title: 'Saved Addresses',
                 subtitle: 'Manage your saved addresses',
-                onTap: () {
-                  Navigator.push(
+                onTap: () async {
+                  await Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => const AddressesPage()),
                   );
+                  if (mounted) _loadUserData();
                 },
               ),
               _buildProfileOption(
@@ -1532,6 +1575,9 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                 const SizedBox(height: 16),
                 // Gender
                 _buildInfoRow(Icons.person_outline, 'Gender', _gender.isNotEmpty ? _gender : 'Not set'),
+                const SizedBox(height: 16),
+                // Location (from user_addresses table)
+                _buildInfoRow(Icons.location_on, 'Location', _selectedLocation.isNotEmpty ? _selectedLocation : 'No address saved'),
               ],
             ),
           ),

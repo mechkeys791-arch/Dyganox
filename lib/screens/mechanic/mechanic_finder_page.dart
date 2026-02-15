@@ -888,37 +888,24 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
   }
 
   void _processMechanicRequest(Map<String, dynamic> mechanic) async {
-    // Process payment directly (confirmation dialog already shown in _showRequestMechanicDialog)
     final orderId = 'order_${DateTime.now().millisecondsSinceEpoch}';
     final amount = 50.0;
-    
     try {
-      // Update payment gateway context to ensure it's current
       _paymentGateway.initialize(context);
-      
-      print('💳 Processing payment for mechanic: ${mechanic['name']}');
-      print('   Order ID: $orderId');
-      print('   Amount: ₹$amount');
-      print('   API Base URL: ${ApiConfig.baseUrl}');
-      
       await _paymentGateway.makePayment(
         amount: amount,
         orderId: orderId,
-        customerName: 'Customer', // You can get this from user profile
-        customerEmail: 'customer@example.com', // You can get this from user profile
-        customerPhone: '+91 98765 43210', // You can get this from user profile
-        onSuccess: () {
-          print('✅ Payment successful, sending request to mechanic...');
-          // Payment successful, now send request to mechanic
-          _sendRequestToMechanic(mechanic, amount, orderId);
-        },
+        customerName: 'Customer',
+        customerEmail: 'customer@example.com',
+        customerPhone: '+91 98765 43210',
+        onSuccess: () => _sendRequestToMechanic(mechanic, amount, orderId),
         onFailure: (error) {
-          print('❌ Payment failed: $error');
+          print('Request failed: $error');
           _showErrorDialog('Payment failed: $error');
         },
       );
     } catch (e) {
-      print('❌ Payment exception: $e');
+      print('Request error: $e');
       _showErrorDialog('Payment error: $e');
     }
   }
@@ -972,9 +959,9 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
         'paymentOrderId': orderId, // Link payment to request
       };
 
-      print("Sending mechanic request: $requestData");
+      final mechanicId = mechanic['id'];
+      print('[Request] Sending to mechanicId=$mechanicId (${mechanic['name']}). Backend will send FCM if mechanic has opened app.');
 
-      // Send request to backend
       final response = await http.post(
         Uri.parse(ApiConfig.mechanicRequestsEndpoint),
         headers: {"Content-Type": "application/json"},
@@ -984,17 +971,23 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
       Navigator.pop(context); // Close loading dialog
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        print("Request sent successfully!");
+        try {
+          final body = jsonDecode(response.body);
+          final requestId = body['id'];
+          print('[Request] OK requestId=$requestId. Check backend EC2 logs for: FCM sent / no FCM token / FCM not initialized.');
+        } catch (_) {
+          print('[Request] OK. Check backend EC2 logs for FCM status.');
+        }
         
         // Show success dialog
         _showSuccessDialog(mechanic);
       } else {
-        print("Failed to send request: ${response.statusCode} - ${response.body}");
+        print('[Request] FAIL ${response.statusCode}: ${response.body}');
         _showErrorDialog('Failed to send request. Please try again.');
       }
     } catch (e) {
       Navigator.pop(context); // Close loading dialog
-      print("Error sending request: $e");
+      print('[Request] Error: $e');
       _showErrorDialog('Network error. Please check your connection and try again.');
     }
   }
