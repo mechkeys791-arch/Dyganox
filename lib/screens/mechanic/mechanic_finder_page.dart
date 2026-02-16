@@ -945,6 +945,9 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
     );
 
     try {
+      // Distance in km (from map list) so backend can show it in the mechanic's notification
+      final distanceKm = mechanic['distance'] is num ? (mechanic['distance'] as num).toDouble() : null;
+
       // Prepare request data
       final requestData = {
         'mechanicId': mechanic['id'],
@@ -957,6 +960,7 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
         'longitude': _currentPosition?.longitude.toString() ?? '0',
         'amount': amount,
         'paymentOrderId': orderId, // Link payment to request
+        if (distanceKm != null) 'distanceKm': distanceKm,
       };
 
       final mechanicId = mechanic['id'];

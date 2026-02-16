@@ -14,6 +14,10 @@ public class MechanicRequest {
 
     private Long mechanicId;
     private String customerName;
+
+    /** Distance in km from mechanic to customer (sent by app, not persisted if column missing). */
+    @Transient
+    private Double distanceKm;
     private String customerPhone;
     private String customerEmail;
     private String serviceType;
@@ -57,6 +61,9 @@ public class MechanicRequest {
 
     public String getCustomerPhone() { return customerPhone; }
     public void setCustomerPhone(String customerPhone) { this.customerPhone = customerPhone; }
+
+    public Double getDistanceKm() { return distanceKm; }
+    public void setDistanceKm(Double distanceKm) { this.distanceKm = distanceKm; }
 
     public String getCustomerEmail() { return customerEmail; }
     public void setCustomerEmail(String customerEmail) { this.customerEmail = customerEmail; }

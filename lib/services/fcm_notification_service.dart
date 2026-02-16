@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -126,7 +127,7 @@ class FcmNotificationService {
 
     // Android: create channel and set up for FCM
     if (Platform.isAndroid) {
-      const androidChannel = AndroidNotificationChannel(
+      final androidChannel = AndroidNotificationChannel(
         _kChannelId,
         _kChannelName,
         description: 'New mechanic service requests',
@@ -135,6 +136,7 @@ class FcmNotificationService {
         enableVibration: true,
         showBadge: true,
         enableLights: true,
+        vibrationPattern: Int64List.fromList([0, 500, 250, 500]),
       );
       await _localNotifications
           .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
@@ -230,7 +232,9 @@ class FcmNotificationService {
     required String body,
     required String payload,
   }) async {
-    const androidDetails = AndroidNotificationDetails(
+    // Strong vibration pattern: wait 0ms, vibrate 500ms, wait 250ms, vibrate 500ms (more noticeable)
+    final vibrationPattern = Int64List.fromList([0, 500, 250, 500]);
+    final androidDetails = AndroidNotificationDetails(
       _kChannelId,
       _kChannelName,
       channelDescription: 'New mechanic service requests',
@@ -238,8 +242,11 @@ class FcmNotificationService {
       priority: Priority.max,
       playSound: true,
       enableVibration: true,
+      vibrationPattern: vibrationPattern,
       enableLights: true,
       visibility: NotificationVisibility.public,
+      // For a custom loud sound: add android/app/src/main/res/raw/notification_alert.mp3
+      // and set: sound: RawResourceAndroidNotificationSound('notification_alert'),
       actions: <AndroidNotificationAction>[
         AndroidNotificationAction(_kActionAccept, 'Accept', showsUserInterface: true, cancelNotification: true),
         AndroidNotificationAction(_kActionReject, 'Reject', showsUserInterface: true, cancelNotification: true),
@@ -251,7 +258,7 @@ class FcmNotificationService {
       presentSound: true,
       categoryIdentifier: 'mechanic_request',
     );
-    const details = NotificationDetails(
+    final details = NotificationDetails(
       android: androidDetails,
       iOS: iosDetails,
     );
@@ -328,7 +335,8 @@ Future<void> _firebaseBackgroundMessage(RemoteMessage message) async {
     await plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()?.createNotificationChannel(androidChannel);
   }
 
-  const androidDetails = AndroidNotificationDetails(
+  final vibrationPattern = Int64List.fromList([0, 500, 250, 500]);
+  final androidDetails = AndroidNotificationDetails(
     _kChannelId,
     _kChannelName,
     channelDescription: 'New mechanic service requests',
@@ -336,6 +344,7 @@ Future<void> _firebaseBackgroundMessage(RemoteMessage message) async {
     priority: Priority.max,
     playSound: true,
     enableVibration: true,
+    vibrationPattern: vibrationPattern,
     visibility: NotificationVisibility.public,
     actions: <AndroidNotificationAction>[
       AndroidNotificationAction(_kActionAccept, 'Accept', showsUserInterface: true, cancelNotification: true),
@@ -343,7 +352,7 @@ Future<void> _firebaseBackgroundMessage(RemoteMessage message) async {
     ],
   );
   const iosDetails = DarwinNotificationDetails(presentAlert: true, presentBadge: true, presentSound: true);
-  const details = NotificationDetails(android: androidDetails, iOS: iosDetails);
+  final details = NotificationDetails(android: androidDetails, iOS: iosDetails);
   final payload = jsonEncode({'type': type, 'requestId': requestId});
   final notifId = requestId.hashCode & 0x7FFFFFFF;
   await plugin.show(notifId, title, body, details, payload: payload);

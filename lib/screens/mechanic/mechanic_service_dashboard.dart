@@ -18,7 +18,7 @@ class MechanicServiceDashboard extends StatefulWidget {
   State<MechanicServiceDashboard> createState() => _MechanicServiceDashboardState();
 }
 
-class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> with SingleTickerProviderStateMixin {
+class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
   
@@ -102,7 +102,8 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
   @override
   void initState() {
     super.initState();
-    
+    WidgetsBinding.instance.addObserver(this);
+
     _pulseController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
@@ -154,6 +155,27 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
       _fetchBookings();
       _loadMechanicProfileFromApi();
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _refreshTimer?.cancel();
+    _pulseController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // Re-register FCM token when app comes to foreground so notifications work after resume
+    if (state == AppLifecycleState.resumed) {
+      final mechanicId = widget.mechanicData?['id'];
+      if (mechanicId != null) {
+        final id = mechanicId is int ? mechanicId : int.tryParse(mechanicId.toString());
+        if (id != null) FcmNotificationService.registerMechanicToken(id);
+      }
+    }
   }
   
   Future<void> _loadMechanicProfileFromApi() async {
@@ -222,13 +244,6 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
     } catch (e) {
       _showSnackBar('Error: $e', Colors.red);
     }
-  }
-  
-  @override
-  void dispose() {
-    _pulseController.dispose();
-    _refreshTimer?.cancel();
-    super.dispose();
   }
   
   Future<void> _fetchBookings() async {

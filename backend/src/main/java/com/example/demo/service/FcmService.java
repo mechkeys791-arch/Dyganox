@@ -52,10 +52,12 @@ public class FcmService {
     }
 
     /**
-     * Send a mechanic request notification to the mechanic's device.
-     * Data payload includes requestId so the app can show Accept/Reject and call API.
+     * Send a mechanic request notification to the mechanic's device with rich info.
+     * Data payload includes requestId, title, body, and optional customerPhone, amount, distance for the app.
      */
-    public void sendMechanicRequestNotification(String fcmToken, Long requestId, String customerName, String serviceType) {
+    public void sendMechanicRequestNotification(String fcmToken, Long requestId, String customerName,
+                                                 String serviceType, String customerPhone, Double amount,
+                                                 Double distanceKm, String description) {
         if (!initialized) {
             System.err.println("⚠️ [FCM] NOT INITIALIZED. Add firebase-service-account.json to backend/src/main/resources and redeploy EC2.");
             return;
@@ -65,16 +67,44 @@ public class FcmService {
             return;
         }
         try {
+            // Professional title: e.g. "New request • 2.5 km away"
             String title = "New service request";
-            String body = customerName + " requested " + (serviceType != null ? serviceType : "service") + ". Accept or reject?";
+            if (distanceKm != null && distanceKm > 0) {
+                String distStr = distanceKm >= 1 ? String.format("%.1f km away", distanceKm) : String.format("%.0f m away", distanceKm * 1000);
+                title = "New request • " + distStr;
+            }
+
+            // Body: Customer • Service • Amount • Phone hint
+            StringBuilder body = new StringBuilder();
+            body.append(customerName != null ? customerName : "Customer");
+            body.append(" • ");
+            body.append(serviceType != null && !serviceType.isBlank() ? serviceType : "General service");
+            if (amount != null && amount > 0) {
+                body.append(" • ₹").append(String.format("%.0f", amount));
+            }
+            if (customerPhone != null && !customerPhone.isBlank()) {
+                body.append(" • ").append(customerPhone);
+            }
+            body.append(" • Tap Accept or Reject");
+
             Map<String, String> data = new HashMap<>();
             data.put("type", "mechanic_request");
             data.put("requestId", String.valueOf(requestId));
             data.put("title", title);
-            data.put("body", body);
+            data.put("body", body.toString());
+            if (customerPhone != null && !customerPhone.isBlank()) {
+                data.put("customerPhone", customerPhone);
+            }
+            if (amount != null && amount > 0) {
+                data.put("amount", String.format("%.2f", amount));
+            }
+            if (distanceKm != null && distanceKm > 0) {
+                data.put("distanceKm", String.format("%.1f", distanceKm));
+            }
+            if (description != null && !description.isBlank()) {
+                data.put("description", description.length() > 100 ? description.substring(0, 97) + "..." : description);
+            }
 
-            // Data-only message so Flutter always shows our local notification with Accept/Reject buttons.
-            // If we sent .setNotification() too, Android would show a system notification (no actions) when app is backgrounded.
             Message message = Message.builder()
                     .setToken(fcmToken)
                     .putAllData(data)

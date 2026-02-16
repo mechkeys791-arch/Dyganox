@@ -48,13 +48,20 @@ public class MechanicRequestController {
                 Mechanic mechanic = mechanicOpt.get();
                 String fcmToken = mechanic.getFcmToken();
                 boolean hasToken = fcmToken != null && !fcmToken.isBlank();
-                String tokenHint = hasToken ? "length=" + fcmToken.length() + ", tail=..." + (fcmToken.length() > 8 ? fcmToken.substring(fcmToken.length() - 8) : "?") : "null/empty";
-                System.out.println("[FCM] mechanicId=" + mechanicId + ", requestId=" + requestId + ", fcmToken=" + tokenHint);
+                if (!hasToken) {
+                    System.err.println("⚠️ [Request " + requestId + "] Notification NOT sent: mechanic " + mechanicId + " has no FCM token. Mechanic must open the app and go to Mechanic Dashboard on the device that should receive notifications (token is saved on first dashboard open).");
+                } else {
+                    System.out.println("[FCM] mechanicId=" + mechanicId + ", requestId=" + requestId + ", sending...");
+                }
                 fcmService.sendMechanicRequestNotification(
                         fcmToken,
                         requestId,
                         savedRequest.getCustomerName(),
-                        savedRequest.getServiceType());
+                        savedRequest.getServiceType(),
+                        savedRequest.getCustomerPhone(),
+                        savedRequest.getAmount(),
+                        savedRequest.getDistanceKm(),
+                        savedRequest.getDescription());
             }
 
             return ResponseEntity.status(HttpStatus.CREATED).body(savedRequest);
