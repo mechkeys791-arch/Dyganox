@@ -173,22 +173,31 @@ class _MechanicRegistrationComprehensivePageState extends State<MechanicRegistra
   }
 
   Future<String?> _uploadImageToServer(File imageFile) async {
-    // S3 Upload Placeholder - Will be implemented later
-    // For now, convert to base64 and store temporarily
     try {
+      final uri = Uri.parse('${ApiConfig.baseUrl}/api/upload/profile/mechanic');
+      final request = http.MultipartRequest('POST', uri);
+      request.files.add(await http.MultipartFile.fromPath('file', imageFile.path));
+      final streamed = await request.send().timeout(const Duration(seconds: 30));
+      final response = await http.Response.fromStream(streamed);
+      if (response.statusCode == 200) {
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        final url = json['url'] as String?;
+        if (url != null) {
+          print('📸 Profile photo uploaded to S3: $url');
+          return url;
+        }
+      }
+      // Fallback: base64 (when S3 not configured on backend)
       final bytes = await imageFile.readAsBytes();
-      final base64Image = base64Encode(bytes);
-      
-      // TODO: Replace with actual S3 upload
-      // Example: await uploadToS3(imageFile);
-      // For now, return base64 as placeholder
-      // In production, this should upload to S3 and return URL
-      print('📸 Image uploaded (base64 placeholder - S3 to be connected)');
-      
-      return 'data:image/jpeg;base64,$base64Image';
+      return 'data:image/jpeg;base64,${base64Encode(bytes)}';
     } catch (e) {
-      print('Error encoding image: $e');
-      return null;
+      print('Error uploading image (fallback to base64): $e');
+      try {
+        final bytes = await imageFile.readAsBytes();
+        return 'data:image/jpeg;base64,${base64Encode(bytes)}';
+      } catch (_) {
+        return null;
+      }
     }
   }
 
@@ -219,6 +228,12 @@ class _MechanicRegistrationComprehensivePageState extends State<MechanicRegistra
       return;
     }
 
+    if (_profilePhoto == null) {
+      _showError('Passport size photo is required. Please add your photo.');
+      _goToStep(0);
+      return;
+    }
+
     // Show loading
     showDialog(
       context: context,
@@ -229,10 +244,12 @@ class _MechanicRegistrationComprehensivePageState extends State<MechanicRegistra
     );
 
     try {
-      // Upload profile photo if available
-      String? profilePhotoUrl;
-      if (_profilePhoto != null) {
-        profilePhotoUrl = await _uploadImageToServer(_profilePhoto!);
+      // Upload profile photo (required)
+      final profilePhotoUrl = await _uploadImageToServer(_profilePhoto!);
+      if (profilePhotoUrl == null || profilePhotoUrl.isEmpty) {
+        Navigator.pop(context);
+        _showError('Failed to upload photo. Please try again.');
+        return;
       }
 
       // Prepare mechanic data - all fields saved in DB (aadhar, shop, lat/long, all services, specialty, 24hr, times, working days)
@@ -518,11 +535,12 @@ class _MechanicRegistrationComprehensivePageState extends State<MechanicRegistra
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Add Photo (optional)',
+                            'Passport size photo (required)',
                             style: GoogleFonts.inter(
                               fontSize: 12,
                               color: Colors.grey[600],
                             ),
+                            textAlign: TextAlign.center,
                           ),
                         ],
                       ),

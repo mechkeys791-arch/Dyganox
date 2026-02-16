@@ -4,13 +4,14 @@ import 'api_config.dart';
 
 /// Service for managing user profile data (DOB, Gender) in database
 class UserProfileService {
-  /// Save or update user profile (DOB, Gender) to database
+  /// Save or update user profile (DOB, Gender, profilePhotoUrl) to database
   static Future<Map<String, dynamic>> saveUserProfile({
     required String email,
     required String name,
     required String phone,
     String? dateOfBirth,
     String? gender,
+    String? profilePhotoUrl,
   }) async {
     try {
       final requestBody = {
@@ -19,6 +20,7 @@ class UserProfileService {
         'phone': phone,
         'dateOfBirth': dateOfBirth,
         'gender': gender,
+        if (profilePhotoUrl != null) 'profilePhotoUrl': profilePhotoUrl,
       };
       
       print('💾 Saving user profile to database:');
@@ -141,6 +143,7 @@ class UserProfileService {
     String? phone,
     String? dateOfBirth,
     String? gender,
+    String? profilePhotoUrl,
   }) async {
     try {
       final response = await http.put(
@@ -153,6 +156,7 @@ class UserProfileService {
           if (phone != null) 'phone': phone,
           if (dateOfBirth != null) 'dateOfBirth': dateOfBirth,
           if (gender != null) 'gender': gender,
+          if (profilePhotoUrl != null) 'profilePhotoUrl': profilePhotoUrl,
         }),
       );
 

@@ -59,6 +59,7 @@ public class PersonController {
                         ? person.getGender() : null;
                     existing.setDateOfBirth(dob);
                     existing.setGender(gender);
+                    if (person.getProfilePhotoUrl() != null) existing.setProfilePhotoUrl(person.getProfilePhotoUrl());
                     System.out.println("   Setting DOB: " + dob);
                     System.out.println("   Setting Gender: " + gender);
                     
@@ -309,6 +310,7 @@ public class PersonController {
                 ? person.getGender() : null;
             existing.setDateOfBirth(dob);
             existing.setGender(gender);
+            if (person.getProfilePhotoUrl() != null) existing.setProfilePhotoUrl(person.getProfilePhotoUrl());
             System.out.println("   Setting DOB: " + dob);
             System.out.println("   Setting Gender: " + gender);
             
@@ -334,17 +336,42 @@ public class PersonController {
         }
     }
 
-    // Update user profile by email
+    // Update user profile by email (only updates non-null fields)
     @PutMapping("/profile/{email}")
     public Person updateProfileByEmail(@PathVariable String email, @RequestBody Person person) {
         Person existing = personRepo.findByEmail(email)
             .orElseThrow(() -> new RuntimeException("User not found with email: " + email));
         
-        existing.setName(person.getName());
-        existing.setPhone(person.getPhone());
-        existing.setDateOfBirth(person.getDateOfBirth());
-        existing.setGender(person.getGender());
+        if (person.getName() != null) existing.setName(person.getName());
+        if (person.getPhone() != null) existing.setPhone(person.getPhone());
+        if (person.getDateOfBirth() != null) existing.setDateOfBirth(person.getDateOfBirth());
+        if (person.getGender() != null) existing.setGender(person.getGender());
+        if (person.getProfilePhotoUrl() != null) existing.setProfilePhotoUrl(person.getProfilePhotoUrl());
         
         return personRepo.save(existing);
+    }
+
+    // Activity ping - updates lastActiveAt; optional sessionMinutes to add to total usage
+    @PostMapping("/activity")
+    public ResponseEntity<Void> recordActivity(@RequestBody Map<String, Object> body) {
+        try {
+            String email = (String) body.get("email");
+            if (email == null || email.isEmpty()) return ResponseEntity.badRequest().build();
+            
+            Optional<Person> opt = personRepo.findByEmail(email);
+            if (opt.isPresent()) {
+                Person p = opt.get();
+                p.setLastActiveAt(java.time.LocalDateTime.now());
+                Object sm = body.get("sessionMinutes");
+                if (sm != null) {
+                    long mins = sm instanceof Number ? ((Number) sm).longValue() : Long.parseLong(sm.toString());
+                    p.setTotalUsageMinutes((p.getTotalUsageMinutes() != null ? p.getTotalUsageMinutes() : 0L) + mins);
+                }
+                personRepo.save(p);
+            }
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            return ResponseEntity.status(500).build();
+        }
     }
 }

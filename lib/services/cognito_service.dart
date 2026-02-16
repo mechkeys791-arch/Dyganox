@@ -514,12 +514,15 @@ class CognitoService {
         final prefs = await SharedPreferences.getInstance();
         final profileData = result['data'];
         
-        // Save DOB and Gender to SharedPreferences for local access
+        // Save DOB, Gender, and profile photo URL to SharedPreferences for local access
         if (profileData['dateOfBirth'] != null) {
           await prefs.setString('user_date_of_birth', profileData['dateOfBirth']);
         }
         if (profileData['gender'] != null) {
           await prefs.setString('user_gender', profileData['gender']);
+        }
+        if (profileData['profilePhotoUrl'] != null && profileData['profilePhotoUrl'].toString().isNotEmpty) {
+          await prefs.setString('profilePhotoUrl', profileData['profilePhotoUrl'].toString());
         }
       }
     } catch (e) {

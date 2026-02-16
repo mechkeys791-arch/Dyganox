@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dyganox Admin Dashboard</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=7">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -23,6 +24,10 @@
                     <i class="fas fa-chart-line"></i>
                     <span>Dashboard</span>
                 </a>
+                <a href="#" class="nav-item" data-section="banners">
+                    <i class="fas fa-images"></i>
+                    <span>Carousel / Banners</span>
+                </a>
                 <a href="#" class="nav-item" data-section="mechanics">
                     <i class="fas fa-users-cog"></i>
                     <span>Mechanics</span>
@@ -31,6 +36,10 @@
                     <i class="fas fa-user-plus"></i>
                     <span>Registration Requests</span>
                     <span class="badge" id="registration-requests-badge">0</span>
+                </a>
+                <a href="#" class="nav-item" data-section="mechanics-by-city">
+                    <i class="fas fa-city"></i>
+                    <span>Mechanics by City</span>
                 </a>
                 <a href="#" class="nav-item" data-section="pending">
                     <i class="fas fa-user-clock"></i>
@@ -137,6 +146,51 @@
                             <p>Total Revenue</p>
                         </div>
                     </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: linear-gradient(135deg, #22C55E, #16A34A);">
+                            <i class="fas fa-circle-dot"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="stat-online">0</h3>
+                            <p>Online Now</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: linear-gradient(135deg, #94A3B8, #64748B);">
+                            <i class="fas fa-moon"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="stat-offline">0</h3>
+                            <p>Offline</p>
+                        </div>
+                    </div>
+                    <div class="stat-card stat-card-live">
+                        <div class="stat-icon stat-icon-pulse" style="background: linear-gradient(135deg, #EC4899, #BE185D);">
+                            <i class="fas fa-user-clock"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="stat-live-users">0</h3>
+                            <p>Live Users Now</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: linear-gradient(135deg, #06B6D4, #0891B2);">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="stat-usage-hours">0</h3>
+                            <p>Total App Usage (hrs)</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: linear-gradient(135deg, #F97316, #EA580C);">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="stat-peak-time">--:--</h3>
+                            <p>Peak Hour</p>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="charts-grid">
@@ -147,6 +201,39 @@
                     <div class="chart-card">
                         <h3>Requests by Service Type</h3>
                         <canvas id="service-type-chart"></canvas>
+                    </div>
+                </div>
+                <div class="charts-row-2" style="margin-top: 24px;">
+                    <div class="chart-card">
+                        <h3>Mechanics by City</h3>
+                        <canvas id="dashboard-city-chart"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Online vs Offline Mechanics</h3>
+                        <canvas id="dashboard-online-chart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Mechanics by City Section -->
+            <section id="mechanics-by-city-section" class="content-section">
+                <div class="section-header">
+                    <h2>Mechanics by City</h2>
+                    <p class="section-subtitle">Mechanics sorted by city with online/offline availability</p>
+                </div>
+                <div class="city-stats-grid" id="city-stats-grid"></div>
+                <div class="chart-card" style="margin-top: 24px;">
+                    <h3>Mechanics Distribution by City</h3>
+                    <canvas id="mechanics-by-city-chart"></canvas>
+                </div>
+                <div class="charts-row-2" style="margin-top: 24px;">
+                    <div class="chart-card">
+                        <h3>Online vs Offline</h3>
+                        <canvas id="online-offline-chart"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Status Distribution</h3>
+                        <canvas id="status-distribution-chart"></canvas>
                     </div>
                 </div>
             </section>
@@ -168,11 +255,13 @@
                     <table class="data-table">
                         <thead>
                             <tr>
+                                <th>Photo</th>
                                 <th>ID</th>
                                 <th>Name</th>
                                 <th>Email</th>
                                 <th>Phone</th>
                                 <th>Specialty</th>
+                                <th>City</th>
                                 <th>Experience</th>
                                 <th>Status</th>
                                 <th>Approval</th>
@@ -228,6 +317,7 @@
                     <table class="data-table">
                         <thead>
                             <tr>
+                                <th>Photo</th>
                                 <th>ID</th>
                                 <th>Name</th>
                                 <th>Email</th>
@@ -240,7 +330,7 @@
                         </thead>
                         <tbody id="pending-table-body">
                             <tr>
-                                <td colspan="8" class="loading">Loading pending mechanics...</td>
+                                <td colspan="9" class="loading">Loading pending mechanics...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -268,7 +358,7 @@
                                 <th>ID</th>
                                 <th>Customer</th>
                                 <th>Service Type</th>
-                                <th>Mechanic ID</th>
+                                <th>Mechanic</th>
                                 <th>Amount</th>
                                 <th>Status</th>
                                 <th>Request Time</th>
@@ -277,7 +367,7 @@
                         </thead>
                         <tbody id="requests-table-body">
                             <tr>
-                                <td colspan="8" class="loading">Loading requests...</td>
+                                <td colspan="9" class="loading">Loading requests...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -319,6 +409,10 @@
                     <h2>Detailed Analytics</h2>
                 </div>
                 <div class="analytics-grid">
+                    <div class="analytics-card analytics-card-featured">
+                        <h3><i class="fas fa-users"></i> User Analytics</h3>
+                        <div class="analytics-content" id="user-analytics-stats"></div>
+                    </div>
                     <div class="analytics-card">
                         <h3>Mechanic Statistics</h3>
                         <div class="analytics-content" id="mechanic-stats"></div>
@@ -334,6 +428,19 @@
                     <div class="analytics-card">
                         <h3>Payment Statistics</h3>
                         <div class="analytics-content" id="payment-stats"></div>
+                    </div>
+                    <div class="analytics-card analytics-card-full">
+                        <h3><i class="fas fa-map-marker-alt"></i> Users by Location</h3>
+                        <div class="location-charts-row">
+                            <div class="location-chart-item">
+                                <h4>By City</h4>
+                                <canvas id="users-by-city-chart"></canvas>
+                            </div>
+                            <div class="location-chart-item">
+                                <h4>By State</h4>
+                                <canvas id="users-by-state-chart"></canvas>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -351,6 +458,7 @@
                     <table class="data-table">
                         <thead>
                             <tr>
+                                <th>Photo</th>
                                 <th>ID</th>
                                 <th>Name</th>
                                 <th>Email</th>
@@ -362,7 +470,7 @@
                         </thead>
                         <tbody id="users-table-body">
                             <tr>
-                                <td colspan="7" class="loading">Loading users...</td>
+                                <td colspan="8" class="loading">Loading users...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -407,6 +515,26 @@
                 </div>
             </section>
 
+            <!-- Carousel / Banners Section -->
+            <section id="banners-section" class="content-section">
+                <div class="section-header">
+                    <h2>Homepage Carousel / Banners</h2>
+                    <p class="section-subtitle">Manage the slider images on your mobile app homepage. Add, edit, or reorder banners. Drag to reorder coming soon.</p>
+                    <button class="btn-action btn-view" onclick="showAddBannerModal()">
+                        <i class="fas fa-plus"></i> Add Banner
+                    </button>
+                </div>
+                <div class="banners-preview-area">
+                    <h3><i class="fas fa-mobile-alt"></i> App Preview – How it will look on your phone</h3>
+                    <div id="carousel-preview" class="carousel-preview"></div>
+                </div>
+                <h3 style="margin-top: 24px; margin-bottom: 12px;"><i class="fas fa-edit"></i> Edit or delete banners</h3>
+                <p class="section-subtitle" style="margin-bottom: 16px;">Click Edit on a card to change its image, title, or order. These replace the default images (eva_on_road.png, luxcar.png, etc.) in your app.</p>
+                <div id="banners-grid" class="banners-grid">
+                    <div class="loading">Loading banners...</div>
+                </div>
+            </section>
+
             <!-- Active Jobs Section -->
             <section id="active-jobs-section" class="content-section">
                 <div class="section-header">
@@ -442,12 +570,79 @@
         </main>
     </div>
 
-    <!-- Modal for Mechanic Details -->
+    <!-- Modal for Mechanic Details / Performance -->
     <div id="mechanic-modal" class="modal">
         <div class="modal-content">
             <span class="close">&times;</span>
-            <h2>Mechanic Performance</h2>
+            <h2 id="modal-title">Mechanic Details</h2>
             <div id="mechanic-performance-content"></div>
+        </div>
+    </div>
+
+    <!-- Mechanic Profile Modal (Full Details + Map) -->
+    <div id="mechanic-profile-modal" class="modal">
+        <div class="modal-content modal-profile">
+            <span class="close" onclick="closeProfileModal()">&times;</span>
+            <h2>Mechanic Profile</h2>
+            <div class="profile-modal-body">
+                <div class="profile-details-panel">
+                    <div id="mechanic-profile-details"></div>
+                </div>
+                <div class="profile-map-panel">
+                    <h4><i class="fas fa-map-marker-alt"></i> Shop Location</h4>
+                    <div id="profile-map" class="profile-map-container"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Photo Preview Modal (medium, centered) -->
+    <div id="photo-preview-modal" class="modal">
+        <div class="modal-content photo-preview-modal-content">
+            <span class="close" onclick="closePhotoModal()">&times;</span>
+            <h3 id="photo-preview-title" class="photo-preview-title"></h3>
+            <div class="photo-preview-wrap">
+                <img id="photo-preview-img" src="" alt="Profile photo" class="photo-preview-img">
+            </div>
+            <div class="photo-preview-actions">
+                <button type="button" class="btn-action btn-secondary" onclick="closePhotoModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Banner Add/Edit Modal -->
+    <div id="banner-modal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <span class="close" onclick="closeBannerModal()">&times;</span>
+            <h2 id="banner-modal-title">Add Banner</h2>
+            <div class="banner-form">
+                <div class="form-group">
+                    <label>Image</label>
+                    <input type="file" id="banner-image-input" accept="image/*">
+                    <div id="banner-image-preview" class="banner-preview"></div>
+                </div>
+                <div class="form-group">
+                    <label>Title</label>
+                    <input type="text" id="banner-title" placeholder="e.g. Emergency Roadside Assistance">
+                </div>
+                <div class="form-group">
+                    <label>Subtitle</label>
+                    <input type="text" id="banner-subtitle" placeholder="e.g. 24/7 Support Available">
+                </div>
+                <div class="form-group">
+                    <label>Order</label>
+                    <input type="number" id="banner-order" value="0" min="0" placeholder="0">
+                </div>
+                <div class="form-group">
+                    <label><input type="checkbox" id="banner-active" checked> Active (visible in app)</label>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-action btn-view" onclick="saveBanner()">
+                        <i class="fas fa-save"></i> Save
+                    </button>
+                    <button class="btn-action btn-secondary" onclick="closeBannerModal()">Cancel</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -456,7 +651,8 @@
     <!-- Get your API key from: https://console.cloud.google.com/google/maps-apis -->
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCkWqRCPB-EovWgvPFuLirPBDKU30wYDzc&callback=initMaps" async defer></script>
     <!-- If you don't have a Google Maps API key, comment out the line above and maps will not load -->
-    <script src="config.js"></script>
-    <script src="app.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <script src="config.js?v=7"></script>
+    <script src="app.js?v=7"></script>
 </body>
 </html>

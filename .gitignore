@@ -40,6 +40,9 @@ app.*.symbols
 # Obfuscation related
 app.*.map.json
 
+# EC2 config with secrets (create from application-ec2.properties.template)
+backend/application-ec2.properties
+
 # Android Studio will place build artifacts here
 /android/app/debug
 /android/app/profile

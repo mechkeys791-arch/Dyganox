@@ -52,7 +52,7 @@ public class Mechanic {
     @Column(length = 100)
     private String workingDays; // Comma-separated working days
     private String password; // Password (hashed) - set after admin approval
-    private Boolean passwordSet; // Whether password has been set (Boolean so DB NULL is safe)
+    private Boolean passwordSet = false; // Whether password has been set (Boolean for null-safe DB)
 
     // FCM token for push notifications (mechanic request accept/reject)
     @Column(length = 500)

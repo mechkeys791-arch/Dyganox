@@ -1,13 +1,16 @@
 package com.example.demo.controller;
 
+import com.example.demo.model.Banner;
 import com.example.demo.model.Mechanic;
 import com.example.demo.model.MechanicRequest;
 import com.example.demo.model.Payment;
 import com.example.demo.model.Person;
+import com.example.demo.repository.BannerRepo;
 import com.example.demo.repository.MechanicRepo;
 import com.example.demo.repository.MechanicRequestRepo;
 import com.example.demo.repository.PaymentRepo;
 import com.example.demo.repository.PersonRepo;
+import com.example.demo.repository.UserAddressRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -33,6 +36,12 @@ public class AdminController {
 
     @Autowired
     private PersonRepo personRepo;
+
+    @Autowired
+    private BannerRepo bannerRepo;
+
+    @Autowired
+    private UserAddressRepo userAddressRepo;
 
     // Get all mechanics with approval status
     @GetMapping("/mechanics")
@@ -169,7 +178,7 @@ public class AdminController {
                         .count();
                 paymentRevenue = allPayments.stream()
                         .filter(p -> p.getStatus() != null && p.getStatus().equals("SUCCESS"))
-                        .mapToDouble(Payment::getAmount)
+                        .mapToDouble(p -> p.getAmount() != null ? p.getAmount() : 0.0)
                         .sum();
             } catch (Exception pe) {
                 System.err.println("⚠️ Payment stats skipped: " + pe.getMessage());
@@ -180,6 +189,33 @@ public class AdminController {
                     .filter(m -> m.getStatus() != null && m.getStatus().equals("Available") &&
                             (m.getApprovalStatus() == null || m.getApprovalStatus().equals("APPROVED")))
                     .count();
+            
+            // Online vs Offline
+            long onlineMechanics = allMechanics.stream()
+                    .filter(m -> m.getApprovalStatus() != null && m.getApprovalStatus().equals("APPROVED") &&
+                            !m.isBlocked() && !m.isSuspended())
+                    .filter(Mechanic::isOnline)
+                    .count();
+            long offlineMechanics = allMechanics.stream()
+                    .filter(m -> m.getApprovalStatus() != null && m.getApprovalStatus().equals("APPROVED") &&
+                            !m.isBlocked() && !m.isSuspended())
+                    .filter(m -> !m.isOnline())
+                    .count();
+            
+            // Mechanics by city
+            Map<String, Map<String, Long>> mechanicsByCity = new LinkedHashMap<>();
+            for (Mechanic m : allMechanics) {
+                if (m.getApprovalStatus() == null || !m.getApprovalStatus().equals("APPROVED")) continue;
+                String city = (m.getShopCity() != null && !m.getShopCity().isEmpty()) ? m.getShopCity() : "Unknown";
+                mechanicsByCity.putIfAbsent(city, new HashMap<>());
+                Map<String, Long> cityStats = mechanicsByCity.get(city);
+                cityStats.putIfAbsent("total", 0L);
+                cityStats.putIfAbsent("online", 0L);
+                cityStats.putIfAbsent("offline", 0L);
+                cityStats.put("total", cityStats.get("total") + 1);
+                if (m.isOnline()) cityStats.put("online", cityStats.get("online") + 1);
+                else cityStats.put("offline", cityStats.get("offline") + 1);
+            }
             
             // Requests by service type
             Map<String, Long> requestsByServiceType = allRequests.stream()
@@ -194,13 +230,16 @@ public class AdminController {
                     .filter(r -> r.getRequestTime() != null && r.getRequestTime().isAfter(sevenDaysAgo))
                     .count();
             
-            analytics.put("mechanics", Map.of(
-                    "total", totalMechanics,
-                    "approved", approvedMechanics,
-                    "pending", pendingMechanics,
-                    "rejected", rejectedMechanics,
-                    "active", activeMechanics
-            ));
+            Map<String, Object> mechanicsMap = new HashMap<>();
+            mechanicsMap.put("total", totalMechanics);
+            mechanicsMap.put("approved", approvedMechanics);
+            mechanicsMap.put("pending", pendingMechanics);
+            mechanicsMap.put("rejected", rejectedMechanics);
+            mechanicsMap.put("active", activeMechanics);
+            mechanicsMap.put("online", onlineMechanics);
+            mechanicsMap.put("offline", offlineMechanics);
+            analytics.put("mechanics", mechanicsMap);
+            analytics.put("mechanicsByCity", mechanicsByCity);
             
             analytics.put("requests", Map.of(
                     "total", totalRequests,
@@ -223,6 +262,46 @@ public class AdminController {
             ));
             
             analytics.put("requestsByServiceType", requestsByServiceType);
+
+            // Peak hour (hour of day with most requests)
+            Map<Integer, Long> requestsByHour = allRequests.stream()
+                    .filter(r -> r.getRequestTime() != null)
+                    .collect(Collectors.groupingBy(r -> r.getRequestTime().getHour(), Collectors.counting()));
+            int peakHour = requestsByHour.entrySet().stream()
+                    .max(Map.Entry.comparingByValue())
+                    .map(Map.Entry::getKey).orElse(0);
+            analytics.put("peakHour", peakHour);
+
+            // Live users (users active in last 5 minutes)
+            LocalDateTime fiveMinsAgo = LocalDateTime.now().minusMinutes(5);
+            List<Person> allUsers = personRepo.findAll().stream()
+                    .filter(u -> u.getEmail() != null && !u.getEmail().isEmpty())
+                    .collect(Collectors.toList());
+            long liveUsers = allUsers.stream()
+                    .filter(u -> u.getLastActiveAt() != null && u.getLastActiveAt().isAfter(fiveMinsAgo))
+                    .count();
+            analytics.put("liveUsers", liveUsers);
+
+            // Total app usage hours (sum of totalUsageMinutes across users)
+            long totalUsageMinutes = allUsers.stream()
+                    .mapToLong(u -> u.getTotalUsageMinutes() != null ? u.getTotalUsageMinutes() : 0L)
+                    .sum();
+            analytics.put("totalUsageHours", Math.round(totalUsageMinutes / 60.0 * 100.0) / 100.0);
+
+            // Users by city and state (from UserAddress - distinct users per location)
+            List<com.example.demo.model.UserAddress> allAddresses = userAddressRepo.findAll();
+            Map<String, Long> usersByCity = allAddresses.stream()
+                    .filter(a -> a.getCity() != null && !a.getCity().isEmpty())
+                    .collect(Collectors.groupingBy(com.example.demo.model.UserAddress::getCity,
+                            Collectors.mapping(com.example.demo.model.UserAddress::getUserEmail,
+                                    Collectors.collectingAndThen(Collectors.toSet(), s -> (long) s.size()))));
+            Map<String, Long> usersByState = allAddresses.stream()
+                    .filter(a -> a.getState() != null && !a.getState().isEmpty())
+                    .collect(Collectors.groupingBy(com.example.demo.model.UserAddress::getState,
+                            Collectors.mapping(com.example.demo.model.UserAddress::getUserEmail,
+                                    Collectors.collectingAndThen(Collectors.toSet(), s -> (long) s.size()))));
+            analytics.put("usersByCity", usersByCity);
+            analytics.put("usersByState", usersByState);
             
             return ResponseEntity.ok(analytics);
         } catch (Exception e) {
@@ -448,6 +527,65 @@ public class AdminController {
             return ResponseEntity.ok(updated);
         } catch (Exception e) {
             System.err.println("❌ Error updating mechanic documents: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    // ========== BANNERS / CAROUSEL ==========
+    @GetMapping("/banners")
+    public ResponseEntity<List<Banner>> getAllBanners() {
+        try {
+            return ResponseEntity.ok(bannerRepo.findAllByOrderBySortOrderAsc());
+        } catch (Exception e) {
+            System.err.println("❌ Error fetching banners: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @PostMapping("/banners")
+    public ResponseEntity<Banner> createBanner(@RequestBody Map<String, Object> body) {
+        try {
+            Banner b = new Banner();
+            b.setImageUrl((String) body.get("imageUrl"));
+            b.setTitle((String) body.get("title"));
+            b.setSubtitle((String) body.get("subtitle"));
+            b.setSortOrder(body.containsKey("sortOrder") ? ((Number) body.get("sortOrder")).intValue() : 0);
+            b.setActive(body.get("active") != Boolean.FALSE);
+            return ResponseEntity.ok(bannerRepo.save(b));
+        } catch (Exception e) {
+            System.err.println("❌ Error creating banner: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @PutMapping("/banners/{id}")
+    public ResponseEntity<Banner> updateBanner(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        try {
+            Optional<Banner> opt = bannerRepo.findById(id);
+            if (opt.isEmpty()) return ResponseEntity.notFound().build();
+            Banner b = opt.get();
+            if (body.containsKey("imageUrl")) b.setImageUrl((String) body.get("imageUrl"));
+            if (body.containsKey("title")) b.setTitle((String) body.get("title"));
+            if (body.containsKey("subtitle")) b.setSubtitle((String) body.get("subtitle"));
+            if (body.containsKey("sortOrder")) b.setSortOrder(((Number) body.get("sortOrder")).intValue());
+            if (body.containsKey("active")) b.setActive((Boolean) body.get("active"));
+            return ResponseEntity.ok(bannerRepo.save(b));
+        } catch (Exception e) {
+            System.err.println("❌ Error updating banner: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @DeleteMapping("/banners/{id}")
+    public ResponseEntity<Void> deleteBanner(@PathVariable Long id) {
+        try {
+            if (bannerRepo.existsById(id)) {
+                bannerRepo.deleteById(id);
+                return ResponseEntity.ok().build();
+            }
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            System.err.println("❌ Error deleting banner: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }

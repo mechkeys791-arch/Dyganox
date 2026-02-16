@@ -1389,17 +1389,11 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
                   // Header Row
                   Row(
                     children: [
-                      // Avatar with gradient
+                      // Avatar (photo or icon)
                       Container(
                         width: 44,
                         height: 44,
                         decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              const Color(0xFF6366F1).withOpacity(0.8),
-                              const Color(0xFF8B7ED8),
-                            ],
-                          ),
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
@@ -1409,10 +1403,18 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
                             ),
                           ],
                         ),
-                        child: const Icon(
-                          Icons.build_circle,
-                          color: Colors.white,
-                          size: 22,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: mechanic['profilePhotoUrl'] != null &&
+                                  (mechanic['profilePhotoUrl'] as String).isNotEmpty
+                              ? Image.network(
+                                  mechanic['profilePhotoUrl'] as String,
+                                  fit: BoxFit.cover,
+                                  width: 44,
+                                  height: 44,
+                                  errorBuilder: (_, __, ___) => const Icon(Icons.build_circle, color: Color(0xFF6366F1), size: 22),
+                                )
+                              : const Icon(Icons.build_circle, color: Color(0xFF6366F1), size: 22),
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -1726,23 +1728,26 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
         ),
         child: Row(
           children: [
-            // Icon
+            // Photo or icon
             Container(
               width: 50,
               height: 50,
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    const Color(0xFF6366F1).withOpacity(0.8),
-                    const Color(0xFF8B7ED8),
-                  ],
-                ),
                 borderRadius: BorderRadius.circular(12),
+                color: const Color(0xFF6366F1).withOpacity(0.2),
               ),
-              child: const Icon(
-                Icons.build_circle,
-                color: Colors.white,
-                size: 26,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: mechanic['profilePhotoUrl'] != null &&
+                        (mechanic['profilePhotoUrl'] as String).isNotEmpty
+                    ? Image.network(
+                        mechanic['profilePhotoUrl'] as String,
+                        fit: BoxFit.cover,
+                        width: 50,
+                        height: 50,
+                        errorBuilder: (_, __, ___) => const Icon(Icons.build_circle, color: Color(0xFF6366F1), size: 26),
+                      )
+                    : const Icon(Icons.build_circle, color: Color(0xFF6366F1), size: 26),
               ),
             ),
             const SizedBox(width: 12),

@@ -19,6 +19,9 @@ public class Person {
     private String availableHours;
     private String dateOfBirth; // Date of Birth (ISO format: YYYY-MM-DD)
     private String gender; // Gender (Male, Female, Other)
+    private String profilePhotoUrl; // S3 URL for profile photo
+    private java.time.LocalDateTime lastActiveAt; // Last app activity (for live users count)
+    private Long totalUsageMinutes; // Total app usage time in minutes
 
     public Person() {}
 
@@ -70,4 +73,13 @@ public class Person {
 
     public String getGender() { return gender; }
     public void setGender(String gender) { this.gender = gender; }
+
+    public String getProfilePhotoUrl() { return profilePhotoUrl; }
+    public void setProfilePhotoUrl(String profilePhotoUrl) { this.profilePhotoUrl = profilePhotoUrl; }
+
+    public java.time.LocalDateTime getLastActiveAt() { return lastActiveAt; }
+    public void setLastActiveAt(java.time.LocalDateTime lastActiveAt) { this.lastActiveAt = lastActiveAt; }
+
+    public Long getTotalUsageMinutes() { return totalUsageMinutes; }
+    public void setTotalUsageMinutes(Long totalUsageMinutes) { this.totalUsageMinutes = totalUsageMinutes; }
 }

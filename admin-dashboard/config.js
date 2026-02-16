@@ -16,7 +16,9 @@ const API_CONFIG = {
         users: '/api/admin/users',
         mechanicLocations: '/api/admin/mechanics/locations',
         activeJobs: '/api/admin/jobs/active',
-        registrationRequests: '/api/mechanic/registration-requests'
+        registrationRequests: '/api/mechanic/registration-requests',
+        banners: '/api/admin/banners',
+        uploadBanner: '/api/upload/banner'
     }
 };
 

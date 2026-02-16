@@ -40,6 +40,14 @@ echo "🔧 Deploying on EC2..."
 ssh -i "$KEY_PATH" ec2-user@$EC2_IP << 'ENDSSH'
     set -e
     
+    echo "🛑 Stopping Python http.server if running (common cause of directory listing)..."
+    pkill -f "python.*http.server" 2>/dev/null || true
+    sleep 1
+    
+    echo "▶️  Ensuring Nginx is running on port 80..."
+    sudo systemctl start nginx 2>/dev/null || true
+    sudo systemctl enable nginx 2>/dev/null || true
+    
     echo "📂 Extracting files..."
     cd /home/ec2-user
     tar -xzf admin-dashboard.tar.gz
@@ -53,10 +61,18 @@ ssh -i "$KEY_PATH" ec2-user@$EC2_IP << 'ENDSSH'
     sudo chown -R nginx:nginx /var/www/admin-dashboard
     sudo chmod -R 755 /var/www/admin-dashboard
     
-    echo "🔄 Reloading Nginx..."
-    sudo nginx -t && sudo systemctl reload nginx || {
-        echo "⚠️  Nginx reload failed, but files are deployed"
+    echo "📝 Configuring Nginx..."
+    sudo cp /var/www/admin-dashboard/nginx.conf /etc/nginx/conf.d/admin-dashboard.conf
+    sudo rm -f /etc/nginx/conf.d/default.conf 2>/dev/null || true
+    
+    echo "🔄 Restarting Nginx..."
+    sudo nginx -t && sudo systemctl restart nginx || {
+        echo "⚠️  Nginx restart failed, trying start..."
+        sudo systemctl start nginx
     }
+    
+    echo "📋 Verifying: Port 80 should be Nginx..."
+    sudo ss -tlnp | grep :80 || echo "Check: sudo ss -tlnp | grep 80"
     
     echo "✅ Deployment complete!"
     echo "🌐 Dashboard should be accessible at: http://$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)"

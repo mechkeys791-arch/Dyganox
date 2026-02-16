@@ -192,8 +192,11 @@ class _CarServicePageState extends State<CarServicePage> with TickerProviderStat
       ),
       body: FadeTransition(
         opacity: _fadeAnimation,
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
+        child: RefreshIndicator(
+          onRefresh: () async { setState(() {}); },
+          color: const Color(0xFF2563EB),
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -440,6 +443,7 @@ class _CarServicePageState extends State<CarServicePage> with TickerProviderStat
               const SizedBox(height: 20),
             ],
           ),
+        ),
         ),
       ),
     );

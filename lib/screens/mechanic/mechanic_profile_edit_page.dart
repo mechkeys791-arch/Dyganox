@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_fonts/google_fonts.dart';
-import 'package:geolocator/geolocator.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:typed_data';
+import '../profile/location_picker_map_page.dart';
 
 class MechanicProfileEditPage extends StatefulWidget {
   final Map<String, dynamic> mechanicProfile;
@@ -27,13 +28,14 @@ class _MechanicProfileEditPageState extends State<MechanicProfileEditPage> {
   late TextEditingController _emailController;
   late TextEditingController _experienceController;
   late TextEditingController _specialtyController;
-  late TextEditingController _latitudeController;
-  late TextEditingController _longitudeController;
   late TextEditingController _rateController;
   
   Uint8List? _profileImageBytes;
   bool _isAvailableForNightService = false;
   bool _isCurrentlyAvailable = true;
+  double? _savedLatitude;
+  double? _savedLongitude;
+  String? _savedShopAddress;
   
   @override
   void initState() {
@@ -45,11 +47,46 @@ class _MechanicProfileEditPageState extends State<MechanicProfileEditPage> {
     _emailController = TextEditingController(text: widget.mechanicProfile['email'] ?? '');
     _experienceController = TextEditingController(text: widget.mechanicProfile['experience'] ?? '');
     _specialtyController = TextEditingController(text: widget.mechanicProfile['specialty'] ?? '');
-    _latitudeController = TextEditingController(text: widget.mechanicProfile['latitude']?.toString() ?? '');
-    _longitudeController = TextEditingController(text: widget.mechanicProfile['longitude']?.toString() ?? '');
     _rateController = TextEditingController(text: widget.mechanicProfile['rate']?.toString() ?? '500');
     
     _isAvailableForNightService = widget.mechanicProfile['nightTimeAvailable'] ?? false;
+    final lat = double.tryParse(widget.mechanicProfile['latitude']?.toString() ?? '');
+    final lng = double.tryParse(widget.mechanicProfile['longitude']?.toString() ?? '');
+    if (lat != null && lng != null) {
+      _savedLatitude = lat;
+      _savedLongitude = lng;
+    }
+    _savedShopAddress = widget.mechanicProfile['shopAddress'] ?? widget.mechanicProfile['shop_address'];
+  }
+  
+  Future<void> _pickShopLocation() async {
+    LatLng? initialPos;
+    if (_savedLatitude != null && _savedLongitude != null) {
+      initialPos = LatLng(_savedLatitude!, _savedLongitude!);
+    }
+    
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => LocationPickerMapPage(
+          initialPosition: initialPos,
+          forMechanicShop: true,
+        ),
+      ),
+    );
+    
+    if (result != null && mounted) {
+      final lat = result['latitude'] as num?;
+      final lng = result['longitude'] as num?;
+      if (lat != null && lng != null) {
+        setState(() {
+          _savedLatitude = lat.toDouble();
+          _savedLongitude = lng.toDouble();
+          _savedShopAddress = result['fullAddress']?.toString();
+        });
+        _showSnackBar('Location updated! Save to apply.', const Color(0xFF10B981));
+      }
+    }
   }
   
   @override
@@ -59,8 +96,6 @@ class _MechanicProfileEditPageState extends State<MechanicProfileEditPage> {
     _emailController.dispose();
     _experienceController.dispose();
     _specialtyController.dispose();
-    _latitudeController.dispose();
-    _longitudeController.dispose();
     _rateController.dispose();
     super.dispose();
   }
@@ -74,35 +109,6 @@ class _MechanicProfileEditPageState extends State<MechanicProfileEditPage> {
       setState(() {
         _profileImageBytes = bytes;
       });
-    }
-  }
-  
-  Future<void> _getCurrentLocation() async {
-    try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        _showSnackBar('Location services are disabled.', Colors.red);
-        return;
-      }
-
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          _showSnackBar('Location permissions are denied', Colors.red);
-          return;
-        }
-      }
-
-      Position position = await Geolocator.getCurrentPosition();
-      setState(() {
-        _latitudeController.text = position.latitude.toStringAsFixed(6);
-        _longitudeController.text = position.longitude.toStringAsFixed(6);
-      });
-      
-      _showSnackBar('Location updated successfully!', const Color(0xFF10B981));
-    } catch (e) {
-      _showSnackBar('Error getting location: $e', Colors.red);
     }
   }
   
@@ -124,8 +130,9 @@ class _MechanicProfileEditPageState extends State<MechanicProfileEditPage> {
         'email': _emailController.text,
         'experience': _experienceController.text,
         'specialty': _specialtyController.text,
-        'latitude': _latitudeController.text,
-        'longitude': _longitudeController.text,
+        'latitude': _savedLatitude?.toString() ?? widget.mechanicProfile['latitude']?.toString(),
+        'longitude': _savedLongitude?.toString() ?? widget.mechanicProfile['longitude']?.toString(),
+        'shopAddress': _savedShopAddress ?? widget.mechanicProfile['shopAddress'] ?? widget.mechanicProfile['shop_address'],
         'rate': _rateController.text,
         'nightTimeAvailable': _isAvailableForNightService,
         'rating': widget.mechanicProfile['rating'],
@@ -221,29 +228,33 @@ class _MechanicProfileEditPageState extends State<MechanicProfileEditPage> {
                 ),
                 const SizedBox(height: 20),
                 
-                // Location Card
+                // Location Card - Shop location from registration, change via map
                 _buildSectionCard(
-                  title: 'Service Location',
+                  title: 'Shop Location',
                   icon: Icons.location_on,
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildTextField('Latitude', _latitudeController, Icons.my_location, keyboardType: TextInputType.number),
+                    if (_savedShopAddress != null || widget.mechanicProfile['shopAddress'] != null || widget.mechanicProfile['shop_address'] != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Row(
+                          children: [
+                            Icon(Icons.place, size: 20, color: Colors.grey[600]),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                _savedShopAddress ?? widget.mechanicProfile['shopAddress'] ?? widget.mechanicProfile['shop_address'] ?? '',
+                                style: GoogleFonts.inter(fontSize: 14, color: Colors.black87),
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _buildTextField('Longitude', _longitudeController, Icons.location_searching, keyboardType: TextInputType.number),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
+                      ),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
-                        onPressed: _getCurrentLocation,
-                        icon: const Icon(Icons.gps_fixed),
-                        label: const Text('Get Current Location'),
+                        onPressed: _pickShopLocation,
+                        icon: const Icon(Icons.edit_location_alt),
+                        label: const Text('Change Shop Location'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF10B981),
                           foregroundColor: Colors.white,

@@ -305,8 +305,11 @@ class _EmergencyAssistancePageState extends State<EmergencyAssistancePage>
       ),
       body: FadeTransition(
         opacity: _fadeAnimation,
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
+        child: RefreshIndicator(
+          onRefresh: () async { setState(() {}); },
+          color: const Color(0xFFEF4444),
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
           child: Column(
             children: [
               // Hero Emergency Banner - Clickable
@@ -561,6 +564,7 @@ class _EmergencyAssistancePageState extends State<EmergencyAssistancePage>
               const SizedBox(height: 20),
             ],
           ),
+        ),
         ),
       ),
       // Custom Floating Bottom Navigation Bar

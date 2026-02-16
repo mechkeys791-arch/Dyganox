@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -22,6 +23,7 @@ import 'services/user_profile_service.dart';
 import 'services/cognito_service.dart';
 import 'emergency_assistance_page.dart';
 import 'widgets/custom_nav_bar.dart';
+import 'services/api_config.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -51,23 +53,30 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   // Search functionality
   List<Map<String, dynamic>> _searchResults = [];
   final List<Map<String, dynamic>> _allServices = [];
+
+  // Carousel banners from API (null until loaded)
+  List<Map<String, dynamic>>? _banners;
   
   // Responsive design variables
   late double screenWidth;
   late double screenHeight;
   
-  // Get profile image from SharedPreferences
-  Future<Uint8List?> _getProfileImage() async {
+  // Get profile image from SharedPreferences (S3 URL or local bytes)
+  Future<({String? url, Uint8List? bytes})> _getProfileImage() async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      final url = prefs.getString('profilePhotoUrl');
+      if (url != null && url.isNotEmpty) {
+        return (url: url, bytes: null);
+      }
       final imageBytesBase64 = prefs.getString('profileImageBytes');
       if (imageBytesBase64 != null) {
-        return base64Decode(imageBytesBase64);
+        return (url: null, bytes: base64Decode(imageBytesBase64));
       }
     } catch (e) {
       // If decoding fails, return null
     }
-    return null;
+    return (url: null, bytes: null);
   }
 
   @override
@@ -93,9 +102,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     
     // Auto-scroll ads
     _startAdAutoScroll();
-    
+
+    // Load carousel banners from API
+    _loadBanners();
+
     // Load selected address from database first
     _loadSelectedAddress();
+    // Ping activity for live users analytics
+    _pingActivity();
     
     // Get current location (as fallback)
     _getCurrentLocation();
@@ -137,11 +151,52 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     });
   }
   
+  Future<void> _refreshHomePage() async {
+    await _loadBanners();
+    await _loadSelectedAddress();
+    _pingActivity();
+    if (mounted) setState(() {});
+  }
+
+  void _pingActivity() {
+    CognitoService.getCurrentUser().then((user) {
+      final email = user['email'] as String?;
+      if (email != null && email.isNotEmpty) {
+        http.post(
+          Uri.parse('${ApiConfig.baseUrl}/api/person/activity'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'email': email}),
+        ).timeout(const Duration(seconds: 5)).ignore();
+      }
+    });
+  }
+
+  Future<void> _loadBanners() async {
+    try {
+      final resp = await http.get(Uri.parse('${ApiConfig.baseUrl}/api/banners')).timeout(const Duration(seconds: 5));
+      if (mounted && resp.statusCode == 200) {
+        final list = (jsonDecode(resp.body) as List).cast<Map<String, dynamic>>();
+        if (list.isNotEmpty) {
+          setState(() {
+            _banners = list;
+            if (_currentAdIndex >= list.length) _currentAdIndex = 0;
+          });
+        }
+      }
+    } catch (_) {
+      // Keep null - will use fallback ads
+    }
+  }
+
+  int get _adCount => (_banners != null && _banners!.isNotEmpty) ? _banners!.length : 3;
+
   void _startAdAutoScroll() {
+    final count = _adCount;
+    if (count == 0) return;
     Future.delayed(const Duration(seconds: 3), () {
       if (mounted) {
         setState(() {
-          _currentAdIndex = (_currentAdIndex + 1) % 3; // 3 ads
+          _currentAdIndex = (_currentAdIndex + 1) % count;
         });
         _adPageController.animateToPage(
           _currentAdIndex,
@@ -687,9 +742,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          child: FadeTransition(
+        child: RefreshIndicator(
+          onRefresh: _refreshHomePage,
+          color: const Color(0xFFFF6B35),
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+            child: FadeTransition(
             opacity: _fadeAnimation,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -807,10 +865,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                   Navigator.pushNamed(context, '/profile');
                                 },
                                 borderRadius: BorderRadius.circular(20),
-                                child: FutureBuilder<Uint8List?>(
+                                child: FutureBuilder<({String? url, Uint8List? bytes})>(
                                   future: _getProfileImage(),
                                   builder: (context, snapshot) {
-                                    if (snapshot.hasData && snapshot.data != null) {
+                                    final data = snapshot.data;
+                                    final hasImage = data != null && (data.url != null || data.bytes != null);
+                                    if (snapshot.hasData && hasImage) {
                                       return Container(
                                         width: 40,
                                         height: 40,
@@ -829,10 +889,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                           ],
                                         ),
                                         child: ClipOval(
-                                          child: Image.memory(
-                                            snapshot.data!,
-                                            fit: BoxFit.cover,
-                                          ),
+                                          child: data!.url != null
+                                              ? Image.network(data.url!, fit: BoxFit.cover)
+                                              : Image.memory(data.bytes!, fit: BoxFit.cover),
                                         ),
                                       );
                                     }
@@ -1180,7 +1239,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         _currentAdIndex = index;
                       });
                     },
-                    itemCount: 3,
+                    itemCount: _adCount,
                     itemBuilder: (context, index) {
                       return _buildAdCard(index);
                     },
@@ -1192,7 +1251,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   margin: const EdgeInsets.only(bottom: 8),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(3, (index) {
+                    children: List.generate(_adCount, (index) {
                       return AnimatedContainer(
                         duration: const Duration(milliseconds: 300),
                         margin: const EdgeInsets.symmetric(horizontal: 4),
@@ -1713,6 +1772,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             ),
           ),
         ),
+        ),
       ),
 
       // Custom Floating Bottom Navigation Bar
@@ -1720,43 +1780,50 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildAdCard(int index) {
-    final ads = [
-      {
-        'title': 'Emergency Roadside Assistance',
-        'subtitle': '24/7 Support Available',
-        'icon': Icons.emergency,
-        'color': const Color(0xFFFF6B35),
-        'gradient': [const Color(0xFFFF6B35), const Color(0xFFFF8C42), const Color(0xFFFFA500)],
-        'image': 'assets/icons/eva_on_road.png',
-      },
-      {
-        'title': 'Premium Car Service',
-        'subtitle': 'Expert Mechanics at Your Doorstep',
-        'icon': Icons.build_circle,
-        'color': const Color(0xFFFF6B35),
-        'gradient': [const Color(0xFFFF8C42), const Color(0xFFFFA500), const Color(0xFFFFB347)],
-        'image': 'assets/icons/luxcar.png',
-      },
-      {
-        'title': 'EV Charging Network',
-        'subtitle': 'Find Nearest Charging Stations',
-        'icon': Icons.electric_car,
-        'color': const Color(0xFFFF6B35),
-        'gradient': [const Color(0xFFFF6B35), const Color(0xFFFF8C42), const Color(0xFFFFA500)],
-        'image': 'assets/icons/evnw.png',
-      },
-    ];
+  static final List<Map<String, dynamic>> _fallbackAds = [
+    {
+      'title': 'Emergency Roadside Assistance',
+      'subtitle': '24/7 Support Available',
+      'icon': Icons.emergency,
+      'color': Color(0xFFFF6B35),
+      'gradient': [Color(0xFFFF6B35), Color(0xFFFF8C42), Color(0xFFFFA500)],
+      'image': 'assets/icons/eva_on_road.png',
+    },
+    {
+      'title': 'Premium Car Service',
+      'subtitle': 'Expert Mechanics at Your Doorstep',
+      'icon': Icons.build_circle,
+      'color': Color(0xFFFF6B35),
+      'gradient': [Color(0xFFFF8C42), Color(0xFFFFA500), Color(0xFFFFB347)],
+      'image': 'assets/icons/luxcar.png',
+    },
+    {
+      'title': 'EV Charging Network',
+      'subtitle': 'Find Nearest Charging Stations',
+      'icon': Icons.electric_car,
+      'color': Color(0xFFFF6B35),
+      'gradient': [Color(0xFFFF6B35), Color(0xFFFF8C42), Color(0xFFFFA500)],
+      'image': 'assets/icons/evnw.png',
+    },
+  ];
 
+  Widget _buildAdCard(int index) {
+    final List<Map<String, dynamic>> ads = (_banners != null && _banners!.isNotEmpty)
+        ? _banners!
+        : _fallbackAds;
     final ad = ads[index];
-    
+    final isFromApi = ad.containsKey('imageUrl');
+    final gradient = (ad['gradient'] as List<Color>?) ??
+        [const Color(0xFFFF6B35), const Color(0xFFFF8C42), const Color(0xFFFFA500)];
+    final color = ad['color'] as Color? ?? const Color(0xFFFF6B35);
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 4),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: (ad['color'] as Color).withOpacity(0.3),
+            color: color.withOpacity(0.3),
             blurRadius: 12,
             offset: const Offset(0, 6),
             spreadRadius: 0,
@@ -1767,25 +1834,41 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         borderRadius: BorderRadius.circular(16),
         child: Stack(
           children: [
-            // Background Image
+            // Background Image (from S3/API or asset)
             Positioned.fill(
-              child: Image.asset(
-                ad['image'] as String,
-                fit: BoxFit.cover,
-                alignment: Alignment(0, 0.3),
-                errorBuilder: (context, error, stackTrace) {
-                  // Fallback to gradient if image fails to load
-                  return Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: ad['gradient'] as List<Color>,
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
+              child: isFromApi && ad['imageUrl'] != null && (ad['imageUrl'] as String).isNotEmpty
+                  ? Image.network(
+                      ad['imageUrl'] as String,
+                      fit: BoxFit.cover,
+                      alignment: const Alignment(0, 0.3),
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: gradient,
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                          ),
+                        );
+                      },
+                    )
+                  : Image.asset(
+                      ad['image'] as String? ?? 'assets/icons/eva_on_road.png',
+                      fit: BoxFit.cover,
+                      alignment: const Alignment(0, 0.3),
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: gradient,
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                          ),
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
             ),
             // Subtle overlay for text readability - lighter to show vibrant colors
             Positioned.fill(
@@ -1821,7 +1904,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
-                              ad['title'] as String,
+                              (ad['title'] as String?) ?? 'Untitled',
                               style: GoogleFonts.outfit(
                                 color: Colors.white,
                                 fontSize: 30,
@@ -1837,7 +1920,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              ad['subtitle'] as String,
+                              (ad['subtitle'] as String?) ?? '',
                               style: GoogleFonts.inter(
                                 color: Colors.white,
                                 fontSize: 14,

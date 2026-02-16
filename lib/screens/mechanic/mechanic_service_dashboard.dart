@@ -103,7 +103,6 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
   void initState() {
     super.initState();
     
-    // Pulse animation for status indicator
     _pulseController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
@@ -112,7 +111,6 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
     
-    // Load mechanic data if provided
     if (widget.mechanicData != null) {
       _mechanicProfile['name'] = widget.mechanicData!['name'] ?? 'Mechanic';
       _mechanicProfile['specialty'] = widget.mechanicData!['specialty'] ?? 'General Repair';
@@ -121,16 +119,27 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
       _mechanicProfile['email'] = widget.mechanicData!['email'] ?? 'mechanic@example.com';
       _mechanicProfile['rating'] = widget.mechanicData!['rating'] ?? 4.5;
       _mechanicProfile['completedJobs'] = widget.mechanicData!['completedJobs'] ?? 0;
+      _mechanicProfile['profilePhotoUrl'] = widget.mechanicData!['profilePhotoUrl'];
+      _mechanicProfile['shopName'] = widget.mechanicData!['shopName'] ?? widget.mechanicData!['shop_name'];
+      _mechanicProfile['shopAddress'] = widget.mechanicData!['shopAddress'] ?? widget.mechanicData!['shop_address'];
+      _mechanicProfile['status'] = widget.mechanicData!['status'];
+      _mechanicProfile['nightTimeAvailable'] = widget.mechanicData!['nightTimeAvailable'] ?? false;
+      _mechanicProfile['openingTime'] = widget.mechanicData!['openingTime'];
+      _mechanicProfile['closingTime'] = widget.mechanicData!['closingTime'];
+      _mechanicProfile['workingDays'] = widget.mechanicData!['workingDays'];
       
-      // Load services from mechanic data
+      if (widget.mechanicData!['status'] != null) {
+        _mechanicStatus = widget.mechanicData!['status'].toString();
+      }
       if (widget.mechanicData!['services'] != null) {
         final servicesStr = widget.mechanicData!['services'].toString();
         if (servicesStr.isNotEmpty) {
-          _myServices = servicesStr.split(',').map((s) => s.trim()).toList();
+          _myServices = servicesStr.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
         }
       }
     }
     
+    _loadMechanicProfileFromApi();
     _fetchBookings();
 
     // Register FCM token so mechanic receives request notifications (Accept/Reject)
@@ -143,8 +152,76 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
     // Auto-refresh bookings every 30 seconds
     _refreshTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
       _fetchBookings();
-      print("🔄 Auto-refreshing mechanic dashboard...");
+      _loadMechanicProfileFromApi();
     });
+  }
+  
+  Future<void> _loadMechanicProfileFromApi() async {
+    final mechanicId = widget.mechanicData?['id'];
+    if (mechanicId == null) return;
+    
+    try {
+      final id = mechanicId is int ? mechanicId : int.tryParse(mechanicId.toString());
+      if (id == null) return;
+      
+      final response = await http.get(
+        Uri.parse("${ApiConfig.mechanicEndpoint}/$id"),
+        headers: {"Content-Type": "application/json"},
+      );
+      
+      if (response.statusCode == 200 && mounted) {
+        final m = jsonDecode(response.body);
+        setState(() {
+          _mechanicStatus = m['status'] ?? 'Available';
+          _mechanicProfile['name'] = m['name'] ?? _mechanicProfile['name'];
+          _mechanicProfile['specialty'] = m['specialty'] ?? _mechanicProfile['specialty'];
+          _mechanicProfile['experience'] = m['experience'] ?? _mechanicProfile['experience'];
+          _mechanicProfile['phone'] = m['phone'] ?? _mechanicProfile['phone'];
+          _mechanicProfile['email'] = m['email'] ?? _mechanicProfile['email'];
+          _mechanicProfile['shopName'] = m['shopName'] ?? m['shop_name'] ?? _mechanicProfile['shopName'];
+          _mechanicProfile['shopAddress'] = m['shopAddress'] ?? m['shop_address'] ?? _mechanicProfile['shopAddress'];
+          _mechanicProfile['rating'] = m['rating'] ?? _mechanicProfile['rating'];
+          _mechanicProfile['completedJobs'] = m['completedJobs'] ?? _mechanicProfile['completedJobs'];
+          _mechanicProfile['nightTimeAvailable'] = m['nightTimeAvailable'] ?? false;
+          _mechanicProfile['openingTime'] = m['openingTime'];
+          _mechanicProfile['closingTime'] = m['closingTime'];
+          _mechanicProfile['workingDays'] = m['workingDays'];
+          if (m['services'] != null) {
+            final s = m['services'].toString();
+            if (s.isNotEmpty) {
+              _myServices = s.split(',').map((e) => e.trim().toString()).where((e) => e.isNotEmpty).toList();
+            }
+          }
+        });
+      }
+    } catch (e) {
+      print("MechanicServiceDashboard: Error loading profile: $e");
+    }
+  }
+  
+  Future<void> _updateMechanicStatus(String newStatus) async {
+    final mechanicId = widget.mechanicData?['id'];
+    if (mechanicId == null) return;
+    
+    final id = mechanicId is int ? mechanicId : int.tryParse(mechanicId.toString());
+    if (id == null) return;
+    
+    try {
+      final response = await http.put(
+        Uri.parse("${ApiConfig.mechanicEndpoint}/$id/status"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"status": newStatus}),
+      );
+      
+      if (response.statusCode == 200) {
+        setState(() => _mechanicStatus = newStatus);
+        _showSnackBar('Status updated to $newStatus', const Color(0xFF10B981));
+      } else {
+        _showSnackBar('Failed to update status', Colors.orange);
+      }
+    } catch (e) {
+      _showSnackBar('Error: $e', Colors.red);
+    }
   }
   
   @override
@@ -231,7 +308,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
         elevation: 0,
         backgroundColor: const Color(0xFF6366F1),
         title: Text(
-          'Service Provider Dashboard',
+          (_mechanicProfile['shopName'] ?? _mechanicProfile['shop_name'] ?? 'Service Provider').toString(),
           style: GoogleFonts.outfit(
             fontWeight: FontWeight.bold,
             color: Colors.white,
@@ -278,7 +355,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
           onChanged: (value) {
             if (value != null) {
               setState(() => _mechanicStatus = value);
-              _showSnackBar('Status updated to $value', Colors.green);
+              _updateMechanicStatus(value);
             }
           },
         ),
@@ -294,15 +371,18 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
         _showSnackBar('Dashboard refreshed!', const Color(0xFF10B981));
       },
       child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Profile Card with animation
             AnimatedBuilder(
               animation: _pulseController,
               builder: (context, child) => _buildProfileCard(),
             ),
+            const SizedBox(height: 20),
+            
+            _buildShopAndServicesCard(),
             const SizedBox(height: 20),
             
             // Quick Actions Section
@@ -349,6 +429,9 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
                   _mechanicProfile['email'] = updatedProfile['email'];
                   _mechanicProfile['specialty'] = updatedProfile['specialty'];
                   _mechanicProfile['experience'] = updatedProfile['experience'];
+                  _mechanicProfile['shopAddress'] = updatedProfile['shopAddress'];
+                  _mechanicProfile['latitude'] = updatedProfile['latitude'];
+                  _mechanicProfile['longitude'] = updatedProfile['longitude'];
                 });
               },
             ),
@@ -380,7 +463,18 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
               color: Colors.white,
               border: Border.all(color: Colors.white, width: 3),
             ),
-            child: const Icon(Icons.account_circle, size: 40, color: Color(0xFF6366F1)),
+            child: ClipOval(
+              child: _mechanicProfile['profilePhotoUrl'] != null &&
+                      (_mechanicProfile['profilePhotoUrl'] as String).isNotEmpty
+                  ? Image.network(
+                      _mechanicProfile['profilePhotoUrl'] as String,
+                      fit: BoxFit.cover,
+                      width: 80,
+                      height: 80,
+                      errorBuilder: (_, __, ___) => const Icon(Icons.account_circle, size: 40, color: Color(0xFF6366F1)),
+                    )
+                  : const Icon(Icons.account_circle, size: 40, color: Color(0xFF6366F1)),
+            ),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -483,10 +577,136 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
               color: Colors.white.withOpacity(0.2),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.edit, color: Colors.white, size: 20),
+            child:           const Icon(Icons.edit, color: Colors.white, size: 20),
           ),
         ],
         ),
+      ),
+    );
+  }
+  
+  Widget _buildShopAndServicesCard() {
+    final shopName = (_mechanicProfile['shopName'] ?? _mechanicProfile['shop_name'] ?? '').toString();
+    final shopAddr = (_mechanicProfile['shopAddress'] ?? _mechanicProfile['shop_address'] ?? '').toString();
+    final specialty = (_mechanicProfile['specialty'] ?? '').toString();
+    final experience = (_mechanicProfile['experience'] ?? '').toString();
+    final opening = (_mechanicProfile['openingTime'] ?? '').toString();
+    final closing = (_mechanicProfile['closingTime'] ?? '').toString();
+    final workingDays = (_mechanicProfile['workingDays'] ?? '').toString();
+    final nightAvailable = _mechanicProfile['nightTimeAvailable'] == true;
+    
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF6366F1).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.store, color: Color(0xFF6366F1), size: 24),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'My Shop & Info',
+                style: GoogleFonts.outfit(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (shopName.isNotEmpty)
+            _buildInfoRow(Icons.storefront, 'Shop', shopName),
+          if (shopAddr.isNotEmpty)
+            _buildInfoRow(Icons.location_on, 'Address', shopAddr),
+          if (specialty.isNotEmpty)
+            _buildInfoRow(Icons.build_circle, 'Specialty', specialty),
+          if (experience.isNotEmpty)
+            _buildInfoRow(Icons.timeline, 'Experience', experience),
+          if (opening.isNotEmpty || closing.isNotEmpty)
+            _buildInfoRow(Icons.access_time, 'Hours', 
+              opening.isNotEmpty && closing.isNotEmpty 
+                ? '$opening - $closing' 
+                : (opening.isNotEmpty ? opening : closing)),
+          if (workingDays.isNotEmpty)
+            _buildInfoRow(Icons.calendar_today, 'Working Days', workingDays.replaceAll(',', ', ')),
+          if (nightAvailable)
+            Container(
+              margin: const EdgeInsets.only(top: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFF8B5CF6).withOpacity(0.15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.nightlight_round, color: Color(0xFF8B5CF6), size: 18),
+                  const SizedBox(width: 8),
+                  Text('24/7 Night service available', style: GoogleFonts.inter(
+                    fontSize: 13, fontWeight: FontWeight.w600, color: const Color(0xFF8B5CF6),
+                  )),
+                ],
+              ),
+            ),
+          if (_myServices.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Text('Services Offered', style: GoogleFonts.inter(
+              fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey[700],
+            )),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _myServices.map((s) => Chip(
+                label: Text(s, style: GoogleFonts.inter(fontSize: 12)),
+                backgroundColor: const Color(0xFF10B981).withOpacity(0.15),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              )).toList(),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildInfoRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18, color: Colors.grey[600]),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: GoogleFonts.inter(fontSize: 11, color: Colors.grey[500], fontWeight: FontWeight.w500)),
+                const SizedBox(height: 2),
+                Text(value, style: GoogleFonts.inter(fontSize: 14, color: Colors.black87)),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

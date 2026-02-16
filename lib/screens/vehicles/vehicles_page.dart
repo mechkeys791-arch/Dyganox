@@ -271,37 +271,46 @@ class _VehiclesPageState extends State<VehiclesPage> {
         ),
         centerTitle: true,
       ),
-      body: _vehicles.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.directions_car_outlined,
-                    size: 80,
-                    color: Colors.grey[400],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No Vehicles Added',
-                    style: GoogleFonts.outfit(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF64748B),
+      body: RefreshIndicator(
+        onRefresh: _loadVehicles,
+        color: const Color(0xFF6366F1),
+        child: _vehicles.isEmpty
+            ? SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: SizedBox(
+                  height: MediaQuery.of(context).size.height - 200,
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.directions_car_outlined,
+                          size: 80,
+                          color: Colors.grey[400],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No Vehicles Added',
+                          style: GoogleFonts.outfit(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFF64748B),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Add your first vehicle to get started',
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            color: const Color(0xFF94A3B8),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Add your first vehicle to get started',
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      color: const Color(0xFF94A3B8),
-                    ),
-                  ),
-                ],
-              ),
-            )
-          : ListView.builder(
+                ),
+              )
+            : ListView.builder(
               padding: const EdgeInsets.all(20),
               itemCount: _vehicles.length,
               itemBuilder: (context, index) {
@@ -364,6 +373,7 @@ class _VehiclesPageState extends State<VehiclesPage> {
                 );
               },
             ),
+        ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showAddEditVehicleDialog(),
         backgroundColor: const Color(0xFF6366F1),

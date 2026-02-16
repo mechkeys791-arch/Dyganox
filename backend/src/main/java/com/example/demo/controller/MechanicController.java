@@ -222,6 +222,7 @@ public class MechanicController {
             
             if (newStatus != null && (newStatus.equals("Available") || newStatus.equals("Busy") || newStatus.equals("Offline"))) {
                 mechanic.setStatus(newStatus);
+                mechanic.setOnline(!"Offline".equals(newStatus));
                 Mechanic updatedMechanic = mechanicRepo.save(mechanic);
                 System.out.println("✅ Mechanic status updated successfully to: " + newStatus);
                 return ResponseEntity.ok(updatedMechanic);

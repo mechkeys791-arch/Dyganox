@@ -12,6 +12,8 @@ import 'addresses_page.dart';
 import 'payment_methods_page.dart';
 import 'service_history_page.dart';
 import '../../widgets/custom_nav_bar.dart';
+import 'package:http/http.dart' as http;
+import '../../services/api_config.dart';
 import '../../services/cognito_service.dart';
 import '../../services/user_profile_service.dart';
 
@@ -31,6 +33,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
   String _selectedLocation = '';
   String? _profileImagePath;
   Uint8List? _profileImageBytes;
+  String? _profilePhotoUrl;
   bool _notificationsEnabled = true;
   bool _darkModeEnabled = false;
   late AnimationController _animationController;
@@ -101,6 +104,13 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
               // Fallback to local storage if database doesn't have it
               _gender = prefs.getString('user_gender') ?? '';
             }
+            // Profile photo URL from S3
+            if (profileData['profilePhotoUrl'] != null && profileData['profilePhotoUrl'].toString().isNotEmpty) {
+              _profilePhotoUrl = profileData['profilePhotoUrl'].toString();
+              prefs.setString('profilePhotoUrl', _profilePhotoUrl!);
+            } else {
+              _profilePhotoUrl = prefs.getString('profilePhotoUrl');
+            }
           });
         } else {
           // Database doesn't have profile, load from local storage
@@ -159,6 +169,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     
     // Load profile image and settings from local storage
     setState(() {
+      _profilePhotoUrl = prefs.getString('profilePhotoUrl');
       _profileImagePath = prefs.getString('profileImage');
       final imageBytesBase64 = prefs.getString('profileImageBytes');
       if (imageBytesBase64 != null) {
@@ -219,6 +230,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
           phone: _userPhone,
           dateOfBirth: dobString,
           gender: _gender.isNotEmpty ? _gender : null,
+          profilePhotoUrl: _profilePhotoUrl,
         );
         
         if (result['success'] == true) {
@@ -266,6 +278,9 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
   }
 
   ImageProvider? _getProfileImageProvider() {
+    if (_profilePhotoUrl != null && _profilePhotoUrl!.isNotEmpty) {
+      return NetworkImage(_profilePhotoUrl!);
+    }
     if (_profileImageBytes != null) {
       return MemoryImage(_profileImageBytes!);
     }
@@ -357,49 +372,107 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     );
   }
 
-  /// Save profile image locally
+  /// Save profile image - upload to S3, update backend, and save locally
   Future<void> _saveProfileImage(XFile image) async {
     try {
-      // Read image bytes
       final bytes = await image.readAsBytes();
-      
-      // Save to local storage
+      final email = _userEmail;
+      if (email.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Please sign in to save profile photo'),
+            backgroundColor: Colors.orange,
+          ));
+        }
+        return;
+      }
+
+      // Upload to S3 via backend (use fromBytes for web + mobile compatibility)
+      final uri = Uri.parse('${ApiConfig.baseUrl}/api/upload/profile/user');
+      final request = http.MultipartRequest('POST', uri);
+      request.fields['email'] = email;
+      request.files.add(http.MultipartFile.fromBytes(
+        'file',
+        bytes,
+        filename: 'profile_${DateTime.now().millisecondsSinceEpoch}.jpg',
+      ));
+
+      final streamed = await request.send().timeout(const Duration(seconds: 30));
+      final response = await http.Response.fromStream(streamed);
+
+      if (response.statusCode == 200) {
+        try {
+          final decoded = jsonDecode(response.body) as Map<String, dynamic>?;
+          final url = decoded?['url'] as String?;
+          if (url != null && url.isNotEmpty) {
+            setState(() {
+              _profilePhotoUrl = url;
+              _profileImagePath = image.path;
+              _profileImageBytes = bytes;
+            });
+            // Backend upload endpoint already updates Person.profilePhotoUrl
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setString('profilePhotoUrl', url);
+            await prefs.setString('profileImage', image.path);
+            await prefs.setString('profileImageBytes', base64Encode(bytes));
+
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'Profile picture saved successfully!',
+                    style: GoogleFonts.inter(color: Colors.white),
+                  ),
+                  backgroundColor: Colors.green,
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              );
+            }
+            return;
+          }
+        } catch (_) {}
+      }
+
+      // Fallback: save locally only
       setState(() {
         _profileImagePath = image.path;
         _profileImageBytes = bytes;
       });
-      
-      // Persist to SharedPreferences
       await _saveUserData();
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Profile picture saved successfully!',
+              'Profile picture saved locally (upload failed)',
               style: GoogleFonts.inter(color: Colors.white),
             ),
-            backgroundColor: Colors.green,
+            backgroundColor: Colors.orange,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
           ),
         );
       }
     } catch (e) {
+      // Fallback: save locally
+      try {
+        final bytes = await image.readAsBytes();
+        setState(() {
+          _profileImagePath = image.path;
+          _profileImageBytes = bytes;
+        });
+        await _saveUserData();
+      } catch (_) {}
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Error saving profile picture: $e',
+              'Error: $e. Saved locally only.',
               style: GoogleFonts.inter(color: Colors.white),
             ),
-            backgroundColor: Colors.red,
+            backgroundColor: Colors.orange,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
           ),
         );
       }
@@ -739,11 +812,15 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
       ),
       body: FadeTransition(
         opacity: _fadeAnimation,
-        child: SingleChildScrollView(
-          padding: EdgeInsets.symmetric(
-            horizontal: screenWidth * 0.04,
-            vertical: screenHeight * 0.02,
-          ),
+        child: RefreshIndicator(
+          onRefresh: _loadUserData,
+          color: const Color(0xFF6366F1),
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: EdgeInsets.symmetric(
+              horizontal: screenWidth * 0.04,
+              vertical: screenHeight * 0.02,
+            ),
           child: Column(
             children: [
               // Profile Header with Image
@@ -1081,6 +1158,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
               const SizedBox(height: 20),
             ],
           ),
+        ),
         ),
       ),
       // Custom Floating Bottom Navigation Bar

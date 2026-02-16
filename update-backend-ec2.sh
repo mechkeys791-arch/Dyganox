@@ -20,7 +20,7 @@ if [ ! -d "backend" ]; then
     exit 1
 fi
 echo "📤 Uploading backend source code..."
-tar --exclude="backend/target" --exclude="backend/.idea" -czf backend-src.tar.gz backend/ || {
+tar --exclude="backend/target" --exclude="backend/.idea" --exclude="backend/application-ec2.properties" -czf backend-src.tar.gz backend/ || {
     echo "❌ Failed to create backend-src.tar.gz"
     exit 1
 }
@@ -84,9 +84,17 @@ ssh -i "$KEY_PATH" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "
     echo "📋 Copying new JAR..."
     cp target/ev-charging-backend-0.0.1-SNAPSHOT.jar ~/backend-app/
     
-    echo "🚀 Starting backend..."
+    # Ensure application-ec2.properties exists (for S3, etc.)
+    if [ ! -f ~/backend-app/application-ec2.properties ]; then
+        if [ -f ~/backend/application-ec2.properties.template ]; then
+            cp ~/backend/application-ec2.properties.template ~/backend-app/application-ec2.properties
+            echo "   Created application-ec2.properties from template - EDIT IT with your AWS credentials"
+        fi
+    fi
+    
+    echo "🚀 Starting backend (profile: ec2)..."
     cd ~/backend-app
-    nohup java -jar ev-charging-backend-0.0.1-SNAPSHOT.jar > backend.log 2>&1 &
+    nohup java -jar ev-charging-backend-0.0.1-SNAPSHOT.jar --spring.profiles.active=ec2 > backend.log 2>&1 &
     
     echo "⏳ Waiting for backend to start..."
     sleep 8

@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../../services/api_config.dart';
 import '../../services/fcm_notification_service.dart';
+import '../profile/location_picker_map_page.dart';
 
 class MechanicDashboardPage extends StatefulWidget {
   final Map<String, dynamic>? mechanicData;
@@ -24,14 +25,16 @@ class MechanicDashboardPage extends StatefulWidget {
 
 class _MechanicDashboardPageState extends State<MechanicDashboardPage> with TickerProviderStateMixin {
   GoogleMapController? _mapController;
-  LatLng? _currentPosition;
-  String? _currentAddress;
+  LatLng? _mapPosition; // Shop location from registration, or current GPS as fallback
+  String? _mapAddress;
   List<Map<String, dynamic>> _requests = [];
   String _status = 'Available'; // Available, Busy, Offline
   bool _isLoadingRequests = false;
   late AnimationController _animationController;
   late Animation<double> _pulseAnimation;
   int? _mechanicId;
+  String _shopName = '';
+  String? _profilePhotoUrl;
   
   // Earnings data
   double _monthlyEarnings = 2450.0;
@@ -93,7 +96,6 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
   @override
   void initState() {
     super.initState();
-    // Get mechanic ID from widget parameters
     _mechanicId = widget.mechanicId ?? 
                   (widget.mechanicData?['id'] is int ? widget.mechanicData!['id'] : 
                    widget.mechanicData?['id'] is String ? int.tryParse(widget.mechanicData!['id'].toString()) : null);
@@ -103,9 +105,8 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
     // Register FCM token so mechanic receives request notifications (Accept/Reject)
     if (_mechanicId != null) FcmNotificationService.registerMechanicToken(_mechanicId!);
 
-    _getCurrentLocation();
+    _loadMechanicProfile(); // Load profile (shop name, shop location, status)
     _fetchRequests();
-    _loadMechanicStatus(); // Load current status from backend
     _animationController = AnimationController(
       duration: const Duration(seconds: 2),
       vsync: this,
@@ -116,8 +117,14 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
     _animationController.repeat(reverse: true);
   }
   
-  Future<void> _loadMechanicStatus() async {
-    if (_mechanicId == null) return;
+  Future<void> _loadMechanicProfile() async {
+    if (_mechanicId == null) {
+      setState(() {
+        _shopName = 'My Dashboard';
+      });
+      await _getCurrentLocationAsFallback();
+      return;
+    }
     
     try {
       final response = await http.get(
@@ -127,14 +134,38 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
       
       if (response.statusCode == 200) {
         final mechanic = jsonDecode(response.body);
-        final status = mechanic['status'] ?? 'Available';
+        final profile = Map<String, dynamic>.from(mechanic);
+        final shopLat = double.tryParse(profile['latitude']?.toString() ?? '');
+        final shopLng = double.tryParse(profile['longitude']?.toString() ?? '');
+        final shopAddr = profile['shopAddress'] ?? profile['shop_address'] ?? '';
+        
         setState(() {
-          _status = status;
+          _shopName = (profile['shopName'] ?? profile['shop_name'] ?? profile['name'] ?? 'My Shop').toString();
+          _status = profile['status'] ?? 'Available';
+          _profilePhotoUrl = profile['profilePhotoUrl']?.toString();
         });
-        print("Mechanic Dashboard: Loaded status from backend: $status");
+        
+        if (shopLat != null && shopLng != null && shopLat != 0 && shopLng != 0) {
+          setState(() {
+            _mapPosition = LatLng(shopLat, shopLng);
+            _mapAddress = shopAddr.toString().isNotEmpty ? shopAddr : null;
+          });
+          if (_mapAddress == null || _mapAddress!.isEmpty) {
+            await _getAddressFromCoordinates(shopLat, shopLng);
+          }
+        } else {
+          await _getCurrentLocationAsFallback();
+        }
+        print("Mechanic Dashboard: Loaded profile - shop: $_shopName, status: $_status");
+      } else {
+        await _getCurrentLocationAsFallback();
       }
     } catch (e) {
-      print("Mechanic Dashboard: Error loading status: $e");
+      print("Mechanic Dashboard: Error loading profile: $e");
+      setState(() {
+        _shopName = 'My Dashboard';
+      });
+      await _getCurrentLocationAsFallback();
     }
   }
   
@@ -156,17 +187,9 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
         print("Mechanic Dashboard: Status updated successfully to: $newStatus");
       } else {
         _showSnackBar('Failed to update status', Colors.orange);
-        // Revert local state on failure
-        setState(() {
-          _status = 'Available'; // Default fallback
-        });
       }
     } catch (e) {
       _showSnackBar('Error updating status: $e', Colors.red);
-      // Revert local state on error
-      setState(() {
-        _status = 'Available'; // Default fallback
-      });
     }
   }
 
@@ -176,25 +199,26 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
     super.dispose();
   }
 
-  Future<void> _getCurrentLocation() async {
+  Future<void> _getCurrentLocationAsFallback() async {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        _showSnackBar('Location services are disabled.', Colors.red);
+        setState(() {
+          _mapPosition = const LatLng(12.9716, 77.5946);
+          _mapAddress = 'Bangalore (default)';
+        });
         return;
       }
 
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          _showSnackBar('Location permissions are denied', Colors.red);
-          return;
-        }
       }
-
-      if (permission == LocationPermission.deniedForever) {
-        _showSnackBar('Location permissions are permanently denied', Colors.red);
+      if (permission == LocationPermission.deniedForever || permission == LocationPermission.denied) {
+        setState(() {
+          _mapPosition = const LatLng(12.9716, 77.5946);
+          _mapAddress = 'Enable location for your shop';
+        });
         return;
       }
 
@@ -203,19 +227,20 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
       );
 
       setState(() {
-        _currentPosition = LatLng(position.latitude, position.longitude);
+        _mapPosition = LatLng(position.latitude, position.longitude);
       });
-
-      // Get actual address from coordinates using reverse geocoding
       await _getAddressFromCoordinates(position.latitude, position.longitude);
 
-      if (_mapController != null) {
+      if (_mapController != null && _mapPosition != null) {
         _mapController!.animateCamera(
-          CameraUpdate.newLatLng(_currentPosition!),
+          CameraUpdate.newLatLng(_mapPosition!),
         );
       }
     } catch (e) {
-      _showSnackBar('Error getting location: $e', Colors.red);
+      setState(() {
+        _mapPosition = const LatLng(12.9716, 77.5946);
+        _mapAddress = 'Location unavailable';
+      });
     }
   }
 
@@ -225,41 +250,65 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
       
       if (placemarks.isNotEmpty) {
         Placemark place = placemarks[0];
-        
-        // Build a comprehensive address string
         List<String> addressParts = [];
-        
-        if (place.name != null && place.name!.isNotEmpty) {
-          addressParts.add(place.name!);
-        }
-        if (place.street != null && place.street!.isNotEmpty && place.street != place.name) {
-          addressParts.add(place.street!);
-        }
-        if (place.subLocality != null && place.subLocality!.isNotEmpty) {
-          addressParts.add(place.subLocality!);
-        }
-        if (place.locality != null && place.locality!.isNotEmpty) {
-          addressParts.add(place.locality!);
-        }
-        if (place.administrativeArea != null && place.administrativeArea!.isNotEmpty) {
-          addressParts.add(place.administrativeArea!);
-        }
-        if (place.postalCode != null && place.postalCode!.isNotEmpty) {
-          addressParts.add(place.postalCode!);
-        }
+        if (place.name != null && place.name!.isNotEmpty) addressParts.add(place.name!);
+        if (place.street != null && place.street!.isNotEmpty && place.street != place.name) addressParts.add(place.street!);
+        if (place.subLocality != null && place.subLocality!.isNotEmpty) addressParts.add(place.subLocality!);
+        if (place.locality != null && place.locality!.isNotEmpty) addressParts.add(place.locality!);
+        if (place.administrativeArea != null && place.administrativeArea!.isNotEmpty) addressParts.add(place.administrativeArea!);
+        if (place.postalCode != null && place.postalCode!.isNotEmpty) addressParts.add(place.postalCode!);
         
         setState(() {
-          _currentAddress = addressParts.join(', ');
+          _mapAddress = addressParts.join(', ');
         });
-        
-        print('Current Address: $_currentAddress');
-        print('Coordinates: $latitude, $longitude');
       }
     } catch (e) {
-      print('Error getting address: $e');
       setState(() {
-        _currentAddress = 'Lat: ${latitude.toStringAsFixed(6)}, Lng: ${longitude.toStringAsFixed(6)}';
+        _mapAddress = '${latitude.toStringAsFixed(4)}, ${longitude.toStringAsFixed(4)}';
       });
+    }
+  }
+
+  Future<void> _editShopLocation() async {
+    LatLng? initialPos = _mapPosition ?? const LatLng(12.9716, 77.5946);
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => LocationPickerMapPage(
+          initialPosition: initialPos,
+          forMechanicShop: true,
+        ),
+      ),
+    );
+
+    if (result != null && mounted && _mechanicId != null) {
+      final lat = (result['latitude'] as num?)?.toDouble();
+      final lng = (result['longitude'] as num?)?.toDouble();
+      if (lat != null && lng != null) {
+        setState(() {
+          _mapPosition = LatLng(lat, lng);
+          _mapAddress = result['fullAddress']?.toString();
+        });
+        await _getAddressFromCoordinates(lat, lng);
+        try {
+          await http.put(
+            Uri.parse("${ApiConfig.mechanicEndpoint}/$_mechanicId"),
+            headers: {"Content-Type": "application/json"},
+            body: jsonEncode({
+              'latitude': lat.toString(),
+              'longitude': lng.toString(),
+              'shopAddress': _mapAddress ?? result['fullAddress'],
+              'shopCity': result['city'],
+              'shopState': result['state'],
+              'shopPincode': result['pincode'],
+              'shopCountry': result['country'],
+            }),
+          );
+          _showSnackBar('Shop location updated!', Colors.green);
+        } catch (e) {
+          _showSnackBar('Location saved locally. Sync when online.', Colors.orange);
+        }
+      }
     }
   }
 
@@ -899,8 +948,25 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
       appBar: AppBar(
         backgroundColor: const Color(0xFF6366F1),
         elevation: 0,
+        leading: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: CircleAvatar(
+            backgroundColor: Colors.white,
+            child: _profilePhotoUrl != null && _profilePhotoUrl!.isNotEmpty
+                ? ClipOval(
+                    child: Image.network(
+                      _profilePhotoUrl!,
+                      fit: BoxFit.cover,
+                      width: 40,
+                      height: 40,
+                      errorBuilder: (_, __, ___) => const Icon(Icons.person, color: Color(0xFF6366F1)),
+                    ),
+                  )
+                : const Icon(Icons.person, color: Color(0xFF6366F1)),
+          ),
+        ),
         title: Text(
-          'Mechanic Dashboard',
+          _shopName.isNotEmpty ? _shopName : 'Mechanic Dashboard',
           style: GoogleFonts.outfit(
             fontSize: 20,
             fontWeight: FontWeight.bold,
@@ -1151,27 +1217,30 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(16),
-                child: _currentPosition == null
-                    ? const Center(
+                child: Stack(
+                  children: [
+                    if (_mapPosition == null)
+                      const Center(
                         child: CircularProgressIndicator(
                           valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
                         ),
                       )
-                    : GoogleMap(
+                    else
+                      GoogleMap(
                         onMapCreated: (GoogleMapController controller) {
                           _mapController = controller;
                         },
                         initialCameraPosition: CameraPosition(
-                          target: _currentPosition!,
+                          target: _mapPosition!,
                           zoom: 15,
                         ),
                         markers: {
                           Marker(
-                            markerId: const MarkerId('current_location'),
-                            position: _currentPosition!,
+                            markerId: const MarkerId('shop_location'),
+                            position: _mapPosition!,
                             infoWindow: InfoWindow(
-                              title: 'Your Location',
-                              snippet: _currentAddress ?? 'Loading address...',
+                              title: _shopName.isNotEmpty ? _shopName : 'Shop Location',
+                              snippet: _mapAddress ?? 'Loading address...',
                             ),
                             icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
                           ),
@@ -1179,6 +1248,32 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
                         myLocationEnabled: true,
                         myLocationButtonEnabled: true,
                       ),
+                    if (_mapPosition != null && _mechanicId != null)
+                      Positioned(
+                        bottom: 12,
+                        right: 12,
+                        child: Material(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                          child: InkWell(
+                            onTap: _editShopLocation,
+                            borderRadius: BorderRadius.circular(8),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.edit_location_alt, size: 18, color: Colors.grey[700]),
+                                  const SizedBox(width: 6),
+                                  Text('Edit', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600)),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
