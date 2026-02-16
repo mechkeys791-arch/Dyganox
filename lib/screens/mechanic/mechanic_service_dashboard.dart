@@ -8,6 +8,8 @@ import '../../services/fcm_notification_service.dart';
 import 'mechanic_bookings_page.dart';
 import 'mechanic_services_page.dart';
 import 'mechanic_profile_edit_page.dart';
+import 'mechanic_help_chat_page.dart';
+import 'mechanic_suspended_page.dart';
 
 class MechanicServiceDashboard extends StatefulWidget {
   final Map<String, dynamic>? mechanicData;
@@ -193,6 +195,17 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
       
       if (response.statusCode == 200 && mounted) {
         final m = jsonDecode(response.body);
+        if (m['isSuspended'] == true) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => MechanicSuspendedPage(
+                mechanicEmail: m['email']?.toString() ?? _mechanicProfile['email']?.toString(),
+              ),
+            ),
+          );
+          return;
+        }
         setState(() {
           _mechanicStatus = m['status'] ?? 'Available';
           _mechanicProfile['name'] = m['name'] ?? _mechanicProfile['name'];
@@ -1455,6 +1468,31 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
                         onAddService: _addService,
                         onRemoveService: _removeService,
                       ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildQuickActionButton(
+                'Help Chat',
+                Icons.chat_rounded,
+                const Color(0xFF10B981),
+                () {
+                  final email = (_mechanicProfile['email'] ?? widget.mechanicData?['email'] ?? '').toString();
+                  if (email.isEmpty) {
+                    _showSnackBar('Email not found', Colors.orange);
+                    return;
+                  }
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => MechanicHelpChatPage(mechanicEmail: email),
                     ),
                   );
                 },

@@ -1,7 +1,9 @@
 package com.example.demo.controller;
 
 import com.example.demo.model.Mechanic;
+import com.example.demo.model.MechanicHelpMessage;
 import com.example.demo.model.MechanicRegistrationRequest;
+import com.example.demo.repository.MechanicHelpMessageRepo;
 import com.example.demo.repository.MechanicRepo;
 import com.example.demo.repository.MechanicRegistrationRequestRepo;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,6 +28,9 @@ public class MechanicController {
 
     @Autowired
     private MechanicRegistrationRequestRepo mechanicRegistrationRequestRepo;
+
+    @Autowired
+    private MechanicHelpMessageRepo mechanicHelpMessageRepo;
     
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
@@ -97,6 +102,13 @@ public class MechanicController {
         }
     }
 
+    @GetMapping("/registration-requests/{id}")
+    public ResponseEntity<MechanicRegistrationRequest> getRegistrationRequestById(@PathVariable Long id) {
+        return mechanicRegistrationRequestRepo.findById(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
     @GetMapping("/registration-requests/email/{email}")
     public ResponseEntity<MechanicRegistrationRequest> getRegistrationRequestByEmail(@PathVariable String email) {
         List<MechanicRegistrationRequest> list = mechanicRegistrationRequestRepo.findByEmailIgnoreCaseOrderByCreatedAtDesc(email != null ? email.trim() : "");
@@ -155,8 +167,7 @@ public class MechanicController {
         return ResponseEntity.ok(Map.of(
             "message", "Approved",
             "requestId", id,
-            "email", req.getEmail(),
-            "tempPassword", tempPassword
+            "email", req.getEmail()
         ));
     }
 
@@ -348,5 +359,31 @@ public class MechanicController {
         } else {
             return ResponseEntity.notFound().build();
         }
+    }
+
+    // ---------- Mechanic Help / Support Chat (rejected mechanics contact admin) ----------
+    @PostMapping("/help")
+    public ResponseEntity<MechanicHelpMessage> sendHelpMessage(@RequestBody Map<String, String> body) {
+        String email = body != null ? body.get("email") : null;
+        String message = body != null ? body.get("message") : null;
+        if (email == null || email.isBlank() || message == null || message.isBlank()) {
+            return ResponseEntity.badRequest().build();
+        }
+        MechanicHelpMessage msg = new MechanicHelpMessage();
+        msg.setMechanicEmail(email.trim());
+        msg.setMessage(message.trim());
+        msg.setSender("MECHANIC");
+        msg.setCreatedAt(java.time.LocalDateTime.now());
+        MechanicHelpMessage saved = mechanicHelpMessageRepo.save(msg);
+        return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+    }
+
+    @GetMapping("/help")
+    public ResponseEntity<List<MechanicHelpMessage>> getHelpMessages(@RequestParam String email) {
+        if (email == null || email.isBlank()) {
+            return ResponseEntity.badRequest().build();
+        }
+        List<MechanicHelpMessage> messages = mechanicHelpMessageRepo.findByMechanicEmailIgnoreCaseOrderByCreatedAtAsc(email.trim());
+        return ResponseEntity.ok(messages);
     }
 }
