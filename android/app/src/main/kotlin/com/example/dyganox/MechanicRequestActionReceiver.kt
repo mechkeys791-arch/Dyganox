@@ -34,10 +34,23 @@ class MechanicRequestActionReceiver : BroadcastReceiver() {
                 conn.readTimeout = 10_000
                 val code = conn.responseCode
                 Log.d(TAG, "API $action requestId=$requestId -> $code")
+                if (action == ACTION_ACCEPT && code in 200..299) {
+                    android.os.Handler(android.os.Looper.getMainLooper()).post {
+                        openAppToRequestDetail(context, requestId)
+                    }
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "API $action failed requestId=$requestId", e)
             }
         }.start()
+    }
+
+    private fun openAppToRequestDetail(context: Context, requestId: String) {
+        val launch = context.packageManager.getLaunchIntentForPackage(context.packageName)
+            ?: return
+        launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        launch.putExtra("open_request_id", requestId)
+        context.startActivity(launch)
     }
 
     companion object {

@@ -14,6 +14,7 @@ import 'screens/auth/forgot_password_page.dart';
 import 'screens/auth/reset_password_page.dart';
 import 'screens/mechanic/mechanic_registration_page.dart';
 import 'screens/mechanic/mechanic_dashboard_page.dart';
+import 'screens/mechanic/mechanic_request_detail_page.dart';
 import 'services/fcm_notification_service.dart';
 
 void main() async {
@@ -122,6 +123,12 @@ class ServiceProviderApp extends StatelessWidget {
             return MechanicDashboardPage(mechanicId: args);
           }
           return const MechanicDashboardPage();
+        },
+        '/request-detail': (context) {
+          final args = ModalRoute.of(context)?.settings.arguments;
+          final requestId = args is String ? args : (args is Map ? args['requestId']?.toString() : null);
+          if (requestId == null) return const SizedBox.shrink();
+          return MechanicRequestDetailPage(requestId: requestId);
         },
       },
     );

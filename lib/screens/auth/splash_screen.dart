@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/cognito_service.dart';
+import '../../services/fcm_notification_service.dart';
 import '../../homepage.dart';
 import 'user_type_selection_page.dart';
 import '../mechanic/mechanic_login_request_page.dart';
+import '../mechanic/mechanic_request_detail_page.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -49,6 +51,7 @@ class _SplashScreenState extends State<SplashScreen>
     // Check login status and navigate accordingly
     Future.delayed(const Duration(seconds: 3), () async {
       if (!mounted) return;
+      final launchRequestId = await FcmNotificationService.getLaunchRequestId();
       final isLoggedIn = await CognitoService.isLoggedIn();
       if (isLoggedIn) {
         Navigator.of(context).pushReplacement(
@@ -60,6 +63,13 @@ class _SplashScreenState extends State<SplashScreen>
             transitionDuration: const Duration(milliseconds: 500),
           ),
         );
+        if (mounted && launchRequestId != null) {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => MechanicRequestDetailPage(requestId: launchRequestId),
+            ),
+          );
+        }
         return;
       }
       // If mechanic has pending application, go straight to mechanic flow (shows pending page)

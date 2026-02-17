@@ -86,6 +86,17 @@ public class MechanicRequestController {
         }
     }
 
+    @GetMapping("/{requestId}")
+    public ResponseEntity<MechanicRequest> getRequestById(@PathVariable Long requestId) {
+        try {
+            Optional<MechanicRequest> opt = mechanicRequestRepo.findById(requestId);
+            return opt.map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
+        } catch (Exception e) {
+            System.err.println("❌ Error fetching request " + requestId + ": " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
     @GetMapping("/mechanic/{mechanicId}/pending")
     public ResponseEntity<List<MechanicRequest>> getPendingRequests(@PathVariable Long mechanicId) {
         System.out.println("📤 GET pending requests for mechanic: " + mechanicId);

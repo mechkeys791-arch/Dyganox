@@ -15,9 +15,27 @@ class MainActivity : FlutterActivity() {
 
     private val CHANNEL = "dyganox/mechanic_alarm"
 
+    companion object {
+        @Volatile
+        var pendingLaunchRequestId: String? = null
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         createFcmNotificationChannelIfNeeded()
+        captureLaunchRequestId(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        captureLaunchRequestId(intent)
+    }
+
+    private fun captureLaunchRequestId(intent: Intent?) {
+        intent?.getStringExtra("open_request_id")?.let { id ->
+            pendingLaunchRequestId = id
+        }
     }
 
     /** So FCM notification (when app is killed) uses this channel and plays sound. */
@@ -55,6 +73,11 @@ class MainActivity : FlutterActivity() {
                 "openBatterySettings" -> {
                     openAppBatterySettings()
                     result.success(null)
+                }
+                "getLaunchRequestId" -> {
+                    val id = pendingLaunchRequestId
+                    pendingLaunchRequestId = null
+                    result.success(id)
                 }
                 else -> result.notImplemented()
             }

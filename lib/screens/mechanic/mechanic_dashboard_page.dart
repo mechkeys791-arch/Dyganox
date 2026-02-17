@@ -8,6 +8,7 @@ import 'dart:convert';
 import '../../services/api_config.dart';
 import '../../services/fcm_notification_service.dart';
 import '../profile/location_picker_map_page.dart';
+import 'mechanic_request_detail_page.dart';
 
 class MechanicDashboardPage extends StatefulWidget {
   final Map<String, dynamic>? mechanicData;
@@ -107,6 +108,7 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
 
     _loadMechanicProfile(); // Load profile (shop name, shop location, status)
     _fetchRequests();
+    _checkLaunchRequestId();
     _animationController = AnimationController(
       duration: const Duration(seconds: 2),
       vsync: this,
@@ -317,6 +319,17 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
       SnackBar(
         content: Text(message),
         backgroundColor: color,
+      ),
+    );
+  }
+
+  /// When app was opened from "Accept" notification, show request details on top.
+  Future<void> _checkLaunchRequestId() async {
+    final id = await FcmNotificationService.getLaunchRequestId();
+    if (!mounted || id == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => MechanicRequestDetailPage(requestId: id),
       ),
     );
   }

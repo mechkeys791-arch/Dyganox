@@ -318,6 +318,17 @@ class FcmNotificationService {
     } catch (_) {}
   }
 
+  /// When app was opened from "Accept" notification, returns the request ID so app can show request details. Clears after read.
+  static Future<String?> getLaunchRequestId() async {
+    if (!Platform.isAndroid) return null;
+    try {
+      final id = await const MethodChannel(_kAlarmChannel).invokeMethod<String>('getLaunchRequestId');
+      return id;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Register this device's FCM token for the given mechanic so they receive request notifications.
   static Future<void> registerMechanicToken(int mechanicId) async {
     final token = await _instance.getToken();
