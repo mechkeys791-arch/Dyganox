@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dyganox Admin Dashboard</title>
     <link rel="stylesheet" href="styles.css?v=7">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -69,6 +68,10 @@
                 <a href="#" class="nav-item" data-section="active-jobs">
                     <i class="fas fa-briefcase"></i>
                     <span>Active Jobs</span>
+                </a>
+                <a href="#" class="nav-item" data-section="mechanic-help">
+                    <i class="fas fa-comments"></i>
+                    <span>Mechanic Help Chat</span>
                 </a>
             </nav>
         </aside>
@@ -567,6 +570,37 @@
                     </div>
                 </div>
             </section>
+
+            <!-- Mechanic Help Chat Section -->
+            <section id="mechanic-help-section" class="content-section">
+                <div class="section-header">
+                    <h2>Mechanic Help Chat</h2>
+                    <p class="section-subtitle">Messages from mechanics (e.g. rejected applicants). Reply here; they see it in their Help Chat.</p>
+                </div>
+                <div style="display: grid; grid-template-columns: 280px 1fr; gap: 24px; min-height: 400px;">
+                    <div class="chart-card" style="overflow-y: auto;">
+                        <h3>Mechanics</h3>
+                        <div id="help-threads-list">
+                            <div class="loading">Loading...</div>
+                        </div>
+                    </div>
+                    <div class="chart-card" style="display: flex; flex-direction: column;">
+                        <h3 id="help-chat-title">Select a mechanic</h3>
+                        <div id="help-messages-list" style="flex: 1; overflow-y: auto; min-height: 240px; padding: 12px;">
+                            <p class="muted">Select a mechanic from the list to view and reply to messages.</p>
+                        </div>
+                        <div id="help-reply-box" style="display: none; padding-top: 12px; border-top: 1px solid #eee;">
+                            <input type="hidden" id="help-reply-email" value="">
+                            <div style="display: flex; gap: 8px;">
+                                <input type="text" id="help-reply-message" placeholder="Type your reply..." style="flex: 1; padding: 10px 14px; border: 1px solid #ddd; border-radius: 8px;">
+                                <button type="button" class="btn-action btn-approve" onclick="sendHelpReply()">
+                                    <i class="fas fa-paper-plane"></i> Send
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
         </main>
     </div>
 
@@ -591,6 +625,24 @@
                 <div class="profile-map-panel">
                     <h4><i class="fas fa-map-marker-alt"></i> Shop Location</h4>
                     <div id="profile-map" class="profile-map-container"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Registration Request Detail Modal (all fields + shop map) -->
+    <div id="registration-request-modal" class="modal" onclick="if(event.target===this) closeRegistrationRequestModal()">
+        <div class="modal-content modal-profile">
+            <span class="close" onclick="closeRegistrationRequestModal()">&times;</span>
+            <h2>Registration Request – Full Details</h2>
+            <div class="profile-modal-body">
+                <div class="profile-details-panel">
+                    <div id="registration-request-details"></div>
+                </div>
+                <div class="profile-map-panel">
+                    <h4><i class="fas fa-map-marker-alt"></i> Shop Location (verify on map)</h4>
+                    <div id="registration-request-map" class="profile-map-container" style="min-height:320px;"></div>
+                    <div id="registration-request-map-fallback" class="profile-map-fallback" style="display:none; padding:16px; color:#64748b;"></div>
                 </div>
             </div>
         </div>
@@ -647,11 +699,8 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Google Maps API - Replace YOUR_GOOGLE_MAPS_API_KEY with your actual API key -->
-    <!-- Get your API key from: https://console.cloud.google.com/google/maps-apis -->
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCkWqRCPB-EovWgvPFuLirPBDKU30wYDzc&callback=initMaps" async defer></script>
-    <!-- If you don't have a Google Maps API key, comment out the line above and maps will not load -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <!-- Google Maps API (admin dashboard only) -->
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCG1TqD7Y24rCyLt3O1w0y9hzXKxuyPL7k&callback=initMaps" async defer></script>
     <script src="config.js?v=7"></script>
     <script src="app.js?v=7"></script>
 </body>

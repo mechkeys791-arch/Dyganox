@@ -9,8 +9,8 @@ import '../../services/cognito_service.dart';
 import '../auth/otp_verification_page.dart';
 import 'mechanic_registration_comprehensive_page.dart';
 import 'mechanic_service_dashboard.dart';
-import 'mechanic_approved_page.dart';
 import 'mechanic_rejected_page.dart';
+import 'mechanic_suspended_page.dart';
 import 'mechanic_application_success_page.dart';
 
 class MechanicLoginRequestPage extends StatefulWidget {
@@ -62,12 +62,7 @@ class _MechanicLoginRequestPageState extends State<MechanicLoginRequestPage> {
             if ((mechanicData['approvalStatus'] ?? '').toString().toUpperCase() == 'APPROVED') {
               await prefs.remove('mechanic_pending_email');
               setState(() => _checkingPending = false);
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => MechanicApprovedPage(email: data['email'] ?? pendingEmail),
-                ),
-              );
+              _navigateToDashboardOrSuspended(mechanicData, data['email'] ?? pendingEmail);
               return;
             }
           }
@@ -83,12 +78,20 @@ class _MechanicLoginRequestPageState extends State<MechanicLoginRequestPage> {
         await prefs.remove('mechanic_pending_email');
         if (status == 'APPROVED') {
           setState(() => _checkingPending = false);
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => MechanicApprovedPage(email: data['email'] ?? pendingEmail),
-            ),
-          );
+          final mechanicRes = await http.get(
+            Uri.parse('${ApiConfig.baseUrl}/api/mechanic/email/${Uri.encodeComponent(pendingEmail)}'),
+          ).timeout(const Duration(seconds: 10));
+          if (mechanicRes.statusCode == 200 && mounted) {
+            final mechanicData = jsonDecode(mechanicRes.body);
+            _navigateToDashboardOrSuspended(mechanicData, data['email'] ?? pendingEmail);
+          } else {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => MechanicApplicationSuccessPage(mechanicEmail: pendingEmail),
+              ),
+            );
+          }
           return;
         }
         if (status == 'REJECTED') {
@@ -98,6 +101,7 @@ class _MechanicLoginRequestPageState extends State<MechanicLoginRequestPage> {
             MaterialPageRoute(
               builder: (context) => MechanicRejectedPage(
                 rejectionReason: data['rejectionReason'],
+                mechanicEmail: data['email'] ?? pendingEmail,
               ),
             ),
           );
@@ -117,6 +121,26 @@ class _MechanicLoginRequestPageState extends State<MechanicLoginRequestPage> {
     super.dispose();
   }
 
+  /// If approved and not suspended → dashboard; if suspended → suspended page with help center.
+  void _navigateToDashboardOrSuspended(Map<String, dynamic> mechanicData, String email) {
+    final suspended = mechanicData['isSuspended'] == true;
+    if (suspended) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => MechanicSuspendedPage(mechanicEmail: email),
+        ),
+      );
+    } else {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => MechanicServiceDashboard(mechanicData: mechanicData),
+        ),
+      );
+    }
+  }
+
   /// After Cognito login: route to form / success / approved / rejected based on registration request.
   Future<bool> _routeAfterLogin(String email) async {
     try {
@@ -128,19 +152,14 @@ class _MechanicLoginRequestPageState extends State<MechanicLoginRequestPage> {
         final status = data['approvalStatus'] ?? 'PENDING';
         if (!mounted) return true;
         if (status == 'PENDING') {
-          // Registration request still PENDING — but mechanic may already be APPROVED in mechanics table (e.g. approved from "Pending Approvals")
+          // Registration request still PENDING — but mechanic may already be APPROVED in mechanics table
           final mechanicRes = await http.get(
             Uri.parse('${ApiConfig.baseUrl}/api/mechanic/email/${Uri.encodeComponent(email)}'),
           ).timeout(const Duration(seconds: 10));
           if (mechanicRes.statusCode == 200 && mounted) {
             final mechanicData = jsonDecode(mechanicRes.body);
             if ((mechanicData['approvalStatus'] ?? '').toString().toUpperCase() == 'APPROVED') {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => MechanicApprovedPage(email: data['email'] ?? email),
-                ),
-              );
+              _navigateToDashboardOrSuspended(mechanicData, data['email'] ?? email);
               return true;
             }
           }
@@ -155,19 +174,23 @@ class _MechanicLoginRequestPageState extends State<MechanicLoginRequestPage> {
           return true;
         }
         if (status == 'APPROVED') {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => MechanicApprovedPage(email: data['email'] ?? email),
-            ),
-          );
+          final mechanicRes = await http.get(
+            Uri.parse('${ApiConfig.baseUrl}/api/mechanic/email/${Uri.encodeComponent(email)}'),
+          ).timeout(const Duration(seconds: 10));
+          if (mechanicRes.statusCode == 200 && mounted) {
+            final mechanicData = jsonDecode(mechanicRes.body);
+            _navigateToDashboardOrSuspended(mechanicData, data['email'] ?? email);
+          }
           return true;
         }
         if (status == 'REJECTED') {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              builder: (context) => MechanicRejectedPage(rejectionReason: data['rejectionReason']),
+              builder: (context) => MechanicRejectedPage(
+                rejectionReason: data['rejectionReason'],
+                mechanicEmail: data['email'] ?? email,
+              ),
             ),
           );
           return true;
@@ -180,13 +203,8 @@ class _MechanicLoginRequestPageState extends State<MechanicLoginRequestPage> {
         ).timeout(const Duration(seconds: 10));
         if (mechanicRes.statusCode == 200 && mounted) {
           final mechanicData = jsonDecode(mechanicRes.body);
-          if (mechanicData['approvalStatus'] == 'APPROVED') {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => MechanicServiceDashboard(mechanicData: mechanicData),
-              ),
-            );
+          if ((mechanicData['approvalStatus'] ?? '').toString().toUpperCase() == 'APPROVED') {
+            _navigateToDashboardOrSuspended(mechanicData, email);
             return true;
           }
         }
@@ -379,7 +397,7 @@ class _MechanicLoginRequestPageState extends State<MechanicLoginRequestPage> {
               Text(
                 _isLoginMode 
                     ? 'Login to access your dashboard'
-                    : 'Create account with email OTP, then fill the mechanic form',
+                    : 'Add email and password, then fill the form. After admin approves, log in to go to your dashboard.',
                 style: GoogleFonts.inter(
                   fontSize: 16,
                   color: Colors.grey[600],

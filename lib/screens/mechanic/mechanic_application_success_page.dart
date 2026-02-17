@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'mechanic_login_request_page.dart';
 
 /// Shown after mechanic submits registration. Animated success + professional
 /// "please wait" message. When admin approves, they use Login to reach account creation.
@@ -48,16 +47,6 @@ class _MechanicApplicationSuccessPageState extends State<MechanicApplicationSucc
   void dispose() {
     _controller.dispose();
     super.dispose();
-  }
-
-  void _goToHome() {
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const MechanicLoginRequestPage(),
-      ),
-      (route) => route.isFirst,
-    );
   }
 
   @override
@@ -122,32 +111,6 @@ class _MechanicApplicationSuccessPageState extends State<MechanicApplicationSucc
                           color: Colors.grey[700],
                         ),
                         textAlign: TextAlign.center,
-                      ),
-                    ),
-                    const SizedBox(height: 48),
-                    Opacity(
-                      opacity: _fadeAnimation.value,
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: _goToHome,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF6366F1),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            elevation: 0,
-                          ),
-                          child: Text(
-                            'Back to Home',
-                            style: GoogleFonts.outfit(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ),
                       ),
                     ),
                   ],

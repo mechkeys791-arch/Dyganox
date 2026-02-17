@@ -124,7 +124,7 @@ class _MechanicApprovedPageState extends State<MechanicApprovedPage> {
               ),
               const SizedBox(height: 8),
               Text(
-                'A password has been sent to your WhatsApp. Use it to log in below.',
+                'You will receive the password via WhatsApp. Enter it below to go to your dashboard.',
                 style: GoogleFonts.inter(
                   fontSize: 15,
                   color: Colors.grey[700],
@@ -136,7 +136,7 @@ class _MechanicApprovedPageState extends State<MechanicApprovedPage> {
                 controller: _passwordController,
                 obscureText: _obscurePassword,
                 decoration: InputDecoration(
-                  labelText: 'Password (from WhatsApp)',
+                  labelText: 'Password (you will receive via WhatsApp)',
                   prefixIcon: const Icon(Icons.lock, color: Color(0xFF6366F1)),
                   suffixIcon: IconButton(
                     icon: Icon(
@@ -173,7 +173,7 @@ class _MechanicApprovedPageState extends State<MechanicApprovedPage> {
                         ),
                       )
                     : Text(
-                        'Log in',
+                        'Go to Dashboard',
                         style: GoogleFonts.outfit(
                           fontWeight: FontWeight.w600,
                           fontSize: 16,

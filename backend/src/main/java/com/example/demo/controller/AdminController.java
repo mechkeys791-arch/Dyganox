@@ -2,10 +2,12 @@ package com.example.demo.controller;
 
 import com.example.demo.model.Banner;
 import com.example.demo.model.Mechanic;
+import com.example.demo.model.MechanicHelpMessage;
 import com.example.demo.model.MechanicRequest;
 import com.example.demo.model.Payment;
 import com.example.demo.model.Person;
 import com.example.demo.repository.BannerRepo;
+import com.example.demo.repository.MechanicHelpMessageRepo;
 import com.example.demo.repository.MechanicRepo;
 import com.example.demo.repository.MechanicRequestRepo;
 import com.example.demo.repository.PaymentRepo;
@@ -42,6 +44,9 @@ public class AdminController {
 
     @Autowired
     private UserAddressRepo userAddressRepo;
+
+    @Autowired
+    private MechanicHelpMessageRepo mechanicHelpMessageRepo;
 
     // Get all mechanics with approval status
     @GetMapping("/mechanics")
@@ -818,5 +823,42 @@ public class AdminController {
             System.err.println("❌ Error fetching active jobs: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
+    }
+
+    // ---------- Mechanic Help / Support Chat (admin sees messages, can reply) ----------
+    @GetMapping("/help/messages")
+    public ResponseEntity<?> getHelpMessages(@RequestParam(required = false) String email) {
+        try {
+            if (email != null && !email.isBlank()) {
+                List<MechanicHelpMessage> messages = mechanicHelpMessageRepo.findByMechanicEmailIgnoreCaseOrderByCreatedAtAsc(email.trim());
+                return ResponseEntity.ok(messages);
+            }
+            List<MechanicHelpMessage> all = mechanicHelpMessageRepo.findAll();
+            all.sort((a, b) -> (b.getCreatedAt() != null && a.getCreatedAt() != null)
+                    ? b.getCreatedAt().compareTo(a.getCreatedAt()) : 0);
+            Set<String> emails = new LinkedHashSet<>();
+            for (MechanicHelpMessage m : all) {
+                if (m.getMechanicEmail() != null) emails.add(m.getMechanicEmail());
+            }
+            return ResponseEntity.ok(new ArrayList<>(emails));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @PostMapping("/help/reply")
+    public ResponseEntity<MechanicHelpMessage> replyToHelp(@RequestBody Map<String, String> body) {
+        String mechanicEmail = body != null ? body.get("mechanicEmail") : null;
+        String message = body != null ? body.get("message") : null;
+        if (mechanicEmail == null || mechanicEmail.isBlank() || message == null || message.isBlank()) {
+            return ResponseEntity.badRequest().build();
+        }
+        MechanicHelpMessage msg = new MechanicHelpMessage();
+        msg.setMechanicEmail(mechanicEmail.trim());
+        msg.setMessage(message.trim());
+        msg.setSender("ADMIN");
+        msg.setCreatedAt(LocalDateTime.now());
+        MechanicHelpMessage saved = mechanicHelpMessageRepo.save(msg);
+        return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }
 }

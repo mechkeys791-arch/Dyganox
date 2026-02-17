@@ -12,6 +12,7 @@ let dashboardOnlineChart = null;
 let profileMap = null;
 let profileMarker = null;
 let leafletProfileMap = null;
+let leafletRequestMap = null;
 
 // Escape for HTML attribute
 function escapeAttr(s) {
@@ -91,7 +92,8 @@ function switchSection(section) {
         'users': 'User Management',
         'live-tracking': 'Live Tracking',
         'active-jobs': 'Active Jobs',
-        'banners': 'Carousel / Banners'
+        'banners': 'Carousel / Banners',
+        'mechanic-help': 'Mechanic Help Chat'
     };
     document.getElementById('page-title').textContent = titles[section] || 'Dashboard';
     
@@ -129,6 +131,9 @@ function switchSection(section) {
             break;
         case 'active-jobs':
             loadActiveJobs();
+            break;
+        case 'mechanic-help':
+            loadHelpThreads();
             break;
         case 'banners':
             loadBanners();
@@ -489,7 +494,10 @@ async function loadRegistrationRequests() {
     }
 }
 
+let registrationRequestsList = [];
+
 function displayRegistrationRequests(list) {
+    registrationRequestsList = list || [];
     const tbody = document.getElementById('registration-requests-table-body');
     if (!tbody) return;
     if (list.length === 0) {
@@ -500,9 +508,11 @@ function displayRegistrationRequests(list) {
         const status = (r.approvalStatus || 'PENDING').toUpperCase();
         const statusClass = status === 'APPROVED' ? 'approved' : status === 'REJECTED' ? 'rejected' : 'pending';
         const actions = status === 'PENDING'
-            ? `<button class="btn-action btn-approve" onclick="approveRegistrationRequest(${r.id})">Approve</button>
+            ? `<button class="btn-action btn-view" onclick="viewRegistrationRequestDetail(${r.id})" style="margin-right:6px;"><i class="fas fa-eye"></i> View</button>
+               <button class="btn-action btn-approve" onclick="approveRegistrationRequest(${r.id})">Approve</button>
                <button class="btn-action btn-reject" onclick="rejectRegistrationRequest(${r.id})">Reject</button>`
-            : '<span class="status-badge ' + statusClass + '">' + status + '</span>';
+            : `<button class="btn-action btn-view" onclick="viewRegistrationRequestDetail(${r.id})"><i class="fas fa-eye"></i> View</button>
+               <span class="status-badge ${statusClass}">${status}</span>`;
         return `
         <tr>
             <td>${r.id}</td>
@@ -517,18 +527,14 @@ function displayRegistrationRequests(list) {
 }
 
 async function approveRegistrationRequest(id) {
-    if (!confirm('Approve this mechanic? A temporary password will be generated. Send it to the mechanic (e.g. via WhatsApp).')) return;
+    if (!confirm('Approve this mechanic? They will log in with the email and password they used when registering.')) return;
     try {
         const response = await fetch(
             `${getApiUrl(API_CONFIG.endpoints.registrationRequests)}/${id}/approve`,
             { method: 'PUT' }
         );
-        const data = await response.json().catch(() => ({}));
         if (response.ok) {
-            const msg = data.tempPassword
-                ? `Approved. Send this password to ${data.email || 'mechanic'}: ${data.tempPassword}`
-                : 'Mechanic approved successfully';
-            showSuccess(msg);
+            showSuccess('Mechanic approved');
             loadRegistrationRequests();
             loadDashboard();
         } else {
@@ -1131,9 +1137,13 @@ async function viewMechanicProfile(id) {
                 <div class="profile-detail-item"><i class="fas fa-user"></i><div><strong>Name</strong><br>${mechanic.name || 'N/A'}</div></div>
                 <div class="profile-detail-item"><i class="fas fa-envelope"></i><div><strong>Email</strong><br>${mechanic.email || 'N/A'}</div></div>
                 <div class="profile-detail-item"><i class="fas fa-phone"></i><div><strong>Phone</strong><br>${mechanic.phone || 'N/A'}</div></div>
+                <div class="profile-detail-item"><i class="fas fa-id-card"></i><div><strong>Aadhar Number</strong><br>${mechanic.aadharNumber || 'N/A'}</div></div>
                 <div class="profile-detail-item"><i class="fas fa-store"></i><div><strong>Shop Name</strong><br>${mechanic.shopName || mechanic.shop_name || 'N/A'}</div></div>
                 <div class="profile-detail-item full-width"><i class="fas fa-map-marker-alt"></i><div><strong>Shop Address</strong><br>${mechanic.shopAddress || mechanic.shop_address || 'N/A'}</div></div>
                 <div class="profile-detail-item"><i class="fas fa-city"></i><div><strong>City</strong><br>${mechanic.shopCity || mechanic.shop_city || 'N/A'}</div></div>
+                <div class="profile-detail-item"><i class="fas fa-map"></i><div><strong>State</strong><br>${mechanic.shopState || mechanic.shop_state || 'N/A'}</div></div>
+                <div class="profile-detail-item"><i class="fas fa-mail-bulk"></i><div><strong>Pincode</strong><br>${mechanic.shopPincode || mechanic.shop_pincode || 'N/A'}</div></div>
+                <div class="profile-detail-item"><i class="fas fa-globe"></i><div><strong>Country</strong><br>${mechanic.shopCountry || mechanic.shop_country || 'N/A'}</div></div>
                 <div class="profile-detail-item"><i class="fas fa-wrench"></i><div><strong>Specialty</strong><br>${mechanic.specialty || 'N/A'}</div></div>
                 <div class="profile-detail-item"><i class="fas fa-clock"></i><div><strong>Experience</strong><br>${mechanic.experience || 'N/A'}</div></div>
                 <div class="profile-detail-item"><i class="fas fa-calendar-alt"></i><div><strong>Working Days</strong><br>${(mechanic.workingDays || mechanic.working_days || 'N/A').toString().replace(/,/g, ', ')}</div></div>
@@ -1181,37 +1191,153 @@ function initProfileMap(lat, lng, title) {
     const mapEl = document.getElementById('profile-map');
     if (!mapEl) return;
     
-    if (leafletProfileMap) {
-        leafletProfileMap.remove();
-        leafletProfileMap = null;
+    if (typeof google === 'undefined' || !google.maps) {
+        mapEl.innerHTML = '<p style="padding:20px;color:#64748b;">Google Maps loading...</p>';
+        return;
     }
     
     mapEl.innerHTML = '';
     mapEl.style.minHeight = '350px';
     
-    if (typeof L === 'undefined') {
-        mapEl.innerHTML = '<p style="padding:20px;color:#64748b;">Map library loading...</p>';
-        return;
-    }
+    leafletProfileMap = new google.maps.Map(mapEl, {
+        center: { lat: lat, lng: lng },
+        zoom: 16,
+        mapTypeId: 'roadmap',
+        mapTypeControl: false
+    });
     
-    leafletProfileMap = L.map(mapEl).setView([lat, lng], 16);
+    const marker = new google.maps.Marker({
+        position: { lat: lat, lng: lng },
+        map: leafletProfileMap,
+        title: title || 'Shop'
+    });
     
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-    }).addTo(leafletProfileMap);
+    const infoWindow = new google.maps.InfoWindow({
+        content: `<strong>${escapeAttr(title || 'Shop')}</strong><br>📍 ${lat.toFixed(5)}, ${lng.toFixed(5)}`
+    });
+    marker.addListener('click', () => infoWindow.open(leafletProfileMap, marker));
+    infoWindow.open(leafletProfileMap, marker);
     
-    const marker = L.marker([lat, lng]).addTo(leafletProfileMap);
-    marker.bindPopup(`<strong>${title || 'Shop'}</strong><br>📍 ${lat.toFixed(5)}, ${lng.toFixed(5)}`).openPopup();
-    
-    setTimeout(() => leafletProfileMap?.invalidateSize(), 200);
+    setTimeout(() => { if (leafletProfileMap) google.maps.event.trigger(leafletProfileMap, 'resize'); }, 200);
 }
 
 function closeProfileModal() {
     document.getElementById('mechanic-profile-modal').style.display = 'none';
-    if (leafletProfileMap) { leafletProfileMap.remove(); leafletProfileMap = null; }
+    leafletProfileMap = null;
     document.querySelector('.profile-map-fallback')?.remove();
     const mapEl = document.getElementById('profile-map');
     if (mapEl) { mapEl.classList.remove('hidden'); mapEl.innerHTML = ''; }
+}
+
+async function viewRegistrationRequestDetail(id) {
+    try {
+        let r = null;
+        const response = await fetch(getApiUrl(API_CONFIG.endpoints.registrationRequests) + '/' + id);
+        if (response.ok) {
+            r = await response.json();
+        } else {
+            const fromList = (registrationRequestsList || []).find(req => req.id == id);
+            if (fromList) r = fromList;
+        }
+        if (!r) { showError('Failed to load request'); return; }
+        const photoHtml = r.profilePhotoUrl
+            ? `<img src="${escapeAttr(r.profilePhotoUrl)}" alt="" class="mechanic-profile-photo" onerror="this.style.display='none'">`
+            : '<span class="user-photo-placeholder" style="width:80px;height:80px;"><i class="fas fa-user-cog"></i></span>';
+        const details = document.getElementById('registration-request-details');
+        details.innerHTML = `
+            <div class="profile-details-grid">
+                <div class="profile-detail-item full-width" style="margin-bottom:16px;display:flex;align-items:center;">
+                    <div class="mechanic-profile-photo-wrap">${photoHtml}</div>
+                    <div><strong>Profile Photo</strong><br>${escapeAttr(r.name || 'N/A')}</div>
+                </div>
+                <div class="profile-detail-item"><i class="fas fa-user"></i><div><strong>Name</strong><br>${escapeAttr(r.name || 'N/A')}</div></div>
+                <div class="profile-detail-item"><i class="fas fa-envelope"></i><div><strong>Email</strong><br>${escapeAttr(r.email || 'N/A')}</div></div>
+                <div class="profile-detail-item"><i class="fas fa-phone"></i><div><strong>Phone</strong><br>${escapeAttr(r.phone || 'N/A')}</div></div>
+                <div class="profile-detail-item"><i class="fas fa-id-card"></i><div><strong>Aadhar Number</strong><br>${escapeAttr(r.aadharNumber || 'N/A')}</div></div>
+                <div class="profile-detail-item"><i class="fas fa-clock"></i><div><strong>Experience</strong><br>${escapeAttr(r.experience || 'N/A')}</div></div>
+                <div class="profile-detail-item"><i class="fas fa-store"></i><div><strong>Shop Name</strong><br>${escapeAttr(r.shopName || 'N/A')}</div></div>
+                <div class="profile-detail-item full-width"><i class="fas fa-map-marker-alt"></i><div><strong>Shop Address</strong><br>${escapeAttr(r.shopAddress || 'N/A')}</div></div>
+                <div class="profile-detail-item"><i class="fas fa-city"></i><div><strong>City</strong><br>${escapeAttr(r.shopCity || 'N/A')}</div></div>
+                <div class="profile-detail-item"><i class="fas fa-map"></i><div><strong>State</strong><br>${escapeAttr(r.shopState || 'N/A')}</div></div>
+                <div class="profile-detail-item"><i class="fas fa-mail-bulk"></i><div><strong>Pincode</strong><br>${escapeAttr(r.shopPincode || 'N/A')}</div></div>
+                <div class="profile-detail-item"><i class="fas fa-globe"></i><div><strong>Country</strong><br>${escapeAttr(r.shopCountry || 'N/A')}</div></div>
+                <div class="profile-detail-item"><i class="fas fa-wrench"></i><div><strong>Specialty</strong><br>${escapeAttr(r.specialty || 'N/A')}</div></div>
+                <div class="profile-detail-item full-width"><i class="fas fa-tasks"></i><div><strong>Services</strong><br>${escapeAttr((r.services || 'N/A').toString().replace(/,/g, ', '))}</div></div>
+                <div class="profile-detail-item"><i class="fas fa-calendar-alt"></i><div><strong>Working Days</strong><br>${escapeAttr((r.workingDays || 'N/A').toString().replace(/,/g, ', '))}</div></div>
+                <div class="profile-detail-item"><i class="fas fa-business-time"></i><div><strong>Hours</strong><br>${escapeAttr(r.openingTime || '')} - ${escapeAttr(r.closingTime || '') || 'N/A'}</div></div>
+                <div class="profile-detail-item"><i class="fas fa-moon"></i><div><strong>24/7 Night</strong><br>${r.nightTimeAvailable ? 'Yes' : 'No'}</div></div>
+                <div class="profile-detail-item"><i class="fas fa-tag"></i><div><strong>Status</strong><br><span class="status-badge ${(r.approvalStatus || 'PENDING').toLowerCase()}">${escapeAttr((r.approvalStatus || 'PENDING'))}</span></div></div>
+                <div class="profile-detail-item"><i class="fas fa-clock"></i><div><strong>Submitted</strong><br>${r.createdAt ? new Date(r.createdAt).toLocaleString() : 'N/A'}</div></div>
+            </div>
+        `;
+        document.getElementById('registration-request-modal').style.display = 'block';
+        const lat = parseFloat(r.latitude);
+        const lng = parseFloat(r.longitude);
+        const mapEl = document.getElementById('registration-request-map');
+        const fallbackEl = document.getElementById('registration-request-map-fallback');
+        if (fallbackEl) fallbackEl.style.display = 'none';
+        if (mapEl) mapEl.style.display = 'block';
+        if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
+            setTimeout(() => {
+                try {
+                    initRegistrationRequestMap(lat, lng, r.shopName || r.name || 'Shop');
+                } catch (mapErr) {
+                    console.error('Map init error:', mapErr);
+                    if (mapEl) mapEl.innerHTML = '<p style="padding:20px;color:#64748b;">Map could not load. Details are above.</p>';
+                }
+            }, 100);
+        } else {
+            if (mapEl) mapEl.innerHTML = '';
+            if (fallbackEl) {
+                fallbackEl.style.display = 'block';
+                fallbackEl.innerHTML = '<p>📍 Shop location (lat/lng) not provided.</p>' + (r.shopAddress ? `<p>Address: ${escapeAttr(r.shopAddress)}</p><a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(r.shopAddress)}" target="_blank" class="btn-action btn-view"><i class="fas fa-external-link-alt"></i> Search on Google Maps</a>` : '');
+            }
+        }
+    } catch (error) {
+        console.error('Error loading registration request:', error);
+        showError('Failed to load request details. Check console.');
+    }
+}
+
+function initRegistrationRequestMap(lat, lng, title) {
+    const mapEl = document.getElementById('registration-request-map');
+    if (!mapEl) return;
+    try {
+        if (typeof google === 'undefined' || !google.maps) {
+            mapEl.innerHTML = '<p style="padding:20px;color:#64748b;">Google Maps loading...</p>';
+            return;
+        }
+        mapEl.innerHTML = '';
+        mapEl.style.minHeight = '320px';
+        leafletRequestMap = new google.maps.Map(mapEl, {
+            center: { lat: lat, lng: lng },
+            zoom: 16,
+            mapTypeId: 'roadmap',
+            mapTypeControl: false
+        });
+        const marker = new google.maps.Marker({
+            position: { lat: lat, lng: lng },
+            map: leafletRequestMap,
+            title: title || 'Shop'
+        });
+        const infoWindow = new google.maps.InfoWindow({
+            content: `<strong>${escapeAttr(title || 'Shop')}</strong><br>📍 ${lat.toFixed(5)}, ${lng.toFixed(5)}`
+        });
+        marker.addListener('click', () => infoWindow.open(leafletRequestMap, marker));
+        infoWindow.open(leafletRequestMap, marker);
+        setTimeout(() => { if (leafletRequestMap) google.maps.event.trigger(leafletRequestMap, 'resize'); }, 200);
+    } catch (e) {
+        mapEl.innerHTML = '<p style="padding:20px;color:#64748b;">Map unavailable. Details shown above.</p>';
+    }
+}
+
+function closeRegistrationRequestModal() {
+    document.getElementById('registration-request-modal').style.display = 'none';
+    leafletRequestMap = null;
+    const mapEl = document.getElementById('registration-request-map');
+    if (mapEl) { mapEl.innerHTML = ''; mapEl.style.display = 'block'; }
+    const fallbackEl = document.getElementById('registration-request-map-fallback');
+    if (fallbackEl) { fallbackEl.style.display = 'none'; fallbackEl.innerHTML = ''; }
 }
 
 async function blockMechanic(id) {
@@ -1503,7 +1629,9 @@ function initMaps() {
     if (document.getElementById('map')) {
         map = new google.maps.Map(document.getElementById('map'), {
             zoom: 10,
-            center: { lat: 28.6139, lng: 77.2090 } // Default to Delhi, update as needed
+            center: { lat: 28.6139, lng: 77.2090 },
+            mapTypeId: 'roadmap',
+            mapTypeControl: false
         });
     }
     
@@ -1511,7 +1639,9 @@ function initMaps() {
     if (document.getElementById('jobs-map')) {
         window.jobsMap = new google.maps.Map(document.getElementById('jobs-map'), {
             zoom: 10,
-            center: { lat: 28.6139, lng: 77.2090 }
+            center: { lat: 28.6139, lng: 77.2090 },
+            mapTypeId: 'roadmap',
+            mapTypeControl: false
         });
     }
 }
@@ -1735,4 +1865,82 @@ function showNotification(message, type) {
     toast.style.color = 'white';
     document.body.appendChild(toast);
     setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.3s'; setTimeout(() => toast.remove(), 300); }, 3000);
+}
+
+// Mechanic Help Chat
+async function loadHelpThreads() {
+    const el = document.getElementById('help-threads-list');
+    if (!el) return;
+    el.innerHTML = '<div class="loading">Loading...</div>';
+    try {
+        const url = getApiUrl('/api/admin/help/messages');
+        const res = await fetch(url);
+        if (!res.ok) { el.innerHTML = '<p class="muted">Failed to load.</p>'; return; }
+        const emails = await res.json();
+        if (!Array.isArray(emails) || emails.length === 0) {
+            el.innerHTML = '<p class="muted">No mechanic messages yet.</p>';
+            return;
+        }
+        el.innerHTML = emails.map(email => `
+            <div class="help-thread-item" data-email="${escapeAttr(email)}" style="padding:12px;border-bottom:1px solid #eee;cursor:pointer;border-radius:8px;margin-bottom:4px;">
+                <i class="fas fa-user"></i> ${escapeAttr(email)}
+            </div>
+        `).join('');
+        el.querySelectorAll('.help-thread-item').forEach(item => {
+            item.addEventListener('click', () => openHelpThread(item.getAttribute('data-email')));
+        });
+    } catch (e) {
+        el.innerHTML = '<p class="muted">Error loading threads.</p>';
+    }
+}
+
+async function openHelpThread(email) {
+    document.getElementById('help-reply-email').value = email;
+    document.getElementById('help-chat-title').textContent = 'Chat with ' + email;
+    document.getElementById('help-reply-box').style.display = 'block';
+    const listEl = document.getElementById('help-messages-list');
+    listEl.innerHTML = '<div class="loading">Loading messages...</div>';
+    try {
+        const url = getApiUrl('/api/admin/help/messages') + '?email=' + encodeURIComponent(email);
+        const res = await fetch(url);
+        if (!res.ok) { listEl.innerHTML = '<p class="muted">Failed to load messages.</p>'; return; }
+        const messages = await res.json();
+        if (!Array.isArray(messages) || messages.length === 0) {
+            listEl.innerHTML = '<p class="muted">No messages yet. Reply below.</p>';
+            return;
+        }
+        listEl.innerHTML = messages.map(m => {
+            const isAdmin = (m.sender || '').toUpperCase() === 'ADMIN';
+            const time = m.createdAt ? new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+            return `<div style="margin-bottom:12px;text-align:${isAdmin ? 'right' : 'left'};">
+                <span style="display:inline-block;max-width:85%;padding:10px 14px;border-radius:12px;background:${isAdmin ? '#6366F1' : '#f1f5f9'};color:${isAdmin ? '#fff' : '#1e293b'};">
+                    ${escapeAttr(m.message || '')}
+                </span>
+                <div style="font-size:11px;color:#94a3b8;margin-top:4px;">${isAdmin ? 'Admin' : 'Mechanic'} ${time}</div>
+            </div>`;
+        }).join('');
+        listEl.scrollTop = listEl.scrollHeight;
+    } catch (e) {
+        listEl.innerHTML = '<p class="muted">Error loading messages.</p>';
+    }
+}
+
+async function sendHelpReply() {
+    const email = document.getElementById('help-reply-email').value;
+    const message = (document.getElementById('help-reply-message').value || '').trim();
+    if (!email || !message) { showError('Enter a message.'); return; }
+    try {
+        const url = getApiUrl('/api/admin/help/reply');
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mechanicEmail: email, message: message })
+        });
+        if (!res.ok) { showError('Failed to send.'); return; }
+        document.getElementById('help-reply-message').value = '';
+        showSuccess('Reply sent. Mechanic will see it in their Help Chat.');
+        openHelpThread(email);
+    } catch (e) {
+        showError('Error sending reply.');
+    }
 }

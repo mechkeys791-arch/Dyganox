@@ -2,14 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'mechanic_help_chat_page.dart';
 
-/// Shown when admin rejects the mechanic's application. Form rejected – contact admin / Help Center; open chat.
-class MechanicRejectedPage extends StatelessWidget {
-  final String? rejectionReason;
+/// Shown when admin has suspended the mechanic. Access revoked; can only contact help center.
+class MechanicSuspendedPage extends StatelessWidget {
   final String? mechanicEmail;
 
-  const MechanicRejectedPage({
+  const MechanicSuspendedPage({
     super.key,
-    this.rejectionReason,
     this.mechanicEmail,
   });
 
@@ -28,18 +26,18 @@ class MechanicRejectedPage extends StatelessWidget {
                   width: 100,
                   height: 100,
                   decoration: BoxDecoration(
-                    color: Colors.red.shade50,
+                    color: Colors.orange.shade50,
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
-                    Icons.cancel_rounded,
+                    Icons.block_rounded,
                     size: 56,
-                    color: Colors.red.shade700,
+                    color: Colors.orange.shade700,
                   ),
                 ),
                 const SizedBox(height: 32),
                 Text(
-                  'Form rejected',
+                  'You have been suspended',
                   style: GoogleFonts.outfit(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -49,45 +47,13 @@ class MechanicRejectedPage extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'Your mechanic registration was not approved. Contact admin – Help Center.',
+                  'Your access has been revoked. Please contact the help center.',
                   style: GoogleFonts.inter(
                     fontSize: 16,
                     color: Colors.grey[700],
                   ),
                   textAlign: TextAlign.center,
                 ),
-                if (rejectionReason != null && rejectionReason!.trim().isNotEmpty) ...[
-                  const SizedBox(height: 20),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Reason',
-                          style: GoogleFonts.outfit(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.grey[700],
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          rejectionReason!,
-                          style: GoogleFonts.inter(
-                            fontSize: 15,
-                            color: Colors.black87,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
                 const SizedBox(height: 48),
                 if (mechanicEmail != null && mechanicEmail!.isNotEmpty)
                   SizedBox(
@@ -102,7 +68,7 @@ class MechanicRejectedPage extends StatelessWidget {
                         );
                       },
                       icon: const Icon(Icons.chat_rounded, size: 22),
-                      label: const Text('Open Help Chat'),
+                      label: const Text('Chat with Help Center'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF6366F1),
                         foregroundColor: Colors.white,

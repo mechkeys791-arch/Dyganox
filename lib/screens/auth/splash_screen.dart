@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/cognito_service.dart';
 import '../../homepage.dart';
 import 'user_type_selection_page.dart';
+import '../mechanic/mechanic_login_request_page.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -46,22 +48,44 @@ class _SplashScreenState extends State<SplashScreen>
 
     // Check login status and navigate accordingly
     Future.delayed(const Duration(seconds: 3), () async {
-      if (mounted) {
-        final isLoggedIn = await CognitoService.isLoggedIn();
+      if (!mounted) return;
+      final isLoggedIn = await CognitoService.isLoggedIn();
+      if (isLoggedIn) {
         Navigator.of(context).pushReplacement(
           PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) =>
-                isLoggedIn ? const HomePage() : const UserTypeSelectionPage(),
+            pageBuilder: (context, animation, secondaryAnimation) => const HomePage(),
             transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              return FadeTransition(
-                opacity: animation,
-                child: child,
-              );
+              return FadeTransition(opacity: animation, child: child);
             },
             transitionDuration: const Duration(milliseconds: 500),
           ),
         );
+        return;
       }
+      // If mechanic has pending application, go straight to mechanic flow (shows pending page)
+      final prefs = await SharedPreferences.getInstance();
+      final pendingEmail = prefs.getString('mechanic_pending_email');
+      if (pendingEmail != null && pendingEmail.isNotEmpty && mounted) {
+        Navigator.of(context).pushReplacement(
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) => const MechanicLoginRequestPage(),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return FadeTransition(opacity: animation, child: child);
+            },
+            transitionDuration: const Duration(milliseconds: 500),
+          ),
+        );
+        return;
+      }
+      Navigator.of(context).pushReplacement(
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) => const UserTypeSelectionPage(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+          transitionDuration: const Duration(milliseconds: 500),
+        ),
+      );
     });
   }
 
