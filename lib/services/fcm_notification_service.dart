@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
 import 'api_config.dart';
@@ -12,12 +13,32 @@ const String _kChannelId = 'mechanic_requests';
 const String _kChannelName = 'Mechanic requests';
 const String _kActionAccept = 'accept';
 const String _kActionReject = 'reject';
+const String _kAlarmChannel = 'dyganox/mechanic_alarm';
+
+/// Stop the 30-sec mechanic alarm (e.g. when user taps Accept/Reject).
+void _stopMechanicAlarm() {
+  if (!Platform.isAndroid) return;
+  try {
+    const channel = MethodChannel(_kAlarmChannel);
+    channel.invokeMethod('stopAlarm');
+  } catch (_) {}
+}
+
+/// Start 30-sec continuous alarm for mechanic request (foreground only).
+Future<void> _startMechanicAlarm() async {
+  if (!Platform.isAndroid) return;
+  try {
+    const channel = MethodChannel(_kAlarmChannel);
+    await channel.invokeMethod('startAlarm');
+  } catch (_) {}
+}
 
 /// Top-level so background isolate can invoke when user taps Accept/Reject.
 @pragma('vm:entry-point')
 void _onBackgroundNotificationResponse(NotificationResponse response) {
   if (response.payload == null || response.payload!.isEmpty) return;
   try {
+    _stopMechanicAlarm();
     final data = jsonDecode(response.payload!) as Map<String, dynamic>;
     final type = data['type'] as String?;
     final requestId = data['requestId'] as String?;
@@ -158,6 +179,7 @@ class FcmNotificationService {
 
   static void _onNotificationResponse(NotificationResponse response) {
     print('FCM: NotificationResponse received actionId=${response.actionId} payload=${response.payload}');
+    _stopMechanicAlarm();
     if (response.payload == null || response.payload!.isEmpty) {
       print('FCM: Ignoring response - no payload');
       return;
@@ -200,6 +222,7 @@ class FcmNotificationService {
 
     if (type == 'mechanic_request' && requestId != null) {
       print('FCM: Foreground message received, showing notification requestId=$requestId');
+      _startMechanicAlarm();
       final payload = jsonEncode({'type': type, 'requestId': requestId});
       _showLocalNotification(
         id: _notificationIdFromRequestId(requestId),
@@ -240,7 +263,7 @@ class FcmNotificationService {
       channelDescription: 'New mechanic service requests',
       importance: Importance.max,
       priority: Priority.max,
-      playSound: true,
+      playSound: false,
       enableVibration: true,
       vibrationPattern: vibrationPattern,
       enableLights: true,
@@ -279,6 +302,22 @@ class FcmNotificationService {
     }
   }
 
+  /// Open system notification settings for this app (so user can ensure notifications when app is closed).
+  static Future<void> openNotificationSettings() async {
+    if (!Platform.isAndroid) return;
+    try {
+      await const MethodChannel(_kAlarmChannel).invokeMethod('openNotificationSettings');
+    } catch (_) {}
+  }
+
+  /// Open system battery / optimization settings (some phones need "Don't restrict" for notifications when app is closed).
+  static Future<void> openBatterySettings() async {
+    if (!Platform.isAndroid) return;
+    try {
+      await const MethodChannel(_kAlarmChannel).invokeMethod('openBatterySettings');
+    } catch (_) {}
+  }
+
   /// Register this device's FCM token for the given mechanic so they receive request notifications.
   static Future<void> registerMechanicToken(int mechanicId) async {
     final token = await _instance.getToken();
@@ -314,6 +353,9 @@ Future<void> _firebaseBackgroundMessage(RemoteMessage message) async {
   final title = data['title'] ?? message.notification?.title ?? 'New request';
   final body = data['body'] ?? message.notification?.body ?? 'A customer requested your service.';
   if (type != 'mechanic_request' || requestId == null) return;
+
+  // Note: 30-sec alarm only starts when app is in foreground (via _handleForegroundMessage).
+  // Background handler runs in isolate without Activity, so method channel isn't available.
 
   final plugin = FlutterLocalNotificationsPlugin();
   const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');

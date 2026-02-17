@@ -1,10 +1,14 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Location permissions -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 
     <application
         android:label="dyganox"
@@ -40,11 +44,41 @@
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyCkWqRCPB-EovWgvPFuLirPBDKU30wYDzc" />
 
+        <!-- Default FCM notification channel when app is killed (system shows notification + sound) -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="mechanic_requests" />
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+        <!-- 30-sec alarm when mechanic request FCM arrives (foreground service) -->
+        <service
+            android:name=".MechanicAlarmService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
+
+        <!-- Remove Flutter default FCM service so our handler receives all messages -->
+        <service
+            android:name="io.flutter.plugins.firebase.messaging.FlutterFirebaseMessagingService"
+            tools:node="remove" />
+        <!-- Custom FCM handler: starts 30-sec alarm + Accept/Reject notification (background / phone off) -->
+        <service
+            android:name=".DyganoxFirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <!-- Handles Accept/Reject from notification (calls backend API) -->
+        <receiver
+            android:name=".MechanicRequestActionReceiver"
+            android:exported="false" />
+
     </application>
 
     <!-- Required to query activities that can process text, see:

@@ -1020,6 +1020,68 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
       ),
       body: Column(
         children: [
+          // Notifications when app is closed (Android)
+          if (Theme.of(context).platform == TargetPlatform.android)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: Material(
+                color: const Color(0xFF6366F1).withOpacity(0.08),
+                borderRadius: BorderRadius.circular(12),
+                child: InkWell(
+                  onTap: () {},
+                  borderRadius: BorderRadius.circular(12),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        Icon(Icons.notifications_active_outlined, color: const Color(0xFF6366F1), size: 28),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Not getting requests when app is closed?',
+                                style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Enable notifications & allow background.',
+                                style: GoogleFonts.inter(fontSize: 11, color: Colors.grey[700]),
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  TextButton(
+                                    onPressed: () => FcmNotificationService.openNotificationSettings(),
+                                    style: TextButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                      minimumSize: Size.zero,
+                                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                    child: Text('Notifications', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF6366F1))),
+                                  ),
+                                  TextButton(
+                                    onPressed: () => FcmNotificationService.openBatterySettings(),
+                                    style: TextButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                      minimumSize: Size.zero,
+                                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                    child: Text('Battery', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF6366F1))),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
           // Dynamic Earnings Card
           GestureDetector(
             onTap: _showEarningsDialog,

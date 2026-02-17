@@ -3,9 +3,12 @@ package com.example.demo.service;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
+import com.google.firebase.messaging.AndroidConfig;
+import com.google.firebase.messaging.AndroidNotification;
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.FirebaseMessagingException;
 import com.google.firebase.messaging.Message;
+import com.google.firebase.messaging.Notification;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
@@ -74,7 +77,7 @@ public class FcmService {
                 title = "New request • " + distStr;
             }
 
-            // Body: Customer • Service • Amount • Phone hint
+            // Body: Customer • Service • Amount • Distance (no phone for privacy)
             StringBuilder body = new StringBuilder();
             body.append(customerName != null ? customerName : "Customer");
             body.append(" • ");
@@ -82,8 +85,9 @@ public class FcmService {
             if (amount != null && amount > 0) {
                 body.append(" • ₹").append(String.format("%.0f", amount));
             }
-            if (customerPhone != null && !customerPhone.isBlank()) {
-                body.append(" • ").append(customerPhone);
+            if (distanceKm != null && distanceKm > 0) {
+                String distStr = distanceKm >= 1 ? String.format("%.1f km away", distanceKm) : String.format("%.0f m away", distanceKm * 1000);
+                body.append(" • ").append(distStr);
             }
             body.append(" • Tap Accept or Reject");
 
@@ -105,9 +109,23 @@ public class FcmService {
                 data.put("description", description.length() > 100 ? description.substring(0, 97) + "..." : description);
             }
 
+            // Notification payload: when app is killed, the system shows this and plays sound.
+            // Channel "mechanic_requests" must exist (app creates it on first run). Default sound so it rings.
             Message message = Message.builder()
                     .setToken(fcmToken)
+                    .setNotification(Notification.builder()
+                            .setTitle(title)
+                            .setBody(body.toString())
+                            .build())
                     .putAllData(data)
+                    .setAndroidConfig(AndroidConfig.builder()
+                            .setPriority(AndroidConfig.Priority.HIGH)
+                            .setNotification(AndroidNotification.builder()
+                                    .setChannelId("mechanic_requests")
+                                    .setDefaultSound(true)
+                                    .setDefaultVibrateTimings(true)
+                                    .build())
+                            .build())
                     .build();
 
             String response = FirebaseMessaging.getInstance().send(message);
