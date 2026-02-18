@@ -109,14 +109,10 @@ public class FcmService {
                 data.put("description", description.length() > 100 ? description.substring(0, 97) + "..." : description);
             }
 
-            // Notification payload: when app is killed, the system shows this and plays sound.
-            // Channel "mechanic_requests" must exist (app creates it on first run). Default sound so it rings.
+            // Notification + data: system shows when app killed; our service shows Accept/Reject when app runs.
             Message message = Message.builder()
                     .setToken(fcmToken)
-                    .setNotification(Notification.builder()
-                            .setTitle(title)
-                            .setBody(body.toString())
-                            .build())
+                    .setNotification(Notification.builder().setTitle(title).setBody(body.toString()).build())
                     .putAllData(data)
                     .setAndroidConfig(AndroidConfig.builder()
                             .setPriority(AndroidConfig.Priority.HIGH)

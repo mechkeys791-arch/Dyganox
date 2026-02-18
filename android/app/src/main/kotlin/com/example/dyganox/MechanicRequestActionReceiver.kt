@@ -46,10 +46,16 @@ class MechanicRequestActionReceiver : BroadcastReceiver() {
     }
 
     private fun openAppToRequestDetail(context: Context, requestId: String) {
-        val launch = context.packageManager.getLaunchIntentForPackage(context.packageName)
-            ?: return
-        launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-        launch.putExtra("open_request_id", requestId)
+        // Persist request id so Flutter can read it (sync so activity sees it when it starts)
+        context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_PENDING_ACCEPT_REQUEST_ID, requestId)
+            .commit()
+        // Explicit MainActivity intent with extra as well
+        val launch = Intent(context, MainActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            putExtra("open_request_id", requestId)
+        }
         context.startActivity(launch)
     }
 
@@ -59,5 +65,7 @@ class MechanicRequestActionReceiver : BroadcastReceiver() {
         const val EXTRA_ACTION = "action"
         const val ACTION_ACCEPT = "accept"
         const val ACTION_REJECT = "reject"
+        private const val PREFS_NAME = "dyganox_launch"
+        private const val KEY_PENDING_ACCEPT_REQUEST_ID = "pending_accept_request_id"
     }
 }

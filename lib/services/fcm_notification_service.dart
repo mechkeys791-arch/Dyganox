@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 import 'dart:typed_data';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -7,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
 import 'api_config.dart';
+import 'platform_io.dart' if (dart.library.html) 'platform_web.dart' as _platform;
 
 // Top-level so background isolate can use them
 const String _kChannelId = 'mechanic_requests';
@@ -17,7 +17,7 @@ const String _kAlarmChannel = 'dyganox/mechanic_alarm';
 
 /// Stop the 30-sec mechanic alarm (e.g. when user taps Accept/Reject).
 void _stopMechanicAlarm() {
-  if (!Platform.isAndroid) return;
+  if (!_platform.kIsAndroid) return;
   try {
     const channel = MethodChannel(_kAlarmChannel);
     channel.invokeMethod('stopAlarm');
@@ -26,7 +26,7 @@ void _stopMechanicAlarm() {
 
 /// Start 30-sec continuous alarm for mechanic request (foreground only).
 Future<void> _startMechanicAlarm() async {
-  if (!Platform.isAndroid) return;
+  if (!_platform.kIsAndroid) return;
   try {
     const channel = MethodChannel(_kAlarmChannel);
     await channel.invokeMethod('startAlarm');
@@ -147,7 +147,7 @@ class FcmNotificationService {
     );
 
     // Android: create channel and set up for FCM
-    if (Platform.isAndroid) {
+    if (_platform.kIsAndroid) {
       final androidChannel = AndroidNotificationChannel(
         _kChannelId,
         _kChannelName,
@@ -304,7 +304,7 @@ class FcmNotificationService {
 
   /// Open system notification settings for this app (so user can ensure notifications when app is closed).
   static Future<void> openNotificationSettings() async {
-    if (!Platform.isAndroid) return;
+    if (!_platform.kIsAndroid) return;
     try {
       await const MethodChannel(_kAlarmChannel).invokeMethod('openNotificationSettings');
     } catch (_) {}
@@ -312,7 +312,7 @@ class FcmNotificationService {
 
   /// Open system battery / optimization settings (some phones need "Don't restrict" for notifications when app is closed).
   static Future<void> openBatterySettings() async {
-    if (!Platform.isAndroid) return;
+    if (!_platform.kIsAndroid) return;
     try {
       await const MethodChannel(_kAlarmChannel).invokeMethod('openBatterySettings');
     } catch (_) {}
@@ -320,7 +320,7 @@ class FcmNotificationService {
 
   /// When app was opened from "Accept" notification, returns the request ID so app can show request details. Clears after read.
   static Future<String?> getLaunchRequestId() async {
-    if (!Platform.isAndroid) return null;
+    if (!_platform.kIsAndroid) return null;
     try {
       final id = await const MethodChannel(_kAlarmChannel).invokeMethod<String>('getLaunchRequestId');
       return id;
@@ -376,7 +376,7 @@ Future<void> _firebaseBackgroundMessage(RemoteMessage message) async {
     onDidReceiveBackgroundNotificationResponse: _onBackgroundNotificationResponse,
   );
 
-  if (Platform.isAndroid) {
+  if (_platform.kIsAndroid) {
     const androidChannel = AndroidNotificationChannel(
       _kChannelId,
       _kChannelName,

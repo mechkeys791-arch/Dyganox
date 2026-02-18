@@ -8,10 +8,7 @@ import 'screens/test/backend_test_page.dart';
 import 'screens/test/test_ev_api_page.dart';
 import 'screens/auth/login_page.dart';
 import 'screens/auth/signup_page.dart';
-import 'screens/auth/otp_verification_page.dart';
 import 'screens/auth/user_type_selection_page.dart';
-import 'screens/auth/forgot_password_page.dart';
-import 'screens/auth/reset_password_page.dart';
 import 'screens/mechanic/mechanic_registration_page.dart';
 import 'screens/mechanic/mechanic_dashboard_page.dart';
 import 'screens/mechanic/mechanic_request_detail_page.dart';
@@ -19,17 +16,64 @@ import 'services/fcm_notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await FcmNotificationService.initialize();
-  await FcmNotificationService.processLaunchNotificationResponse();
+  try {
+    await FcmNotificationService.initialize();
+    await FcmNotificationService.processLaunchNotificationResponse();
+  } catch (e) {
+    // On web or when Firebase/FCM is unavailable, still run the app
+    debugPrint('FCM init skipped: $e');
+    if (e.toString().contains('dart:io') || e.toString().contains('Platform')) {
+      debugPrint('(Web or unsupported platform - notifications disabled)');
+    }
+  }
   runApp(const ServiceProviderApp());
 }
 
-class ServiceProviderApp extends StatelessWidget {
+class ServiceProviderApp extends StatefulWidget {
   const ServiceProviderApp({super.key});
+
+  @override
+  State<ServiceProviderApp> createState() => _ServiceProviderAppState();
+}
+
+class _ServiceProviderAppState extends State<ServiceProviderApp> with WidgetsBindingObserver {
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+  final DateTime _appStartTime = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
+    // Only handle resume after splash has run (~4s) so cold start is handled by splash only
+    if (DateTime.now().difference(_appStartTime).inSeconds < 4) return;
+    _pushLaunchRequestDetailIfAny();
+  }
+
+  Future<void> _pushLaunchRequestDetailIfAny() async {
+    final id = await FcmNotificationService.getLaunchRequestId();
+    if (id == null || id.isEmpty) return;
+    _navigatorKey.currentState?.push(
+      MaterialPageRoute(
+        builder: (_) => MechanicRequestDetailPage(requestId: id),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: _navigatorKey,
       title: 'Dyganox - Vehicle Service Provider',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(

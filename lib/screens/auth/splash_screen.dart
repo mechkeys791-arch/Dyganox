@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -20,11 +21,21 @@ class _SplashScreenState extends State<SplashScreen>
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
+  /// Filled as soon as first frame runs (so we never miss Accept notification launch)
+  String? _launchRequestId;
 
   @override
   void initState() {
     super.initState();
-    
+    // Read launch request id once method channel is ready (user tapped Accept → must show detail screen)
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await Future.delayed(const Duration(milliseconds: 800));
+      if (!mounted) return;
+      final id = await FcmNotificationService.getLaunchRequestId();
+      if (mounted && id != null && id.isNotEmpty) {
+        setState(() => _launchRequestId = id);
+      }
+    });
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
@@ -51,52 +62,67 @@ class _SplashScreenState extends State<SplashScreen>
     // Check login status and navigate accordingly
     Future.delayed(const Duration(seconds: 3), () async {
       if (!mounted) return;
-      final launchRequestId = await FcmNotificationService.getLaunchRequestId();
-      final isLoggedIn = await CognitoService.isLoggedIn();
-      if (isLoggedIn) {
-        Navigator.of(context).pushReplacement(
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => const HomePage(),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              return FadeTransition(opacity: animation, child: child);
-            },
-            transitionDuration: const Duration(milliseconds: 500),
-          ),
-        );
-        if (mounted && launchRequestId != null) {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => MechanicRequestDetailPage(requestId: launchRequestId),
+      final navigator = Navigator.of(context);
+      try {
+        // Launch request id from Accept: read now first (native prefs), else use value read in postFrameCallback
+        String? launchRequestId = await FcmNotificationService.getLaunchRequestId();
+        if (launchRequestId == null || launchRequestId.isEmpty) launchRequestId = _launchRequestId;
+        final isLoggedIn = await CognitoService.isLoggedIn();
+        if (isLoggedIn) {
+          // When opened from Accept → show request detail screen directly (not home/dashboard)
+          if (launchRequestId != null && launchRequestId.isNotEmpty) {
+            navigator.pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => MechanicRequestDetailPage(requestId: launchRequestId!),
+              ),
+            );
+            return;
+          }
+          navigator.pushReplacement(
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) => const HomePage(),
+              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                return FadeTransition(opacity: animation, child: child);
+              },
+              transitionDuration: const Duration(milliseconds: 500),
             ),
           );
+          return;
         }
-        return;
+        // If mechanic has pending application, go straight to mechanic flow (shows pending page)
+        final prefs = await SharedPreferences.getInstance();
+        final pendingEmail = prefs.getString('mechanic_pending_email');
+        if (pendingEmail != null && pendingEmail.isNotEmpty && mounted) {
+          Navigator.of(context).pushReplacement(
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) => const MechanicLoginRequestPage(),
+              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                return FadeTransition(opacity: animation, child: child);
+              },
+              transitionDuration: const Duration(milliseconds: 500),
+            ),
+          );
+          return;
+        }
+        _navigateToUserTypeSelection();
+      } catch (e, st) {
+        debugPrint('Splash navigation error: $e $st');
+        if (mounted) _navigateToUserTypeSelection();
       }
-      // If mechanic has pending application, go straight to mechanic flow (shows pending page)
-      final prefs = await SharedPreferences.getInstance();
-      final pendingEmail = prefs.getString('mechanic_pending_email');
-      if (pendingEmail != null && pendingEmail.isNotEmpty && mounted) {
-        Navigator.of(context).pushReplacement(
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => const MechanicLoginRequestPage(),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              return FadeTransition(opacity: animation, child: child);
-            },
-            transitionDuration: const Duration(milliseconds: 500),
-          ),
-        );
-        return;
-      }
-      Navigator.of(context).pushReplacement(
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => const UserTypeSelectionPage(),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return FadeTransition(opacity: animation, child: child);
-          },
-          transitionDuration: const Duration(milliseconds: 500),
-        ),
-      );
     });
+  }
+
+  void _navigateToUserTypeSelection() {
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => const UserTypeSelectionPage(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+        transitionDuration: const Duration(milliseconds: 500),
+      ),
+    );
   }
 
   @override

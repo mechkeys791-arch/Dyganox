@@ -24,18 +24,41 @@ class MainActivity : FlutterActivity() {
         super.onCreate(savedInstanceState)
         createFcmNotificationChannelIfNeeded()
         captureLaunchRequestId(intent)
+        captureLaunchRequestIdFromPrefs()
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
         captureLaunchRequestId(intent)
+        captureLaunchRequestIdFromPrefs()
     }
 
     private fun captureLaunchRequestId(intent: Intent?) {
         intent?.getStringExtra("open_request_id")?.let { id ->
             pendingLaunchRequestId = id
         }
+    }
+
+    /** Read request id saved by MechanicRequestActionReceiver when user tapped Accept (survives even if Intent is lost). */
+    private fun captureLaunchRequestIdFromPrefs() {
+        if (pendingLaunchRequestId != null) return
+        val prefs = applicationContext.getSharedPreferences("dyganox_launch", MODE_PRIVATE)
+        prefs.getString("pending_accept_request_id", null)?.let { id ->
+            pendingLaunchRequestId = id
+        }
+    }
+
+    private fun consumeLaunchRequestIdFromPrefs(): String? {
+        val prefs = applicationContext.getSharedPreferences("dyganox_launch", MODE_PRIVATE)
+        return prefs.getString("pending_accept_request_id", null)
+    }
+
+    private fun clearLaunchRequestIdFromPrefs() {
+        applicationContext.getSharedPreferences("dyganox_launch", MODE_PRIVATE)
+            .edit()
+            .remove("pending_accept_request_id")
+            .apply()
     }
 
     /** So FCM notification (when app is killed) uses this channel and plays sound. */
@@ -75,8 +98,18 @@ class MainActivity : FlutterActivity() {
                     result.success(null)
                 }
                 "getLaunchRequestId" -> {
+                    // Always prefer prefs first (receiver writes with commit() before startActivity)
+                    consumeLaunchRequestIdFromPrefs()?.let { id ->
+                        pendingLaunchRequestId = id
+                    }
+                    if (pendingLaunchRequestId == null) {
+                        intent?.getStringExtra("open_request_id")?.let { id ->
+                            pendingLaunchRequestId = id
+                        }
+                    }
                     val id = pendingLaunchRequestId
                     pendingLaunchRequestId = null
+                    if (id != null) clearLaunchRequestIdFromPrefs()
                     result.success(id)
                 }
                 else -> result.notImplemented()
