@@ -6,6 +6,8 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -14,6 +16,7 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterActivity() {
 
     private val CHANNEL = "dyganox/mechanic_alarm"
+    private var methodChannel: MethodChannel? = null
 
     companion object {
         @Volatile
@@ -25,6 +28,12 @@ class MainActivity : FlutterActivity() {
         createFcmNotificationChannelIfNeeded()
         captureLaunchRequestId(intent)
         captureLaunchRequestIdFromPrefs()
+        // Cold start from Accept: notify Flutter so request detail opens (backup if splash first-frame missed it)
+        pendingLaunchRequestId?.let { requestId ->
+            Handler(Looper.getMainLooper()).postDelayed({
+                notifyFlutterOpenRequestDetail(requestId)
+            }, 800)
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -32,6 +41,10 @@ class MainActivity : FlutterActivity() {
         setIntent(intent)
         captureLaunchRequestId(intent)
         captureLaunchRequestIdFromPrefs()
+        // Notify Flutter to open request detail (lifecycle may not fire when app brought from background)
+        pendingLaunchRequestId?.let { requestId ->
+            notifyFlutterOpenRequestDetail(requestId)
+        }
     }
 
     private fun captureLaunchRequestId(intent: Intent?) {
@@ -77,42 +90,58 @@ class MainActivity : FlutterActivity() {
         getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
     }
 
+    /** Tell Flutter to open the request detail page (e.g. when user tapped Accept and app was in background). */
+    private fun notifyFlutterOpenRequestDetail(requestId: String) {
+        Handler(Looper.getMainLooper()).postDelayed({
+            val result = object : MethodChannel.Result {
+                override fun success(result: Any?) {}
+                override fun error(errorCode: String, errorMessage: String?, errorDetails: Any?) {}
+                override fun notImplemented() {}
+            }
+            methodChannel?.invokeMethod("openRequestDetail", requestId, result)
+        }, 350)
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
-            when (call.method) {
-                "startAlarm" -> {
-                    startMechanicAlarmService()
-                    result.success(null)
-                }
-                "stopAlarm" -> {
-                    stopMechanicAlarmService()
-                    result.success(null)
-                }
-                "openNotificationSettings" -> {
-                    openAppNotificationSettings()
-                    result.success(null)
-                }
-                "openBatterySettings" -> {
-                    openAppBatterySettings()
-                    result.success(null)
-                }
-                "getLaunchRequestId" -> {
-                    // Always prefer prefs first (receiver writes with commit() before startActivity)
-                    consumeLaunchRequestIdFromPrefs()?.let { id ->
-                        pendingLaunchRequestId = id
+        methodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).also { channel ->
+            channel.setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "startAlarm" -> {
+                        startMechanicAlarmService()
+                        result.success(null)
                     }
-                    if (pendingLaunchRequestId == null) {
-                        intent?.getStringExtra("open_request_id")?.let { id ->
+                    "stopAlarm" -> {
+                        stopMechanicAlarmService()
+                        result.success(null)
+                    }
+                    "openNotificationSettings" -> {
+                        openAppNotificationSettings()
+                        result.success(null)
+                    }
+                    "openBatterySettings" -> {
+                        openAppBatterySettings()
+                        result.success(null)
+                    }
+                    "getLaunchRequestId" -> {
+                        // Return id without clearing (so splash can read multiple times). Clear via clearLaunchRequestId.
+                        consumeLaunchRequestIdFromPrefs()?.let { id ->
                             pendingLaunchRequestId = id
                         }
+                        if (pendingLaunchRequestId == null) {
+                            intent?.getStringExtra("open_request_id")?.let { id ->
+                                pendingLaunchRequestId = id
+                            }
+                        }
+                        result.success(pendingLaunchRequestId)
                     }
-                    val id = pendingLaunchRequestId
-                    pendingLaunchRequestId = null
-                    if (id != null) clearLaunchRequestIdFromPrefs()
-                    result.success(id)
+                    "clearLaunchRequestId" -> {
+                        pendingLaunchRequestId = null
+                        clearLaunchRequestIdFromPrefs()
+                        result.success(null)
+                    }
+                    else -> result.notImplemented()
                 }
-                else -> result.notImplemented()
             }
         }
     }

@@ -21,21 +21,12 @@ class _SplashScreenState extends State<SplashScreen>
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
-  /// Filled as soon as first frame runs (so we never miss Accept notification launch)
+  /// Read at 2s so we have it for 3s navigation (id is not consumed on read).
   String? _launchRequestId;
 
   @override
   void initState() {
     super.initState();
-    // Read launch request id once method channel is ready (user tapped Accept → must show detail screen)
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await Future.delayed(const Duration(milliseconds: 800));
-      if (!mounted) return;
-      final id = await FcmNotificationService.getLaunchRequestId();
-      if (mounted && id != null && id.isNotEmpty) {
-        setState(() => _launchRequestId = id);
-      }
-    });
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
@@ -59,25 +50,45 @@ class _SplashScreenState extends State<SplashScreen>
 
     _animationController.forward();
 
-    // Check login status and navigate accordingly
+    // UBER/RAPIDO-STYLE: On first frame, if we were opened from "Accept" notification, go straight to request detail (no 3s wait).
+    WidgetsBinding.instance.addPostFrameCallback((_) => _openRequestDetailIfLaunchedFromAccept());
+
+    // Read launch request id at 2s for the 3s navigation fallback (id is not consumed on read)
+    Future.delayed(const Duration(seconds: 2), () async {
+      if (!mounted) return;
+      final id = await FcmNotificationService.getLaunchRequestId();
+      if (mounted && id != null && id.isNotEmpty) {
+        setState(() => _launchRequestId = id);
+      }
+    });
+
+    // Check login status and navigate accordingly (normal flow after 3s)
     Future.delayed(const Duration(seconds: 3), () async {
       if (!mounted) return;
       final navigator = Navigator.of(context);
       try {
-        // Launch request id from Accept: read now first (native prefs), else use value read in postFrameCallback
-        String? launchRequestId = await FcmNotificationService.getLaunchRequestId();
-        if (launchRequestId == null || launchRequestId.isEmpty) launchRequestId = _launchRequestId;
-        final isLoggedIn = await CognitoService.isLoggedIn();
-        if (isLoggedIn) {
-          // When opened from Accept → show request detail screen directly (not home/dashboard)
-          if (launchRequestId != null && launchRequestId.isNotEmpty) {
-            navigator.pushReplacement(
+        // Use id we read at 2s, or read again now (in case 2s hadn't run yet)
+        String? launchRequestId = _launchRequestId;
+        if (launchRequestId == null || launchRequestId.isEmpty) {
+          launchRequestId = await FcmNotificationService.getLaunchRequestId();
+        }
+        final isCustomer = await CognitoService.isLoggedIn();
+        final isMechanic = await CognitoService.isMechanicLoggedIn();
+        // When opened from Accept → show request detail (mechanic or customer)
+        if (launchRequestId != null && launchRequestId.isNotEmpty && (isCustomer || isMechanic)) {
+            await FcmNotificationService.clearLaunchRequestId();
+            FcmNotificationService.didOpenRequestDetailFromNotification = true;
+            navigator.pushAndRemoveUntil(
               MaterialPageRoute(
-                builder: (_) => MechanicRequestDetailPage(requestId: launchRequestId!),
+                builder: (_) => MechanicRequestDetailPage(requestId: launchRequestId as String),
               ),
+              (route) => false,
             );
             return;
-          }
+        }
+        if (isCustomer) {
+          if (FcmNotificationService.didOpenRequestDetailFromNotification) return;
+          // Customer → HomePage (user). Mechanic only → mechanic dashboard (don’t send to user page).
           navigator.pushReplacement(
             PageRouteBuilder(
               pageBuilder: (context, animation, secondaryAnimation) => const HomePage(),
@@ -110,6 +121,25 @@ class _SplashScreenState extends State<SplashScreen>
         if (mounted) _navigateToUserTypeSelection();
       }
     });
+  }
+
+  /// If app was opened from "Accept" notification, go to request detail immediately (mechanic or customer).
+  Future<void> _openRequestDetailIfLaunchedFromAccept() async {
+    if (!mounted) return;
+    final id = await FcmNotificationService.getLaunchRequestId();
+    if (!mounted || id == null || id.isEmpty) return;
+    final isCustomer = await CognitoService.isLoggedIn();
+    final isMechanic = await CognitoService.isMechanicLoggedIn();
+    if ((!isCustomer && !isMechanic) || !mounted) return;
+    await FcmNotificationService.clearLaunchRequestId();
+    FcmNotificationService.didOpenRequestDetailFromNotification = true;
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (_) => MechanicRequestDetailPage(requestId: id),
+      ),
+      (route) => false,
+    );
   }
 
   void _navigateToUserTypeSelection() {

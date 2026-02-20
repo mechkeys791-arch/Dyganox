@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'screens/auth/splash_screen.dart';
 import 'homepage.dart';
@@ -16,6 +17,9 @@ import 'services/fcm_notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  FcmNotificationService.didOpenRequestDetailFromNotification = false;
+  // Background handler must be registered before any other FCM usage (required for background messages).
+  FcmNotificationService.registerBackgroundHandler();
   try {
     await FcmNotificationService.initialize();
     await FcmNotificationService.processLaunchNotificationResponse();
@@ -38,12 +42,36 @@ class ServiceProviderApp extends StatefulWidget {
 
 class _ServiceProviderAppState extends State<ServiceProviderApp> with WidgetsBindingObserver {
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
-  final DateTime _appStartTime = DateTime.now();
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _setupOpenRequestDetailChannel();
+  }
+
+  /// When user taps Accept on notification, native calls this so we open request detail (and clear stack so dashboard is not shown).
+  void _setupOpenRequestDetailChannel() {
+    const MethodChannel('dyganox/mechanic_alarm').setMethodCallHandler((call) async {
+      if (call.method != 'openRequestDetail' || call.arguments == null) return null;
+      final id = call.arguments as String;
+      if (id.isEmpty) return null;
+      await FcmNotificationService.clearLaunchRequestId();
+      FcmNotificationService.didOpenRequestDetailFromNotification = true;
+      // Delay then clear stack and show only request detail
+      Future.delayed(const Duration(milliseconds: 400), () {
+        if (!mounted) return;
+        final state = _navigatorKey.currentState;
+        if (state == null) return;
+        state.pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (_) => MechanicRequestDetailPage(requestId: id),
+          ),
+          (route) => false,
+        );
+      });
+      return null;
+    });
   }
 
   @override
@@ -55,18 +83,20 @@ class _ServiceProviderAppState extends State<ServiceProviderApp> with WidgetsBin
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state != AppLifecycleState.resumed) return;
-    // Only handle resume after splash has run (~4s) so cold start is handled by splash only
-    if (DateTime.now().difference(_appStartTime).inSeconds < 4) return;
+    // When app comes to foreground, open request detail if we were launched from Accept
     _pushLaunchRequestDetailIfAny();
   }
 
   Future<void> _pushLaunchRequestDetailIfAny() async {
     final id = await FcmNotificationService.getLaunchRequestId();
     if (id == null || id.isEmpty) return;
-    _navigatorKey.currentState?.push(
+    await FcmNotificationService.clearLaunchRequestId();
+    FcmNotificationService.didOpenRequestDetailFromNotification = true;
+    _navigatorKey.currentState?.pushAndRemoveUntil(
       MaterialPageRoute(
         builder: (_) => MechanicRequestDetailPage(requestId: id),
       ),
+      (route) => false,
     );
   }
 

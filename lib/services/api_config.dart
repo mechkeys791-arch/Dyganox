@@ -1,19 +1,3 @@
-/// API Configuration
-/// 
-/// This file manages the base URL for all API calls.
-/// 
-/// IMPORTANT: When running on physical device, replace the baseUrl with your computer's local IP address
-/// 
-/// To find your local IP address:
-/// - Windows: Open Command Prompt and run: ipconfig
-///   Look for "IPv4 Address" under your active network adapter (usually starts with 192.168.x.x or 10.0.x.x)
-/// - Mac/Linux: Open Terminal and run: ifconfig or ip addr
-///   Look for inet address under your active network interface
-/// 
-/// Examples:
-/// - For Android Emulator: 'http://10.0.2.2:8081'
-/// - For Physical Device: 'http://192.168.1.100:8081' (replace with your actual IP)
-/// - For iOS Simulator: 'http://localhost:8081' or 'http://127.0.0.1:8081'
 
 class ApiConfig {
   // CONFIGURATION - Change this based on your setup

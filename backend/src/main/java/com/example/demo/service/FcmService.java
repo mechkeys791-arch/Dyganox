@@ -4,11 +4,11 @@ import com.google.auth.oauth2.GoogleCredentials;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
 import com.google.firebase.messaging.AndroidConfig;
-import com.google.firebase.messaging.AndroidNotification;
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.FirebaseMessagingException;
 import com.google.firebase.messaging.Message;
-import com.google.firebase.messaging.Notification;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
@@ -24,6 +24,8 @@ import java.util.Map;
  */
 @Service
 public class FcmService {
+
+    private static final Logger log = LoggerFactory.getLogger(FcmService.class);
 
     @Value("${firebase.service-account:classpath:firebase-service-account.json}")
     private String serviceAccountPath;
@@ -48,9 +50,9 @@ public class FcmService {
                 FirebaseApp.initializeApp(options);
             }
             initialized = true;
-            System.out.println("✅ Firebase initialized for FCM");
+            log.info("✅ Firebase initialized for FCM");
         } catch (Exception e) {
-            System.err.println("⚠️ Firebase FCM not initialized (missing or invalid service account file): " + e.getMessage());
+            log.warn("⚠️ Firebase FCM not initialized (missing or invalid service account file): {}", e.getMessage());
         }
     }
 
@@ -62,11 +64,11 @@ public class FcmService {
                                                  String serviceType, String customerPhone, Double amount,
                                                  Double distanceKm, String description) {
         if (!initialized) {
-            System.err.println("⚠️ [FCM] NOT INITIALIZED. Add firebase-service-account.json to backend/src/main/resources and redeploy EC2.");
+            log.warn("⚠️ [FCM] NOT INITIALIZED for requestId={}. Add firebase-service-account.json to backend/src/main/resources and redeploy EC2.", requestId);
             return;
         }
         if (fcmToken == null || fcmToken.isBlank()) {
-            System.err.println("⚠️ [FCM] NO TOKEN for requestId=" + requestId + ". Mechanic must open the app (mechanic dashboard) at least once on the device that should receive notifications.");
+            log.warn("⚠️ [FCM] NO TOKEN for requestId={}. Mechanic must open the app (mechanic dashboard) at least once on the device that should receive notifications.", requestId);
             return;
         }
         try {
@@ -109,26 +111,21 @@ public class FcmService {
                 data.put("description", description.length() > 100 ? description.substring(0, 97) + "..." : description);
             }
 
-            // Notification + data: system shows when app killed; our service shows Accept/Reject when app runs.
+            // Data-only message: so onMessageReceived() is ALWAYS called (foreground, background, killed).
+            // Our DyganoxFirebaseMessagingService then shows the notification with Accept/Reject.
+            // (If we sent .setNotification() too, Android would show a generic notification and often NOT call onMessageReceived when app is in background.)
             Message message = Message.builder()
                     .setToken(fcmToken)
-                    .setNotification(Notification.builder().setTitle(title).setBody(body.toString()).build())
                     .putAllData(data)
                     .setAndroidConfig(AndroidConfig.builder()
                             .setPriority(AndroidConfig.Priority.HIGH)
-                            .setNotification(AndroidNotification.builder()
-                                    .setChannelId("mechanic_requests")
-                                    .setDefaultSound(true)
-                                    .setDefaultVibrateTimings(true)
-                                    .build())
                             .build())
                     .build();
 
             String response = FirebaseMessaging.getInstance().send(message);
-            System.out.println("✅ [FCM] SENT requestId=" + requestId + " -> " + response);
+            log.info("✅ [FCM] SENT requestId={} -> {}", requestId, response);
         } catch (FirebaseMessagingException e) {
-            System.err.println("❌ [FCM] SEND FAILED requestId=" + requestId + ": " + e.getMessage());
-            e.printStackTrace();
+            log.error("❌ [FCM] SEND FAILED requestId={}: {}", requestId, e.getMessage(), e);
         }
     }
 }

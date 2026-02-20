@@ -97,7 +97,14 @@ class MechanicAlarmService : Service() {
             notifBuilder.addAction(android.R.drawable.ic_menu_call, "Accept", acceptPending)
         }
         val notification = notifBuilder.build()
-        startForeground(NOTIFICATION_ID, notification)
+        try {
+            startForeground(NOTIFICATION_ID, notification)
+            Log.d(TAG, "Foreground notification shown requestId=$requestId")
+        } catch (e: Exception) {
+            Log.e(TAG, "startForeground failed", e)
+            // Still post notification to tray so user sees it even if foreground fails
+            getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID, notification)
+        }
 
         stopAlarm()
         try {

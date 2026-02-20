@@ -82,6 +82,8 @@ Future<void> _executeRejectRequest(int requestId) async {
 
 /// Handles FCM and local notifications for mechanic request Accept/Reject.
 /// Call [initialize] from main() before runApp.
+/// Note: On Android the default Flutter FCM service is replaced by a custom native handler
+/// (DyganoxFirebaseMessagingService), so foreground/background notifications are shown by native code.
 class FcmNotificationService {
   static final FcmNotificationService _instance = FcmNotificationService._();
   factory FcmNotificationService() => _instance;
@@ -93,6 +95,11 @@ class FcmNotificationService {
   FirebaseMessaging get _firebaseMessaging => FirebaseMessaging.instance;
 
   bool _initialized = false;
+
+  /// Register background message handler. Must be called from main() before [initialize].
+  static void registerBackgroundHandler() {
+    FirebaseMessaging.onBackgroundMessage(_firebaseBackgroundMessage);
+  }
 
   /// Call once at app startup (from main.dart).
   static Future<void> initialize() async {
@@ -164,14 +171,13 @@ class FcmNotificationService {
           ?.createNotificationChannel(androidChannel);
     }
 
-    // FCM: foreground messages -> show local notification with actions
+    // FCM: foreground messages -> show local notification with actions (used if default Flutter FCM service were enabled)
     FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
 
     // FCM: user tapped notification (background/terminated)
     FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageOpenedApp);
 
-    // Background message handler (must be top-level for isolate)
-    FirebaseMessaging.onBackgroundMessage(_firebaseBackgroundMessage);
+    // Background handler already registered in main() via registerBackgroundHandler()
 
     _initialized = true;
     print('FCM: Initialized');
@@ -318,7 +324,7 @@ class FcmNotificationService {
     } catch (_) {}
   }
 
-  /// When app was opened from "Accept" notification, returns the request ID so app can show request details. Clears after read.
+  /// When app was opened from "Accept" notification, returns the request ID so app can show request details. Does not clear; call clearLaunchRequestId after navigating.
   static Future<String?> getLaunchRequestId() async {
     if (!_platform.kIsAndroid) return null;
     try {
@@ -327,6 +333,18 @@ class FcmNotificationService {
     } catch (_) {
       return null;
     }
+  }
+
+  /// Set to true when we already navigated to request detail from Accept (method channel or lifecycle).
+  /// Splash checks this so it does NOT replace request detail with HomePage at 3s.
+  static bool didOpenRequestDetailFromNotification = false;
+
+  /// Clear the launch request id after we have navigated to request detail (so we don't reopen it later).
+  static Future<void> clearLaunchRequestId() async {
+    if (!_platform.kIsAndroid) return;
+    try {
+      await const MethodChannel(_kAlarmChannel).invokeMethod('clearLaunchRequestId');
+    } catch (_) {}
   }
 
   /// Register this device's FCM token for the given mechanic so they receive request notifications.

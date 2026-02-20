@@ -53,7 +53,7 @@ class MechanicRequestActionReceiver : BroadcastReceiver() {
             .commit()
         // Explicit MainActivity intent with extra as well
         val launch = Intent(context, MainActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             putExtra("open_request_id", requestId)
         }
         context.startActivity(launch)
