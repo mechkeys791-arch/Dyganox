@@ -87,3 +87,14 @@ firebase.service-account=/path/to/your-firebase-key.json
 4. Tapping Accept/Reject calls the backend API to update the request status.
 
 If the backend key file is missing, step 2 is skipped and the mechanic won’t get a push (but the request is still saved and visible in the mechanic dashboard).
+
+## Notifications not working?
+
+1. **Backend (e.g. EC2)**  
+   `firebase-service-account.json` is gitignored, so it is **not** deployed with the repo. Copy it to the server at `backend/src/main/resources/firebase-service-account.json` (or set `firebase.service-account` to its path) and restart the backend. Check logs for `✅ Firebase initialized for FCM` or `⚠️ Firebase FCM not initialized`.
+
+2. **Mechanic has no FCM token**  
+   The mechanic must open the app on the **same device** that should receive notifications, go to **Mechanic Dashboard** at least once (and allow notifications when prompted). The app registers the device token with the backend. If the backend logs say "mechanic has no FCM token", have the mechanic open the dashboard again (and ensure the app’s base URL points to the same backend that receives the request).
+
+3. **Same backend for request and token**  
+   The customer creates the request and the mechanic receives the notification on the same backend. If the app’s `ApiConfig` points to EC2, both must use EC2 (mechanic opens app → token is sent to EC2; customer sends request to EC2 → EC2 sends FCM to that token).

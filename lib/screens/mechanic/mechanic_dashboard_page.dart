@@ -104,7 +104,15 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
     print("Mechanic Dashboard: Using mechanic ID: $_mechanicId");
 
     // Register FCM token so mechanic receives request notifications (Accept/Reject)
-    if (_mechanicId != null) FcmNotificationService.registerMechanicToken(_mechanicId!);
+    if (_mechanicId != null) {
+      FcmNotificationService.registerMechanicToken(_mechanicId!);
+      // Retry after delay in case Firebase wasn't ready or permission was just granted
+      Future.delayed(const Duration(seconds: 3), () {
+        if (mounted && _mechanicId != null) {
+          FcmNotificationService.registerMechanicToken(_mechanicId!);
+        }
+      });
+    }
 
     WidgetsBinding.instance.addObserver(this);
     _loadMechanicProfile(); // Load profile (shop name, shop location, status)
@@ -199,7 +207,13 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
   @override
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _checkLaunchRequestId();
+    if (state == AppLifecycleState.resumed) {
+      _checkLaunchRequestId();
+      // Re-register FCM token on resume (token can refresh; ensures backend has current token)
+      if (_mechanicId != null) {
+        FcmNotificationService.registerMechanicToken(_mechanicId!);
+      }
+    }
   }
 
   @override
