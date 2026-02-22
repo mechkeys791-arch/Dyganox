@@ -7,9 +7,11 @@ import 'package:geocoding/geocoding.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:typed_data';
 import 'dart:convert';
-import 'screens/services/car_service_page.dart';
-import 'screens/services/bike_service_page.dart';
 import 'screens/services/minor_repair_page.dart';
+import 'screens/services/bike_battery_page.dart';
+import 'screens/services/bike_tyre_care_page.dart';
+import 'screens/services/bike_brake_service_page.dart';
+import 'screens/services/bike_electrical_works_page.dart';
 import 'screens/services/towing_service_page.dart';
 import 'screens/services/battery_jump_page.dart';
 import 'screens/ev_charging/ev_charging_page.dart';
@@ -63,13 +65,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   // Carousel banners from API (null until loaded)
   List<Map<String, dynamic>>? _banners;
 
+  // Show full-screen ad when user opens the app (dismissible); set true when banners load
+  bool _showOpenAd = false;
+
   // Default vehicle (shown beside Emergency / Find Mechanic)
   Map<String, dynamic>? _defaultVehicle;
 
-  // Marketing poster (show on app open until dismissed)
-  Map<String, dynamic>? _posterData;
-  // Section posters (below "Our Services" in app)
-  List<Map<String, dynamic>>? _sectionPosters;
   // Version check (show update dialog when updateAvailable)
   Map<String, dynamic>? _versionCheck;
   int _updateLaterCount = 0;
@@ -123,9 +124,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
     // Load default vehicle first, then banners (filtered by vehicle type)
     _loadDefaultVehicle();
-    // After first frame: check marketing poster and app version (show overlay/dialog when opening app)
+    // After first frame: check app version (show update dialog when needed)
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkPosterAndVersion());
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadSectionPosters());
 
     // Load selected address from database first
     _loadSelectedAddress();
@@ -144,8 +144,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   
   void _initializeServices() {
     _allServices.addAll([
-      {'name': 'Car Service', 'icon': Icons.directions_car, 'route': () => Navigator.push(context, MaterialPageRoute(builder: (context) => const CarServicePage()))},
-      {'name': 'Bike Service', 'icon': Icons.two_wheeler, 'route': () => Navigator.push(context, MaterialPageRoute(builder: (context) => const BikeServicePage()))},
       {'name': 'Emergency', 'icon': Icons.emergency, 'route': () => Navigator.push(context, MaterialPageRoute(builder: (context) => const EmergencyAssistancePage()))},
       {'name': 'Towing', 'icon': Icons.local_shipping, 'route': () => Navigator.push(context, MaterialPageRoute(builder: (context) => const TowingServicePage()))},
       {'name': 'Fuel Refill', 'icon': Icons.local_gas_station, 'route': () => Navigator.push(context, MaterialPageRoute(builder: (context) => const FuelRefillPage()))},
@@ -450,10 +448,16 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         setState(() {
           _banners = list.isNotEmpty ? list : null;
           if (_banners != null && _currentAdIndex >= _banners!.length) _currentAdIndex = 0;
+          _showOpenAd = true; // Show full-screen ad when app opens (banners loaded)
         });
       }
     } catch (_) {
-      if (mounted) setState(() => _banners = null);
+      if (mounted) {
+        setState(() {
+          _banners = null;
+          _showOpenAd = true; // Show ad even when API fails (use fallback)
+        });
+      }
     }
   }
 
@@ -476,41 +480,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     }
     await prefs.setString('last_seen_app_version', currentVersion);
 
-    String? city;
-    String? state;
-    double? lat;
-    double? lng;
-    try {
-      final userData = await CognitoService.getCurrentUser();
-      final email = userData['email']?.toString();
-      if (email != null && email.isNotEmpty) {
-        final result = await UserProfileService.getUserAddresses(email);
-        if (result['success'] == true && result['data'] != null) {
-          final addresses = List<Map<String, dynamic>>.from(result['data']);
-          if (addresses.isNotEmpty) {
-            final selected = addresses.firstWhere(
-              (addr) => addr['isSelected'] == true,
-              orElse: () => addresses.first,
-            );
-            city = selected['city']?.toString().trim();
-            state = selected['state']?.toString().trim();
-            if (selected['latitude'] != null) lat = (selected['latitude'] is num) ? (selected['latitude'] as num).toDouble() : double.tryParse(selected['latitude'].toString());
-            if (selected['longitude'] != null) lng = (selected['longitude'] is num) ? (selected['longitude'] as num).toDouble() : double.tryParse(selected['longitude'].toString());
-          }
-        }
-      }
-    } catch (_) {}
-    final poster = await AppRemoteService.getActivePoster(city: city, state: state, lat: lat, lng: lng);
     final versionResp = await AppRemoteService.checkVersion(currentVersion);
 
     if (!mounted) return;
     setState(() {
-      // Only show poster overlay when we have an image URL (backend returns nulls when no poster)
-      _posterData = (poster != null &&
-              poster['imageUrl'] != null &&
-              poster['imageUrl'].toString().trim().isNotEmpty)
-          ? poster
-          : null;
       _versionCheck = versionResp;
     });
 
@@ -799,6 +772,202 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
+
+  static const List<Map<String, String>> _carServices = [
+    {'title': 'Towing', 'icon': 'assets/icons/tow-truck.png'},
+    {'title': 'Minor Repair', 'icon': 'assets/icons/repair-tools.png'},
+    {'title': 'EV Charging', 'icon': 'assets/icons/charging-station.png'},
+    {'title': 'Battery Jump', 'icon': 'assets/icons/jump-start.png'},
+    {'title': 'Headlight Repair', 'icon': 'assets/icons/headlight.png'},
+    {'title': 'Duplicate Key', 'icon': 'assets/icons/duplicate-key.png'},
+    {'title': 'Tyre Care', 'icon': 'assets/icons/punctured-tire.png'},
+    {'title': 'Oil Change', 'icon': 'assets/icons/repair-tools.png'},
+    {'title': 'Brake Service', 'icon': 'assets/icons/brake-service.png'},
+    {'title': 'Windshield', 'icon': 'assets/icons/headlight.png'},
+    {'title': 'Body Works', 'icon': 'assets/icons/smart-car.png'},
+    {'title': 'Wheel Alignment', 'icon': 'assets/icons/wheel-alignment.png'},
+    {'title': 'Spare Parts', 'icon': 'assets/icons/spare-parts.png'},
+    {'title': 'Suspension', 'icon': 'assets/icons/suspension.png'},
+    {'title': 'Electrical Works', 'icon': 'assets/icons/new-electrical-works.png'},
+    {'title': 'Fuel Refill', 'icon': 'assets/icons/repair-tools.png'},
+  ];
+
+  static const List<Map<String, String>> _bikeServices = [
+    {'title': 'Battery', 'icon': 'assets/icons/bike-battery.png'},
+    {'title': 'Tyre Care', 'icon': 'assets/icons/bike-tyre.png'},
+    {'title': 'Body Works', 'icon': 'assets/icons/bike-body-works.png'},
+    {'title': 'Duplicate Key', 'icon': 'assets/icons/duplicate-key.png'},
+    {'title': 'Brake Service', 'icon': 'assets/icons/brake-service.png'},
+    {'title': 'Towing', 'icon': 'assets/icons/tow-truck.png'},
+    {'title': 'Windshield', 'icon': 'assets/icons/headlight.png'},
+    {'title': 'EV Charging', 'icon': 'assets/icons/charging-station.png'},
+    {'title': 'Wheel Alignment', 'icon': 'assets/icons/bike-tyre.png'},
+    {'title': 'Spare Parts', 'icon': 'assets/icons/spare-parts.png'},
+    {'title': 'Suspension', 'icon': 'assets/icons/new-bike-suspension.png'},
+    {'title': 'Electrical Works', 'icon': 'assets/icons/bike-electrical-works.png'},
+  ];
+
+  void _pushPage(Widget page) {
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => page,
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return SlideTransition(
+            position: Tween<Offset>(begin: const Offset(1.0, 0.0), end: Offset.zero).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
+            child: FadeTransition(opacity: animation, child: child),
+          );
+        },
+        transitionDuration: const Duration(milliseconds: 400),
+      ),
+    );
+  }
+
+  Widget _buildServiceGridTile({required String title, required String iconPath, required VoidCallback onTap}) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          onTap();
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2563EB).withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Center(
+                  child: Image.asset(
+                    iconPath,
+                    width: 24,
+                    height: 24,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => const Icon(Icons.build, size: 24, color: Color(0xFF2563EB)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.black87),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCarServicesGrid() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 4,
+          crossAxisSpacing: 8,
+          mainAxisSpacing: 8,
+          childAspectRatio: 0.85,
+        ),
+        itemCount: _carServices.length,
+        itemBuilder: (context, index) {
+          final s = _carServices[index];
+          final title = s['title']!;
+          final iconPath = s['icon']!;
+          Widget? targetPage;
+          switch (title) {
+            case 'Minor Repair': targetPage = const MinorRepairPage(); break;
+            case 'Towing': targetPage = const TowingServicePage(); break;
+            case 'Battery Jump': targetPage = const BatteryJumpPage(); break;
+            case 'EV Charging': targetPage = const EVChargingPage(); break;
+            case 'Fuel Refill': targetPage = const FuelRefillPage(); break;
+            case 'Tyre Care': targetPage = const TyreCarePage(); break;
+          }
+          return _buildServiceGridTile(
+            title: title,
+            iconPath: iconPath,
+            onTap: () {
+              if (targetPage != null) {
+                _pushPage(targetPage);
+              } else {
+                showDialog(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    title: Text(title, style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+                    content: Text('Professional ${title.toLowerCase()} service. Connect with mechanics from the Find Mechanic section.', style: GoogleFonts.inter()),
+                    actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
+                  ),
+                );
+              }
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildBikeServicesGrid() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 4,
+          crossAxisSpacing: 8,
+          mainAxisSpacing: 8,
+          childAspectRatio: 0.85,
+        ),
+        itemCount: _bikeServices.length,
+        itemBuilder: (context, index) {
+          final s = _bikeServices[index];
+          final title = s['title']!;
+          final iconPath = s['icon']!;
+          Widget? targetPage;
+          switch (title) {
+            case 'Battery': targetPage = const BikeBatteryPage(); break;
+            case 'Tyre Care': targetPage = const BikeTyreCarePage(); break;
+            case 'Brake Service': targetPage = const BikeBrakeServicePage(); break;
+            case 'Electrical Works': targetPage = const BikeElectricalWorksPage(); break;
+          }
+          return _buildServiceGridTile(
+            title: title,
+            iconPath: iconPath,
+            onTap: () {
+              if (targetPage != null) {
+                _pushPage(targetPage);
+              } else {
+                showDialog(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    title: Text(title, style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+                    content: Text('Professional ${title.toLowerCase()} for your bike. Connect with mechanics from the Find Mechanic section.', style: GoogleFonts.inter()),
+                    actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
+                  ),
+                );
+              }
+            },
+          );
+        },
+      ),
+    );
+  }
 
   Widget _buildServiceCard({
     required String title,
@@ -1098,120 +1267,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
-
-  Widget _buildPosterOverlay() {
-    String? imageUrl = _posterData!['imageUrl']?.toString();
-    if (imageUrl != null && imageUrl.isNotEmpty && !imageUrl.startsWith('http')) {
-      imageUrl = '${ApiConfig.baseUrl}${imageUrl.startsWith('/') ? '' : '/'}$imageUrl';
-    }
-    final width = MediaQuery.of(context).size.width;
-    return Positioned.fill(
-      child: Material(
-        color: Colors.transparent,
-        child: Stack(
-          children: [
-            BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-              child: Container(color: Colors.black26),
-            ),
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: imageUrl != null && imageUrl.isNotEmpty
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(20),
-                        child: Image.network(
-                          imageUrl,
-                          fit: BoxFit.contain,
-                          width: width * 0.92,
-                          errorBuilder: (_, __, ___) => const Icon(Icons.image_not_supported, size: 80),
-                        ),
-                      )
-                    : const Icon(Icons.campaign, size: 80, color: Colors.white70),
-              ),
-            ),
-            Positioned(
-              top: MediaQuery.of(context).padding.top + 8,
-              right: 16,
-              child: IconButton.filled(
-                onPressed: () => setState(() => _posterData = null),
-                icon: const Icon(Icons.close),
-                style: IconButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: Colors.black87,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _loadSectionPosters() async {
-    try {
-      final list = await AppRemoteService.getSectionPosters();
-      if (mounted) setState(() => _sectionPosters = list.isEmpty ? null : list);
-    } catch (_) {
-      if (mounted) setState(() => _sectionPosters = null);
-    }
-  }
-
-  Widget _buildSectionPostersSection() {
-    final list = _sectionPosters!;
-    return Padding(
-      padding: const EdgeInsets.only(top: 16, left: 12, right: 12),
-      child: SizedBox(
-        height: 140,
-        child: ListView.separated(
-          scrollDirection: Axis.horizontal,
-          itemCount: list.length,
-          separatorBuilder: (_, __) => const SizedBox(width: 12),
-          itemBuilder: (context, index) {
-            final item = list[index];
-            String? url = item['imageUrl']?.toString();
-            if (url != null && url.isNotEmpty && !url.startsWith('http')) {
-              url = '${ApiConfig.baseUrl}${url.startsWith('/') ? '' : '/'}$url';
-            }
-            final linkUrl = item['linkUrl']?.toString();
-            return Material(
-              borderRadius: BorderRadius.circular(16),
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                onTap: linkUrl != null && linkUrl.isNotEmpty
-                    ? () {
-                        try {
-                          launchUrl(Uri.parse(linkUrl));
-                        } catch (_) {}
-                      }
-                    : null,
-                child: Container(
-                  width: 200,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.08),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: url != null && url.isNotEmpty
-                      ? Image.network(
-                          url,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.image_not_supported, size: 48)),
-                        )
-                      : const Center(child: Icon(Icons.image, size: 48, color: Colors.grey)),
-                ),
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -1753,34 +1808,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ),
                 ),
 
-                // Square curved banner in scroll (vehicle-type filtered)
-                if (_adCount > 0) ...[
-                  const SizedBox(height: 12),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.04),
-                    child: AspectRatio(
-                      aspectRatio: 1,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(24),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.12),
-                              blurRadius: 16,
-                              offset: const Offset(0, 6),
-                            ),
-                          ],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(24),
-                          child: _buildAdCard(0),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-
                 // Find Nearest Mechanic - Vibrant Colorful Card
                 Container(
                   margin: EdgeInsets.symmetric(
@@ -2310,84 +2337,21 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         ],
                       ),
                       const SizedBox(height: 8),
-                      
-                      _buildServiceCard(
-                        title: 'Car Services',
-                        subtitle: 'Complete car maintenance & repair solutions',
-                        iconPath: 'assets/icons/car.png',
-                        index: 0,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            PageRouteBuilder(
-                              pageBuilder: (context, animation, secondaryAnimation) =>
-                                  const CarServicePage(),
-                              transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                                return SlideTransition(
-                                  position: Tween<Offset>(
-                                    begin: const Offset(1.0, 0.0),
-                                    end: Offset.zero,
-                                  ).animate(CurvedAnimation(
-                                    parent: animation,
-                                    curve: Curves.easeOutCubic,
-                                  )),
-                                  child: FadeTransition(
-                                    opacity: animation,
-                                    child: child,
-                                  ),
-                                );
-                              },
-                              transitionDuration: const Duration(milliseconds: 400),
-                            ),
-                          );
-                        },
+                      // Car Services grid (all on home, no separate page)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Text('Car Services', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
                       ),
-
-                      _buildServiceCard(
-                        title: 'Bike Services',
-                        subtitle: 'Professional bike care & maintenance services',
-                        iconPath: 'assets/icons/motorcycle.png',
-                        index: 1,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            PageRouteBuilder(
-                              pageBuilder: (context, animation, secondaryAnimation) =>
-                                  const BikeServicePage(),
-                              transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                                return SlideTransition(
-                                  position: Tween<Offset>(
-                                    begin: const Offset(1.0, 0.0),
-                                    end: Offset.zero,
-                                  ).animate(CurvedAnimation(
-                                    parent: animation,
-                                    curve: Curves.easeOutCubic,
-                                  )),
-                                  child: FadeTransition(
-                                    opacity: animation,
-                                    child: child,
-                                  ),
-                                );
-                              },
-                              transitionDuration: const Duration(milliseconds: 400),
-                            ),
-                          );
-                        },
+                      const SizedBox(height: 8),
+                      _buildCarServicesGrid(),
+                      const SizedBox(height: 16),
+                      // Bike Services grid (all on home, no separate page)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Text('Bike Services', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
                       ),
-                      if (_sectionPosters != null && _sectionPosters!.isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          child: Row(
-                            children: [
-                              Icon(Icons.local_offer_outlined, size: 22, color: Colors.grey[700]),
-                              const SizedBox(width: 8),
-                              Text('Offers & promotions', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
-                            ],
-                          ),
-                        ),
-                        _buildSectionPostersSection(),
-                      ],
+                      const SizedBox(height: 8),
+                      _buildBikeServicesGrid(),
                     ],
                   ),
                 ),
@@ -2397,7 +2361,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         ),
         ),
       ),
-          if (_posterData != null) _buildPosterOverlay(),
+        if (_showOpenAd) _buildOpenAdOverlay(),
         ],
       ),
 
@@ -2437,6 +2401,86 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     if (url == null || url.isEmpty) return '';
     if (url.startsWith('http')) return url;
     return '${ApiConfig.baseUrl}${url.startsWith('/') ? '' : '/'}$url';
+  }
+
+  /// Full-screen ad shown when user opens the app. Dismissible with Continue.
+  Widget _buildOpenAdOverlay() {
+    final List<Map<String, dynamic>> ads = (_banners != null && _banners!.isNotEmpty)
+        ? _banners!
+        : _fallbackAds;
+    final ad = ads[0];
+    final isFromApi = ad.containsKey('imageUrl');
+    final String? rawImageUrl = ad['imageUrl'] as String?;
+    final String bannerImageUrl = _resolveBannerImageUrl(rawImageUrl);
+    final gradient = (ad['gradient'] as List<Color>?) ??
+        [const Color(0xFFFF6B35), const Color(0xFFFF8C42), const Color(0xFFFFA500)];
+
+    return Positioned.fill(
+      child: Material(
+        color: Colors.black87,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: isFromApi && bannerImageUrl.isNotEmpty
+                      ? Image.network(
+                          bannerImageUrl,
+                          fit: BoxFit.contain,
+                          width: double.infinity,
+                          errorBuilder: (_, __, ___) => Container(
+                            height: 200,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: gradient,
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                            ),
+                            child: const Center(child: Icon(Icons.campaign, size: 64, color: Colors.white70)),
+                          ),
+                        )
+                      : Image.asset(
+                          ad['image'] as String? ?? 'assets/icons/eva_on_road.png',
+                          fit: BoxFit.contain,
+                          width: double.infinity,
+                          errorBuilder: (_, __, ___) => Container(
+                            height: 200,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: gradient,
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                            ),
+                            child: const Center(child: Icon(Icons.campaign, size: 64, color: Colors.white70)),
+                          ),
+                        ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 8,
+              right: 16,
+              child: IconButton.filled(
+                onPressed: () {
+                  HapticFeedback.lightImpact();
+                  setState(() => _showOpenAd = false);
+                },
+                icon: const Icon(Icons.close),
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: Colors.black87,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildAdCard(int index) {

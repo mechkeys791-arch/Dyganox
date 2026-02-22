@@ -1,4 +1,5 @@
 import 'package:amazon_cognito_identity_dart_2/cognito.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'user_profile_service.dart';
 
@@ -31,6 +32,7 @@ class CognitoService {
   static const String _keyAccessToken = 'access_token';
   static const String _keyIdToken = 'id_token';
   static const String _keyRefreshToken = 'refresh_token';
+  static const String _keyAuthProvider = 'auth_provider'; // 'cognito' | 'google'
 
   // SharedPreferences keys (mechanic - separate session)
   static const String _keyMechanicIsLoggedIn = 'mechanic_is_logged_in';
@@ -504,6 +506,30 @@ class CognitoService {
     await prefs.setString(_keyIdToken, idToken);
     await prefs.setString(_keyRefreshToken, refreshToken);
     await prefs.setString(_keyUserId, email); // Use email as user ID
+    await prefs.setString(_keyAuthProvider, 'cognito');
+  }
+
+  /// Save session after Google Sign-In. Same keys as email login so app treats user as logged in; next open goes to that account.
+  static Future<void> saveGoogleAuthData({
+    required String email,
+    required String name,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyIsLoggedIn, true);
+    await prefs.setString(_keyUserEmail, email);
+    await prefs.setString(_keyUserName, name);
+    await prefs.setString(_keyUserId, email);
+    await prefs.setString(_keyAuthProvider, 'google');
+    await prefs.setString(_keyAccessToken, '');
+    await prefs.setString(_keyIdToken, '');
+    await prefs.setString(_keyRefreshToken, '');
+    if (prefs.getString(_keyUserPhone) == null) await prefs.setString(_keyUserPhone, '');
+  }
+
+  /// Whether current session is from Google Sign-In (vs email/OTP).
+  static Future<bool> isGoogleSignedIn() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyAuthProvider) == 'google';
   }
 
   // Load user profile (DOB, Gender) from database after login
@@ -544,6 +570,16 @@ class CognitoService {
     await prefs.remove(_keyRefreshToken);
     await prefs.remove('user_date_of_birth');
     await prefs.remove('user_gender');
+    await prefs.remove(_keyAuthProvider);
+    await prefs.remove('profilePhotoUrl');
+    await prefs.remove('profileImage');
+    await prefs.remove('profileImageBytes');
+    // Clear Google Sign-In cached account so next time user sees account picker
+    try {
+      final googleSignIn = GoogleSignIn();
+      await googleSignIn.signOut();
+      await googleSignIn.disconnect();
+    } catch (_) {}
   }
 
   // Get current user data

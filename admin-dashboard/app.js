@@ -116,8 +116,7 @@ function switchSection(section) {
         'user-support': 'User Support',
         'mechanic-help': 'Mechanic Help Chat',
         'vehicle-catalog': 'Vehicle Catalog',
-        'marketing-poster': 'Marketing Poster',
-        'below-services': 'Below Services Banner'
+        'marketing-poster': 'Marketing Poster'
     };
     document.getElementById('page-title').textContent = titles[section] || 'Dashboard';
     
@@ -173,9 +172,6 @@ function switchSection(section) {
             break;
         case 'marketing-poster':
             loadMarketingPoster();
-            break;
-        case 'below-services':
-            loadSectionPosters();
             break;
         case 'app-update':
             loadAppVersion();
@@ -2408,64 +2404,6 @@ async function savePoster() {
             const r = await fetch(getApiUrl(API_CONFIG.endpoints.poster), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
             if (r.ok) { showSuccess('Poster saved'); document.getElementById('poster-image-input').value = ''; loadMarketingPoster(); } else showError('Save failed');
         }
-    } catch (e) { showError('Failed'); }
-}
-
-// ========== BELOW SERVICES BANNER ==========
-async function loadSectionPosters() {
-    const el = document.getElementById('below-services-list');
-    if (!el) return;
-    try {
-        const r = await fetch(getApiUrl('/api/admin/section-posters') + '?section=BELOW_SERVICES');
-        if (!r.ok) { el.innerHTML = '<p class="muted">Failed to load.</p>'; return; }
-        const list = await r.json();
-        const base = (API_CONFIG && API_CONFIG.baseUrl) ? API_CONFIG.baseUrl.replace(/\/$/, '') : '';
-        if (!list || list.length === 0) {
-            el.innerHTML = '<p class="muted">No images yet. Add one below.</p>';
-            return;
-        }
-        el.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;">' + list.map(function(p) {
-            const imgSrc = p.imageUrl ? (p.imageUrl.indexOf('http') === 0 ? p.imageUrl : base + (p.imageUrl.startsWith('/') ? '' : '/') + p.imageUrl) : '';
-            return '<div class="banner-card" style="max-width:200px;"><div class="banner-card-image" style="height:100px;background-size:cover;background-image:url(\'' + escapeAttr(imgSrc || '') + '\');"></div><div style="padding:6px;font-size:12px;">Order: ' + (p.sortOrder || 0) + '</div><button type="button" class="btn-action btn-reject" style="font-size:11px;" onclick="deleteSectionPoster(' + p.id + ')"><i class="fas fa-trash"></i> Delete</button></div>';
-        }).join('') + '</div>';
-    } catch (e) {
-        el.innerHTML = '<p class="muted">Failed to load.</p>';
-    }
-}
-
-async function addBelowServicesImage() {
-    const fileInput = document.getElementById('below-services-file');
-    const file = fileInput && fileInput.files && fileInput.files[0];
-    if (!file) { showError('Choose an image'); return; }
-    const fd = new FormData();
-    fd.append('file', file);
-    fd.append('section', 'BELOW_SERVICES');
-    try {
-        const r = await fetch(API_CONFIG.baseUrl + '/api/upload/section-poster', { method: 'POST', body: fd });
-        if (!r.ok) {
-            const d = await r.json().catch(function() { return {}; });
-            showError(d.error || 'Upload failed');
-            return;
-        }
-        const d = await r.json();
-        const url = d.url || '';
-        const linkUrl = document.getElementById('below-services-link').value.trim();
-        const sortOrder = parseInt(document.getElementById('below-services-order').value, 10) || 0;
-        const createRes = await fetch(getApiUrl('/api/admin/section-posters'), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sectionKey: 'BELOW_SERVICES', imageUrl: url, linkUrl: linkUrl || null, sortOrder: sortOrder })
-        });
-        if (createRes.ok) { showSuccess('Image added'); fileInput.value = ''; document.getElementById('below-services-link').value = ''; loadSectionPosters(); }
-        else showError('Save failed');
-    } catch (e) { showError('Failed'); }
-}
-
-async function deleteSectionPoster(id) {
-    if (!confirm('Delete this image from Below Services section?')) return;
-    try {
-        const r = await fetch(getApiUrl('/api/admin/section-posters') + '/' + id, { method: 'DELETE' });
-        if (r.ok) { showSuccess('Deleted'); loadSectionPosters(); } else showError('Delete failed');
     } catch (e) { showError('Failed'); }
 }
 
