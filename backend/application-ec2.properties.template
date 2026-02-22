@@ -1,9 +1,12 @@
-# EC2-specific overrides
-# On first deploy, this is copied to ~/backend-app/application-ec2.properties
-# Edit that file with your real AWS credentials, then restart the backend.
+# EC2-specific overrides (secrets – do not commit real values to git)
+# On first deploy, update-backend-ec2.sh copies this to ~/backend-app/application-ec2.properties
+# ONLY if that file does not exist. After that, the script never overwrites it.
+#
+# So: real S3 credentials must be set ON THE EC2 SERVER in ~/backend-app/application-ec2.properties.
+# Edit that file there (e.g. nano ~/backend-app/application-ec2.properties) with your bucket and IAM keys, then restart the backend.
 
-# AWS S3
-aws.s3.bucket=your-bucket-name
+# AWS S3 (required for banner/poster/catalog uploads – app shows images from S3)
+aws.s3.bucket=dyganox-profile-picture
 aws.s3.region=us-east-1
 aws.access-key-id=YOUR_ACCESS_KEY_ID
 aws.secret-access-key=YOUR_SECRET_ACCESS_KEY

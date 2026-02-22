@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Managing Admin Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .managing-wrap { max-width: 900px; margin: 0 auto; padding: 24px; }
+        .managing-wrap h2 { margin: 24px 0 12px; font-size: 18px; }
+        .managing-wrap table { width: 100%; border-collapse: collapse; }
+        .managing-wrap th, .managing-wrap td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        .managing-wrap th { background: #f8fafc; font-weight: 600; }
+        .btn-m { padding: 10px 16px; border-radius: 8px; border: none; cursor: pointer; font-weight: 500; }
+        .btn-m.primary { background: #1e40af; color: #fff; }
+        .btn-m.secondary { background: #64748b; color: #fff; margin-left: 8px; }
+        .form-inline { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 16px; }
+        .form-inline input { padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px; width: 200px; }
+        .muted { color: #64748b; font-size: 13px; }
+    </style>
+</head>
+<body>
+    <div class="managing-wrap">
+        <header style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
+            <h1><i class="fas fa-cog"></i> Managing Admin Dashboard</h1>
+            <a href="index.html" class="btn-m secondary"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
+        </header>
+        <p class="muted">Manage admin access and passwords.</p>
+
+        <h2>Who has access</h2>
+        <div class="table-container">
+            <table class="data-table">
+                <thead><tr><th>Email</th><th>Role</th><th>Has managing password</th><th>Registered at</th></tr></thead>
+                <tbody id="registered-body"></tbody>
+            </table>
+        </div>
+
+        <h2>Set managing password for an admin</h2>
+        <div class="form-inline">
+            <input type="email" id="set-email" placeholder="Admin email">
+            <input type="password" id="set-password" placeholder="New managing password">
+            <button type="button" class="btn-m primary" onclick="setManagingPassword()">Set password</button>
+        </div>
+        <p id="set-result" class="muted"></p>
+
+    </div>
+    <script src="config.js"></script>
+    <script src="auth.js"></script>
+    <script>
+        function getApiUrl(path) { return API_CONFIG.baseUrl + path; }
+        function fetchWithAuth(url, opts) {
+            opts = opts || {};
+            opts.headers = opts.headers || {};
+            var t = sessionStorage.getItem('dyganox_dashboard_token');
+            if (t) opts.headers['Authorization'] = 'Bearer ' + t;
+            if (!opts.headers['Content-Type']) opts.headers['Content-Type'] = 'application/json';
+            return fetch(url, opts);
+        }
+
+        function checkManaging() {
+            var t = sessionStorage.getItem('dyganox_dashboard_token');
+            if (!t) { window.location.href = 'index.html'; return; }
+            fetchWithAuth(getApiUrl('/api/dashboard-auth/me'))
+                .then(function(r) {
+                    if (r.status === 401) { window.location.href = 'index.html'; return; }
+                    return r.json();
+                })
+                .then(function(d) {
+                    if (d && !d.managing) { window.location.href = 'index.html'; return; }
+                    loadAll();
+                })
+                .catch(function() { window.location.href = 'index.html'; });
+        }
+
+        function loadAll() {
+            loadRegistered();
+        }
+
+        function loadRegistered() {
+            fetchWithAuth(getApiUrl('/api/dashboard-auth/registered-admins'))
+                .then(function(r) { return r.json(); })
+                .then(function(list) {
+                    var tbody = document.getElementById('registered-body');
+                    if (!list || list.length === 0) { tbody.innerHTML = '<tr><td colspan="4">No admins.</td></tr>'; return; }
+                    tbody.innerHTML = list.map(function(a) {
+                        return '<tr><td>' + (a.email || '') + '</td><td>' + (a.role || '') + '</td><td>' + (a.hasManagingPassword ? 'Yes' : 'No') + '</td><td>' + (a.registeredAt || '') + '</td></tr>';
+                    }).join('');
+                })
+                .catch(function() { document.getElementById('registered-body').innerHTML = '<tr><td colspan="4">Error loading.</td></tr>'; });
+        }
+
+        function setManagingPassword() {
+            var email = (document.getElementById('set-email').value || '').trim();
+            var password = document.getElementById('set-password').value;
+            var result = document.getElementById('set-result');
+            if (!email || !password) { result.textContent = 'Enter email and password.'; return; }
+            fetchWithAuth(getApiUrl('/api/dashboard-auth/set-managing-password'), {
+                method: 'POST',
+                body: JSON.stringify({ email: email, password: password })
+            })
+                .then(function(r) { return r.json(); })
+                .then(function(d) {
+                    result.textContent = d.error || (d.success ? 'Password set.' : 'Failed.');
+                    if (d.success) { document.getElementById('set-password').value = ''; loadRegistered(); }
+                })
+                .catch(function() { result.textContent = 'Request failed.'; });
+        }
+
+        checkManaging();
+    </script>
+</body>
+</html>

@@ -1,12 +1,18 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../services/api_config.dart';
 import '../../services/cognito_service.dart';
+import '../../services/user_profile_service.dart';
 import 'signup_page.dart';
 import 'otp_verification_page.dart';
 import 'forgot_password_page.dart';
 import '../../homepage.dart';
+import 'complete_profile_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -24,6 +30,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   final TextEditingController _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
+  bool _isGoogleLoading = false;
   bool _obscurePassword = true;
 
   @override
@@ -72,37 +79,189 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
 
     HapticFeedback.lightImpact();
 
-    final result = await CognitoService.signIn(
-      username: _emailPhoneController.text.trim(),
-      password: _passwordController.text,
-    );
+    final email = _emailPhoneController.text.trim();
+    final password = _passwordController.text;
 
-    setState(() {
-      _isLoading = false;
-    });
-
-    if (!mounted) return;
-
-    if (result['success'] == true) {
-      // Navigate directly to home page (no OTP required for normal sign-in)
-      Navigator.of(context).pushReplacement(
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => const HomePage(),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return FadeTransition(opacity: animation, child: child);
-          },
-          transitionDuration: const Duration(milliseconds: 400),
-        ),
+    try {
+      // Request OTP: backend validates email+password with Cognito and sends OTP to email
+      final r = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/api/auth/login-request-otp'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email, 'password': password}),
       );
-    } else {
+      final data = r.statusCode == 200 ? jsonDecode(r.body) as Map<String, dynamic>? : null;
+      final success = data != null && (data['success'] == true);
+
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
+      if (!mounted) return;
+
+      if (success) {
+        // Navigate to OTP verification; after OTP user will sign in with Cognito and go to Home
+        Navigator.of(context).push(
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) => OTPVerificationPage(
+              phoneNumber: '',
+              email: email,
+              name: '',
+              password: password,
+              isSignIn: true,
+              forLoginWithOtp: true,
+            ),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return FadeTransition(opacity: animation, child: child);
+            },
+            transitionDuration: const Duration(milliseconds: 400),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(data?['message'] ?? 'Invalid email or password'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(result['message'] ?? 'Login failed'),
+          content: Text('Network error. Check backend and try again.'),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
         ),
       );
     }
+  }
+
+  Future<void> _handleGoogleSignIn() async {
+    if (_isGoogleLoading) return;
+    setState(() => _isGoogleLoading = true);
+    HapticFeedback.lightImpact();
+    try {
+      final googleSignIn = GoogleSignIn(
+        scopes: ['email', 'profile'],
+        serverClientId: ApiConfig.googleWebClientId,
+      );
+      await googleSignIn.signOut();
+      final account = await googleSignIn.signIn();
+      if (account == null || !mounted) {
+        setState(() => _isGoogleLoading = false);
+        return;
+      }
+      final auth = await account.authentication;
+      final idToken = auth.idToken;
+      if (idToken == null || idToken.isEmpty) {
+        if (mounted) {
+          setState(() => _isGoogleLoading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not get Google account info. Try again.'),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+        return;
+      }
+      final r = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/api/auth/google'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'idToken': idToken}),
+      );
+      final data = r.statusCode == 200 ? jsonDecode(r.body) as Map<String, dynamic>? : null;
+      final success = data != null && (data['success'] == true);
+      if (!mounted) return;
+      setState(() => _isGoogleLoading = false);
+      if (!success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(data?['message'] ?? 'Google sign-in failed'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+      final email = data!['email']?.toString() ?? account.email ?? '';
+      final name = data['name']?.toString() ?? account.displayName ?? email;
+      await CognitoService.saveGoogleAuthData(email: email, name: name);
+      final profileResult = await UserProfileService.getUserProfile(email);
+      final profileData = profileResult['success'] == true ? profileResult['data'] as Map<String, dynamic>? : null;
+      await _loadUserProfileFromDatabase(email);
+      if (!mounted) return;
+      final needsProfile = _isProfileIncomplete(profileData, email);
+      if (needsProfile) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => CompleteProfilePage(email: email, name: name)),
+          (route) => false,
+        );
+      } else {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const HomePage()),
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isGoogleLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Google sign-in error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  Widget _buildGoogleIcon() {
+    return Image.asset(
+      'assets/icons/google.png',
+      width: 24,
+      height: 24,
+      fit: BoxFit.contain,
+      errorBuilder: (_, __, ___) => Image.network(
+        'https://www.google.com/favicon.ico',
+        width: 24,
+        height: 24,
+        fit: BoxFit.contain,
+        errorBuilder: (_, __, ___) => const Icon(Icons.g_mobiledata, size: 24, color: Colors.black87),
+      ),
+    );
+  }
+
+  bool _isProfileIncomplete(Map<String, dynamic>? profileData, String email) {
+    if (profileData == null) return true;
+    final phone = profileData['phone']?.toString().trim();
+    if (phone == null || phone.isEmpty) return true;
+    return false;
+  }
+
+  Future<void> _loadUserProfileFromDatabase(String email) async {
+    try {
+      final result = await UserProfileService.getUserProfile(email);
+      if (result['success'] == true && result['data'] != null) {
+        final prefs = await SharedPreferences.getInstance();
+        final profileData = result['data'] as Map<String, dynamic>;
+        if (profileData['dateOfBirth'] != null) {
+          await prefs.setString('user_date_of_birth', profileData['dateOfBirth'].toString());
+        }
+        if (profileData['gender'] != null) {
+          await prefs.setString('user_gender', profileData['gender'].toString());
+        }
+        if (profileData['profilePhotoUrl'] != null && profileData['profilePhotoUrl'].toString().isNotEmpty) {
+          await prefs.setString('profilePhotoUrl', profileData['profilePhotoUrl'].toString());
+        }
+      }
+    } catch (_) {}
   }
 
   @override
@@ -335,27 +494,18 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                                   ],
                                 ),
                                 const SizedBox(height: 24),
-                                // Google Sign In Button (UI only)
+                                // Google Sign In
                                 OutlinedButton.icon(
-                                  onPressed: () {
-                                    // TODO: Implement Google Sign In later
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Google Sign In will be available soon'),
-                                        behavior: SnackBarBehavior.floating,
-                                      ),
-                                    );
-                                  },
-                                  icon: Image.asset(
-                                    'assets/icons/google.png',
-                                    width: 24,
-                                    height: 24,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return const Icon(Icons.g_mobiledata, size: 24);
-                                    },
-                                  ),
+                                  onPressed: _isGoogleLoading ? null : _handleGoogleSignIn,
+                                  icon: _isGoogleLoading
+                                      ? const SizedBox(
+                                          width: 24,
+                                          height: 24,
+                                          child: CircularProgressIndicator(strokeWidth: 2),
+                                        )
+                                      : _buildGoogleIcon(),
                                   label: Text(
-                                    'Continue with Google',
+                                    _isGoogleLoading ? 'Signing in...' : 'Continue with Google',
                                     style: GoogleFonts.outfit(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w600,

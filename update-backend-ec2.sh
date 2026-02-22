@@ -7,7 +7,7 @@
 set -e
 
 EC2_IP="${1:-34.228.113.212}"
-KEY_PATH="${2:-~/.ssh/your-key.pem}"
+KEY_PATH="${2:-/home/pranam/Desktop/Dyganox-7/springbootEC2key .pem}"
 EC2_USER="${3:-ec2-user}"
 
 echo "🔄 Updating Backend on EC2..."
@@ -35,11 +35,15 @@ echo "🔧 Building and restarting backend on EC2..."
 ssh -i "$KEY_PATH" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$EC2_USER@$EC2_IP" << 'ENDSSH'
     set -e
     
+    echo "💾 Freeing disk space (old backups, previous backend copy)..."
+    rm -rf /home/ec2-user/backend-old
+    rm -f /home/ec2-user/backend-app/ev-charging-backend-0.0.1-SNAPSHOT.jar.backup.*
+    df -h /home/ec2-user | tail -1
+    
     echo "📦 Extracting source code..."
     cd /home/ec2-user
-    rm -rf backend-old
     if [ -d "backend" ]; then
-        mv backend backend-old
+        rm -rf backend
     fi
     tar -xzf backend-src.tar.gz
     rm -f backend-src.tar.gz
@@ -75,14 +79,11 @@ ssh -i "$KEY_PATH" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "
     sudo systemctl stop dyganox-backend 2>/dev/null || true
     sudo systemctl stop spring-boot-app 2>/dev/null || true
     
-    echo "💾 Backing up old JAR..."
-    mkdir -p ~/backend-app
-    if [ -f ~/backend-app/ev-charging-backend-0.0.1-SNAPSHOT.jar ]; then
-        mv ~/backend-app/ev-charging-backend-0.0.1-SNAPSHOT.jar ~/backend-app/ev-charging-backend-0.0.1-SNAPSHOT.jar.backup.$(date +%Y%m%d_%H%M%S)
-    fi
-    
     echo "📋 Copying new JAR..."
+    mkdir -p ~/backend-app
     cp target/ev-charging-backend-0.0.1-SNAPSHOT.jar ~/backend-app/
+    echo "   Cleaning build dir to free space..."
+    mvn clean -q 2>/dev/null || true
     
     # Ensure application-ec2.properties exists (for S3, etc.)
     if [ ! -f ~/backend-app/application-ec2.properties ]; then
@@ -90,6 +91,8 @@ ssh -i "$KEY_PATH" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "
             cp ~/backend/application-ec2.properties.template ~/backend-app/application-ec2.properties
             echo "   Created application-ec2.properties from template - EDIT IT with your AWS credentials"
         fi
+    else
+        echo "   Using existing ~/backend-app/application-ec2.properties (S3 credentials live here; script never overwrites it)"
     fi
     
     echo "🚀 Starting backend (profile: ec2)..."

@@ -5,11 +5,15 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../../services/api_config.dart';
 import '../../services/phone_call_service.dart';
 import '../../services/payment/payment_config.dart';
 import '../../services/payment/payment_gateway.dart';
+import '../../services/vehicle_service.dart';
+import '../../services/cognito_service.dart';
+import '../vehicles/add_edit_vehicle_page.dart';
 
 class MechanicFinderPage extends StatefulWidget {
   const MechanicFinderPage({super.key});
@@ -809,85 +813,185 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
     );
   }
 
-  void _showRequestMechanicDialog(Map<String, dynamic> mechanic) {
+  void _showRequestMechanicDialog(Map<String, dynamic> mechanic) async {
+    final prefs = await SharedPreferences.getInstance();
+    final userData = await CognitoService.getCurrentUser();
+    final email = userData['email']?.toString() ?? prefs.getString('user_email') ?? '';
+    final customerName = userData['name']?.toString() ?? prefs.getString('user_name') ?? 'Customer';
+    final customerPhone = userData['phone']?.toString() ?? prefs.getString('user_phone') ?? '+91 98765 43210';
+    final customerEmail = email.isEmpty ? 'customer@example.com' : email;
+
+    final vehicles = email.isNotEmpty ? await VehicleService.getMyVehicles(email) : <Map<String, dynamic>>[];
+    if (!mounted) return;
+    if (vehicles.isEmpty) {
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Row(
+              children: [
+                const Icon(Icons.directions_car, color: Color(0xFF6366F1)),
+                const SizedBox(width: 12),
+                Text('Select Vehicle', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18)),
+              ],
+            ),
+            content: Text(
+              email.isEmpty
+                  ? 'Please sign in to add a vehicle, then add at least one vehicle before requesting a mechanic.'
+                  : 'You need to add at least one vehicle before requesting a mechanic. Please add your vehicle first.',
+              style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[700]),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('Cancel', style: GoogleFonts.outfit(color: const Color(0xFF64748B), fontWeight: FontWeight.w600)),
+              ),
+              if (email.isNotEmpty)
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => AddEditVehiclePage(userEmail: email),
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF6366F1),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: Text('Add Vehicle', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.w600)),
+                ),
+            ],
+          );
+        },
+      );
+      return;
+    }
+
+    Map<String, dynamic>? selectedVehicle = vehicles.firstWhere(
+      (v) => v['isDefault'] == true,
+      orElse: () => vehicles.first,
+    );
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: Text(
-            'Request Mechanic',
-            style: GoogleFonts.outfit(
-              fontWeight: FontWeight.bold,
-              fontSize: 18,
-            ),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Request ${mechanic['name']} for help',
-                style: GoogleFonts.inter(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: Text(
+                'Select vehicle (breakdown)',
+                style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18),
               ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  const Icon(Icons.phone, color: Color(0xFF6366F1), size: 16),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Contact: ${mechanic['phone'] ?? 'Not available'}',
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      color: Colors.grey[700],
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Request ${mechanic['name']} for help',
+                      style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600),
                     ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        const Icon(Icons.phone, color: Color(0xFF6366F1), size: 16),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Contact: ${mechanic['phone'] ?? 'Not available'}',
+                            style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[700]),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Which vehicle has broken down?',
+                      style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 8),
+                    ...vehicles.map((v) {
+                      final sel = selectedVehicle;
+                      final isSelected = sel != null && v['id'] == sel['id'];
+                      final label = '${v['makeName'] ?? ''} ${v['modelName'] ?? ''} (${v['plateNumber'] ?? 'No plate'})'.trim();
+                      return InkWell(
+                        onTap: () => setDialogState(() => selectedVehicle = v),
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 6),
+                          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                          decoration: BoxDecoration(
+                            color: isSelected ? const Color(0xFF6366F1).withOpacity(0.1) : Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isSelected ? const Color(0xFF6366F1) : Colors.transparent,
+                              width: 2,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                (v['type'] ?? 'CAR').toString().toUpperCase() == 'BIKE' ? Icons.two_wheeler : Icons.directions_car,
+                                size: 20,
+                                color: isSelected ? const Color(0xFF6366F1) : Colors.grey,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  label.isNotEmpty ? label : 'Vehicle',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 13,
+                                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                                    color: isSelected ? const Color(0xFF6366F1) : Colors.black87,
+                                  ),
+                                ),
+                              ),
+                              if (isSelected) const Icon(Icons.check_circle, color: Color(0xFF6366F1), size: 20),
+                            ],
+                          ),
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text('Cancel', style: GoogleFonts.outfit(color: const Color(0xFF64748B), fontWeight: FontWeight.w600)),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _processMechanicRequest(mechanic, selectedVehicle, customerName, customerEmail, customerPhone);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF10B981),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                ],
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(
-                'Cancel',
-                style: GoogleFonts.outfit(
-                  color: const Color(0xFF64748B),
-                  fontWeight: FontWeight.w600,
+                  child: Text(
+                    'Request Mechanic',
+                    style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.w600),
+                  ),
                 ),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _processMechanicRequest(mechanic);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF10B981),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: Text(
-                'Request Mechanic',
-                style: GoogleFonts.outfit(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
+              ],
+            );
+          },
         );
       },
     );
   }
 
-  void _processMechanicRequest(Map<String, dynamic> mechanic) async {
+  void _processMechanicRequest(
+    Map<String, dynamic> mechanic,
+    Map<String, dynamic>? selectedVehicle,
+    String customerName,
+    String customerEmail,
+    String customerPhone,
+  ) async {
     final orderId = 'order_${DateTime.now().millisecondsSinceEpoch}';
     final amount = 50.0;
     try {
@@ -895,10 +999,18 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
       await _paymentGateway.makePayment(
         amount: amount,
         orderId: orderId,
-        customerName: 'Customer',
-        customerEmail: 'customer@example.com',
-        customerPhone: '+91 98765 43210',
-        onSuccess: () => _sendRequestToMechanic(mechanic, amount, orderId),
+        customerName: customerName,
+        customerEmail: customerEmail,
+        customerPhone: customerPhone,
+        onSuccess: () => _sendRequestToMechanic(
+          mechanic,
+          amount,
+          orderId,
+          customerName: customerName,
+          customerEmail: customerEmail,
+          customerPhone: customerPhone,
+          selectedVehicle: selectedVehicle,
+        ),
         onFailure: (error) {
           print('Request failed: $error');
           _showErrorDialog('Payment failed: $error');
@@ -913,8 +1025,12 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
   Future<void> _sendRequestToMechanic(
     Map<String, dynamic> mechanic,
     double amount,
-    String orderId,
-  ) async {
+    String orderId, {
+    required String customerName,
+    required String customerEmail,
+    required String customerPhone,
+    Map<String, dynamic>? selectedVehicle,
+  }) async {
     // Show loading dialog
     showDialog(
       context: context,
@@ -951,16 +1067,17 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
       // Prepare request data
       final requestData = {
         'mechanicId': mechanic['id'],
-        'customerName': 'Customer', // You can get this from user profile
-        'customerPhone': '+91 98765 43210', // You can get this from user profile
-        'customerEmail': 'customer@example.com', // You can get this from user profile
+        'customerName': customerName,
+        'customerPhone': customerPhone,
+        'customerEmail': customerEmail,
         'serviceType': 'General Service',
         'description': 'Customer needs help with vehicle service',
         'latitude': _currentPosition?.latitude.toString() ?? '0',
         'longitude': _currentPosition?.longitude.toString() ?? '0',
         'amount': amount,
-        'paymentOrderId': orderId, // Link payment to request
+        'paymentOrderId': orderId,
         if (distanceKm != null) 'distanceKm': distanceKm,
+        if (selectedVehicle != null && selectedVehicle['id'] != null) 'userVehicleId': selectedVehicle['id'],
       };
 
       final mechanicId = mechanic['id'];

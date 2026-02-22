@@ -4,12 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dyganox Admin Dashboard</title>
+    <script src="config.js"></script>
+    <script src="auth.js"></script>
     <link rel="stylesheet" href="styles.css?v=7">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    <div class="dashboard-container">
+    <div id="auth-check" style="position:fixed;inset:0;background:#f8fafc;display:flex;align-items:center;justify-content:center;z-index:9999;font-family:Inter,sans-serif;">
+        <p style="color:#64748b;">Checking authentication...</p>
+    </div>
+    <div id="dashboard-app" class="dashboard-container" style="display:none;">
         <!-- Sidebar -->
         <aside class="sidebar">
             <div class="sidebar-header">
@@ -19,60 +24,89 @@
                 </div>
             </div>
             <nav class="sidebar-nav">
-                <a href="#" class="nav-item active" data-section="dashboard">
-                    <i class="fas fa-chart-line"></i>
-                    <span>Dashboard</span>
-                </a>
-                <a href="#" class="nav-item" data-section="banners">
-                    <i class="fas fa-images"></i>
-                    <span>Carousel / Banners</span>
-                </a>
-                <a href="#" class="nav-item" data-section="mechanics">
-                    <i class="fas fa-users-cog"></i>
-                    <span>Mechanics</span>
-                </a>
-                <a href="#" class="nav-item" data-section="registration-requests">
-                    <i class="fas fa-user-plus"></i>
-                    <span>Registration Requests</span>
-                    <span class="badge" id="registration-requests-badge">0</span>
-                </a>
-                <a href="#" class="nav-item" data-section="mechanics-by-city">
-                    <i class="fas fa-city"></i>
-                    <span>Mechanics by City</span>
-                </a>
-                <a href="#" class="nav-item" data-section="pending">
-                    <i class="fas fa-user-clock"></i>
-                    <span>Pending Approvals</span>
-                    <span class="badge" id="pending-badge">0</span>
-                </a>
-                <a href="#" class="nav-item" data-section="requests">
-                    <i class="fas fa-clipboard-list"></i>
-                    <span>Service Requests</span>
-                </a>
-                <a href="#" class="nav-item" data-section="tracking">
-                    <i class="fas fa-route"></i>
-                    <span>Request Tracking</span>
-                </a>
-                <a href="#" class="nav-item" data-section="analytics">
-                    <i class="fas fa-chart-bar"></i>
-                    <span>Analytics</span>
-                </a>
-                <a href="#" class="nav-item" data-section="users">
-                    <i class="fas fa-user-friends"></i>
-                    <span>User Management</span>
-                </a>
-                <a href="#" class="nav-item" data-section="live-tracking">
-                    <i class="fas fa-map-marked-alt"></i>
-                    <span>Live Tracking</span>
-                </a>
-                <a href="#" class="nav-item" data-section="active-jobs">
-                    <i class="fas fa-briefcase"></i>
-                    <span>Active Jobs</span>
-                </a>
-                <a href="#" class="nav-item" data-section="mechanic-help">
-                    <i class="fas fa-comments"></i>
-                    <span>Mechanic Help Chat</span>
-                </a>
+                <div class="nav-group">
+                    <div class="nav-group-title">User / App</div>
+                    <a href="#" class="nav-item active" data-section="dashboard">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Dashboard</span>
+                    </a>
+                    <a href="#" class="nav-item" data-section="users">
+                        <i class="fas fa-user-friends"></i>
+                        <span>User Management</span>
+                    </a>
+                    <a href="#" class="nav-item" data-section="analytics">
+                        <i class="fas fa-chart-bar"></i>
+                        <span>Analytics</span>
+                    </a>
+                    <a href="#" class="nav-item" data-section="user-support">
+                        <i class="fas fa-headset"></i>
+                        <span>User Support</span>
+                    </a>
+                </div>
+                <div class="nav-group">
+                    <div class="nav-group-title">Frontend</div>
+                    <a href="#" class="nav-item" data-section="banners">
+                        <i class="fas fa-images"></i>
+                        <span>Carousel / Banners</span>
+                    </a>
+                    <a href="#" class="nav-item" data-section="vehicle-catalog">
+                        <i class="fas fa-car"></i>
+                        <span>Vehicle Catalog</span>
+                    </a>
+                    <a href="#" class="nav-item" data-section="marketing-poster">
+                        <i class="fas fa-bullhorn"></i>
+                        <span>Marketing Poster</span>
+                    </a>
+                    <a href="#" class="nav-item" data-section="app-update">
+                        <i class="fas fa-mobile-alt"></i>
+                        <span>App Update</span>
+                    </a>
+                </div>
+                <div class="nav-group">
+                    <div class="nav-group-title">Mechanic</div>
+                    <a href="#" class="nav-item" data-section="mechanics">
+                        <i class="fas fa-users-cog"></i>
+                        <span>Mechanics</span>
+                    </a>
+                    <a href="#" class="nav-item" data-section="registration-requests">
+                        <i class="fas fa-user-plus"></i>
+                        <span>Registration Requests</span>
+                        <span class="badge" id="registration-requests-badge">0</span>
+                    </a>
+                    <a href="#" class="nav-item" data-section="mechanics-by-city">
+                        <i class="fas fa-city"></i>
+                        <span>Mechanics by City</span>
+                    </a>
+                    <a href="#" class="nav-item" data-section="pending">
+                        <i class="fas fa-user-clock"></i>
+                        <span>Pending Approvals</span>
+                        <span class="badge" id="pending-badge">0</span>
+                    </a>
+                    <a href="#" class="nav-item" data-section="requests">
+                        <i class="fas fa-clipboard-list"></i>
+                        <span>Service Requests</span>
+                    </a>
+                    <a href="#" class="nav-item" data-section="tracking">
+                        <i class="fas fa-route"></i>
+                        <span>Request Tracking</span>
+                    </a>
+                    <a href="#" class="nav-item" data-section="mechanics-map">
+                        <i class="fas fa-map"></i>
+                        <span>Mechanics Map</span>
+                    </a>
+                    <a href="#" class="nav-item" data-section="live-tracking">
+                        <i class="fas fa-map-marked-alt"></i>
+                        <span>Live Tracking</span>
+                    </a>
+                    <a href="#" class="nav-item" data-section="active-jobs">
+                        <i class="fas fa-briefcase"></i>
+                        <span>Active Jobs</span>
+                    </a>
+                    <a href="#" class="nav-item" data-section="mechanic-help">
+                        <i class="fas fa-comments"></i>
+                        <span>Mechanic Help Chat</span>
+                    </a>
+                </div>
             </nav>
         </aside>
 
@@ -197,23 +231,112 @@
                 </div>
 
                 <div class="charts-grid">
-                    <div class="chart-card">
+                    <div class="chart-card" data-chart-id="requests-chart">
                         <h3>Requests by Status</h3>
-                        <canvas id="requests-chart"></canvas>
+                        <div class="chart-filter-row">
+                            <label>Range:</label>
+                            <select class="chart-range-filter" data-chart="requests-chart">
+                                <option value="1h">1 Hour</option>
+                                <option value="1d">1 Day</option>
+                                <option value="1M">1 Month</option>
+                                <option value="2M">2 Months</option>
+                                <option value="1y">1 Year</option>
+                                <option value="lifetime" selected>Lifetime</option>
+                            </select>
+                        </div>
+                        <div class="chart-wrapper"><canvas id="requests-chart"></canvas></div>
                     </div>
-                    <div class="chart-card">
+                    <div class="chart-card" data-chart-id="service-type-chart">
                         <h3>Requests by Service Type</h3>
-                        <canvas id="service-type-chart"></canvas>
+                        <div class="chart-filter-row">
+                            <label>Range:</label>
+                            <select class="chart-range-filter" data-chart="service-type-chart">
+                                <option value="1h">1 Hour</option>
+                                <option value="1d">1 Day</option>
+                                <option value="1M">1 Month</option>
+                                <option value="2M">2 Months</option>
+                                <option value="1y">1 Year</option>
+                                <option value="lifetime" selected>Lifetime</option>
+                            </select>
+                        </div>
+                        <div class="chart-wrapper"><canvas id="service-type-chart"></canvas></div>
                     </div>
                 </div>
                 <div class="charts-row-2" style="margin-top: 24px;">
-                    <div class="chart-card">
+                    <div class="chart-card" data-chart-id="dashboard-city-chart">
                         <h3>Mechanics by City</h3>
-                        <canvas id="dashboard-city-chart"></canvas>
+                        <div class="chart-filter-row">
+                            <label>Range:</label>
+                            <select class="chart-range-filter" data-chart="dashboard-city-chart">
+                                <option value="1h">1 Hour</option>
+                                <option value="1d">1 Day</option>
+                                <option value="1M">1 Month</option>
+                                <option value="2M">2 Months</option>
+                                <option value="1y">1 Year</option>
+                                <option value="lifetime" selected>Lifetime</option>
+                            </select>
+                        </div>
+                        <div class="chart-wrapper"><canvas id="dashboard-city-chart"></canvas></div>
                     </div>
-                    <div class="chart-card">
+                    <div class="chart-card" data-chart-id="dashboard-online-chart">
                         <h3>Online vs Offline Mechanics</h3>
-                        <canvas id="dashboard-online-chart"></canvas>
+                        <div class="chart-filter-row">
+                            <label>Range:</label>
+                            <select class="chart-range-filter" data-chart="dashboard-online-chart">
+                                <option value="1h">1 Hour</option>
+                                <option value="1d">1 Day</option>
+                                <option value="1M">1 Month</option>
+                                <option value="2M">2 Months</option>
+                                <option value="1y">1 Year</option>
+                                <option value="lifetime" selected>Lifetime</option>
+                            </select>
+                        </div>
+                        <div class="chart-wrapper"><canvas id="dashboard-online-chart"></canvas></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Mechanics Map Section: all mechanics map + by city online/offline + detailed data -->
+            <section id="mechanics-map-section" class="content-section">
+                <div class="section-header">
+                    <h2>Mechanics Map &amp; Service Data</h2>
+                    <p class="section-subtitle">All mechanics on map, online/offline by city, and service hours (inch-by-inch data)</p>
+                </div>
+                <div class="mechanics-map-grid">
+                    <div class="chart-card mechanics-map-card">
+                        <h3><i class="fas fa-map-marker-alt"></i> All Mechanics Map</h3>
+                        <div id="all-mechanics-map" style="width:100%;height:380px;border-radius:8px;background:#f1f5f9;"></div>
+                    </div>
+                    <div class="chart-card mechanics-map-card">
+                        <h3><i class="fas fa-city"></i> Mechanics by City (Online / Offline)</h3>
+                        <div class="chart-filter-row">
+                            <label>City:</label>
+                            <select id="mechanics-map-city-filter" onchange="filterMechanicsMapByCity()">
+                                <option value="">All Cities</option>
+                            </select>
+                        </div>
+                        <div id="mechanics-by-city-map" style="width:100%;height:380px;border-radius:8px;background:#f1f5f9;"></div>
+                    </div>
+                </div>
+                <div class="chart-card" style="margin-top:24px;">
+                    <h3><i class="fas fa-list"></i> All Mechanics – Service Times &amp; Status (inch-by-inch)</h3>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>City</th>
+                                    <th>Status</th>
+                                    <th>Online/Offline</th>
+                                    <th>Service Hours</th>
+                                    <th>Working Days</th>
+                                    <th>24/7 Night</th>
+                                </tr>
+                            </thead>
+                            <tbody id="mechanics-map-detail-table">
+                                <tr><td colspan="7" class="loading">Loading...</td></tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </section>
@@ -225,18 +348,18 @@
                     <p class="section-subtitle">Mechanics sorted by city with online/offline availability</p>
                 </div>
                 <div class="city-stats-grid" id="city-stats-grid"></div>
-                <div class="chart-card" style="margin-top: 24px;">
+                <div class="chart-card chart-card-small" style="margin-top: 24px;">
                     <h3>Mechanics Distribution by City</h3>
-                    <canvas id="mechanics-by-city-chart"></canvas>
+                    <div class="chart-wrapper"><canvas id="mechanics-by-city-chart"></canvas></div>
                 </div>
                 <div class="charts-row-2" style="margin-top: 24px;">
-                    <div class="chart-card">
+                    <div class="chart-card chart-card-small">
                         <h3>Online vs Offline</h3>
-                        <canvas id="online-offline-chart"></canvas>
+                        <div class="chart-wrapper"><canvas id="online-offline-chart"></canvas></div>
                     </div>
-                    <div class="chart-card">
+                    <div class="chart-card chart-card-small">
                         <h3>Status Distribution</h3>
-                        <canvas id="status-distribution-chart"></canvas>
+                        <div class="chart-wrapper"><canvas id="status-distribution-chart"></canvas></div>
                     </div>
                 </div>
             </section>
@@ -432,16 +555,16 @@
                         <h3>Payment Statistics</h3>
                         <div class="analytics-content" id="payment-stats"></div>
                     </div>
-                    <div class="analytics-card analytics-card-full">
+                    <div class="analytics-card analytics-card-full chart-card-small">
                         <h3><i class="fas fa-map-marker-alt"></i> Users by Location</h3>
                         <div class="location-charts-row">
                             <div class="location-chart-item">
                                 <h4>By City</h4>
-                                <canvas id="users-by-city-chart"></canvas>
+                                <div class="chart-wrapper"><canvas id="users-by-city-chart"></canvas></div>
                             </div>
                             <div class="location-chart-item">
                                 <h4>By State</h4>
-                                <canvas id="users-by-state-chart"></canvas>
+                                <div class="chart-wrapper"><canvas id="users-by-state-chart"></canvas></div>
                             </div>
                         </div>
                     </div>
@@ -468,12 +591,13 @@
                                 <th>Phone</th>
                                 <th>Date of Birth</th>
                                 <th>Gender</th>
+                                <th>Vehicles</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody id="users-table-body">
                             <tr>
-                                <td colspan="8" class="loading">Loading users...</td>
+                                <td colspan="9" class="loading">Loading users...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -522,7 +646,7 @@
             <section id="banners-section" class="content-section">
                 <div class="section-header">
                     <h2>Homepage Carousel / Banners</h2>
-                    <p class="section-subtitle">Manage the slider images on your mobile app homepage. Add, edit, or reorder banners. Drag to reorder coming soon.</p>
+                    <p class="section-subtitle">These appear at the <strong>top</strong> of the app home (slider). For content that must appear only when the user scrolls down <strong>below "Our Services"</strong>, use <strong>Below Services Banner</strong> instead.</p>
                     <button class="btn-action btn-view" onclick="showAddBannerModal()">
                         <i class="fas fa-plus"></i> Add Banner
                     </button>
@@ -571,31 +695,199 @@
                 </div>
             </section>
 
-            <!-- Mechanic Help Chat Section -->
+            <!-- Vehicle Catalog: add/delete makes and models, add photos -->
+            <section id="vehicle-catalog-section" class="content-section">
+                <div class="section-header">
+                    <h2>Vehicle Catalog</h2>
+                    <p class="section-subtitle">Add or delete brands (makes) and models, and set images. These are shown when users select their vehicle in the app.</p>
+                </div>
+                <div class="chart-card" style="margin-bottom:16px; display:flex; flex-wrap:wrap; align-items:center; gap:12px;">
+                    <label>Type: </label>
+                    <select id="vehicle-catalog-type" onchange="loadVehicleCatalog()">
+                        <option value="CAR">Cars</option>
+                        <option value="BIKE">Bikes</option>
+                    </select>
+                    <button type="button" class="btn-action btn-approve" onclick="showAddMakeModal()"><i class="fas fa-plus"></i> Add brand (make)</button>
+                </div>
+                <div id="vehicle-catalog-makes" class="chart-card">Loading makes...</div>
+                <div id="vehicle-catalog-models-wrap" style="display:none;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+                        <h3 id="vehicle-catalog-models-title" style="margin:0;">Models</h3>
+                        <button type="button" class="btn-action btn-approve" onclick="showAddModelModal()"><i class="fas fa-plus"></i> Add model</button>
+                    </div>
+                    <div id="vehicle-catalog-models" class="chart-card">Select a make above.</div>
+                </div>
+            </section>
+
+            <!-- Modal: Add make -->
+            <div id="vehicle-add-make-modal" class="modal" style="display:none;">
+                <div class="modal-content" style="max-width:420px;">
+                    <div class="modal-header">
+                        <h3>Add brand (make)</h3>
+                        <button type="button" class="modal-close" onclick="closeAddMakeModal()">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <label>Name</label>
+                        <input type="text" id="add-make-name" class="support-reply-input" placeholder="e.g. Maruti Suzuki">
+                        <label style="margin-top:10px;">Type</label>
+                        <select id="add-make-type" class="support-reply-input">
+                            <option value="CAR">Car</option>
+                            <option value="BIKE">Bike</option>
+                        </select>
+                        <label style="margin-top:10px;">Image (optional)</label>
+                        <input type="file" id="add-make-file" accept="image/*" style="margin-bottom:6px;">
+                        <input type="text" id="add-make-imageUrl" class="support-reply-input" placeholder="Or paste image URL">
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn-action" onclick="closeAddMakeModal()">Cancel</button>
+                        <button type="button" class="btn-action btn-approve" onclick="submitAddMake()">Add</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal: Add model -->
+            <div id="vehicle-add-model-modal" class="modal" style="display:none;">
+                <div class="modal-content" style="max-width:420px;">
+                    <div class="modal-header">
+                        <h3>Add model</h3>
+                        <button type="button" class="modal-close" onclick="closeAddModelModal()">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <label>Name</label>
+                        <input type="text" id="add-model-name" class="support-reply-input" placeholder="e.g. Swift">
+                        <label style="margin-top:10px;">Image (optional)</label>
+                        <input type="file" id="add-model-file" accept="image/*" style="margin-bottom:6px;">
+                        <input type="text" id="add-model-imageUrl" class="support-reply-input" placeholder="Or paste image URL">
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn-action" onclick="closeAddModelModal()">Cancel</button>
+                        <button type="button" class="btn-action btn-approve" onclick="submitAddModel()">Add</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Marketing Poster (shown when user opens app) -->
+            <section id="marketing-poster-section" class="content-section">
+                <div class="section-header">
+                    <h2>Marketing Poster</h2>
+                    <p class="section-subtitle">Poster shown when users open the app (full-screen until they tap Close). Set city/state or draw an area (lat, lng, radius in km) so only users in that location see it. Disable = no poster in that region (users go straight to homepage).</p>
+                </div>
+                <div class="chart-card">
+                    <div id="marketing-poster-content">Loading...</div>
+                    <div style="margin-top:16px;">
+                        <label>Image</label>
+                        <input type="file" id="poster-image-input" accept="image/*" style="margin-bottom:8px;">
+                        <input type="text" id="poster-image-url" class="support-reply-input" placeholder="Or paste image URL" style="margin-bottom:8px;">
+                        <label>Link URL (optional)</label>
+                        <input type="text" id="poster-link-url" class="support-reply-input" placeholder="e.g. https://..." style="margin-bottom:8px;">
+                        <label>Show only in (optional – leave empty for all users)</label>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+                            <input type="text" id="poster-target-city" class="support-reply-input" placeholder="City e.g. Moodbidri">
+                            <input type="text" id="poster-target-state" class="support-reply-input" placeholder="State e.g. Karnataka">
+                        </div>
+                        <label>Or target by area (circle on map): center + radius. Leave empty to use city/state or show to all.</label>
+                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px;">
+                            <input type="number" id="poster-target-lat" class="support-reply-input" placeholder="Latitude e.g. 12.9" step="any">
+                            <input type="number" id="poster-target-lng" class="support-reply-input" placeholder="Longitude e.g. 74.8" step="any">
+                            <input type="number" id="poster-target-radius" class="support-reply-input" placeholder="Radius (km) e.g. 10" min="0" step="0.5">
+                        </div>
+                        <label style="display:flex;align-items:center;gap:8px;margin-top:12px;"><input type="checkbox" id="poster-active" checked> Show to users when they open app</label>
+                        <div style="margin-top:12px;display:flex;gap:8px;">
+                            <button type="button" class="btn-action btn-approve" onclick="savePoster()">Save poster</button>
+                            <button type="button" class="btn-action btn-reject" onclick="cancelPosterEdit()">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- App Update (force update / version message) -->
+            <section id="app-update-section" class="content-section">
+                <div class="section-header">
+                    <h2>App Update</h2>
+                    <p class="section-subtitle">Set minimum required version and message. Users see an update dialog when they open the app; after 10 "Later" taps they must update.</p>
+                </div>
+                <div class="chart-card">
+                    <div class="form-group">
+                        <label>Current store version (e.g. 1.2.0)</label>
+                        <input type="text" id="app-version-latest" class="support-reply-input" placeholder="1.2.0">
+                    </div>
+                    <div class="form-group">
+                        <label>Minimum required version (users below this see update)</label>
+                        <input type="text" id="app-version-min" class="support-reply-input" placeholder="1.1.0">
+                    </div>
+                    <div class="form-group">
+                        <label>Update dialog title</label>
+                        <input type="text" id="app-version-title" class="support-reply-input" placeholder="Update available">
+                    </div>
+                    <div class="form-group">
+                        <label>Update message (details for users)</label>
+                        <textarea id="app-version-message" class="support-reply-input" rows="4" placeholder="Please update to the latest version for new features and fixes."></textarea>
+                    </div>
+                    <button type="button" class="btn-action btn-approve" onclick="saveAppVersion()">Save</button>
+                </div>
+            </section>
+
+            <!-- User Support Section (customer support from app) -->
+            <section id="user-support-section" class="content-section">
+                <div class="section-header">
+                    <h2>User Support</h2>
+                    <p class="section-subtitle">Chat with customers. Messages update in real time. Click a user to see profile and services.</p>
+                </div>
+                <div class="support-layout three-col">
+                    <div class="chart-card">
+                        <h3>Conversations</h3>
+                        <div id="user-support-threads-list" class="support-thread-list">Loading...</div>
+                    </div>
+                    <div class="support-chat-panel">
+                        <div class="support-chat-title" id="user-support-chat-title">Select a user</div>
+                        <div id="user-support-typing" class="support-typing-indicator" style="display:none;">Customer is typing...</div>
+                        <div id="user-support-join-bar" class="support-join-bar" style="display:none;">
+                            <span>Customer wants help. Join to start the conversation.</span>
+                            <button type="button" class="btn-action btn-approve" onclick="joinUserSupportChat()"><i class="fas fa-check"></i> Join</button>
+                        </div>
+                        <div id="user-support-messages-list" class="support-messages-wrap"><p class="muted">Select a user to view chat.</p></div>
+                        <div id="user-support-photo-approve" class="support-photo-approve-bar" style="display:none;">
+                            <span>User requested permission to send photos.</span>
+                            <button type="button" class="btn-action btn-approve" onclick="approveUserPhotoPermission()"><i class="fas fa-check"></i> Approve</button>
+                        </div>
+                        <div id="user-support-reply-box" style="display: none;" class="support-reply-box">
+                            <input type="hidden" id="user-support-reply-email" value="">
+                            <div id="user-support-reply-row" class="support-reply-row">
+                                <input type="text" id="user-support-reply-message" class="support-reply-input" placeholder="Type your reply..." onkeydown="userSupportTypingDebounce()">
+                                <button type="button" class="btn-action btn-approve" onclick="sendUserSupportReply()"><i class="fas fa-paper-plane"></i> Send</button>
+                                <button type="button" id="user-support-end-btn" class="btn-action btn-end" onclick="endUserSupportConversation()" style="margin-left:8px;" title="End conversation"><i class="fas fa-times-circle"></i> End conversation</button>
+                            </div>
+                        </div>
+                        <div id="user-support-closed-bar" class="support-closed-bar" style="display:none;">
+                            <i class="fas fa-check-circle"></i> Conversation closed. This thread is in recent solved.
+                        </div>
+                    </div>
+                    <div class="support-customer-panel" id="user-support-customer-panel">
+                        <p class="muted">Select a user to see profile and services.</p>
+                    </div>
+                </div>
+            </section>
+
             <section id="mechanic-help-section" class="content-section">
                 <div class="section-header">
                     <h2>Mechanic Help Chat</h2>
-                    <p class="section-subtitle">Messages from mechanics (e.g. rejected applicants). Reply here; they see it in their Help Chat.</p>
+                    <p class="section-subtitle">Chat with mechanics. Messages update in real time. No photo sharing on this channel.</p>
                 </div>
-                <div style="display: grid; grid-template-columns: 280px 1fr; gap: 24px; min-height: 400px;">
-                    <div class="chart-card" style="overflow-y: auto;">
+                <div class="support-layout two-col">
+                    <div class="chart-card">
                         <h3>Mechanics</h3>
-                        <div id="help-threads-list">
-                            <div class="loading">Loading...</div>
-                        </div>
+                        <div id="help-threads-list" class="support-thread-list">Loading...</div>
                     </div>
-                    <div class="chart-card" style="display: flex; flex-direction: column;">
-                        <h3 id="help-chat-title">Select a mechanic</h3>
-                        <div id="help-messages-list" style="flex: 1; overflow-y: auto; min-height: 240px; padding: 12px;">
-                            <p class="muted">Select a mechanic from the list to view and reply to messages.</p>
-                        </div>
-                        <div id="help-reply-box" style="display: none; padding-top: 12px; border-top: 1px solid #eee;">
+                    <div class="support-chat-panel">
+                        <div class="support-chat-title" id="help-chat-title">Select a mechanic</div>
+                        <div id="help-chat-phone" class="support-typing-indicator" style="font-size:13px;color:var(--text-secondary);padding:4px 18px;"></div>
+                        <div id="help-typing" class="support-typing-indicator" style="display:none;">Mechanic is typing...</div>
+                        <div id="help-messages-list" class="support-messages-wrap"><p class="muted">Select a mechanic to view chat.</p></div>
+                        <div id="help-reply-box" style="display: none;" class="support-reply-box">
                             <input type="hidden" id="help-reply-email" value="">
-                            <div style="display: flex; gap: 8px;">
-                                <input type="text" id="help-reply-message" placeholder="Type your reply..." style="flex: 1; padding: 10px 14px; border: 1px solid #ddd; border-radius: 8px;">
-                                <button type="button" class="btn-action btn-approve" onclick="sendHelpReply()">
-                                    <i class="fas fa-paper-plane"></i> Send
-                                </button>
+                            <div class="support-reply-row">
+                                <input type="text" id="help-reply-message" class="support-reply-input" placeholder="Type your reply..." onkeydown="mechanicHelpTypingDebounce()">
+                                <button type="button" class="btn-action btn-approve" onclick="sendHelpReply()"><i class="fas fa-paper-plane"></i> Send</button>
                             </div>
                         </div>
                     </div>
@@ -680,6 +972,14 @@
                 <div class="form-group">
                     <label>Subtitle</label>
                     <input type="text" id="banner-subtitle" placeholder="e.g. 24/7 Support Available">
+                </div>
+                <div class="form-group">
+                    <label>Show to</label>
+                    <select id="banner-target-type">
+                        <option value="ALL">All users</option>
+                        <option value="CAR">Car users only</option>
+                        <option value="BIKE">Bike users only</option>
+                    </select>
                 </div>
                 <div class="form-group">
                     <label>Order</label>

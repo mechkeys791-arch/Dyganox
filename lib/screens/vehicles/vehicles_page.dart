@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
+import '../../services/vehicle_service.dart';
+import '../../services/api_config.dart';
+import '../../services/cognito_service.dart';
+import 'add_edit_vehicle_page.dart';
 
 class VehiclesPage extends StatefulWidget {
   const VehiclesPage({super.key});
@@ -12,165 +15,73 @@ class VehiclesPage extends StatefulWidget {
 
 class _VehiclesPageState extends State<VehiclesPage> {
   List<Map<String, dynamic>> _vehicles = [];
+  String _userEmail = '';
+  bool _loading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadVehicles();
+    _loadUserAndVehicles();
   }
 
-  Future<void> _loadVehicles() async {
+  Future<void> _loadUserAndVehicles() async {
     final prefs = await SharedPreferences.getInstance();
-    final String? vehiclesJson = prefs.getString('vehicles');
-    if (vehiclesJson != null) {
-      setState(() {
-        _vehicles = List<Map<String, dynamic>>.from(json.decode(vehiclesJson));
-      });
+    final userData = await CognitoService.getCurrentUser();
+    final email = userData['email']?.toString() ?? prefs.getString('user_email') ?? '';
+    setState(() {
+      _userEmail = email;
+      _loading = true;
+    });
+    if (email.isEmpty) {
+      setState(() => _loading = false);
+      return;
     }
+    final list = await VehicleService.getMyVehicles(email);
+    if (mounted) setState(() {
+      _vehicles = list;
+      _loading = false;
+    });
   }
 
-  Future<void> _saveVehicles() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('vehicles', json.encode(_vehicles));
+  String _imageUrl(dynamic url) {
+    if (url == null || url.toString().isEmpty) return '';
+    final s = url.toString();
+    if (s.startsWith('http')) return s;
+    return '${ApiConfig.baseUrl}$s';
   }
 
-  void _showAddEditVehicleDialog({Map<String, dynamic>? vehicle, int? index}) {
-    final nameController = TextEditingController(text: vehicle?['name'] ?? '');
-    final numberController = TextEditingController(text: vehicle?['number'] ?? '');
-    String selectedType = vehicle?['type'] ?? 'car';
+  void _navigateToAdd() async {
+    if (_userEmail.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please sign in to add a vehicle'), backgroundColor: Colors.orange),
+      );
+      return;
+    }
+    final refreshed = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AddEditVehiclePage(userEmail: _userEmail),
+      ),
+    );
+    if (refreshed == true) _loadUserAndVehicles();
+  }
 
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF6366F1).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  vehicle == null ? Icons.add : Icons.edit,
-                  color: const Color(0xFF6366F1),
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                vehicle == null ? 'Add Vehicle' : 'Edit Vehicle',
-                style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18),
-              ),
-            ],
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nameController,
-                  decoration: InputDecoration(
-                    labelText: 'Vehicle Name',
-                    hintText: 'e.g., Honda City',
-                    prefixIcon: const Icon(Icons.directions_car),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: numberController,
-                  decoration: InputDecoration(
-                    labelText: 'Vehicle Number',
-                    hintText: 'e.g., MH 12 AB 1234',
-                    prefixIcon: const Icon(Icons.numbers),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  textCapitalization: TextCapitalization.characters,
-                ),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  value: selectedType,
-                  decoration: InputDecoration(
-                    labelText: 'Vehicle Type',
-                    prefixIcon: const Icon(Icons.category),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 'car', child: Text('Car')),
-                    DropdownMenuItem(value: 'bike', child: Text('Bike')),
-                    DropdownMenuItem(value: 'scooter', child: Text('Scooter')),
-                  ],
-                  onChanged: (value) {
-                    setDialogState(() {
-                      selectedType = value!;
-                    });
-                  },
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(
-                'Cancel',
-                style: GoogleFonts.outfit(
-                  color: const Color(0xFF64748B),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (nameController.text.isNotEmpty && numberController.text.isNotEmpty) {
-                  setState(() {
-                    if (index != null) {
-                      _vehicles[index] = {
-                        'name': nameController.text,
-                        'number': numberController.text,
-                        'type': selectedType,
-                      };
-                    } else {
-                      _vehicles.add({
-                        'name': nameController.text,
-                        'number': numberController.text,
-                        'type': selectedType,
-                      });
-                    }
-                  });
-                  _saveVehicles();
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        vehicle == null ? 'Vehicle added successfully!' : 'Vehicle updated successfully!',
-                        style: GoogleFonts.inter(color: Colors.white),
-                      ),
-                      backgroundColor: Colors.green,
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
-                  );
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF6366F1),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              child: Text(
-                vehicle == null ? 'Add' : 'Update',
-                style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.w600),
-              ),
-            ),
-          ],
+  void _navigateToEdit(Map<String, dynamic> vehicle) async {
+    final refreshed = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AddEditVehiclePage(
+          userEmail: _userEmail,
+          existingVehicle: vehicle,
         ),
       ),
     );
+    if (refreshed == true) _loadUserAndVehicles();
   }
 
-  void _deleteVehicle(int index) {
+  void _deleteVehicle(Map<String, dynamic> vehicle) {
+    final id = vehicle['id'];
+    if (id == null) return;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -199,20 +110,25 @@ class _VehiclesPageState extends State<VehiclesPage> {
             child: Text('Cancel', style: GoogleFonts.outfit(color: const Color(0xFF64748B))),
           ),
           ElevatedButton(
-            onPressed: () {
-              setState(() {
-                _vehicles.removeAt(index);
-              });
-              _saveVehicles();
+            onPressed: () async {
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Vehicle deleted successfully!', style: GoogleFonts.inter(color: Colors.white)),
-                  backgroundColor: const Color(0xFFEF4444),
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-              );
+              final ok = await VehicleService.deleteVehicle(id is int ? id : (id as num).toInt());
+              if (mounted) {
+                if (ok) {
+                  _loadUserAndVehicles();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Vehicle deleted'),
+                      backgroundColor: Colors.green,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Failed to delete'), backgroundColor: Colors.red),
+                  );
+                }
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFEF4444),
@@ -225,15 +141,9 @@ class _VehiclesPageState extends State<VehiclesPage> {
     );
   }
 
-  IconData _getVehicleIcon(String type) {
-    switch (type) {
-      case 'bike':
-        return Icons.two_wheeler;
-      case 'scooter':
-        return Icons.moped;
-      default:
-        return Icons.directions_car;
-    }
+  IconData _getVehicleIcon(String? type) {
+    if (type?.toUpperCase() == 'BIKE') return Icons.two_wheeler;
+    return Icons.directions_car;
   }
 
   @override
@@ -271,111 +181,146 @@ class _VehiclesPageState extends State<VehiclesPage> {
         ),
         centerTitle: true,
       ),
-      body: RefreshIndicator(
-        onRefresh: _loadVehicles,
-        color: const Color(0xFF6366F1),
-        child: _vehicles.isEmpty
-            ? SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                child: SizedBox(
-                  height: MediaQuery.of(context).size.height - 200,
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.directions_car_outlined,
-                          size: 80,
-                          color: Colors.grey[400],
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No Vehicles Added',
-                          style: GoogleFonts.outfit(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: const Color(0xFF64748B),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFF6366F1)))
+          : RefreshIndicator(
+              onRefresh: _loadUserAndVehicles,
+              color: const Color(0xFF6366F1),
+              child: _vehicles.isEmpty
+                  ? SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      child: SizedBox(
+                        height: MediaQuery.of(context).size.height - 200,
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.directions_car_outlined, size: 80, color: Colors.grey[400]),
+                              const SizedBox(height: 16),
+                              Text(
+                                'No Vehicles Added',
+                                style: GoogleFonts.outfit(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: const Color(0xFF64748B),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Add your first vehicle to get started',
+                                style: GoogleFonts.inter(fontSize: 14, color: const Color(0xFF94A3B8)),
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Add your first vehicle to get started',
-                          style: GoogleFonts.inter(
-                            fontSize: 14,
-                            color: const Color(0xFF94A3B8),
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      itemCount: _vehicles.length,
+                      itemBuilder: (context, index) {
+                        final vehicle = _vehicles[index];
+                        final photoUrl = vehicle['photoUrl'] ?? vehicle['modelImageUrl'];
+                        final imageUrl = _imageUrl(photoUrl);
+                        final title = '${vehicle['makeName'] ?? ''} ${vehicle['modelName'] ?? ''}'.trim();
+                        final subtitle = vehicle['plateNumber']?.toString() ?? 'No plate number';
+                        final isDefault = vehicle['isDefault'] == true;
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 14),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(color: const Color(0xFFE5E7EB)),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.04),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
                           ),
-                        ),
-                      ],
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: () => _navigateToEdit(vehicle),
+                              borderRadius: BorderRadius.circular(18),
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 80,
+                                      height: 80,
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFF1F5F9),
+                                        borderRadius: BorderRadius.circular(14),
+                                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                                      ),
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(12),
+                                        child: imageUrl.isNotEmpty
+                                            ? Image.network(
+                                                imageUrl,
+                                                fit: BoxFit.contain,
+                                                errorBuilder: (_, __, ___) => _leadingIcon(vehicle['type']),
+                                              )
+                                            : _leadingIcon(vehicle['type']),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  title.isNotEmpty ? title : 'Vehicle',
+                                                  style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 16, color: Color(0xFF1F2937)),
+                                                ),
+                                              ),
+                                              if (isDefault)
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                                  decoration: BoxDecoration(
+                                                    color: const Color(0xFF6366F1).withOpacity(0.1),
+                                                    borderRadius: BorderRadius.circular(8),
+                                                  ),
+                                                  child: Text(
+                                                    'Default',
+                                                    style: GoogleFonts.outfit(fontSize: 11, color: const Color(0xFF6366F1), fontWeight: FontWeight.w600),
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            subtitle,
+                                            style: GoogleFonts.inter(fontSize: 14, color: const Color(0xFF64748B)),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.edit_outlined, color: Color(0xFF6366F1)),
+                                      onPressed: () => _navigateToEdit(vehicle),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.delete_outline, color: Color(0xFFEF4444)),
+                                      onPressed: () => _deleteVehicle(vehicle),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
                     ),
-                  ),
-                ),
-              )
-            : ListView.builder(
-              padding: const EdgeInsets.all(20),
-              itemCount: _vehicles.length,
-              itemBuilder: (context, index) {
-                final vehicle = _vehicles[index];
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 5),
-                      ),
-                    ],
-                  ),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.all(16),
-                    leading: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF6366F1).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        _getVehicleIcon(vehicle['type']),
-                        color: const Color(0xFF6366F1),
-                        size: 24,
-                      ),
-                    ),
-                    title: Text(
-                      vehicle['name'],
-                      style: GoogleFonts.outfit(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
-                      ),
-                    ),
-                    subtitle: Text(
-                      vehicle['number'],
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        color: const Color(0xFF64748B),
-                      ),
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.edit, color: Color(0xFF6366F1)),
-                          onPressed: () => _showAddEditVehicleDialog(vehicle: vehicle, index: index),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.delete, color: Color(0xFFEF4444)),
-                          onPressed: () => _deleteVehicle(index),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
             ),
-        ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAddEditVehicleDialog(),
+        onPressed: _navigateToAdd,
         backgroundColor: const Color(0xFF6366F1),
         icon: const Icon(Icons.add, color: Colors.white),
         label: Text(
@@ -385,5 +330,10 @@ class _VehiclesPageState extends State<VehiclesPage> {
       ),
     );
   }
-}
 
+  Widget _leadingIcon(String? type) {
+    return Center(
+      child: Icon(_getVehicleIcon(type), color: const Color(0xFF6366F1), size: 36),
+    );
+  }
+}

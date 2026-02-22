@@ -53,6 +53,60 @@ public class S3Service {
         return String.format("https://%s.s3.amazonaws.com/%s", bucket, key);
     }
 
+    public String uploadPoster(MultipartFile file) throws IOException {
+        if (s3Client == null) {
+            throw new IllegalStateException("S3 is not configured.");
+        }
+        String ext = getExtension(file.getOriginalFilename(), "jpg");
+        String key = String.format("posters/%s.%s", UUID.randomUUID(), ext);
+        upload(key, file.getContentType() != null ? file.getContentType() : "image/jpeg", file.getBytes());
+        return String.format("https://%s.s3.amazonaws.com/%s", bucket, key);
+    }
+
+    /** Upload support chat photo (user must have photo permission). Returns public URL. */
+    public String uploadSupportPhoto(String userEmail, MultipartFile file) throws IOException {
+        if (s3Client == null) {
+            throw new IllegalStateException("S3 is not configured.");
+        }
+        String ext = getExtension(file.getOriginalFilename(), "jpg");
+        String key = String.format("support/%s/%s.%s", sanitize(userEmail), UUID.randomUUID(), ext);
+        upload(key, file.getContentType() != null ? file.getContentType() : "image/jpeg", file.getBytes());
+        return String.format("https://%s.s3.amazonaws.com/%s", bucket, key);
+    }
+
+    /** Upload user vehicle photo. Returns public URL. */
+    public String uploadVehiclePhoto(String userEmail, MultipartFile file) throws IOException {
+        if (s3Client == null) {
+            throw new IllegalStateException("S3 is not configured.");
+        }
+        String ext = getExtension(file.getOriginalFilename(), "jpg");
+        String key = String.format("vehicles/%s/%s.%s", sanitize(userEmail), UUID.randomUUID(), ext);
+        upload(key, file.getContentType() != null ? file.getContentType() : "image/jpeg", file.getBytes());
+        return String.format("https://%s.s3.amazonaws.com/%s", bucket, key);
+    }
+
+    /** Upload section poster image (e.g. below-services banner). Returns public URL. */
+    public String uploadSectionPoster(String sectionKey, MultipartFile file) throws IOException {
+        if (s3Client == null) {
+            throw new IllegalStateException("S3 is not configured.");
+        }
+        String ext = getExtension(file.getOriginalFilename(), "jpg");
+        String key = String.format("section/%s/%s.%s", sanitize(sectionKey != null ? sectionKey : "BELOW_SERVICES"), UUID.randomUUID(), ext);
+        upload(key, file.getContentType() != null ? file.getContentType() : "image/jpeg", file.getBytes());
+        return String.format("https://%s.s3.amazonaws.com/%s", bucket, key);
+    }
+
+    /** Upload vehicle catalog image (make or model). Used by admin to add car/bike selection images. */
+    public String uploadVehicleCatalogPhoto(String type, String id, MultipartFile file) throws IOException {
+        if (s3Client == null) {
+            throw new IllegalStateException("S3 is not configured.");
+        }
+        String ext = getExtension(file.getOriginalFilename(), "jpg");
+        String key = String.format("catalog/%s/%s/%s.%s", type, sanitize(id), UUID.randomUUID(), ext);
+        upload(key, file.getContentType() != null ? file.getContentType() : "image/jpeg", file.getBytes());
+        return String.format("https://%s.s3.amazonaws.com/%s", bucket, key);
+    }
+
     private void upload(String key, String contentType, byte[] bytes) {
         PutObjectRequest req = PutObjectRequest.builder()
                 .bucket(bucket)

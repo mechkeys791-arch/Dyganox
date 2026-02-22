@@ -14,7 +14,12 @@ class ApiConfig {
   
   // Backend port
   static const String _port = '8081';
-  
+
+  /// Optional: Web OAuth client ID from Google Cloud. Set this if you get
+  /// "Could not get Google account info" on Android (needed to receive id_token).
+  /// Create: APIs & Services → Credentials → Create OAuth client ID → Web application.
+  static const String? googleWebClientId = '1027706392650-6f3kfkmchvlnejrg9dngo4gkhkc697g3.apps.googleusercontent.com';
+
   // Computed base URL 
   static String get baseUrl {
     if (_useLocalServer) {
@@ -34,6 +39,7 @@ class ApiConfig {
   // API Endpoints
   static String get mechanicEndpoint => '$baseUrl/api/mechanic';
   static String get mechanicRequestsEndpoint => '$baseUrl/api/mechanic-requests';
+  static String get vehicleEndpoint => '$baseUrl/api/vehicle';
   static String get evProviderEndpoint => '$baseUrl/api/evprovider';
   static String get personEndpoint => '$baseUrl/api/person';
   

@@ -2,8 +2,13 @@ package com.example.demo.controller;
 
 import com.example.demo.model.Person;
 import com.example.demo.model.UserAddress;
+import com.example.demo.model.UserHelpMessage;
+import com.example.demo.model.UserSupportPhotoPermission;
 import com.example.demo.repository.PersonRepo;
 import com.example.demo.repository.UserAddressRepo;
+import com.example.demo.repository.UserHelpMessageRepo;
+import com.example.demo.repository.UserSupportPhotoPermissionRepo;
+import com.example.demo.service.SupportTypingService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -24,6 +29,15 @@ public class PersonController {
 
     @Autowired
     private UserAddressRepo userAddressRepo;
+
+    @Autowired
+    private UserHelpMessageRepo userHelpMessageRepo;
+
+    @Autowired
+    private UserSupportPhotoPermissionRepo photoPermissionRepo;
+
+    @Autowired
+    private SupportTypingService supportTypingService;
 
     @PostMapping
     public Person createPerson(@RequestBody Person person) {
@@ -373,5 +387,108 @@ public class PersonController {
         } catch (Exception e) {
             return ResponseEntity.status(500).build();
         }
+    }
+
+    // ---------- Customer / User Support (in-app chat with admin) ----------
+    @PostMapping("/support")
+    public ResponseEntity<UserHelpMessage> sendSupportMessage(@RequestBody Map<String, Object> body) {
+        String email = body != null && body.get("email") != null ? body.get("email").toString().trim() : null;
+        String message = body != null && body.get("message") != null ? body.get("message").toString().trim() : null;
+        String imageUrl = body != null && body.get("imageUrl") != null ? body.get("imageUrl").toString().trim() : null;
+        String messageType = body != null && body.get("messageType") != null ? body.get("messageType").toString().trim().toUpperCase() : "TEXT";
+        if (email == null || email.isBlank()) return ResponseEntity.badRequest().build();
+        if ("IMAGE".equals(messageType)) {
+            if (imageUrl == null || imageUrl.isBlank()) return ResponseEntity.badRequest().build();
+            Optional<UserSupportPhotoPermission> perm = photoPermissionRepo.findByUserEmailIgnoreCase(email);
+            if (perm.isEmpty() || !perm.get().isAllowed())
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        if (!"IMAGE".equals(messageType) && (message == null || message.isBlank()) && (imageUrl == null || imageUrl.isBlank()))
+            return ResponseEntity.badRequest().build();
+        UserHelpMessage msg = new UserHelpMessage();
+        msg.setUserEmail(email);
+        msg.setMessage(message != null ? message : (imageUrl != null ? "[Photo]" : ""));
+        msg.setImageUrl("IMAGE".equals(messageType) ? imageUrl : null);
+        msg.setMessageType(messageType != null && !messageType.isEmpty() ? messageType : "TEXT");
+        msg.setSender("USER");
+        msg.setCreatedAt(LocalDateTime.now());
+        UserHelpMessage saved = userHelpMessageRepo.save(msg);
+        return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+    }
+
+    @GetMapping("/support")
+    public ResponseEntity<List<UserHelpMessage>> getSupportMessages(@RequestParam String email) {
+        if (email == null || email.isBlank()) return ResponseEntity.badRequest().build();
+        List<UserHelpMessage> messages = userHelpMessageRepo.findByUserEmailIgnoreCaseOrderByCreatedAtAsc(email.trim());
+        return ResponseEntity.ok(messages);
+    }
+
+    @GetMapping("/support/photo-permission")
+    public ResponseEntity<Map<String, Object>> getPhotoPermission(@RequestParam String email) {
+        if (email == null || email.isBlank()) return ResponseEntity.badRequest().build();
+        Optional<UserSupportPhotoPermission> p = photoPermissionRepo.findByUserEmailIgnoreCase(email.trim());
+        boolean allowed = p.isPresent() && p.get().isAllowed();
+        return ResponseEntity.ok(Map.of("allowed", allowed));
+    }
+
+    @PostMapping("/support/request-photo-permission")
+    public ResponseEntity<UserHelpMessage> requestPhotoPermission(@RequestBody Map<String, String> body) {
+        String email = body != null ? body.get("email") : null;
+        if (email == null || email.isBlank()) return ResponseEntity.badRequest().build();
+        UserHelpMessage msg = new UserHelpMessage();
+        msg.setUserEmail(email.trim());
+        msg.setMessage("User requested permission to send photos.");
+        msg.setMessageType("PHOTO_PERMISSION_REQUEST");
+        msg.setSender("USER");
+        msg.setCreatedAt(LocalDateTime.now());
+        UserHelpMessage saved = userHelpMessageRepo.save(msg);
+        return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+    }
+
+    /** User requested help; notification goes to dashboard. Message: agent will join within 1 minute. */
+    @PostMapping("/support/request-help")
+    public ResponseEntity<UserHelpMessage> requestHelp(@RequestBody Map<String, String> body) {
+        String email = body != null ? body.get("email") : null;
+        if (email == null || email.isBlank()) return ResponseEntity.badRequest().build();
+        UserHelpMessage msg = new UserHelpMessage();
+        msg.setUserEmail(email.trim());
+        msg.setMessage("Customer wants help. An agent will join within 1 minute.");
+        msg.setMessageType("HELP_REQUESTED");
+        msg.setSender("USER");
+        msg.setCreatedAt(LocalDateTime.now());
+        UserHelpMessage saved = userHelpMessageRepo.save(msg);
+        return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+    }
+
+    /** Returns whether the user is still waiting for an admin to join (after requesting help). */
+    @GetMapping("/support/help-status")
+    public ResponseEntity<Map<String, Boolean>> getHelpStatus(@RequestParam String email) {
+        if (email == null || email.isBlank()) return ResponseEntity.badRequest().build();
+        List<UserHelpMessage> messages = userHelpMessageRepo.findByUserEmailIgnoreCaseOrderByCreatedAtAsc(email.trim());
+        LocalDateTime lastHelpRequest = null;
+        LocalDateTime lastAdminJoined = null;
+        for (UserHelpMessage m : messages) {
+            String type = m.getMessageType() != null ? m.getMessageType() : "";
+            LocalDateTime at = m.getCreatedAt();
+            if ("HELP_REQUESTED".equals(type)) lastHelpRequest = at;
+            if ("ADMIN_JOINED".equals(type)) lastAdminJoined = at;
+        }
+        boolean waitingForAdmin = lastHelpRequest != null && (lastAdminJoined == null || lastAdminJoined.isBefore(lastHelpRequest));
+        return ResponseEntity.ok(Map.of("waitingForAdmin", waitingForAdmin));
+    }
+
+    @PostMapping("/support/typing")
+    public ResponseEntity<Void> setUserTyping(@RequestBody Map<String, Object> body) {
+        String email = body != null && body.get("email") != null ? body.get("email").toString().trim() : null;
+        Boolean typing = body != null && body.get("isTyping") != null ? Boolean.TRUE.equals(body.get("isTyping")) : false;
+        if (email != null && !email.isBlank()) supportTypingService.setUserTyping(email, typing);
+        return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/support/typing")
+    public ResponseEntity<Map<String, Boolean>> getAdminTyping(@RequestParam String email) {
+        if (email == null || email.isBlank()) return ResponseEntity.badRequest().build();
+        boolean adminTyping = supportTypingService.isAdminTyping(email.trim());
+        return ResponseEntity.ok(Map.of("adminTyping", adminTyping));
     }
 }

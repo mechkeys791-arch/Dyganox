@@ -13,6 +13,12 @@ let profileMap = null;
 let profileMarker = null;
 let leafletProfileMap = null;
 let leafletRequestMap = null;
+let allMechanicsMap = null;
+let mechanicsByCityMapInstance = null;
+let allMechanicsMapMarkers = [];
+let mechanicsByCityMapMarkers = [];
+let chartRange = 'lifetime'; // 1h, 1d, 1M, 2M, 1y, lifetime
+let helpMechanicsByEmail = {}; // email -> mechanic for phone in chat
 
 // Escape for HTML attribute
 function escapeAttr(s) {
@@ -38,12 +44,25 @@ function closePhotoModal() {
     if (img) img.src = '';
 }
 
-// Initialize dashboard
+// Initialize dashboard (after auth check)
 document.addEventListener('DOMContentLoaded', function() {
+    if (typeof checkAuthThen !== 'function') {
+        document.getElementById('auth-check').style.display = 'none';
+        document.getElementById('dashboard-app').style.display = 'flex';
+        initDashboard();
+        return;
+    }
+    checkAuthThen(function() {
+        document.getElementById('auth-check').style.display = 'none';
+        document.getElementById('dashboard-app').style.display = 'flex';
+        initDashboard();
+    });
+});
+
+function initDashboard() {
     initializeNavigation();
     loadDashboard();
     setupModal();
-    // Click on profile photo thumb to open preview
     document.body.addEventListener('click', function(e) {
         const el = e.target.closest('.photo-thumb-clickable');
         if (!el) return;
@@ -52,7 +71,7 @@ document.addEventListener('DOMContentLoaded', function() {
         e.preventDefault();
         showPhotoModal(url, el.getAttribute('data-name') || 'Photo');
     });
-});
+}
 
 // Navigation
 function initializeNavigation() {
@@ -90,10 +109,14 @@ function switchSection(section) {
         'tracking': 'Request Tracking',
         'analytics': 'Detailed Analytics',
         'users': 'User Management',
+        'mechanics-map': 'Mechanics Map',
         'live-tracking': 'Live Tracking',
         'active-jobs': 'Active Jobs',
         'banners': 'Carousel / Banners',
-        'mechanic-help': 'Mechanic Help Chat'
+        'user-support': 'User Support',
+        'mechanic-help': 'Mechanic Help Chat',
+        'vehicle-catalog': 'Vehicle Catalog',
+        'marketing-poster': 'Marketing Poster'
     };
     document.getElementById('page-title').textContent = titles[section] || 'Dashboard';
     
@@ -126,11 +149,17 @@ function switchSection(section) {
         case 'users':
             loadUsers();
             break;
+        case 'mechanics-map':
+            loadMechanicsMap();
+            break;
         case 'live-tracking':
             loadLiveTracking();
             break;
         case 'active-jobs':
             loadActiveJobs();
+            break;
+        case 'user-support':
+            loadUserSupportThreads();
             break;
         case 'mechanic-help':
             loadHelpThreads();
@@ -138,22 +167,75 @@ function switchSection(section) {
         case 'banners':
             loadBanners();
             break;
+        case 'vehicle-catalog':
+            loadVehicleCatalog();
+            break;
+        case 'marketing-poster':
+            loadMarketingPoster();
+            break;
+        case 'app-update':
+            loadAppVersion();
+            break;
     }
 }
 
 // Dashboard
 async function loadDashboard() {
     try {
-        const response = await fetch(getApiUrl(API_CONFIG.endpoints.analytics));
+        const range = document.querySelector('.chart-range-filter') ? document.querySelector('.chart-range-filter').value : 'lifetime';
+        const url = getApiUrl(API_CONFIG.endpoints.analytics) + (range && range !== 'lifetime' ? '?range=' + encodeURIComponent(range) : '');
+        const response = await fetch(url);
         const data = await response.json();
         analyticsData = data;
         
         updateDashboardStats(data);
         updateCharts(data);
+        setupChartCardExpand();
+        setupChartRangeFilters();
     } catch (error) {
         console.error('Error loading dashboard:', error);
         showError('Failed to load dashboard data');
     }
+}
+
+function setupChartCardExpand() {
+    document.querySelectorAll('.chart-card[data-chart-id]').forEach(card => {
+        card.style.cursor = 'pointer';
+        card.onclick = function(e) {
+            if (e.target.closest('.chart-range-filter') || e.target.closest('select')) return;
+            card.classList.toggle('chart-expanded');
+            if (card.classList.contains('chart-expanded')) {
+                const canvas = card.querySelector('canvas');
+                if (canvas) {
+                    setTimeout(() => {
+                        const chart = getChartByCanvasId(canvas.id);
+                        if (chart && typeof chart.resize === 'function') chart.resize();
+                    }, 100);
+                }
+            }
+        };
+    });
+}
+
+function getChartByCanvasId(id) {
+    const map = {
+        'requests-chart': requestsChart,
+        'service-type-chart': serviceTypeChart,
+        'dashboard-city-chart': dashboardCityChart,
+        'dashboard-online-chart': dashboardOnlineChart
+    };
+    return map[id] || null;
+}
+
+function setupChartRangeFilters() {
+    document.querySelectorAll('.chart-range-filter').forEach(sel => {
+        sel.onclick = e => e.stopPropagation();
+        sel.onchange = function() {
+            chartRange = this.value;
+            document.querySelectorAll('.chart-range-filter').forEach(s => { s.value = chartRange; });
+            loadDashboard();
+        };
+    });
 }
 
 function updateDashboardStats(data) {
@@ -242,7 +324,7 @@ function updateCharts(data) {
             datasets: [{
                 label: 'Requests',
                 data: values,
-                backgroundColor: '#706DC7'
+                backgroundColor: '#2563EB'
             }]
         },
         options: {
@@ -275,7 +357,7 @@ function updateCharts(data) {
                 datasets: [{
                     label: 'Mechanics',
                     data: cityValues,
-                    backgroundColor: 'rgba(112, 109, 199, 0.7)'
+                    backgroundColor: 'rgba(37, 99, 235, 0.7)'
                 }]
             },
             options: {
@@ -996,12 +1078,317 @@ function refreshData() {
         case 'users-section':
             loadUsers();
             break;
+        case 'mechanics-map-section':
+            loadMechanicsMap();
+            break;
         case 'live-tracking-section':
             loadLiveTracking();
             break;
         case 'active-jobs-section':
             loadActiveJobs();
             break;
+        case 'user-support-section':
+            loadUserSupportThreads();
+            break;
+    }
+}
+
+// ========== USER SUPPORT (Customer support from app) ==========
+var USER_SUPPORT_API = '/api/admin/user-support'; // exact path (with hyphen)
+let userSupportPollTimer = null;
+let userSupportOpenEmail = null;
+let userSupportTypingTimeout = null;
+const USER_SUPPORT_POLL_MS = 2500;
+
+async function loadUserSupportThreads() {
+    const el = document.getElementById('user-support-threads-list');
+    if (!el) return;
+    el.innerHTML = '<div class="loading">Loading...</div>';
+    try {
+        const res = await fetch(getApiUrl(USER_SUPPORT_API + '/threads'));
+        if (!res.ok) {
+            const fallback = await fetch(getApiUrl(USER_SUPPORT_API + '/messages'));
+            if (!fallback.ok) {
+                el.innerHTML = '<p class="muted">Failed to load. Check backend at ' + (typeof API_CONFIG !== 'undefined' ? API_CONFIG.baseUrl : '') + '</p>';
+                return;
+            }
+            const arr = await fallback.json().catch(function() { return []; });
+            const threads = Array.isArray(arr) ? arr.map(function(email) { return { email: email, closed: false }; }) : [];
+            renderUserSupportThreadList(el, threads);
+            return;
+        }
+        const threads = await res.json().catch(function() { return []; });
+        if (!Array.isArray(threads) || threads.length === 0) {
+            el.innerHTML = '<p class="muted">No conversations yet.</p>';
+            return;
+        }
+        renderUserSupportThreadList(el, threads);
+    } catch (e) {
+        el.innerHTML = '<p class="muted">Error loading. Check network and backend.</p>';
+    }
+}
+
+function renderUserSupportThreadList(el, threads) {
+    el.innerHTML = threads.map(t => {
+        var email = typeof t === 'string' ? t : (t.email || '');
+        var closed = typeof t === 'object' && t.closed;
+        var badge = closed ? '<span class="support-thread-badge closed">Solved</span>' : '<span class="support-thread-badge open">Open</span>';
+        return '<div class="support-thread-item help-thread-item" data-email="' + escapeAttr(email) + '"><i class="fas fa-user"></i> ' + escapeAttr(email) + badge + '</div>';
+    }).join('');
+    el.querySelectorAll('.help-thread-item').forEach(item => {
+        item.addEventListener('click', function() {
+            document.querySelectorAll('.support-thread-item').forEach(x => x.classList.remove('active'));
+            this.classList.add('active');
+            openUserSupportThread(this.getAttribute('data-email'));
+        });
+    });
+}
+
+function groupMessagesByDate(messages) {
+    const groups = {};
+    (messages || []).forEach(m => {
+        const d = m.createdAt ? new Date(m.createdAt) : new Date();
+        const key = d.toDateString();
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(m);
+    });
+    return groups;
+}
+
+function renderUserSupportMessages(messages) {
+    const listEl = document.getElementById('user-support-messages-list');
+    if (!listEl) return;
+    if (!Array.isArray(messages) || messages.length === 0) {
+        listEl.innerHTML = '<p class="muted">No messages yet. Start the conversation below.</p>';
+        return;
+    }
+    const groups = groupMessagesByDate(messages);
+    let html = '';
+    Object.keys(groups).sort((a,b) => new Date(a) - new Date(b)).forEach(dateKey => {
+        html += '<div class="support-msg-date">' + escapeAttr(new Date(dateKey).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })) + '</div>';
+        groups[dateKey].forEach(m => {
+            const isAdmin = (m.sender || '').toUpperCase() === 'ADMIN';
+            const isSystem = (m.messageType || '').indexOf('PHOTO_PERMISSION') >= 0 || (m.messageType || '') === 'ADMIN_JOINED' || (m.messageType || '') === 'CONVERSATION_ENDED';
+            const isAdminJoined = (m.messageType || '') === 'ADMIN_JOINED';
+            const time = m.createdAt ? new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+            const bubbleClass = isSystem || isAdminJoined ? 'system' : (isAdmin ? 'admin' : 'user');
+            let body = escapeAttr(m.message || '');
+            if (m.imageUrl) {
+                var imgSrc = m.imageUrl;
+                if (imgSrc.indexOf('http') !== 0 && typeof API_CONFIG !== 'undefined' && API_CONFIG.baseUrl) {
+                    imgSrc = API_CONFIG.baseUrl.replace(/\/$/, '') + (imgSrc.indexOf('/') === 0 ? imgSrc : '/' + imgSrc);
+                }
+                body += '<br><img src="' + escapeAttr(imgSrc) + '" class="support-msg-img" alt="Photo" onerror="this.style.display=\'none\';this.nextElementSibling&&this.nextElementSibling.classList.remove(\'hidden\');" onclick="showPhotoModal(\'' + escapeAttr(imgSrc) + '\', \'Support photo\')"><span class="support-msg-img-fallback hidden">Image unavailable</span>';
+            }
+            var icon = isSystem || isAdminJoined ? '' : (isAdmin ? '<div class="support-msg-icon support-msg-icon-admin"><i class="fas fa-headset"></i></div>' : '<div class="support-msg-icon support-msg-icon-user"><i class="fas fa-user"></i></div>');
+            var align = (isAdmin && !isSystem && !isAdminJoined) ? 'right' : 'left';
+            html += '<div class="support-msg-row support-msg-row-' + align + '">' + (align === 'right' ? '' : icon) + '<div class="support-msg-bubble ' + bubbleClass + '">' + body + '<div class="support-msg-time">' + (isAdmin ? 'Support' : 'Customer') + ' · ' + time + '</div></div>' + (align === 'right' ? icon : '') + '</div>';
+        });
+    });
+    listEl.innerHTML = html;
+    listEl.scrollTop = listEl.scrollHeight;
+    updateUserSupportJoinBar(messages);
+    updateUserSupportClosedState(messages);
+}
+
+function updateUserSupportClosedState(messages) {
+    var replyBox = document.getElementById('user-support-reply-box');
+    var closedBar = document.getElementById('user-support-closed-bar');
+    var endBtn = document.getElementById('user-support-end-btn');
+    if (!replyBox || !closedBar) return;
+    var closed = false;
+    if (Array.isArray(messages) && messages.length > 0) {
+        var last = messages[messages.length - 1];
+        closed = (last.messageType || '') === 'CONVERSATION_ENDED';
+    }
+    if (closed) {
+        replyBox.style.display = 'none';
+        if (closedBar) closedBar.style.display = 'flex';
+        if (endBtn) endBtn.style.display = 'none';
+    } else {
+        if (replyBox.style.display !== 'block') replyBox.style.display = 'block';
+        closedBar.style.display = 'none';
+        if (endBtn) endBtn.style.display = 'inline-flex';
+    }
+}
+
+function updateUserSupportJoinBar(messages) {
+    var bar = document.getElementById('user-support-join-bar');
+    if (!bar) return;
+    if (!Array.isArray(messages) || messages.length === 0) { bar.style.display = 'none'; return; }
+    var lastHelp = null, lastJoin = null;
+    messages.forEach(function(m) {
+        var type = (m.messageType || '');
+        var at = m.createdAt ? new Date(m.createdAt).getTime() : 0;
+        if (type === 'HELP_REQUESTED') lastHelp = at;
+        if (type === 'ADMIN_JOINED') lastJoin = at;
+    });
+    if (lastHelp != null && (lastJoin == null || lastJoin < lastHelp)) bar.style.display = 'flex';
+    else bar.style.display = 'none';
+}
+
+async function joinUserSupportChat() {
+    var email = document.getElementById('user-support-reply-email').value;
+    if (!email) return;
+    try {
+        var res = await fetch(getApiUrl(USER_SUPPORT_API + '/join'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userEmail: email }) });
+        if (res.ok) {
+            showSuccess('You joined. Customer can now chat.');
+            document.getElementById('user-support-join-bar').style.display = 'none';
+            loadUserSupportMessagesOnly(email);
+        } else showError('Failed to join');
+    } catch (e) { showError('Failed to join'); }
+}
+
+async function endUserSupportConversation() {
+    var email = document.getElementById('user-support-reply-email').value;
+    if (!email) return;
+    if (!confirm('End this conversation? The customer will see a thank-you message and this thread will move to recent solved.')) return;
+    try {
+        var res = await fetch(getApiUrl(USER_SUPPORT_API + '/end-conversation'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userEmail: email }) });
+        if (res.ok) {
+            showSuccess('Conversation ended. Thread saved in recent solved.');
+            loadUserSupportMessagesOnly(email);
+            loadUserSupportThreads();
+        } else showError('Failed to end conversation');
+    } catch (e) { showError('Failed to end conversation'); }
+}
+
+async function openUserSupportThread(email) {
+    if (userSupportPollTimer) { clearInterval(userSupportPollTimer); userSupportPollTimer = null; }
+    userSupportOpenEmail = email;
+    document.getElementById('user-support-reply-email').value = email;
+    document.getElementById('user-support-chat-title').textContent = email;
+    document.getElementById('user-support-reply-box').style.display = 'block';
+    document.getElementById('user-support-typing').style.display = 'none';
+    const listEl = document.getElementById('user-support-messages-list');
+    listEl.innerHTML = '<div class="loading">Loading...</div>';
+    await loadUserSupportMessagesOnly(email);
+    loadUserSupportCustomerDetails(email);
+    checkUserSupportPhotoPermission(email);
+    updateUserSupportJoinBar([]);
+    userSupportPollTimer = setInterval(function() {
+        if (userSupportOpenEmail === email) {
+            loadUserSupportMessagesOnly(email);
+            fetch(getApiUrl(USER_SUPPORT_API + '/typing') + '?email=' + encodeURIComponent(email)).then(r => r.json()).then(d => {
+                document.getElementById('user-support-typing').style.display = (d.userTyping ? 'block' : 'none');
+            }).catch(() => {});
+        }
+    }, USER_SUPPORT_POLL_MS);
+}
+
+async function loadUserSupportMessagesOnly(email) {
+    const listEl = document.getElementById('user-support-messages-list');
+    if (userSupportOpenEmail !== email) return;
+    try {
+        const res = await fetch(getApiUrl(USER_SUPPORT_API + '/messages') + '?email=' + encodeURIComponent(email));
+        if (!res.ok || userSupportOpenEmail !== email) return;
+        const messages = await res.json();
+        if (userSupportOpenEmail === email) renderUserSupportMessages(messages);
+    } catch (e) {}
+}
+
+async function loadUserSupportCustomerDetails(email) {
+    const panel = document.getElementById('user-support-customer-panel');
+    if (!panel) return;
+    try {
+        const [res, vehicleRes] = await Promise.all([
+            fetch(getApiUrl(USER_SUPPORT_API + '/customer-details') + '?email=' + encodeURIComponent(email)),
+            fetch(getApiUrl('/api/vehicle/my') + '?email=' + encodeURIComponent(email))
+        ]);
+        if (!res.ok) { panel.innerHTML = '<p class="muted">Could not load details.</p>'; return; }
+        const data = await res.json();
+        const user = data.user || {};
+        const bookings = data.bookings || [];
+        let vehiclesHtml = '';
+        if (vehicleRes.ok) {
+            const vehicles = await vehicleRes.json();
+            vehiclesHtml = '<h4 style="margin-top:16px;"><i class="fas fa-car"></i> Vehicles</h4>' +
+                (!vehicles || vehicles.length === 0 ? '<p class="muted">No vehicles added.</p>' :
+                    '<div class="user-vehicles-detail-list">' + vehicles.map((v, idx) => {
+                        const type = (v.type || 'CAR') === 'BIKE' ? 'Bike' : 'Car';
+                        const make = v.makeName || '—';
+                        const model = v.modelName || '—';
+                        const plate = v.plateNumber || '—';
+                        const year = v.year || '—';
+                        const fuel = v.fuelType || '—';
+                        const def = v.isDefault ? ' <span class="support-thread-badge" style="font-size:10px;">Default</span>' : '';
+                        return '<div class="user-vehicle-detail-card">' +
+                            '<div class="user-vehicle-detail-header">#' + (idx + 1) + ' ' + escapeAttr(((make + ' ' + model).trim() || 'Vehicle').replace(/^—\s*—$/, 'Vehicle')) + def + '</div>' +
+                            '<table class="user-vehicle-detail-table"><tbody>' +
+                            '<tr><td>Type</td><td>' + escapeAttr(type) + '</td></tr>' +
+                            '<tr><td>Make</td><td>' + escapeAttr(make) + '</td></tr>' +
+                            '<tr><td>Model</td><td>' + escapeAttr(model) + '</td></tr>' +
+                            '<tr><td>Plate number</td><td>' + escapeAttr(plate) + '</td></tr>' +
+                            '<tr><td>Year</td><td>' + escapeAttr(year) + '</td></tr>' +
+                            '<tr><td>Fuel type</td><td>' + escapeAttr(fuel) + '</td></tr>' +
+                            '</tbody></table></div>';
+                    }).join('') + '</div>');
+        }
+        panel.innerHTML = '<h4><i class="fas fa-user"></i> Profile</h4>' +
+            '<div class="support-customer-detail"><i class="fas fa-envelope"></i> ' + escapeAttr(user.email || email) + '</div>' +
+            '<div class="support-customer-detail"><i class="fas fa-id-badge"></i> ' + escapeAttr(user.name || '—') + '</div>' +
+            '<div class="support-customer-detail"><i class="fas fa-phone"></i> ' + escapeAttr(user.phone || '—') + '</div>' +
+            '<div class="support-customer-detail"><i class="fas fa-birthday-cake"></i> ' + escapeAttr(user.dateOfBirth || '—') + '</div>' +
+            '<div class="support-customer-detail"><i class="fas fa-venus-mars"></i> ' + escapeAttr(user.gender || '—') + '</div>' +
+            '<h4 style="margin-top:16px;"><i class="fas fa-tools"></i> Services / Bookings</h4>' +
+            (bookings.length === 0 ? '<p class="muted">No bookings yet.</p>' :
+                '<div style="font-size:12px;">' + bookings.slice(0, 10).map(b => '<div style="margin-bottom:6px;">' + escapeAttr(b.serviceType || 'Service') + ' · ' + (b.status || '') + ' · ' + (b.requestTime ? new Date(b.requestTime).toLocaleDateString() : '') + '</div>').join('') + (bookings.length > 10 ? '<p class="muted">+' + (bookings.length - 10) + ' more</p>' : '') + '</div>') +
+            vehiclesHtml;
+    } catch (e) {
+        panel.innerHTML = '<p class="muted">Error loading details.</p>';
+    }
+}
+
+async function checkUserSupportPhotoPermission(email) {
+    const bar = document.getElementById('user-support-photo-approve');
+    try {
+        const permRes = await fetch(getApiUrl(USER_SUPPORT_API + '/photo-permission') + '?email=' + encodeURIComponent(email));
+        if (!permRes.ok) { bar.style.display = 'none'; return; }
+        const perm = await permRes.json();
+        if (perm.allowed) { bar.style.display = 'none'; return; }
+        const msgRes = await fetch(getApiUrl(USER_SUPPORT_API + '/messages') + '?email=' + encodeURIComponent(email));
+        const msgs = await msgRes.json();
+        const hasRequest = (msgs || []).some(m => (m.messageType || '').indexOf('PHOTO_PERMISSION_REQUEST') >= 0);
+        bar.style.display = hasRequest ? 'flex' : 'none';
+    } catch (e) { bar.style.display = 'none'; }
+}
+
+function userSupportTypingDebounce() {
+    clearTimeout(userSupportTypingTimeout);
+    const email = document.getElementById('user-support-reply-email').value;
+    if (!email) return;
+    fetch(getApiUrl(USER_SUPPORT_API + '/typing'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userEmail: email, isTyping: true }) }).catch(() => {});
+    userSupportTypingTimeout = setTimeout(function() {
+        fetch(getApiUrl(USER_SUPPORT_API + '/typing'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userEmail: email, isTyping: false }) }).catch(() => {});
+    }, 2000);
+}
+
+async function approveUserPhotoPermission() {
+    const email = document.getElementById('user-support-reply-email').value;
+    if (!email) return;
+    try {
+        const res = await fetch(getApiUrl(USER_SUPPORT_API + '/approve-photo-permission'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userEmail: email }) });
+        if (res.ok) { showSuccess('Photo permission granted.'); document.getElementById('user-support-photo-approve').style.display = 'none'; loadUserSupportMessagesOnly(email); }
+    } catch (e) { showError('Failed.'); }
+}
+
+async function sendUserSupportReply() {
+    const email = document.getElementById('user-support-reply-email').value;
+    const message = (document.getElementById('user-support-reply-message').value || '').trim();
+    if (!email || !message) { showError('Enter a message.'); return; }
+    try {
+        const res = await fetch(getApiUrl(USER_SUPPORT_API + '/reply'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userEmail: email, message: message })
+        });
+        if (!res.ok) { showError('Failed to send.'); return; }
+        document.getElementById('user-support-reply-message').value = '';
+        fetch(getApiUrl(USER_SUPPORT_API + '/typing'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userEmail: email, isTyping: false }) }).catch(() => {});
+        loadUserSupportMessagesOnly(email);
+    } catch (e) {
+        showError('Error sending reply.');
     }
 }
 
@@ -1021,7 +1408,7 @@ async function loadUsers() {
 function displayUsers(users) {
     const tbody = document.getElementById('users-table-body');
     if (users.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" class="loading">No users found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="loading">No users found</td></tr>';
         return;
     }
     
@@ -1040,6 +1427,9 @@ function displayUsers(users) {
             <td>${user.phone || 'N/A'}</td>
             <td>${user.dateOfBirth || 'N/A'}</td>
             <td>${user.gender || 'N/A'}</td>
+            <td>
+                <button class="btn-action btn-view" data-email="${escapeAttr(user.email || '')}" onclick="viewUserVehicles(this.getAttribute('data-email'))" title="View vehicle details"><i class="fas fa-car"></i> View vehicles</button>
+            </td>
             <td>
                 <button class="btn-action btn-view" onclick="viewUserBookings('${user.email}')">View Bookings</button>
             </td>
@@ -1064,6 +1454,48 @@ async function searchUsers() {
     }
 }
 
+function buildUserVehiclesDetailHtml(vehicles) {
+    if (!vehicles || vehicles.length === 0) return '<p class="muted">No vehicles added.</p>';
+    return '<div class="user-vehicles-detail-list">' + vehicles.map((v, idx) => {
+        const type = (v.type || 'CAR') === 'BIKE' ? 'Bike' : 'Car';
+        const make = v.makeName || '—';
+        const model = v.modelName || '—';
+        const plate = v.plateNumber || '—';
+        const year = v.year || '—';
+        const fuel = v.fuelType || '—';
+        const def = v.isDefault ? ' <span class="support-thread-badge" style="font-size:10px;">Default</span>' : '';
+        const header = ((make + ' ' + model).trim() || 'Vehicle').replace(/^—\s*—$/, 'Vehicle');
+        return '<div class="user-vehicle-detail-card">' +
+            '<div class="user-vehicle-detail-header">#' + (idx + 1) + ' ' + escapeAttr(header) + def + '</div>' +
+            '<table class="user-vehicle-detail-table"><tbody>' +
+            '<tr><td>Type</td><td>' + escapeAttr(type) + '</td></tr>' +
+            '<tr><td>Make</td><td>' + escapeAttr(make) + '</td></tr>' +
+            '<tr><td>Model</td><td>' + escapeAttr(model) + '</td></tr>' +
+            '<tr><td>Plate number</td><td>' + escapeAttr(plate) + '</td></tr>' +
+            '<tr><td>Year</td><td>' + escapeAttr(year) + '</td></tr>' +
+            '<tr><td>Fuel type</td><td>' + escapeAttr(fuel) + '</td></tr>' +
+            '</tbody></table></div>';
+    }).join('') + '</div>';
+}
+
+async function viewUserVehicles(email) {
+    if (!email || !email.trim()) { showError('No user email'); return; }
+    const modalContent = document.getElementById('mechanic-performance-content');
+    if (!modalContent) return;
+    modalContent.innerHTML = '<p class="loading">Loading vehicles...</p>';
+    document.getElementById('mechanic-modal').style.display = 'block';
+    try {
+        const res = await fetch(getApiUrl('/api/vehicle/my') + '?email=' + encodeURIComponent(email.trim()));
+        const vehicles = res.ok ? await res.json() : [];
+        modalContent.innerHTML = '<h3 style="margin-top:0;"><i class="fas fa-car"></i> Vehicles for ' + escapeAttr(email) + '</h3>' +
+            '<div style="max-height: 70vh; overflow-y: auto;">' + buildUserVehiclesDetailHtml(vehicles) + '</div>';
+    } catch (e) {
+        console.error('Error loading user vehicles:', e);
+        modalContent.innerHTML = '<p class="muted">Failed to load vehicles.</p>';
+        showError('Failed to load vehicles');
+    }
+}
+
 async function viewUserBookings(email) {
     try {
         const response = await fetch(`${getApiUrl(API_CONFIG.endpoints.users)}/${encodeURIComponent(email)}/bookings`);
@@ -1071,7 +1503,7 @@ async function viewUserBookings(email) {
         
         const content = document.getElementById('mechanic-performance-content');
         content.innerHTML = `
-            <h3>Bookings for ${email}</h3>
+            <h3>Bookings for ${escapeAttr(email)}</h3>
             <div style="max-height: 400px; overflow-y: auto;">
                 ${bookings.length === 0 ? '<p>No bookings found</p>' : `
                     <table class="data-table" style="margin-top: 16px;">
@@ -1455,6 +1887,210 @@ async function updateMechanicDocuments(id, documentUrls) {
     }
 }
 
+// ========== VEHICLE CATALOG (add car/bike selection images) ==========
+let vehicleCatalogSelectedMakeId = null;
+
+async function loadVehicleCatalog() {
+    const type = document.getElementById('vehicle-catalog-type')?.value || 'CAR';
+    const el = document.getElementById('vehicle-catalog-makes');
+    const modelsWrap = document.getElementById('vehicle-catalog-models-wrap');
+    const modelsEl = document.getElementById('vehicle-catalog-models');
+    const modelsTitle = document.getElementById('vehicle-catalog-models-title');
+    if (!el) return;
+    el.innerHTML = 'Loading...';
+    modelsWrap.style.display = 'none';
+    try {
+        const url = getApiUrl('/api/vehicle/makes') + '?type=' + encodeURIComponent(type);
+        const res = await fetch(url);
+        if (!res.ok) {
+            const msg = res.status === 404
+                ? 'Vehicle catalog API not found (HTTP 404). Deploy the latest backend: run <code>./update-backend-ec2.sh</code> from project root, then try again.'
+                : 'Failed to load (HTTP ' + res.status + '). Ensure backend is running at ' + (typeof API_CONFIG !== 'undefined' ? API_CONFIG.baseUrl : '') + '.';
+            el.innerHTML = '<p class="muted">' + msg + '</p>';
+            return;
+        }
+        const makes = await res.json();
+        const base = (typeof API_CONFIG !== 'undefined' && API_CONFIG.baseUrl) ? API_CONFIG.baseUrl.replace(/\/$/, '') : '';
+        el.innerHTML = '<div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap:12px;">' + (makes || []).map(m => {
+            const imgSrc = (m.imageUrl && m.imageUrl.indexOf('http') === 0) ? m.imageUrl : (m.imageUrl && base ? base + (m.imageUrl.indexOf('/') === 0 ? m.imageUrl : '/' + m.imageUrl) : '');
+            return '<div class="vehicle-catalog-item" data-id="' + m.id + '" data-name="' + escapeAttr(m.name || '') + '">' +
+                '<div class="vehicle-catalog-thumb" style="background-image:url(\'' + (imgSrc || '') + '\');' + (!imgSrc ? ' background-color:#eee;' : '') + '">' + (!imgSrc ? '<i class="fas fa-car" style="font-size:28px;color:#999;"></i>' : '') + '</div>' +
+                '<div style="font-weight:600;margin-top:6px;">' + escapeAttr(m.name || '') + '</div>' +
+                '<div style="margin-top:6px;font-size:12px;">' +
+                '<label><input type="file" accept="image/*" style="width:100%;" onchange="uploadVehicleCatalogPhoto(\'make\',' + m.id + ',this)"> Upload</label>' +
+                '</div>' +
+                '<div style="margin-top:4px;"><input type="text" placeholder="Or paste image URL" style="width:100%;font-size:11px;padding:4px;" id="make-url-' + m.id + '"><button type="button" class="btn-action btn-view" style="margin-top:4px;font-size:11px;" onclick="setVehicleCatalogImageUrl(\'make\',' + m.id + ')">Set URL</button></div>' +
+                '<button type="button" class="btn-action btn-reject" style="margin-top:6px;font-size:11px;width:100%;" onclick="event.stopPropagation();deleteMake(' + m.id + ')"><i class="fas fa-trash"></i> Delete</button>' +
+                '</div>';
+        }).join('') + '</div>';
+        el.querySelectorAll('.vehicle-catalog-item').forEach(div => {
+            div.onclick = function(e) {
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON' || e.target.tagName === 'LABEL') return;
+                vehicleCatalogSelectedMakeId = parseInt(div.dataset.id, 10);
+                loadVehicleCatalogModels(vehicleCatalogSelectedMakeId, div.dataset.name);
+            };
+        });
+        if (vehicleCatalogSelectedMakeId != null) loadVehicleCatalogModels(vehicleCatalogSelectedMakeId);
+    } catch (e) {
+        el.innerHTML = '<p class="muted">Failed to load. Check backend.</p>';
+    }
+}
+
+async function loadVehicleCatalogModels(makeId, makeName) {
+    const wrap = document.getElementById('vehicle-catalog-models-wrap');
+    const el = document.getElementById('vehicle-catalog-models');
+    const title = document.getElementById('vehicle-catalog-models-title');
+    if (!wrap || !el) return;
+    wrap.style.display = 'block';
+    title.textContent = makeName ? ('Models: ' + makeName) : 'Models';
+    el.innerHTML = 'Loading models...';
+    try {
+        const res = await fetch(getApiUrl('/api/vehicle/models') + '?makeId=' + makeId);
+        const models = await res.json();
+        const base = (typeof API_CONFIG !== 'undefined' && API_CONFIG.baseUrl) ? API_CONFIG.baseUrl.replace(/\/$/, '') : '';
+        el.innerHTML = '<div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap:10px;">' + (models || []).map(m => {
+            const imgSrc = (m.imageUrl && m.imageUrl.indexOf('http') === 0) ? m.imageUrl : (m.imageUrl && base ? base + (m.imageUrl.indexOf('/') === 0 ? m.imageUrl : '/' + m.imageUrl) : '');
+            return '<div class="vehicle-catalog-item">' +
+                '<div class="vehicle-catalog-thumb" style="background-image:url(\'' + (imgSrc || '') + '\');' + (!imgSrc ? ' background-color:#eee;' : '') + '">' + (!imgSrc ? '<i class="fas fa-image" style="font-size:24px;color:#999;"></i>' : '') + '</div>' +
+                '<div style="font-weight:600;margin-top:4px;font-size:13px;">' + escapeAttr(m.name || '') + '</div>' +
+                '<label style="font-size:11px;"><input type="file" accept="image/*" style="width:100%;" onchange="uploadVehicleCatalogPhoto(\'model\',' + m.id + ',this)"> Upload</label>' +
+                '<input type="text" placeholder="Or image URL" style="width:100%;font-size:11px;padding:4px;margin-top:2px;" id="model-url-' + m.id + '"><button type="button" class="btn-action btn-view" style="margin-top:2px;font-size:11px;" onclick="setVehicleCatalogImageUrl(\'model\',' + m.id + ')">Set URL</button>' +
+                '<button type="button" class="btn-action btn-reject" style="margin-top:4px;font-size:11px;width:100%;" onclick="deleteModel(' + m.id + ')"><i class="fas fa-trash"></i> Delete</button>' +
+                '</div>';
+        }).join('') + '</div>';
+    } catch (e) {
+        el.innerHTML = '<p class="muted">Failed to load models.</p>';
+    }
+}
+
+function uploadVehicleCatalogPhoto(type, id, fileInput) {
+    const file = fileInput && fileInput.files && fileInput.files[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('type', type);
+    fd.append('id', id);
+    fetch(API_CONFIG.baseUrl + '/api/upload/vehicle-catalog-photo', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) { showError(data.error); return; }
+            showSuccess('Image uploaded.');
+            fileInput.value = '';
+            loadVehicleCatalog();
+            if (vehicleCatalogSelectedMakeId != null) loadVehicleCatalogModels(vehicleCatalogSelectedMakeId);
+        })
+        .catch(() => showError('Upload failed'));
+}
+
+async function setVehicleCatalogImageUrl(type, id) {
+    const input = document.getElementById(type + '-url-' + id);
+    const url = (input && input.value || '').trim();
+    if (!url) { showError('Enter an image URL'); return; }
+    const path = type === 'make' ? ('/api/vehicle/makes/' + id + '/image') : ('/api/vehicle/models/' + id + '/image');
+    try {
+        const res = await fetch(getApiUrl(path), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imageUrl: url }) });
+        if (res.ok) { showSuccess('Image URL set.'); input.value = ''; loadVehicleCatalog(); if (vehicleCatalogSelectedMakeId != null) loadVehicleCatalogModels(vehicleCatalogSelectedMakeId); }
+        else showError('Failed to set URL');
+    } catch (e) { showError('Failed'); }
+}
+
+async function deleteMake(id) {
+    const card = document.querySelector('.vehicle-catalog-item[data-id="' + id + '"]');
+    const name = (card && card.dataset.name) ? card.dataset.name : 'this brand';
+    if (!confirm('Delete brand "' + name + '" and all its models? This cannot be undone.')) return;
+    try {
+        const res = await fetch(getApiUrl('/api/vehicle/makes/' + id), { method: 'DELETE' });
+        if (res.ok) { showSuccess('Brand deleted.'); vehicleCatalogSelectedMakeId = null; loadVehicleCatalog(); document.getElementById('vehicle-catalog-models-wrap').style.display = 'none'; }
+        else showError('Failed to delete');
+    } catch (e) { showError('Failed'); }
+}
+
+async function deleteModel(id) {
+    if (!confirm('Delete this model? This cannot be undone.')) return;
+    try {
+        const res = await fetch(getApiUrl('/api/vehicle/models/' + id), { method: 'DELETE' });
+        if (res.ok) { showSuccess('Model deleted.'); if (vehicleCatalogSelectedMakeId != null) loadVehicleCatalogModels(vehicleCatalogSelectedMakeId); }
+        else showError('Failed to delete');
+    } catch (e) { showError('Failed'); }
+}
+
+function showAddMakeModal() {
+    document.getElementById('add-make-name').value = '';
+    document.getElementById('add-make-type').value = document.getElementById('vehicle-catalog-type').value || 'CAR';
+    document.getElementById('add-make-file').value = '';
+    document.getElementById('add-make-imageUrl').value = '';
+    document.getElementById('vehicle-add-make-modal').style.display = 'block';
+}
+
+function closeAddMakeModal() {
+    document.getElementById('vehicle-add-make-modal').style.display = 'none';
+}
+
+async function submitAddMake() {
+    const name = (document.getElementById('add-make-name').value || '').trim();
+    const type = document.getElementById('add-make-type').value || 'CAR';
+    const fileInput = document.getElementById('add-make-file');
+    const imageUrl = (document.getElementById('add-make-imageUrl').value || '').trim();
+    if (!name) { showError('Enter brand name'); return; }
+    try {
+        const body = { name: name, type: type };
+        if (imageUrl) body.imageUrl = imageUrl;
+        const res = await fetch(getApiUrl('/api/vehicle/makes'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        if (!res.ok) { showError('Failed to add brand'); return; }
+        const created = await res.json();
+        const newId = created.id;
+        if (fileInput.files && fileInput.files[0]) {
+            const fd = new FormData();
+            fd.append('file', fileInput.files[0]);
+            fd.append('type', 'make');
+            fd.append('id', newId);
+            const up = await fetch(API_CONFIG.baseUrl + '/api/upload/vehicle-catalog-photo', { method: 'POST', body: fd });
+            if (!up.ok) { var d = await up.json(); showError(d.error || 'Upload failed'); }
+        }
+        closeAddMakeModal();
+        showSuccess('Brand added.');
+        loadVehicleCatalog();
+    } catch (e) { showError('Failed'); }
+}
+
+function showAddModelModal() {
+    if (vehicleCatalogSelectedMakeId == null) { showError('Select a brand first'); return; }
+    document.getElementById('add-model-name').value = '';
+    document.getElementById('add-model-file').value = '';
+    document.getElementById('add-model-imageUrl').value = '';
+    document.getElementById('vehicle-add-model-modal').style.display = 'block';
+}
+
+function closeAddModelModal() {
+    document.getElementById('vehicle-add-model-modal').style.display = 'none';
+}
+
+async function submitAddModel() {
+    const name = (document.getElementById('add-model-name').value || '').trim();
+    const fileInput = document.getElementById('add-model-file');
+    const imageUrl = (document.getElementById('add-model-imageUrl').value || '').trim();
+    if (!name) { showError('Enter model name'); return; }
+    if (vehicleCatalogSelectedMakeId == null) { showError('Select a brand first'); return; }
+    try {
+        const body = { makeId: vehicleCatalogSelectedMakeId, name: name };
+        if (imageUrl) body.imageUrl = imageUrl;
+        const res = await fetch(getApiUrl('/api/vehicle/models'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        if (!res.ok) { showError('Failed to add model'); return; }
+        const created = await res.json();
+        const newId = created.id;
+        if (fileInput.files && fileInput.files[0]) {
+            const fd = new FormData();
+            fd.append('file', fileInput.files[0]);
+            fd.append('type', 'model');
+            fd.append('id', newId);
+            await fetch(API_CONFIG.baseUrl + '/api/upload/vehicle-catalog-photo', { method: 'POST', body: fd });
+        }
+        closeAddModelModal();
+        showSuccess('Model added.');
+        loadVehicleCatalogModels(vehicleCatalogSelectedMakeId);
+    } catch (e) { showError('Failed'); }
+}
+
 // ========== CAROUSEL / BANNERS ==========
 let editingBannerId = null;
 
@@ -1471,6 +2107,12 @@ async function loadBanners() {
     }
 }
 
+function fullImageUrl(url) {
+    if (!url) return '';
+    if (url.indexOf('http') === 0) return url;
+    return API_CONFIG.baseUrl + (url.startsWith('/') ? '' : '/') + url;
+}
+
 function displayBanners(banners) {
     const grid = document.getElementById('banners-grid');
     const preview = document.getElementById('carousel-preview');
@@ -1484,7 +2126,7 @@ function displayBanners(banners) {
             preview.innerHTML = '<div class="carousel-preview-empty">No banners yet. Add banners below – they will appear here and in your app.</div>';
         } else {
             preview.innerHTML = list.sort((a,b) => (a.sortOrder||0) - (b.sortOrder||0)).map((b, i) => `
-                <div class="carousel-preview-card" style="background-image: url('${b.imageUrl || ''}')">
+                <div class="carousel-preview-card" style="background-image: url('${fullImageUrl(b.imageUrl)}')">
                     <div class="carousel-preview-overlay"></div>
                     <div class="carousel-preview-text">
                         <div class="carousel-preview-title">${b.title || 'Untitled'}</div>
@@ -1504,7 +2146,8 @@ function displayBanners(banners) {
     grid.innerHTML = sorted.map((b, idx) => `
         <div class="banner-card" data-id="${b.id}">
             <span class="banner-card-position">Slider #${idx + 1}</span>
-            <div class="banner-card-image" style="background-image: url('${b.imageUrl || ''}')"></div>
+            <span class="banner-card-badge">${(b.targetType || 'ALL') === 'ALL' ? 'All' : (b.targetType === 'CAR' ? 'Car' : 'Bike')}</span>
+            <div class="banner-card-image" style="background-image: url('${fullImageUrl(b.imageUrl)}')"></div>
             <div class="banner-card-info">
                 <strong>${b.title || 'Untitled'}</strong>
                 <span>${b.subtitle || ''}</span>
@@ -1526,6 +2169,7 @@ function showAddBannerModal() {
     document.getElementById('banner-image-preview').innerHTML = '';
     document.getElementById('banner-title').value = '';
     document.getElementById('banner-subtitle').value = '';
+    document.getElementById('banner-target-type').value = 'ALL';
     document.getElementById('banner-order').value = '0';
     document.getElementById('banner-active').checked = true;
     document.getElementById('banner-modal').style.display = 'block';
@@ -1550,6 +2194,7 @@ async function editBanner(id) {
         : '';
     document.getElementById('banner-title').value = b.title || '';
     document.getElementById('banner-subtitle').value = b.subtitle || '';
+    document.getElementById('banner-target-type').value = b.targetType || 'ALL';
     document.getElementById('banner-order').value = String(b.sortOrder || 0);
     document.getElementById('banner-active').checked = b.active !== false;
     document.getElementById('banner-modal').style.display = 'block';
@@ -1558,6 +2203,7 @@ async function editBanner(id) {
 async function saveBanner() {
     const title = document.getElementById('banner-title').value.trim();
     const subtitle = document.getElementById('banner-subtitle').value.trim();
+    const targetType = document.getElementById('banner-target-type').value || 'ALL';
     const order = parseInt(document.getElementById('banner-order').value, 10) || 0;
     const active = document.getElementById('banner-active').checked;
     const fileInput = document.getElementById('banner-image-input');
@@ -1566,17 +2212,23 @@ async function saveBanner() {
     if (fileInput.files && fileInput.files[0]) {
         const fd = new FormData();
         fd.append('file', fileInput.files[0]);
-        const resp = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.uploadBanner}`, { method: 'POST', body: fd });
-        const data = await resp.json();
+        let resp, data;
+        try {
+            resp = await fetch(API_CONFIG.baseUrl + '/api/upload/banner', { method: 'POST', body: fd });
+            data = await resp.json().catch(() => ({}));
+        } catch (e) {
+            showError('Network error: ' + (e.message || 'Could not reach server'));
+            return;
+        }
         if (!resp.ok) {
-            showError(data.error || 'Upload failed');
+            showError(data.error || ('Upload failed (HTTP ' + resp.status + ')'));
             return;
         }
         imageUrl = data.url;
     }
 
     if (editingBannerId) {
-        const body = { title, subtitle, sortOrder: order, active };
+        const body = { title, subtitle, targetType, sortOrder: order, active };
         if (imageUrl) body.imageUrl = imageUrl;
         const resp = await fetch(`${getApiUrl(API_CONFIG.endpoints.banners)}/${editingBannerId}`, {
             method: 'PUT',
@@ -1587,7 +2239,10 @@ async function saveBanner() {
             showSuccess('Banner updated');
             closeBannerModal();
             loadBanners();
-        } else showError('Update failed');
+        } else {
+            const err = await resp.json().catch(() => ({}));
+            showError(err.error || err.message || 'Update failed');
+        }
     } else {
         if (!imageUrl) {
             showError('Please select an image');
@@ -1596,13 +2251,16 @@ async function saveBanner() {
         const resp = await fetch(getApiUrl(API_CONFIG.endpoints.banners), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ imageUrl, title, subtitle, sortOrder: order, active })
+            body: JSON.stringify({ imageUrl, title, subtitle, targetType, sortOrder: order, active })
         });
         if (resp.ok) {
             showSuccess('Banner added');
             closeBannerModal();
             loadBanners();
-        } else showError('Create failed');
+        } else {
+            const err = await resp.json().catch(() => ({}));
+            showError(err.error || err.message || 'Create failed');
+        }
     }
 }
 
@@ -1617,6 +2275,177 @@ async function deleteBanner(id, title) {
     } catch (e) {
         showError('Delete failed');
     }
+}
+
+// ========== MARKETING POSTER ==========
+async function loadMarketingPoster() {
+    const el = document.getElementById('marketing-poster-content');
+    if (!el) return;
+    try {
+        const r = await fetch(getApiUrl(API_CONFIG.endpoints.poster) + '/all');
+        if (!r.ok) { el.innerHTML = '<p class="muted">Failed to load.</p>'; return; }
+        const list = await r.json();
+        const base = (typeof API_CONFIG !== 'undefined' && API_CONFIG.baseUrl) ? API_CONFIG.baseUrl.replace(/\/$/, '') : '';
+        if (!list || list.length === 0) {
+            el.innerHTML = '<p class="muted">No posters yet. Add image, set location (optional), and Save below.</p>';
+            cancelPosterEdit();
+            return;
+        }
+        el.innerHTML = '<p><strong>Posters by state/area</strong> – Disable or delete per poster. No poster in an area = users there go straight to homepage.</p><div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:8px;">' + list.map(function(p) {
+            const imgSrc = p.imageUrl ? (p.imageUrl.indexOf('http') === 0 ? p.imageUrl : base + (p.imageUrl.startsWith('/') ? '' : '/') + p.imageUrl) : '';
+            var loc = [p.targetCity, p.targetState].filter(Boolean).join(', ');
+            if (!loc && p.targetLat != null && p.targetLng != null && p.targetRadiusKm != null) loc = p.targetLat.toFixed(2) + ', ' + p.targetLng.toFixed(2) + ' (' + p.targetRadiusKm + ' km)';
+            if (!loc) loc = 'All users';
+            return '<div class="banner-card" style="max-width:180px;"><div class="banner-card-image" style="height:100px;background-size:cover;background-image:url(\'' + escapeAttr(imgSrc || '') + '\');"></div><div style="padding:8px;font-size:12px;">' + escapeAttr(loc) + ' · ' + (p.active ? 'Active' : '<span style="color:#94a3b8;">Disabled</span>') + '</div><div style="display:flex;gap:4px;"><button type="button" class="btn-action btn-view" style="font-size:11px;" onclick="editPoster(' + p.id + ')">Edit</button><button type="button" class="btn-action btn-reject" style="font-size:11px;" onclick="deletePoster(' + p.id + ')"><i class="fas fa-trash"></i> Delete</button></div></div>';
+        }).join('') + '</div>';
+        if (!window._editingPosterId) {
+            document.getElementById('poster-image-url').value = '';
+            document.getElementById('poster-link-url').value = '';
+            document.getElementById('poster-target-city').value = '';
+            document.getElementById('poster-target-state').value = '';
+            var latEl = document.getElementById('poster-target-lat'); if (latEl) latEl.value = '';
+            var lngEl = document.getElementById('poster-target-lng'); if (lngEl) lngEl.value = '';
+            var radEl = document.getElementById('poster-target-radius'); if (radEl) radEl.value = '';
+            document.getElementById('poster-active').checked = true;
+            return;
+        }
+        const sel = list.find(function(p) { return p.id === window._editingPosterId; });
+        if (sel) {
+            document.getElementById('poster-image-url').value = sel.imageUrl || '';
+            document.getElementById('poster-link-url').value = sel.linkUrl || '';
+            document.getElementById('poster-target-city').value = sel.targetCity || '';
+            document.getElementById('poster-target-state').value = sel.targetState || '';
+            var latEl = document.getElementById('poster-target-lat'); if (latEl) latEl.value = sel.targetLat != null ? sel.targetLat : '';
+            var lngEl = document.getElementById('poster-target-lng'); if (lngEl) lngEl.value = sel.targetLng != null ? sel.targetLng : '';
+            var radEl = document.getElementById('poster-target-radius'); if (radEl) radEl.value = sel.targetRadiusKm != null ? sel.targetRadiusKm : '';
+            document.getElementById('poster-active').checked = sel.active !== false;
+        }
+    } catch (e) {
+        el.innerHTML = '<p class="muted">Failed to load.</p>';
+        window._editingPosterId = null;
+    }
+}
+
+function editPoster(id) {
+    window._editingPosterId = id;
+    const r = fetch(getApiUrl(API_CONFIG.endpoints.poster) + '/all').then(function(res) { return res.json(); });
+    r.then(function(list) {
+        const p = list.find(function(x) { return x.id === id; });
+        if (p) {
+            document.getElementById('poster-image-url').value = p.imageUrl || '';
+            document.getElementById('poster-link-url').value = p.linkUrl || '';
+            document.getElementById('poster-target-city').value = p.targetCity || '';
+            document.getElementById('poster-target-state').value = p.targetState || '';
+            var latEl = document.getElementById('poster-target-lat'); if (latEl) latEl.value = p.targetLat != null ? p.targetLat : '';
+            var lngEl = document.getElementById('poster-target-lng'); if (lngEl) lngEl.value = p.targetLng != null ? p.targetLng : '';
+            var radEl = document.getElementById('poster-target-radius'); if (radEl) radEl.value = p.targetRadiusKm != null ? p.targetRadiusKm : '';
+            document.getElementById('poster-active').checked = p.active !== false;
+            document.getElementById('poster-image-input').value = '';
+        }
+    });
+}
+
+function cancelPosterEdit() {
+    window._editingPosterId = null;
+    document.getElementById('poster-image-url').value = '';
+    document.getElementById('poster-link-url').value = '';
+    document.getElementById('poster-target-city').value = '';
+    document.getElementById('poster-target-state').value = '';
+    var latEl = document.getElementById('poster-target-lat'); if (latEl) latEl.value = '';
+    var lngEl = document.getElementById('poster-target-lng'); if (lngEl) lngEl.value = '';
+    var radEl = document.getElementById('poster-target-radius'); if (radEl) radEl.value = '';
+    document.getElementById('poster-active').checked = true;
+    document.getElementById('poster-image-input').value = '';
+    loadMarketingPoster();
+}
+
+async function deletePoster(id) {
+    if (!confirm('Delete this poster? Users in this area will see no poster and go straight to homepage.')) return;
+    try {
+        const r = await fetch(getApiUrl(API_CONFIG.endpoints.poster) + '/' + id, { method: 'DELETE' });
+        if (r.ok) { showSuccess('Poster deleted'); window._editingPosterId = null; loadMarketingPoster(); } else showError('Delete failed');
+    } catch (e) { showError('Failed'); }
+}
+
+async function savePoster() {
+    const imageUrl = document.getElementById('poster-image-url').value.trim();
+    const linkUrl = document.getElementById('poster-link-url').value.trim();
+    const active = document.getElementById('poster-active').checked;
+    const fileInput = document.getElementById('poster-image-input');
+    let finalImageUrl = imageUrl;
+    if (fileInput.files && fileInput.files[0]) {
+        const fd = new FormData();
+        fd.append('file', fileInput.files[0]);
+        const r = await fetch(API_CONFIG.baseUrl + '/api/upload/poster', { method: 'POST', body: fd });
+        if (!r.ok) {
+            let msg = 'Upload failed';
+            try { const d = await r.json(); if (d.error) msg = d.error; } catch (_) {}
+            showError(msg);
+            return;
+        }
+        const d = await r.json();
+        finalImageUrl = d.url || '';
+    }
+    if (!finalImageUrl) { showError('Add an image (upload or URL)'); return; }
+    const targetCity = document.getElementById('poster-target-city').value.trim();
+    const targetState = document.getElementById('poster-target-state').value.trim();
+    const latEl = document.getElementById('poster-target-lat');
+    const lngEl = document.getElementById('poster-target-lng');
+    const radEl = document.getElementById('poster-target-radius');
+    const targetLat = latEl && latEl.value.trim() ? parseFloat(latEl.value) : null;
+    const targetLng = lngEl && lngEl.value.trim() ? parseFloat(lngEl.value) : null;
+    const targetRadiusKm = radEl && radEl.value.trim() ? parseFloat(radEl.value) : null;
+    const body = { imageUrl: finalImageUrl, linkUrl: linkUrl || null, active, targetCity: targetCity || null, targetState: targetState || null, targetLat: targetLat, targetLng: targetLng, targetRadiusKm: targetRadiusKm };
+    try {
+        if (window._editingPosterId) {
+            const r = await fetch(getApiUrl(API_CONFIG.endpoints.poster) + '/' + window._editingPosterId, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            if (r.ok) { showSuccess('Poster updated'); document.getElementById('poster-image-input').value = ''; loadMarketingPoster(); } else showError('Update failed');
+        } else {
+            const r = await fetch(getApiUrl(API_CONFIG.endpoints.poster), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            if (r.ok) { showSuccess('Poster saved'); document.getElementById('poster-image-input').value = ''; loadMarketingPoster(); } else showError('Save failed');
+        }
+    } catch (e) { showError('Failed'); }
+}
+
+// ========== APP VERSION ==========
+async function loadAppVersion() {
+    try {
+        const r = await fetch(getApiUrl(API_CONFIG.endpoints.appVersion));
+        if (r.ok) {
+            const c = await r.json();
+            document.getElementById('app-version-latest').value = c.latestVersion || '';
+            document.getElementById('app-version-min').value = c.minRequiredVersion || '';
+            document.getElementById('app-version-title').value = c.updateTitle || '';
+            document.getElementById('app-version-message').value = c.updateMessage || '';
+            window._editingAppVersionId = c.id;
+        } else {
+            window._editingAppVersionId = null;
+        }
+    } catch (e) { window._editingAppVersionId = null; }
+}
+
+async function saveAppVersion() {
+    const latestVersion = document.getElementById('app-version-latest').value.trim();
+    const minRequiredVersion = document.getElementById('app-version-min').value.trim();
+    const updateTitle = document.getElementById('app-version-title').value.trim();
+    const updateMessage = document.getElementById('app-version-message').value.trim();
+    try {
+        if (window._editingAppVersionId) {
+            const r = await fetch(getApiUrl(API_CONFIG.endpoints.appVersion) + '/' + window._editingAppVersionId, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ latestVersion, minRequiredVersion, updateTitle, updateMessage })
+            });
+            if (r.ok) { showSuccess('Saved'); loadAppVersion(); } else { const err = await r.json().catch(() => ({})); showError(err.message || err.error || 'Save failed'); }
+        } else {
+            const r = await fetch(getApiUrl(API_CONFIG.endpoints.appVersion), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ latestVersion, minRequiredVersion, updateTitle, updateMessage })
+            });
+            if (r.ok) { showSuccess('Saved'); loadAppVersion(); } else { const err = await r.json().catch(() => ({})); showError(err.message || err.error || 'Save failed'); }
+        }
+    } catch (e) { showError('Failed: ' + (e.message || e)); }
 }
 
 // ========== LIVE TRACKING ==========
@@ -1724,6 +2553,155 @@ function updateMap(locations) {
 function filterLocations() {
     const filter = document.getElementById('location-filter').value;
     loadLiveTrackingWithFilter(filter);
+}
+
+// ========== MECHANICS MAP SECTION ==========
+async function loadMechanicsMap() {
+    try {
+        const response = await fetch(getApiUrl(API_CONFIG.endpoints.mechanics));
+        const mechanics = await response.json();
+        allMechanics = mechanics;
+
+        const cities = [...new Set(mechanics.map(m => (m.shopCity || m.shop_city || 'Unknown').trim()).filter(Boolean))].sort();
+        const citySelect = document.getElementById('mechanics-map-city-filter');
+        if (citySelect) {
+            const current = citySelect.value;
+            citySelect.innerHTML = '<option value="">All Cities</option>' + cities.map(c => `<option value="${escapeAttr(c)}">${escapeAttr(c)}</option>`).join('');
+            if (current && cities.includes(current)) citySelect.value = current;
+        }
+
+        displayMechanicsMapDetailTable(mechanics);
+        initAllMechanicsMap(mechanics);
+        filterMechanicsMapByCity();
+    } catch (error) {
+        console.error('Error loading mechanics map:', error);
+        showError('Failed to load mechanics map');
+        document.getElementById('mechanics-map-detail-table').innerHTML = '<tr><td colspan="7" class="loading">Error loading data</td></tr>';
+    }
+}
+
+function displayMechanicsMapDetailTable(mechanics) {
+    const tbody = document.getElementById('mechanics-map-detail-table');
+    if (!tbody) return;
+    if (!mechanics || mechanics.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="loading">No mechanics found</td></tr>';
+        return;
+    }
+    tbody.innerHTML = mechanics.map(m => {
+        const city = m.shopCity || m.shop_city || 'N/A';
+        const status = m.status || 'Available';
+        const online = m.isOnline ? 'Online' : 'Offline';
+        const hours = [m.openingTime, m.closingTime].filter(Boolean).length ? ((m.openingTime || '') + ' – ' + (m.closingTime || '')) : 'N/A';
+        const days = (m.workingDays || m.working_days || 'N/A').toString().replace(/,/g, ', ');
+        const night = m.nightTimeAvailable ? 'Yes' : 'No';
+        return `<tr>
+            <td><strong>${escapeAttr(m.name || 'N/A')}</strong></td>
+            <td>${escapeAttr(city)}</td>
+            <td><span class="status-badge ${status.toLowerCase()}">${escapeAttr(status)}</span></td>
+            <td>${m.isOnline ? '<span class="status-badge approved">Online</span>' : '<span class="status-badge pending">Offline</span>'}</td>
+            <td>${escapeAttr(hours)}</td>
+            <td>${escapeAttr(days)}</td>
+            <td>${night}</td>
+        </tr>`;
+    }).join('');
+}
+
+function initAllMechanicsMap(mechanics) {
+    const mapEl = document.getElementById('all-mechanics-map');
+    if (!mapEl || typeof google === 'undefined' || !google.maps) return;
+    const withLoc = (mechanics || []).filter(m => {
+        const lat = parseFloat(m.latitude);
+        const lng = parseFloat(m.longitude);
+        return !isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0;
+    });
+    if (withLoc.length === 0) {
+        mapEl.innerHTML = '<p style="padding:20px;color:#64748b;">No mechanic locations available</p>';
+        return;
+    }
+    mapEl.innerHTML = '';
+    allMechanicsMapMarkers.forEach(m => m.setMap(null));
+    allMechanicsMapMarkers = [];
+    allMechanicsMap = new google.maps.Map(mapEl, {
+        zoom: 10,
+        center: { lat: parseFloat(withLoc[0].latitude), lng: parseFloat(withLoc[0].longitude) },
+        mapTypeId: 'roadmap',
+        mapTypeControl: false
+    });
+    const bounds = new google.maps.LatLngBounds();
+    withLoc.forEach(m => {
+        const lat = parseFloat(m.latitude);
+        const lng = parseFloat(m.longitude);
+        const marker = new google.maps.Marker({
+            position: { lat, lng },
+            map: allMechanicsMap,
+            title: m.name,
+            icon: {
+                url: m.isOnline ? 'http://maps.google.com/mapfiles/ms/icons/green-dot.png' : 'http://maps.google.com/mapfiles/ms/icons/red-dot.png',
+                scaledSize: new google.maps.Size(28, 28)
+            }
+        });
+        const info = `<strong>${escapeAttr(m.name || 'N/A')}</strong><br>${escapeAttr(m.shopCity || m.shop_city || '')}<br>${m.isOnline ? 'Online' : 'Offline'}<br>Hours: ${escapeAttr((m.openingTime || '') + ' – ' + (m.closingTime || ''))}`;
+        const iw = new google.maps.InfoWindow({ content: info });
+        marker.addListener('click', () => iw.open(allMechanicsMap, marker));
+        allMechanicsMapMarkers.push(marker);
+        bounds.extend({ lat, lng });
+    });
+    if (allMechanicsMapMarkers.length) allMechanicsMap.fitBounds(bounds);
+}
+
+function filterMechanicsMapByCity() {
+    const citySelect = document.getElementById('mechanics-map-city-filter');
+    const city = citySelect ? citySelect.value : '';
+    let list = allMechanics || [];
+    if (city) list = list.filter(m => (m.shopCity || m.shop_city || '').trim() === city);
+    initMechanicsByCityMap(list);
+}
+
+function initMechanicsByCityMap(mechanics) {
+    const mapEl = document.getElementById('mechanics-by-city-map');
+    if (!mapEl || typeof google === 'undefined' || !google.maps) return;
+    const withLoc = (mechanics || []).filter(m => {
+        const lat = parseFloat(m.latitude);
+        const lng = parseFloat(m.longitude);
+        return !isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0;
+    });
+    mechanicsByCityMapMarkers.forEach(m => m.setMap(null));
+    mechanicsByCityMapMarkers = [];
+    if (withLoc.length === 0) {
+        if (!mechanicsByCityMapInstance) {
+            mapEl.innerHTML = '<p style="padding:20px;color:#64748b;">Select a city or add mechanics with location</p>';
+        }
+        return;
+    }
+    if (!mechanicsByCityMapInstance) {
+        mapEl.innerHTML = '';
+        mechanicsByCityMapInstance = new google.maps.Map(mapEl, {
+            zoom: 12,
+            center: { lat: parseFloat(withLoc[0].latitude), lng: parseFloat(withLoc[0].longitude) },
+            mapTypeId: 'roadmap',
+            mapTypeControl: false
+        });
+    }
+    const bounds = new google.maps.LatLngBounds();
+    withLoc.forEach(m => {
+        const lat = parseFloat(m.latitude);
+        const lng = parseFloat(m.longitude);
+        const marker = new google.maps.Marker({
+            position: { lat, lng },
+            map: mechanicsByCityMapInstance,
+            title: m.name,
+            icon: {
+                url: m.isOnline ? 'http://maps.google.com/mapfiles/ms/icons/green-dot.png' : 'http://maps.google.com/mapfiles/ms/icons/red-dot.png',
+                scaledSize: new google.maps.Size(28, 28)
+            }
+        });
+        const info = `<strong>${escapeAttr(m.name || 'N/A')}</strong><br>${m.isOnline ? 'Online' : 'Offline'}<br>Hours: ${escapeAttr((m.openingTime || '') + ' – ' + (m.closingTime || ''))}`;
+        const iw = new google.maps.InfoWindow({ content: info });
+        marker.addListener('click', () => iw.open(mechanicsByCityMapInstance, marker));
+        mechanicsByCityMapMarkers.push(marker);
+        bounds.extend({ lat, lng });
+    });
+    if (mechanicsByCityMapMarkers.length) mechanicsByCityMapInstance.fitBounds(bounds);
 }
 
 async function loadLiveTrackingWithFilter(filter) {
@@ -1867,62 +2845,112 @@ function showNotification(message, type) {
     setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.3s'; setTimeout(() => toast.remove(), 300); }, 3000);
 }
 
-// Mechanic Help Chat
+// Mechanic Help Chat (no photo; polling + typing + messages by date)
+let mechanicHelpPollTimer = null;
+let mechanicHelpOpenEmail = null;
+let mechanicHelpTypingTimeout = null;
+const MECHANIC_HELP_POLL_MS = 2500;
+
 async function loadHelpThreads() {
     const el = document.getElementById('help-threads-list');
     if (!el) return;
     el.innerHTML = '<div class="loading">Loading...</div>';
     try {
-        const url = getApiUrl('/api/admin/help/messages');
-        const res = await fetch(url);
-        if (!res.ok) { el.innerHTML = '<p class="muted">Failed to load.</p>'; return; }
-        const emails = await res.json();
+        const [messagesRes, mechanicsRes] = await Promise.all([
+            fetch(getApiUrl('/api/admin/help/messages')),
+            fetch(getApiUrl(API_CONFIG.endpoints.mechanics))
+        ]);
+        const mechanics = mechanicsRes.ok ? await mechanicsRes.json() : [];
+        helpMechanicsByEmail = {};
+        (mechanics || []).forEach(m => { if (m.email) helpMechanicsByEmail[m.email.trim().toLowerCase()] = m; });
+        if (!messagesRes.ok) { el.innerHTML = '<p class="muted">Failed to load.</p>'; return; }
+        const emails = await messagesRes.json();
         if (!Array.isArray(emails) || emails.length === 0) {
-            el.innerHTML = '<p class="muted">No mechanic messages yet.</p>';
+            el.innerHTML = '<p class="muted">No conversations yet.</p>';
             return;
         }
-        el.innerHTML = emails.map(email => `
-            <div class="help-thread-item" data-email="${escapeAttr(email)}" style="padding:12px;border-bottom:1px solid #eee;cursor:pointer;border-radius:8px;margin-bottom:4px;">
-                <i class="fas fa-user"></i> ${escapeAttr(email)}
-            </div>
-        `).join('');
+        el.innerHTML = emails.map(email => {
+            const mechanic = helpMechanicsByEmail[(email || '').trim().toLowerCase()];
+            const phone = mechanic && mechanic.phone ? mechanic.phone : '';
+            return `<div class="support-thread-item help-thread-item" data-email="${escapeAttr(email)}">
+                <i class="fas fa-user-cog"></i> ${escapeAttr(email)}${phone ? `<br><small style="color:var(--text-secondary);"><i class="fas fa-phone"></i> ${escapeAttr(phone)}</small>` : ''}
+            </div>`;
+        }).join('');
         el.querySelectorAll('.help-thread-item').forEach(item => {
-            item.addEventListener('click', () => openHelpThread(item.getAttribute('data-email')));
+            item.addEventListener('click', function() {
+                document.querySelectorAll('#help-threads-list .support-thread-item').forEach(x => x.classList.remove('active'));
+                this.classList.add('active');
+                openHelpThread(this.getAttribute('data-email'));
+            });
         });
     } catch (e) {
-        el.innerHTML = '<p class="muted">Error loading threads.</p>';
+        el.innerHTML = '<p class="muted">Error loading.</p>';
     }
 }
 
-async function openHelpThread(email) {
-    document.getElementById('help-reply-email').value = email;
-    document.getElementById('help-chat-title').textContent = 'Chat with ' + email;
-    document.getElementById('help-reply-box').style.display = 'block';
+function renderMechanicHelpMessages(messages) {
     const listEl = document.getElementById('help-messages-list');
-    listEl.innerHTML = '<div class="loading">Loading messages...</div>';
-    try {
-        const url = getApiUrl('/api/admin/help/messages') + '?email=' + encodeURIComponent(email);
-        const res = await fetch(url);
-        if (!res.ok) { listEl.innerHTML = '<p class="muted">Failed to load messages.</p>'; return; }
-        const messages = await res.json();
-        if (!Array.isArray(messages) || messages.length === 0) {
-            listEl.innerHTML = '<p class="muted">No messages yet. Reply below.</p>';
-            return;
-        }
-        listEl.innerHTML = messages.map(m => {
+    if (!listEl) return;
+    if (!Array.isArray(messages) || messages.length === 0) {
+        listEl.innerHTML = '<p class="muted">No messages yet. Reply below.</p>';
+        return;
+    }
+    const groups = groupMessagesByDate(messages);
+    let html = '';
+    Object.keys(groups).sort((a,b) => new Date(a) - new Date(b)).forEach(dateKey => {
+        html += '<div class="support-msg-date">' + escapeAttr(new Date(dateKey).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })) + '</div>';
+        groups[dateKey].forEach(m => {
             const isAdmin = (m.sender || '').toUpperCase() === 'ADMIN';
             const time = m.createdAt ? new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
-            return `<div style="margin-bottom:12px;text-align:${isAdmin ? 'right' : 'left'};">
-                <span style="display:inline-block;max-width:85%;padding:10px 14px;border-radius:12px;background:${isAdmin ? '#6366F1' : '#f1f5f9'};color:${isAdmin ? '#fff' : '#1e293b'};">
-                    ${escapeAttr(m.message || '')}
-                </span>
-                <div style="font-size:11px;color:#94a3b8;margin-top:4px;">${isAdmin ? 'Admin' : 'Mechanic'} ${time}</div>
-            </div>`;
-        }).join('');
-        listEl.scrollTop = listEl.scrollHeight;
-    } catch (e) {
-        listEl.innerHTML = '<p class="muted">Error loading messages.</p>';
-    }
+            html += '<div style="text-align:' + (isAdmin ? 'right' : 'left') + ';"><div class="support-msg-bubble ' + (isAdmin ? 'admin' : 'user') + '">' + escapeAttr(m.message || '') + '<div class="support-msg-time">' + (isAdmin ? 'Support' : 'Mechanic') + ' · ' + time + '</div></div></div>';
+        });
+    });
+    listEl.innerHTML = html;
+    listEl.scrollTop = listEl.scrollHeight;
+}
+
+async function openHelpThread(email) {
+    if (mechanicHelpPollTimer) { clearInterval(mechanicHelpPollTimer); mechanicHelpPollTimer = null; }
+    mechanicHelpOpenEmail = email;
+    document.getElementById('help-reply-email').value = email;
+    document.getElementById('help-chat-title').textContent = email;
+    const phoneEl = document.getElementById('help-chat-phone');
+    const mechanic = helpMechanicsByEmail[(email || '').trim().toLowerCase()];
+    if (phoneEl) phoneEl.innerHTML = mechanic && mechanic.phone ? '<i class="fas fa-phone"></i> ' + escapeAttr(mechanic.phone) : '';
+    document.getElementById('help-reply-box').style.display = 'block';
+    document.getElementById('help-typing').style.display = 'none';
+    const listEl = document.getElementById('help-messages-list');
+    listEl.innerHTML = '<div class="loading">Loading...</div>';
+    await loadMechanicHelpMessagesOnly(email);
+    mechanicHelpPollTimer = setInterval(function() {
+        if (mechanicHelpOpenEmail === email) {
+            loadMechanicHelpMessagesOnly(email);
+            fetch(getApiUrl('/api/admin/help/typing') + '?email=' + encodeURIComponent(email)).then(r => r.json()).then(d => {
+                document.getElementById('help-typing').style.display = (d.mechanicTyping ? 'block' : 'none');
+            }).catch(() => {});
+        }
+    }, MECHANIC_HELP_POLL_MS);
+}
+
+async function loadMechanicHelpMessagesOnly(email) {
+    const listEl = document.getElementById('help-messages-list');
+    if (mechanicHelpOpenEmail !== email) return;
+    try {
+        const res = await fetch(getApiUrl('/api/admin/help/messages') + '?email=' + encodeURIComponent(email));
+        if (!res.ok || mechanicHelpOpenEmail !== email) return;
+        const messages = await res.json();
+        if (mechanicHelpOpenEmail === email) renderMechanicHelpMessages(messages);
+    } catch (e) {}
+}
+
+function mechanicHelpTypingDebounce() {
+    clearTimeout(mechanicHelpTypingTimeout);
+    const email = document.getElementById('help-reply-email').value;
+    if (!email) return;
+    fetch(getApiUrl('/api/admin/help/typing'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mechanicEmail: email, isTyping: true }) }).catch(() => {});
+    mechanicHelpTypingTimeout = setTimeout(function() {
+        fetch(getApiUrl('/api/admin/help/typing'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mechanicEmail: email, isTyping: false }) }).catch(() => {});
+    }, 2000);
 }
 
 async function sendHelpReply() {
@@ -1930,16 +2958,15 @@ async function sendHelpReply() {
     const message = (document.getElementById('help-reply-message').value || '').trim();
     if (!email || !message) { showError('Enter a message.'); return; }
     try {
-        const url = getApiUrl('/api/admin/help/reply');
-        const res = await fetch(url, {
+        const res = await fetch(getApiUrl('/api/admin/help/reply'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ mechanicEmail: email, message: message })
         });
         if (!res.ok) { showError('Failed to send.'); return; }
         document.getElementById('help-reply-message').value = '';
-        showSuccess('Reply sent. Mechanic will see it in their Help Chat.');
-        openHelpThread(email);
+        fetch(getApiUrl('/api/admin/help/typing'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mechanicEmail: email, isTyping: false }) }).catch(() => {});
+        loadMechanicHelpMessagesOnly(email);
     } catch (e) {
         showError('Error sending reply.');
     }

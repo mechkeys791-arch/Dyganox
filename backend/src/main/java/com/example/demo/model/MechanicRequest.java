@@ -21,6 +21,12 @@ public class MechanicRequest {
     private String customerPhone;
     private String customerEmail;
     private String serviceType;
+    private Long userVehicleId;      // which vehicle broke down
+    private String vehicleMakeName;
+    private String vehicleModelName;
+    private String vehiclePlateNumber;
+    @Column(length = 500)
+    private String vehiclePhotoUrl;
     private String description;
     private String latitude;
     private String longitude;
@@ -70,6 +76,17 @@ public class MechanicRequest {
 
     public String getServiceType() { return serviceType; }
     public void setServiceType(String serviceType) { this.serviceType = serviceType; }
+
+    public Long getUserVehicleId() { return userVehicleId; }
+    public void setUserVehicleId(Long userVehicleId) { this.userVehicleId = userVehicleId; }
+    public String getVehicleMakeName() { return vehicleMakeName; }
+    public void setVehicleMakeName(String vehicleMakeName) { this.vehicleMakeName = vehicleMakeName; }
+    public String getVehicleModelName() { return vehicleModelName; }
+    public void setVehicleModelName(String vehicleModelName) { this.vehicleModelName = vehicleModelName; }
+    public String getVehiclePlateNumber() { return vehiclePlateNumber; }
+    public void setVehiclePlateNumber(String vehiclePlateNumber) { this.vehiclePlateNumber = vehiclePlateNumber; }
+    public String getVehiclePhotoUrl() { return vehiclePhotoUrl; }
+    public void setVehiclePhotoUrl(String vehiclePhotoUrl) { this.vehiclePhotoUrl = vehiclePhotoUrl; }
 
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
