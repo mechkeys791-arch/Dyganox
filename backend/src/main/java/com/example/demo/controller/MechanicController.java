@@ -6,6 +6,7 @@ import com.example.demo.model.MechanicRegistrationRequest;
 import com.example.demo.repository.MechanicHelpMessageRepo;
 import com.example.demo.repository.MechanicRepo;
 import com.example.demo.repository.MechanicRegistrationRequestRepo;
+import com.example.demo.service.SupportTypingService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -31,7 +32,10 @@ public class MechanicController {
 
     @Autowired
     private MechanicHelpMessageRepo mechanicHelpMessageRepo;
-    
+
+    @Autowired
+    private SupportTypingService supportTypingService;
+
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     /**
@@ -385,5 +389,19 @@ public class MechanicController {
         }
         List<MechanicHelpMessage> messages = mechanicHelpMessageRepo.findByMechanicEmailIgnoreCaseOrderByCreatedAtAsc(email.trim());
         return ResponseEntity.ok(messages);
+    }
+
+    @PostMapping("/help/typing")
+    public ResponseEntity<Void> setMechanicTyping(@RequestBody Map<String, Object> body) {
+        String email = body != null && body.get("email") != null ? body.get("email").toString().trim() : null;
+        Boolean typing = body != null && body.get("isTyping") != null ? Boolean.TRUE.equals(body.get("isTyping")) : false;
+        if (email != null && !email.isBlank()) supportTypingService.setMechanicTyping(email, typing);
+        return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/help/typing")
+    public ResponseEntity<Map<String, Boolean>> getAdminTyping(@RequestParam String email) {
+        if (email == null || email.isBlank()) return ResponseEntity.badRequest().build();
+        return ResponseEntity.ok(Map.of("adminTyping", supportTypingService.isMechanicAdminTyping(email.trim())));
     }
 }

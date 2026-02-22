@@ -22,8 +22,14 @@ import 'screens/profile/location_selection_page.dart';
 import 'services/user_profile_service.dart';
 import 'services/cognito_service.dart';
 import 'emergency_assistance_page.dart';
+import 'screens/vehicles/vehicles_page.dart';
 import 'widgets/custom_nav_bar.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'dart:ui';
 import 'services/api_config.dart';
+import 'services/vehicle_service.dart';
+import 'services/app_remote_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -56,7 +62,19 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   // Carousel banners from API (null until loaded)
   List<Map<String, dynamic>>? _banners;
-  
+
+  // Default vehicle (shown beside Emergency / Find Mechanic)
+  Map<String, dynamic>? _defaultVehicle;
+
+  // Marketing poster (show on app open until dismissed)
+  Map<String, dynamic>? _posterData;
+  // Section posters (below "Our Services" in app)
+  List<Map<String, dynamic>>? _sectionPosters;
+  // Version check (show update dialog when updateAvailable)
+  Map<String, dynamic>? _versionCheck;
+  int _updateLaterCount = 0;
+  String? _lastSeenAppVersion;
+
   // Responsive design variables
   late double screenWidth;
   late double screenHeight;
@@ -103,8 +121,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     // Auto-scroll ads
     _startAdAutoScroll();
 
-    // Load carousel banners from API
-    _loadBanners();
+    // Load default vehicle first, then banners (filtered by vehicle type)
+    _loadDefaultVehicle();
+    // After first frame: check marketing poster and app version (show overlay/dialog when opening app)
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkPosterAndVersion());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadSectionPosters());
 
     // Load selected address from database first
     _loadSelectedAddress();
@@ -152,10 +173,256 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
   
   Future<void> _refreshHomePage() async {
-    await _loadBanners();
+    await _loadDefaultVehicle();
+    await _loadBanners(_defaultVehicle?['type']?.toString());
     await _loadSelectedAddress();
     _pingActivity();
     if (mounted) setState(() {});
+  }
+
+  Future<void> _loadDefaultVehicle() async {
+    final user = await CognitoService.getCurrentUser();
+    final email = user['email']?.toString();
+    if (email == null || email.isEmpty) {
+      if (mounted) _loadBanners(null);
+      return;
+    }
+    final list = await VehicleService.getMyVehicles(email);
+    if (!mounted) return;
+    Map<String, dynamic>? defaultOrFirst;
+    if (list.isNotEmpty) {
+      defaultOrFirst = list.firstWhere(
+        (v) => v['isDefault'] == true,
+        orElse: () => list.first,
+      );
+    }
+    setState(() => _defaultVehicle = defaultOrFirst);
+    _loadBanners(_defaultVehicle?['type']?.toString());
+  }
+
+  Widget _vehiclePlaceholderIcon() {
+    return Container(
+      width: 56,
+      height: 56,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: const Color(0xFF6366F1).withOpacity(0.12),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Icon(
+        (_defaultVehicle != null && (_defaultVehicle!['type'] ?? '').toString().toUpperCase() == 'BIKE')
+            ? Icons.two_wheeler
+            : Icons.directions_car,
+        color: const Color(0xFF6366F1),
+        size: 28,
+      ),
+    );
+  }
+
+  String _vehicleImageUrl(Map<String, dynamic> v) {
+    final url = v['photoUrl'] ?? v['modelImageUrl'];
+    if (url == null || url.toString().isEmpty) return '';
+    final s = url.toString();
+    if (s.startsWith('http')) return s;
+    return '${ApiConfig.baseUrl}$s';
+  }
+
+  Future<void> _showMyVehiclesSheet() async {
+    final user = await CognitoService.getCurrentUser();
+    final email = user['email']?.toString();
+    if (email == null || email.isEmpty) {
+      if (mounted) Navigator.push(context, MaterialPageRoute(builder: (context) => const VehiclesPage()));
+      return;
+    }
+    final list = await VehicleService.getMyVehicles(email);
+    if (!mounted) return;
+    if (list.isEmpty) {
+      Navigator.push(context, MaterialPageRoute(builder: (context) => const VehiclesPage()));
+      return;
+    }
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.6,
+        decoration: const BoxDecoration(
+          color: Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: 12),
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 16),
+            Text('My vehicles', style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1F2937))),
+            const SizedBox(height: 8),
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                itemCount: list.length,
+                itemBuilder: (context, i) {
+                  final v = list[i];
+                  final imgUrl = _vehicleImageUrl(v);
+                  final title = '${v['makeName'] ?? ''} ${v['modelName'] ?? ''}'.trim();
+                  final plate = v['plateNumber']?.toString() ?? '';
+                  final isBike = (v['type'] ?? '').toString().toUpperCase() == 'BIKE';
+                  return Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () {
+                        Navigator.pop(context);
+                        _showVehicleDetailsSheet(v);
+                      },
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Color(0xFFE5E7EB)),
+                          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 64,
+                              height: 64,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF1F5F9),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Color(0xFFE2E8F0)),
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: imgUrl.isNotEmpty
+                                    ? Image.network(imgUrl, fit: BoxFit.contain, errorBuilder: (_, __, ___) => Icon(isBike ? Icons.two_wheeler : Icons.directions_car, color: Color(0xFF6366F1), size: 32))
+                                    : Icon(isBike ? Icons.two_wheeler : Icons.directions_car, color: Color(0xFF6366F1), size: 32),
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(title.isNotEmpty ? title : 'Vehicle', style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 16, color: Color(0xFF1F2937))),
+                                  if (plate.isNotEmpty) Text(plate, style: GoogleFonts.inter(fontSize: 13, color: Color(0xFF64748B))),
+                                ],
+                              ),
+                            ),
+                            Icon(Icons.chevron_right, color: Colors.grey[400]),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+              child: TextButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const VehiclesPage()));
+                },
+                icon: const Icon(Icons.settings, size: 20),
+                label: Text('Manage vehicles', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showVehicleDetailsSheet(Map<String, dynamic> v) {
+    final imgUrl = _vehicleImageUrl(v);
+    final make = v['makeName']?.toString() ?? '';
+    final model = v['modelName']?.toString() ?? '';
+    final type = (v['type'] ?? '').toString().toUpperCase();
+    final plate = v['plateNumber']?.toString() ?? '';
+    final year = v['year']?.toString() ?? '';
+    final isBike = type == 'BIKE';
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewPadding.bottom),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 12),
+              Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)))),
+              const SizedBox(height: 20),
+              Center(
+                child: Container(
+                  width: 140,
+                  height: 140,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: Color(0xFFE2E8F0)),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: imgUrl.isNotEmpty
+                        ? Image.network(imgUrl, fit: BoxFit.contain, errorBuilder: (_, __, ___) => Icon(isBike ? Icons.two_wheeler : Icons.directions_car, color: Color(0xFF6366F1), size: 56))
+                        : Icon(isBike ? Icons.two_wheeler : Icons.directions_car, color: Color(0xFF6366F1), size: 56),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text('Vehicle details', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1F2937))),
+              const SizedBox(height: 16),
+              _detailRow('Type', type == 'CAR' ? 'Car' : 'Bike'),
+              _detailRow('Make', make.isNotEmpty ? make : '—'),
+              _detailRow('Model', model.isNotEmpty ? model : '—'),
+              if (plate.isNotEmpty) _detailRow('Plate number', plate),
+              if (year.isNotEmpty) _detailRow('Year', year),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    setState(() => _defaultVehicle = v);
+                    Navigator.pop(context);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF6366F1),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    elevation: 0,
+                  ),
+                  child: Text('Use this vehicle', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 16)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _detailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(width: 110, child: Text(label, style: GoogleFonts.outfit(fontSize: 14, color: Color(0xFF64748B)))),
+          Expanded(child: Text(value, style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF1F2937)))),
+        ],
+      ),
+    );
   }
 
   void _pingActivity() {
@@ -171,24 +438,119 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     });
   }
 
-  Future<void> _loadBanners() async {
+  /// Load banners; [vehicleType] CAR or BIKE filters to car/bike + ALL, null = all only.
+  Future<void> _loadBanners(String? vehicleType) async {
     try {
-      final resp = await http.get(Uri.parse('${ApiConfig.baseUrl}/api/banners')).timeout(const Duration(seconds: 5));
+      final query = vehicleType != null && vehicleType.isNotEmpty
+          ? '?targetType=${Uri.encodeComponent(vehicleType.toUpperCase())}'
+          : '';
+      final resp = await http.get(Uri.parse('${ApiConfig.baseUrl}/api/banners$query')).timeout(const Duration(seconds: 5));
       if (mounted && resp.statusCode == 200) {
         final list = (jsonDecode(resp.body) as List).cast<Map<String, dynamic>>();
-        if (list.isNotEmpty) {
-          setState(() {
-            _banners = list;
-            if (_currentAdIndex >= list.length) _currentAdIndex = 0;
-          });
-        }
+        setState(() {
+          _banners = list.isNotEmpty ? list : null;
+          if (_banners != null && _currentAdIndex >= _banners!.length) _currentAdIndex = 0;
+        });
       }
     } catch (_) {
-      // Keep null - will use fallback ads
+      if (mounted) setState(() => _banners = null);
     }
   }
 
   int get _adCount => (_banners != null && _banners!.isNotEmpty) ? _banners!.length : 3;
+
+  static const int _maxUpdateLaterCount = 10;
+
+  Future<void> _checkPosterAndVersion() async {
+    if (!mounted) return;
+    final prefs = await SharedPreferences.getInstance();
+    _updateLaterCount = prefs.getInt('update_later_count') ?? 0;
+    _lastSeenAppVersion = prefs.getString('last_seen_app_version');
+
+    final packageInfo = await PackageInfo.fromPlatform();
+    final currentVersion = packageInfo.version;
+
+    if (_lastSeenAppVersion != null && _lastSeenAppVersion != currentVersion) {
+      _updateLaterCount = 0;
+      await prefs.setInt('update_later_count', 0);
+    }
+    await prefs.setString('last_seen_app_version', currentVersion);
+
+    String? city;
+    String? state;
+    double? lat;
+    double? lng;
+    try {
+      final userData = await CognitoService.getCurrentUser();
+      final email = userData['email']?.toString();
+      if (email != null && email.isNotEmpty) {
+        final result = await UserProfileService.getUserAddresses(email);
+        if (result['success'] == true && result['data'] != null) {
+          final addresses = List<Map<String, dynamic>>.from(result['data']);
+          if (addresses.isNotEmpty) {
+            final selected = addresses.firstWhere(
+              (addr) => addr['isSelected'] == true,
+              orElse: () => addresses.first,
+            );
+            city = selected['city']?.toString().trim();
+            state = selected['state']?.toString().trim();
+            if (selected['latitude'] != null) lat = (selected['latitude'] is num) ? (selected['latitude'] as num).toDouble() : double.tryParse(selected['latitude'].toString());
+            if (selected['longitude'] != null) lng = (selected['longitude'] is num) ? (selected['longitude'] as num).toDouble() : double.tryParse(selected['longitude'].toString());
+          }
+        }
+      }
+    } catch (_) {}
+    final poster = await AppRemoteService.getActivePoster(city: city, state: state, lat: lat, lng: lng);
+    final versionResp = await AppRemoteService.checkVersion(currentVersion);
+
+    if (!mounted) return;
+    setState(() {
+      // Only show poster overlay when we have an image URL (backend returns nulls when no poster)
+      _posterData = (poster != null &&
+              poster['imageUrl'] != null &&
+              poster['imageUrl'].toString().trim().isNotEmpty)
+          ? poster
+          : null;
+      _versionCheck = versionResp;
+    });
+
+    if (_versionCheck != null && _versionCheck!['updateAvailable'] == true && mounted) {
+      final mustUpdate = _updateLaterCount >= _maxUpdateLaterCount;
+      _showUpdateDialog(mustUpdate, versionResp!, currentVersion, prefs);
+    }
+  }
+
+  void _showUpdateDialog(bool mustUpdate, Map<String, dynamic> data, String currentVersion, SharedPreferences prefs) {
+    final title = data['updateTitle']?.toString() ?? 'Update available';
+    final message = data['updateMessage']?.toString() ?? 'A new version is available. Please update to continue.';
+    showDialog(
+      context: context,
+      barrierDismissible: !mustUpdate,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: SingleChildScrollView(child: Text(message)),
+        actions: [
+          if (!mustUpdate)
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(ctx);
+                _updateLaterCount++;
+                await prefs.setInt('update_later_count', _updateLaterCount);
+              },
+              child: const Text('Later'),
+            ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              // Open store - you can add store URL from API later
+              // url_launcher could open data['storeUrl']
+            },
+            child: const Text('Update'),
+          ),
+        ],
+      ),
+    );
+  }
 
   void _startAdAutoScroll() {
     final count = _adCount;
@@ -737,15 +1099,131 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
 
+  Widget _buildPosterOverlay() {
+    String? imageUrl = _posterData!['imageUrl']?.toString();
+    if (imageUrl != null && imageUrl.isNotEmpty && !imageUrl.startsWith('http')) {
+      imageUrl = '${ApiConfig.baseUrl}${imageUrl.startsWith('/') ? '' : '/'}$imageUrl';
+    }
+    final width = MediaQuery.of(context).size.width;
+    return Positioned.fill(
+      child: Material(
+        color: Colors.transparent,
+        child: Stack(
+          children: [
+            BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+              child: Container(color: Colors.black26),
+            ),
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: imageUrl != null && imageUrl.isNotEmpty
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: Image.network(
+                          imageUrl,
+                          fit: BoxFit.contain,
+                          width: width * 0.92,
+                          errorBuilder: (_, __, ___) => const Icon(Icons.image_not_supported, size: 80),
+                        ),
+                      )
+                    : const Icon(Icons.campaign, size: 80, color: Colors.white70),
+              ),
+            ),
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 8,
+              right: 16,
+              child: IconButton.filled(
+                onPressed: () => setState(() => _posterData = null),
+                icon: const Icon(Icons.close),
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: Colors.black87,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _loadSectionPosters() async {
+    try {
+      final list = await AppRemoteService.getSectionPosters();
+      if (mounted) setState(() => _sectionPosters = list.isEmpty ? null : list);
+    } catch (_) {
+      if (mounted) setState(() => _sectionPosters = null);
+    }
+  }
+
+  Widget _buildSectionPostersSection() {
+    final list = _sectionPosters!;
+    return Padding(
+      padding: const EdgeInsets.only(top: 16, left: 12, right: 12),
+      child: SizedBox(
+        height: 140,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: list.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 12),
+          itemBuilder: (context, index) {
+            final item = list[index];
+            String? url = item['imageUrl']?.toString();
+            if (url != null && url.isNotEmpty && !url.startsWith('http')) {
+              url = '${ApiConfig.baseUrl}${url.startsWith('/') ? '' : '/'}$url';
+            }
+            final linkUrl = item['linkUrl']?.toString();
+            return Material(
+              borderRadius: BorderRadius.circular(16),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: linkUrl != null && linkUrl.isNotEmpty
+                    ? () {
+                        try {
+                          launchUrl(Uri.parse(linkUrl));
+                        } catch (_) {}
+                      }
+                    : null,
+                child: Container(
+                  width: 200,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.08),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: url != null && url.isNotEmpty
+                      ? Image.network(
+                          url,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.image_not_supported, size: 48)),
+                        )
+                      : const Center(child: Icon(Icons.image, size: 48, color: Colors.grey)),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _refreshHomePage,
-          color: const Color(0xFFFF6B35),
-          child: SingleChildScrollView(
+      body: Stack(
+        children: [
+          SafeArea(
+            child: RefreshIndicator(
+              onRefresh: _refreshHomePage,
+              color: const Color(0xFFFF6B35),
+              child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
             child: FadeTransition(
             opacity: _fadeAnimation,
@@ -1275,6 +1753,34 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ),
                 ),
 
+                // Square curved banner in scroll (vehicle-type filtered)
+                if (_adCount > 0) ...[
+                  const SizedBox(height: 12),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.04),
+                    child: AspectRatio(
+                      aspectRatio: 1,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.12),
+                              blurRadius: 16,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(24),
+                          child: _buildAdCard(0),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
                 // Find Nearest Mechanic - Vibrant Colorful Card
                 Container(
                   margin: EdgeInsets.symmetric(
@@ -1375,6 +1881,109 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     ),
                   ),
                 ),
+
+                // Selected vehicle (square image below Find Mechanic) — tap to show my vehicles, then full details
+                if (_defaultVehicle != null) ...[
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.04, vertical: 6),
+                    child: InkWell(
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        _showMyVehiclesSheet();
+                      },
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFE5E7EB)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 56,
+                              height: 56,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF1F5F9),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: _vehicleImageUrl(_defaultVehicle!).isNotEmpty
+                                    ? Image.network(
+                                        _vehicleImageUrl(_defaultVehicle!),
+                                        fit: BoxFit.contain,
+                                        errorBuilder: (_, __, ___) => _vehiclePlaceholderIcon(),
+                                      )
+                                    : _vehiclePlaceholderIcon(),
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Selected vehicle',
+                                    style: GoogleFonts.outfit(fontSize: 12, color: const Color(0xFF64748B), fontWeight: FontWeight.w500),
+                                  ),
+                                  Text(
+                                    '${(_defaultVehicle!['makeName'] ?? '')} ${(_defaultVehicle!['modelName'] ?? '')}'.trim().isEmpty
+                                        ? 'Vehicle'
+                                        : '${(_defaultVehicle!['makeName'] ?? '')} ${(_defaultVehicle!['modelName'] ?? '')}'.trim(),
+                                    style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF1F2937)),
+                                  ),
+                                  if ((_defaultVehicle!['plateNumber'] ?? '').toString().isNotEmpty)
+                                    Text(
+                                      _defaultVehicle!['plateNumber'].toString(),
+                                      style: GoogleFonts.inter(fontSize: 13, color: Color(0xFF64748B)),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            Icon(Icons.chevron_right, color: Colors.grey[400], size: 24),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ] else ...[
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.04, vertical: 6),
+                    child: InkWell(
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const VehiclesPage())),
+                      borderRadius: BorderRadius.circular(14),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.add_circle_outline, color: Colors.grey[600], size: 24),
+                            const SizedBox(width: 12),
+                            Text(
+                              'Add your vehicle',
+                              style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.grey[700]),
+                            ),
+                            const Spacer(),
+                            Icon(Icons.chevron_right, color: Colors.grey[400], size: 22),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
 
                 // Quick Services
                 Container(
@@ -1765,6 +2374,20 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           );
                         },
                       ),
+                      if (_sectionPosters != null && _sectionPosters!.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Row(
+                            children: [
+                              Icon(Icons.local_offer_outlined, size: 22, color: Colors.grey[700]),
+                              const SizedBox(width: 8),
+                              Text('Offers & promotions', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
+                            ],
+                          ),
+                        ),
+                        _buildSectionPostersSection(),
+                      ],
                     ],
                   ),
                 ),
@@ -1773,6 +2396,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           ),
         ),
         ),
+      ),
+          if (_posterData != null) _buildPosterOverlay(),
+        ],
       ),
 
       // Custom Floating Bottom Navigation Bar
@@ -1807,12 +2433,20 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     },
   ];
 
+  String _resolveBannerImageUrl(String? url) {
+    if (url == null || url.isEmpty) return '';
+    if (url.startsWith('http')) return url;
+    return '${ApiConfig.baseUrl}${url.startsWith('/') ? '' : '/'}$url';
+  }
+
   Widget _buildAdCard(int index) {
     final List<Map<String, dynamic>> ads = (_banners != null && _banners!.isNotEmpty)
         ? _banners!
         : _fallbackAds;
     final ad = ads[index];
     final isFromApi = ad.containsKey('imageUrl');
+    final String? rawImageUrl = ad['imageUrl'] as String?;
+    final String bannerImageUrl = _resolveBannerImageUrl(rawImageUrl);
     final gradient = (ad['gradient'] as List<Color>?) ??
         [const Color(0xFFFF6B35), const Color(0xFFFF8C42), const Color(0xFFFFA500)];
     final color = ad['color'] as Color? ?? const Color(0xFFFF6B35);
@@ -1834,11 +2468,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         borderRadius: BorderRadius.circular(16),
         child: Stack(
           children: [
-            // Background Image (from S3/API or asset)
+            // Background Image (from API/local or asset)
             Positioned.fill(
-              child: isFromApi && ad['imageUrl'] != null && (ad['imageUrl'] as String).isNotEmpty
+              child: isFromApi && bannerImageUrl.isNotEmpty
                   ? Image.network(
-                      ad['imageUrl'] as String,
+                      bannerImageUrl,
                       fit: BoxFit.cover,
                       alignment: const Alignment(0, 0.3),
                       errorBuilder: (context, error, stackTrace) {

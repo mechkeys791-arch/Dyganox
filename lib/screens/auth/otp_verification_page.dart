@@ -1,9 +1,13 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:http/http.dart' as http;
+import '../../services/api_config.dart';
 import '../../services/cognito_service.dart';
 import '../../homepage.dart';
 import '../mechanic/mechanic_registration_comprehensive_page.dart';
+import '../vehicles/vehicle_onboarding_page.dart';
 
 class OTPVerificationPage extends StatefulWidget {
   final String phoneNumber;
@@ -13,6 +17,8 @@ class OTPVerificationPage extends StatefulWidget {
   final bool isSignIn; // Flag to indicate if this is sign-in OTP
   /// After verify, go to mechanic registration form instead of HomePage.
   final bool forMechanicSignUp;
+  /// Login with OTP: backend sends OTP; after verify we call Cognito signIn and go to Home.
+  final bool forLoginWithOtp;
 
   const OTPVerificationPage({
     super.key,
@@ -22,6 +28,7 @@ class OTPVerificationPage extends StatefulWidget {
     required this.password,
     this.isSignIn = false,
     this.forMechanicSignUp = false,
+    this.forLoginWithOtp = false,
   });
 
   @override
@@ -117,21 +124,44 @@ class _OTPVerificationPageState extends State<OTPVerificationPage>
 
     HapticFeedback.lightImpact();
 
-    // Trim and ensure code is exactly 6 digits
     final trimmedOtp = otp.trim();
-    
-    // OTP verification: use mechanic pool when forMechanicSignUp
-    final result = widget.forMechanicSignUp
-        ? await CognitoService.verifyOTPForMechanic(
-            email: widget.email,
-            code: trimmedOtp,
-            password: widget.password,
-          )
-        : await CognitoService.verifyOTP(
-            email: widget.email,
-            code: trimmedOtp,
-            password: widget.password,
-          );
+    Map<String, dynamic> result;
+
+    if (widget.forLoginWithOtp) {
+      // Login OTP: verify via backend, then sign in with Cognito
+      try {
+        final r = await http.post(
+          Uri.parse('${ApiConfig.baseUrl}/api/auth/login-verify-otp'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'email': widget.email, 'otp': trimmedOtp}),
+        );
+        final data = r.statusCode == 200 ? jsonDecode(r.body) as Map<String, dynamic>? : null;
+        result = data != null && (data['success'] == true)
+            ? {'success': true}
+            : {'success': false, 'message': data?['message'] ?? 'Invalid or expired OTP'};
+      } catch (e) {
+        result = {'success': false, 'message': 'Network error'};
+      }
+      if (result['success'] == true) {
+        final signInResult = await CognitoService.signIn(
+          username: widget.email,
+          password: widget.password,
+        );
+        result = signInResult;
+      }
+    } else if (widget.forMechanicSignUp) {
+      result = await CognitoService.verifyOTPForMechanic(
+        email: widget.email,
+        code: trimmedOtp,
+        password: widget.password,
+      );
+    } else {
+      result = await CognitoService.verifyOTP(
+        email: widget.email,
+        code: trimmedOtp,
+        password: widget.password,
+      );
+    }
 
     if (!mounted) return;
 
@@ -141,7 +171,6 @@ class _OTPVerificationPageState extends State<OTPVerificationPage>
 
     if (result['success'] == true) {
       if (widget.forMechanicSignUp) {
-        // Mechanic: go to registration form with name, email, phone from account (read-only)
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(
             builder: (context) => MechanicRegistrationComprehensivePage(
@@ -153,20 +182,28 @@ class _OTPVerificationPageState extends State<OTPVerificationPage>
           (route) => false,
         );
       } else {
-        // User: go to home page
-        Navigator.of(context).pushAndRemoveUntil(
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => const HomePage(),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              return FadeTransition(opacity: animation, child: child);
-            },
-            transitionDuration: const Duration(milliseconds: 400),
-          ),
-          (route) => false,
-        );
+        // After new account creation, show vehicle onboarding (add first vehicle or skip)
+        if (!widget.isSignIn) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (context) => VehicleOnboardingPage(userEmail: widget.email),
+            ),
+            (route) => false,
+          );
+        } else {
+          Navigator.of(context).pushAndRemoveUntil(
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) => const HomePage(),
+              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                return FadeTransition(opacity: animation, child: child);
+              },
+              transitionDuration: const Duration(milliseconds: 400),
+            ),
+            (route) => false,
+          );
+        }
       }
     } else {
-      // Clear OTP fields on error
       for (var controller in _otpControllers) {
         controller.clear();
       }
@@ -189,10 +226,26 @@ class _OTPVerificationPageState extends State<OTPVerificationPage>
       _isResending = true;
     });
 
-    // Resend OTP: use mechanic pool when forMechanicSignUp
-    final result = widget.forMechanicSignUp
-        ? await CognitoService.resendOTPForMechanic(widget.email)
-        : await CognitoService.resendOTP(widget.email);
+    Map<String, dynamic> result;
+    if (widget.forLoginWithOtp) {
+      try {
+        final r = await http.post(
+          Uri.parse('${ApiConfig.baseUrl}/api/auth/login-resend-otp'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'email': widget.email, 'password': widget.password}),
+        );
+        final data = r.statusCode == 200 ? jsonDecode(r.body) as Map<String, dynamic>? : null;
+        result = data != null && (data['success'] == true)
+            ? {'success': true, 'message': 'OTP resent to your email'}
+            : {'success': false, 'message': data?['message'] ?? 'Failed to resend OTP'};
+      } catch (e) {
+        result = {'success': false, 'message': 'Network error'};
+      }
+    } else if (widget.forMechanicSignUp) {
+      result = await CognitoService.resendOTPForMechanic(widget.email);
+    } else {
+      result = await CognitoService.resendOTP(widget.email);
+    }
 
     if (!mounted) return;
 
@@ -208,7 +261,7 @@ class _OTPVerificationPageState extends State<OTPVerificationPage>
       SnackBar(
         content: Text(
           result['success'] == true
-              ? 'OTP resent successfully'
+              ? (widget.forLoginWithOtp ? 'OTP resent to your email' : 'OTP resent successfully')
               : result['message'] ?? 'Failed to resend OTP',
         ),
         backgroundColor:

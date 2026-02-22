@@ -2,7 +2,7 @@
 const API_CONFIG = {
     // Update this with your backend URL
     baseUrl: 'http://34.228.113.212:8081', // Change to your EC2 IP or localhost:8081 for local
-    
+
     endpoints: {
         mechanics: '/api/admin/mechanics',
         pendingMechanics: '/api/admin/mechanics/pending',
@@ -18,7 +18,9 @@ const API_CONFIG = {
         activeJobs: '/api/admin/jobs/active',
         registrationRequests: '/api/mechanic/registration-requests',
         banners: '/api/admin/banners',
-        uploadBanner: '/api/upload/banner'
+        uploadBanner: '/api/upload/banner',
+        poster: '/api/admin/poster',
+        appVersion: '/api/admin/app-version'
     }
 };
 

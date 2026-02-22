@@ -15,6 +15,8 @@ public class Banner {
     private String subtitle;
     private int sortOrder = 0;
     private boolean active = true;
+    /** ALL = show to everyone, CAR = only when user has car selected, BIKE = only when bike selected */
+    private String targetType = "ALL";
 
     public Banner() {}
 
@@ -35,4 +37,6 @@ public class Banner {
 
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }
+    public String getTargetType() { return targetType != null ? targetType : "ALL"; }
+    public void setTargetType(String targetType) { this.targetType = targetType != null ? targetType : "ALL"; }
 }

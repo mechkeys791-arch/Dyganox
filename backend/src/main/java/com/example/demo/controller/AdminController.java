@@ -1,18 +1,29 @@
 package com.example.demo.controller;
 
+import com.example.demo.model.AppVersionConfig;
 import com.example.demo.model.Banner;
+import com.example.demo.model.MarketingPoster;
+import com.example.demo.model.SectionPoster;
 import com.example.demo.model.Mechanic;
 import com.example.demo.model.MechanicHelpMessage;
+import com.example.demo.model.UserHelpMessage;
+import com.example.demo.model.UserSupportPhotoPermission;
 import com.example.demo.model.MechanicRequest;
 import com.example.demo.model.Payment;
 import com.example.demo.model.Person;
+import com.example.demo.repository.AppVersionConfigRepo;
 import com.example.demo.repository.BannerRepo;
+import com.example.demo.repository.MarketingPosterRepo;
+import com.example.demo.repository.SectionPosterRepo;
 import com.example.demo.repository.MechanicHelpMessageRepo;
+import com.example.demo.repository.UserHelpMessageRepo;
 import com.example.demo.repository.MechanicRepo;
 import com.example.demo.repository.MechanicRequestRepo;
 import com.example.demo.repository.PaymentRepo;
 import com.example.demo.repository.PersonRepo;
 import com.example.demo.repository.UserAddressRepo;
+import com.example.demo.repository.UserSupportPhotoPermissionRepo;
+import com.example.demo.service.SupportTypingService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +32,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.Comparator;
 
 @RestController
 @RequestMapping("/api/admin")
@@ -43,10 +55,28 @@ public class AdminController {
     private BannerRepo bannerRepo;
 
     @Autowired
+    private MarketingPosterRepo marketingPosterRepo;
+
+    @Autowired
+    private SectionPosterRepo sectionPosterRepo;
+
+    @Autowired
+    private AppVersionConfigRepo appVersionConfigRepo;
+
+    @Autowired
     private UserAddressRepo userAddressRepo;
 
     @Autowired
     private MechanicHelpMessageRepo mechanicHelpMessageRepo;
+
+    @Autowired
+    private UserHelpMessageRepo userHelpMessageRepo;
+
+    @Autowired
+    private UserSupportPhotoPermissionRepo photoPermissionRepo;
+
+    @Autowired
+    private SupportTypingService supportTypingService;
 
     // Get all mechanics with approval status
     @GetMapping("/mechanics")
@@ -129,14 +159,29 @@ public class AdminController {
         }
     }
 
-    // Get analytics/dashboard stats
+    // Get analytics/dashboard stats (range: 1h, 1d, 1M, 2M, 1y, or lifetime)
     @GetMapping("/analytics")
-    public ResponseEntity<Map<String, Object>> getAnalytics() {
+    public ResponseEntity<Map<String, Object>> getAnalytics(@RequestParam(required = false) String range) {
         try {
-            System.out.println("[Admin] /analytics requested");
+            System.out.println("[Admin] /analytics requested, range=" + range);
             Map<String, Object> analytics = new HashMap<>();
             
-            // Total mechanics
+            // Time window for request-based stats (null = lifetime)
+            LocalDateTime since = null;
+            if (range != null && !range.isEmpty() && !"lifetime".equalsIgnoreCase(range.trim())) {
+                LocalDateTime now = LocalDateTime.now();
+                switch (range.trim().toLowerCase()) {
+                    case "1h": since = now.minusHours(1); break;
+                    case "1d": since = now.minusDays(1); break;
+                    case "1m": since = now.minusMonths(1); break;
+                    case "2m": since = now.minusMonths(2); break;
+                    case "1y": since = now.minusYears(1); break;
+                    default: break;
+                }
+            }
+            final LocalDateTime sinceFilter = since; // effectively final for lambda
+            
+            // Total mechanics (current snapshot – not time-filtered)
             List<Mechanic> allMechanics = mechanicRepo.findAll();
             long totalMechanics = allMechanics.size();
             long approvedMechanics = allMechanics.stream()
@@ -149,8 +194,13 @@ public class AdminController {
                     .filter(m -> m.getApprovalStatus() != null && m.getApprovalStatus().equals("REJECTED"))
                     .count();
             
-            // Service requests stats
-            List<MechanicRequest> allRequests = mechanicRequestRepo.findAll();
+            // Service requests stats (time-filtered when range is set)
+            List<MechanicRequest> fromDb = mechanicRequestRepo.findAll();
+            final List<MechanicRequest> allRequests = (sinceFilter != null)
+                    ? fromDb.stream()
+                            .filter(r -> r.getRequestTime() != null && !r.getRequestTime().isBefore(sinceFilter))
+                            .collect(Collectors.toList())
+                    : fromDb;
             long totalRequests = allRequests.size();
             long pendingRequests = allRequests.stream()
                     .filter(r -> r.getStatus() != null && r.getStatus().equals("PENDING"))
@@ -165,7 +215,7 @@ public class AdminController {
                     .filter(r -> r.getStatus() != null && r.getStatus().equals("REJECTED"))
                     .count();
             
-            // Calculate total revenue from completed requests
+            // Calculate total revenue from completed requests (in range)
             double totalRevenue = allRequests.stream()
                     .filter(r -> r.getStatus() != null && r.getStatus().equals("COMPLETED"))
                     .mapToDouble(MechanicRequest::getAmount)
@@ -229,7 +279,7 @@ public class AdminController {
                             Collectors.counting()
                     ));
             
-            // Recent requests (last 7 days)
+            // Recent requests (last 7 days within current range)
             LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
             long recentRequests = allRequests.stream()
                     .filter(r -> r.getRequestTime() != null && r.getRequestTime().isAfter(sevenDaysAgo))
@@ -556,6 +606,7 @@ public class AdminController {
             b.setSubtitle((String) body.get("subtitle"));
             b.setSortOrder(body.containsKey("sortOrder") ? ((Number) body.get("sortOrder")).intValue() : 0);
             b.setActive(body.get("active") != Boolean.FALSE);
+            if (body.get("targetType") != null) b.setTargetType(body.get("targetType").toString());
             return ResponseEntity.ok(bannerRepo.save(b));
         } catch (Exception e) {
             System.err.println("❌ Error creating banner: " + e.getMessage());
@@ -574,6 +625,7 @@ public class AdminController {
             if (body.containsKey("subtitle")) b.setSubtitle((String) body.get("subtitle"));
             if (body.containsKey("sortOrder")) b.setSortOrder(((Number) body.get("sortOrder")).intValue());
             if (body.containsKey("active")) b.setActive((Boolean) body.get("active"));
+            if (body.containsKey("targetType")) b.setTargetType(body.get("targetType").toString());
             return ResponseEntity.ok(bannerRepo.save(b));
         } catch (Exception e) {
             System.err.println("❌ Error updating banner: " + e.getMessage());
@@ -860,5 +912,296 @@ public class AdminController {
         msg.setCreatedAt(LocalDateTime.now());
         MechanicHelpMessage saved = mechanicHelpMessageRepo.save(msg);
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+    }
+
+    @PostMapping("/help/typing")
+    public ResponseEntity<Void> setMechanicHelpAdminTyping(@RequestBody Map<String, Object> body) {
+        String mechanicEmail = body != null && body.get("mechanicEmail") != null ? body.get("mechanicEmail").toString().trim() : null;
+        Boolean typing = body != null && body.get("isTyping") != null ? Boolean.TRUE.equals(body.get("isTyping")) : false;
+        if (mechanicEmail != null && !mechanicEmail.isBlank()) supportTypingService.setMechanicAdminTyping(mechanicEmail, typing);
+        return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/help/typing")
+    public ResponseEntity<Map<String, Boolean>> getMechanicTyping(@RequestParam String email) {
+        if (email == null || email.isBlank()) return ResponseEntity.badRequest().build();
+        return ResponseEntity.ok(Map.of("mechanicTyping", supportTypingService.isMechanicTyping(email.trim())));
+    }
+
+    // ---------- User / Customer Support (admin sees user messages, can reply) ----------
+    @GetMapping("/user-support/customer-details")
+    public ResponseEntity<Map<String, Object>> getCustomerDetails(@RequestParam String email) {
+        try {
+            Optional<Person> userOpt = personRepo.findByEmail(email.trim());
+            List<MechanicRequest> bookings = mechanicRequestRepo.findByCustomerEmailOrderByRequestTimeDesc(email.trim());
+            Map<String, Object> out = new HashMap<>();
+            out.put("user", userOpt.orElse(null));
+            out.put("bookings", bookings);
+            return ResponseEntity.ok(out);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @GetMapping("/user-support/photo-permission")
+    public ResponseEntity<Map<String, Object>> getUserPhotoPermission(@RequestParam String email) {
+        Optional<UserSupportPhotoPermission> p = photoPermissionRepo.findByUserEmailIgnoreCase(email.trim());
+        boolean allowed = p.isPresent() && p.get().isAllowed();
+        return ResponseEntity.ok(Map.of("allowed", allowed));
+    }
+
+    @PostMapping("/user-support/approve-photo-permission")
+    public ResponseEntity<Map<String, Object>> approvePhotoPermission(@RequestBody Map<String, String> body) {
+        String userEmail = body != null ? body.get("userEmail") : null;
+        if (userEmail == null || userEmail.isBlank()) return ResponseEntity.badRequest().build();
+        Optional<UserSupportPhotoPermission> existing = photoPermissionRepo.findByUserEmailIgnoreCase(userEmail.trim());
+        UserSupportPhotoPermission perm = existing.orElse(new UserSupportPhotoPermission());
+        perm.setUserEmail(userEmail.trim());
+        perm.setAllowed(true);
+        perm.setGrantedAt(LocalDateTime.now());
+        photoPermissionRepo.save(perm);
+        UserHelpMessage sysMsg = new UserHelpMessage();
+        sysMsg.setUserEmail(userEmail.trim());
+        sysMsg.setMessage("Customer care approved photo sharing. You can now send photos.");
+        sysMsg.setMessageType("PHOTO_PERMISSION_GRANTED");
+        sysMsg.setSender("ADMIN");
+        sysMsg.setCreatedAt(LocalDateTime.now());
+        userHelpMessageRepo.save(sysMsg);
+        return ResponseEntity.ok(Map.of("success", true));
+    }
+
+    @PostMapping("/user-support/typing")
+    public ResponseEntity<Void> setAdminTyping(@RequestBody Map<String, Object> body) {
+        String userEmail = body != null && body.get("userEmail") != null ? body.get("userEmail").toString().trim() : null;
+        Boolean typing = body != null && body.get("isTyping") != null ? Boolean.TRUE.equals(body.get("isTyping")) : false;
+        if (userEmail != null && !userEmail.isBlank()) supportTypingService.setAdminTyping(userEmail, typing);
+        return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/user-support/typing")
+    public ResponseEntity<Map<String, Boolean>> getUserTyping(@RequestParam String email) {
+        if (email == null || email.isBlank()) return ResponseEntity.badRequest().build();
+        return ResponseEntity.ok(Map.of("userTyping", supportTypingService.isUserTyping(email.trim())));
+    }
+
+    /** Thread list with status (open/closed) for professional dashboard. */
+    @GetMapping("/user-support/threads")
+    public ResponseEntity<List<Map<String, Object>>> getUserSupportThreads() {
+        try {
+            List<UserHelpMessage> all = userHelpMessageRepo.findAll();
+            all.sort((a, b) -> (b.getCreatedAt() != null && a.getCreatedAt() != null)
+                    ? b.getCreatedAt().compareTo(a.getCreatedAt()) : 0);
+            Map<String, UserHelpMessage> lastByEmail = new LinkedHashMap<>();
+            for (UserHelpMessage m : all) {
+                String e = m.getUserEmail();
+                if (e != null && !e.isBlank() && !lastByEmail.containsKey(e)) lastByEmail.put(e, m);
+            }
+            List<Map<String, Object>> threads = new ArrayList<>();
+            for (Map.Entry<String, UserHelpMessage> entry : lastByEmail.entrySet()) {
+                UserHelpMessage last = entry.getValue();
+                boolean closed = "CONVERSATION_ENDED".equals(last.getMessageType());
+                Map<String, Object> t = new HashMap<>();
+                t.put("email", entry.getKey());
+                t.put("closed", closed);
+                t.put("lastMessageAt", last.getCreatedAt() != null ? last.getCreatedAt().toString() : null);
+                threads.add(t);
+            }
+            return ResponseEntity.ok(threads);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @GetMapping("/user-support/messages")
+    public ResponseEntity<?> getUserSupportMessages(@RequestParam(required = false) String email) {
+        try {
+            if (email != null && !email.isBlank()) {
+                List<UserHelpMessage> messages = userHelpMessageRepo.findByUserEmailIgnoreCaseOrderByCreatedAtAsc(email.trim());
+                return ResponseEntity.ok(messages);
+            }
+            List<UserHelpMessage> all = userHelpMessageRepo.findAll();
+            all.sort((a, b) -> (b.getCreatedAt() != null && a.getCreatedAt() != null)
+                    ? b.getCreatedAt().compareTo(a.getCreatedAt()) : 0);
+            Set<String> emails = new LinkedHashSet<>();
+            for (UserHelpMessage m : all) {
+                if (m.getUserEmail() != null) emails.add(m.getUserEmail());
+            }
+            return ResponseEntity.ok(new ArrayList<>(emails));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /** Admin joins the support chat; inserts "Admin has joined and ready to text" so the app can stop showing "Waiting for admin". */
+    @PostMapping("/user-support/join")
+    public ResponseEntity<UserHelpMessage> joinUserSupport(@RequestBody Map<String, String> body) {
+        String userEmail = body != null && body.get("userEmail") != null ? body.get("userEmail").toString().trim() : null;
+        if (userEmail == null || userEmail.isBlank()) return ResponseEntity.badRequest().build();
+        UserHelpMessage msg = new UserHelpMessage();
+        msg.setUserEmail(userEmail);
+        msg.setMessage("Admin has joined and ready to text.");
+        msg.setMessageType("ADMIN_JOINED");
+        msg.setSender("ADMIN");
+        msg.setCreatedAt(LocalDateTime.now());
+        UserHelpMessage saved = userHelpMessageRepo.save(msg);
+        return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+    }
+
+    /** End the conversation: inserts thank-you message and marks thread as closed for "recent solved". */
+    @PostMapping("/user-support/end-conversation")
+    public ResponseEntity<UserHelpMessage> endUserSupportConversation(@RequestBody Map<String, String> body) {
+        String userEmail = body != null && body.get("userEmail") != null ? body.get("userEmail").toString().trim() : null;
+        if (userEmail == null || userEmail.isBlank()) return ResponseEntity.badRequest().build();
+        UserHelpMessage msg = new UserHelpMessage();
+        msg.setUserEmail(userEmail);
+        msg.setMessage("Thank you for using ProMech. Chat with us if you find any difficulty.");
+        msg.setMessageType("CONVERSATION_ENDED");
+        msg.setSender("ADMIN");
+        msg.setCreatedAt(LocalDateTime.now());
+        UserHelpMessage saved = userHelpMessageRepo.save(msg);
+        return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+    }
+
+    @PostMapping("/user-support/reply")
+    public ResponseEntity<UserHelpMessage> replyToUserSupport(@RequestBody Map<String, Object> body) {
+        String userEmail = body != null && body.get("userEmail") != null ? body.get("userEmail").toString().trim() : null;
+        String message = body != null && body.get("message") != null ? body.get("message").toString().trim() : null;
+        String imageUrl = body != null && body.get("imageUrl") != null ? body.get("imageUrl").toString().trim() : null;
+        if (userEmail == null || userEmail.isBlank()) return ResponseEntity.badRequest().build();
+        if ((message == null || message.isBlank()) && (imageUrl == null || imageUrl.isBlank()))
+            return ResponseEntity.badRequest().build();
+        UserHelpMessage msg = new UserHelpMessage();
+        msg.setUserEmail(userEmail);
+        msg.setMessage(message != null ? message : (imageUrl != null ? "[Photo]" : ""));
+        msg.setImageUrl(imageUrl);
+        msg.setMessageType(imageUrl != null && !imageUrl.isEmpty() ? "IMAGE" : "TEXT");
+        msg.setSender("ADMIN");
+        msg.setCreatedAt(LocalDateTime.now());
+        UserHelpMessage saved = userHelpMessageRepo.save(msg);
+        return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+    }
+
+    // ========== MARKETING POSTER ==========
+    @GetMapping("/poster")
+    public ResponseEntity<MarketingPoster> getPoster() {
+        return marketingPosterRepo.findFirstByOrderByIdDesc()
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/poster/all")
+    public ResponseEntity<List<MarketingPoster>> getAllPosters() {
+        return ResponseEntity.ok(marketingPosterRepo.findAll());
+    }
+
+    @PostMapping("/poster")
+    public ResponseEntity<MarketingPoster> createPoster(@RequestBody Map<String, Object> body) {
+        MarketingPoster p = new MarketingPoster();
+        p.setImageUrl(body != null ? (String) body.get("imageUrl") : null);
+        p.setLinkUrl(body != null ? (String) body.get("linkUrl") : null);
+        p.setActive(body != null && body.get("active") != Boolean.FALSE);
+        if (body != null) {
+            p.setTargetCity((String) body.get("targetCity"));
+            p.setTargetState((String) body.get("targetState"));
+            if (body.get("targetLat") != null) p.setTargetLat(((Number) body.get("targetLat")).doubleValue());
+            if (body.get("targetLng") != null) p.setTargetLng(((Number) body.get("targetLng")).doubleValue());
+            if (body.get("targetRadiusKm") != null) p.setTargetRadiusKm(((Number) body.get("targetRadiusKm")).doubleValue());
+        }
+        return ResponseEntity.status(HttpStatus.CREATED).body(marketingPosterRepo.save(p));
+    }
+
+    @PutMapping("/poster/{id}")
+    public ResponseEntity<MarketingPoster> updatePoster(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        Optional<MarketingPoster> opt = marketingPosterRepo.findById(id);
+        if (opt.isEmpty()) return ResponseEntity.notFound().build();
+        MarketingPoster p = opt.get();
+        if (body != null) {
+            if (body.containsKey("imageUrl")) p.setImageUrl((String) body.get("imageUrl"));
+            if (body.containsKey("linkUrl")) p.setLinkUrl((String) body.get("linkUrl"));
+            if (body.containsKey("active")) p.setActive((Boolean) body.get("active"));
+            if (body.containsKey("targetCity")) p.setTargetCity((String) body.get("targetCity"));
+            if (body.containsKey("targetState")) p.setTargetState((String) body.get("targetState"));
+            if (body.containsKey("targetLat")) p.setTargetLat(body.get("targetLat") != null ? ((Number) body.get("targetLat")).doubleValue() : null);
+            if (body.containsKey("targetLng")) p.setTargetLng(body.get("targetLng") != null ? ((Number) body.get("targetLng")).doubleValue() : null);
+            if (body.containsKey("targetRadiusKm")) p.setTargetRadiusKm(body.get("targetRadiusKm") != null ? ((Number) body.get("targetRadiusKm")).doubleValue() : null);
+        }
+        return ResponseEntity.ok(marketingPosterRepo.save(p));
+    }
+
+    @DeleteMapping("/poster/{id}")
+    public ResponseEntity<Void> deletePoster(@PathVariable Long id) {
+        if (!marketingPosterRepo.existsById(id)) return ResponseEntity.notFound().build();
+        marketingPosterRepo.deleteById(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    // ========== SECTION POSTERS (below "Our Services" in app) ==========
+    @GetMapping("/section-posters")
+    public ResponseEntity<List<SectionPoster>> getSectionPosters(@RequestParam(defaultValue = "BELOW_SERVICES") String section) {
+        return ResponseEntity.ok(sectionPosterRepo.findBySectionKeyOrderBySortOrderAsc(section));
+    }
+
+    @PostMapping("/section-posters")
+    public ResponseEntity<SectionPoster> createSectionPoster(@RequestBody Map<String, Object> body) {
+        SectionPoster p = new SectionPoster();
+        p.setSectionKey(body != null ? (String) body.getOrDefault("sectionKey", "BELOW_SERVICES") : "BELOW_SERVICES");
+        p.setImageUrl(body != null ? (String) body.get("imageUrl") : null);
+        p.setLinkUrl(body != null ? (String) body.get("linkUrl") : null);
+        p.setSortOrder(body != null && body.get("sortOrder") != null ? ((Number) body.get("sortOrder")).intValue() : 0);
+        return ResponseEntity.status(HttpStatus.CREATED).body(sectionPosterRepo.save(p));
+    }
+
+    @PutMapping("/section-posters/{id}")
+    public ResponseEntity<SectionPoster> updateSectionPoster(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        Optional<SectionPoster> opt = sectionPosterRepo.findById(id);
+        if (opt.isEmpty()) return ResponseEntity.notFound().build();
+        SectionPoster p = opt.get();
+        if (body != null) {
+            if (body.containsKey("imageUrl")) p.setImageUrl((String) body.get("imageUrl"));
+            if (body.containsKey("linkUrl")) p.setLinkUrl((String) body.get("linkUrl"));
+            if (body.containsKey("sortOrder")) p.setSortOrder(((Number) body.get("sortOrder")).intValue());
+        }
+        return ResponseEntity.ok(sectionPosterRepo.save(p));
+    }
+
+    @DeleteMapping("/section-posters/{id}")
+    public ResponseEntity<Void> deleteSectionPoster(@PathVariable Long id) {
+        if (!sectionPosterRepo.existsById(id)) return ResponseEntity.notFound().build();
+        sectionPosterRepo.deleteById(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    // ========== APP VERSION (force update) ==========
+    @GetMapping("/app-version")
+    public ResponseEntity<AppVersionConfig> getAppVersion() {
+        List<AppVersionConfig> all = appVersionConfigRepo.findAll();
+        AppVersionConfig c = all.isEmpty() ? null : all.stream().max(Comparator.comparing(AppVersionConfig::getId)).orElse(null);
+        return c != null ? ResponseEntity.ok(c) : ResponseEntity.notFound().build();
+    }
+
+    @PostMapping("/app-version")
+    public ResponseEntity<AppVersionConfig> saveAppVersion(@RequestBody Map<String, Object> body) {
+        AppVersionConfig c = new AppVersionConfig();
+        if (body != null) {
+            c.setLatestVersion((String) body.get("latestVersion"));
+            c.setMinRequiredVersion((String) body.get("minRequiredVersion"));
+            c.setUpdateTitle((String) body.get("updateTitle"));
+            c.setUpdateMessage((String) body.get("updateMessage"));
+        }
+        return ResponseEntity.ok(appVersionConfigRepo.save(c));
+    }
+
+    @PutMapping("/app-version/{id}")
+    public ResponseEntity<AppVersionConfig> updateAppVersion(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        Optional<AppVersionConfig> opt = appVersionConfigRepo.findById(id);
+        if (opt.isEmpty()) return ResponseEntity.notFound().build();
+        AppVersionConfig c = opt.get();
+        if (body != null) {
+            if (body.containsKey("latestVersion")) c.setLatestVersion((String) body.get("latestVersion"));
+            if (body.containsKey("minRequiredVersion")) c.setMinRequiredVersion((String) body.get("minRequiredVersion"));
+            if (body.containsKey("updateTitle")) c.setUpdateTitle((String) body.get("updateTitle"));
+            if (body.containsKey("updateMessage")) c.setUpdateMessage((String) body.get("updateMessage"));
+        }
+        return ResponseEntity.ok(appVersionConfigRepo.save(c));
     }
 }

@@ -1,7 +1,10 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../services/api_config.dart';
 import '../../services/cognito_service.dart';
 import 'signup_page.dart';
 import 'otp_verification_page.dart';
@@ -72,32 +75,61 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
 
     HapticFeedback.lightImpact();
 
-    final result = await CognitoService.signIn(
-      username: _emailPhoneController.text.trim(),
-      password: _passwordController.text,
-    );
+    final email = _emailPhoneController.text.trim();
+    final password = _passwordController.text;
 
-    setState(() {
-      _isLoading = false;
-    });
-
-    if (!mounted) return;
-
-    if (result['success'] == true) {
-      // Navigate directly to home page (no OTP required for normal sign-in)
-      Navigator.of(context).pushReplacement(
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => const HomePage(),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return FadeTransition(opacity: animation, child: child);
-          },
-          transitionDuration: const Duration(milliseconds: 400),
-        ),
+    try {
+      // Request OTP: backend validates email+password with Cognito and sends OTP to email
+      final r = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/api/auth/login-request-otp'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email, 'password': password}),
       );
-    } else {
+      final data = r.statusCode == 200 ? jsonDecode(r.body) as Map<String, dynamic>? : null;
+      final success = data != null && (data['success'] == true);
+
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
+      if (!mounted) return;
+
+      if (success) {
+        // Navigate to OTP verification; after OTP user will sign in with Cognito and go to Home
+        Navigator.of(context).push(
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) => OTPVerificationPage(
+              phoneNumber: '',
+              email: email,
+              name: '',
+              password: password,
+              isSignIn: true,
+              forLoginWithOtp: true,
+            ),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return FadeTransition(opacity: animation, child: child);
+            },
+            transitionDuration: const Duration(milliseconds: 400),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(data?['message'] ?? 'Invalid email or password'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(result['message'] ?? 'Login failed'),
+          content: Text('Network error. Check backend and try again.'),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
         ),

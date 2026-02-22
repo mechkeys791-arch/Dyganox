@@ -16,6 +16,8 @@ import 'package:http/http.dart' as http;
 import '../../services/api_config.dart';
 import '../../services/cognito_service.dart';
 import '../../services/user_profile_service.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'user_support_landing_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -1414,26 +1416,74 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
-            const Icon(Icons.help, color: Color(0xFF6366F1)),
+            const Icon(Icons.help, color: Color(0xFF1E40AF)),
             const SizedBox(width: 12),
             Text('Help & Support', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
           ],
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Contact Us:', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
-            const SizedBox(height: 12),
-            _buildContactItem(Icons.phone, '+91 1800 123 4567'),
-            _buildContactItem(Icons.email, 'support@dyganox.com'),
-            _buildContactItem(Icons.language, 'www.dyganox.com'),
-          ],
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('Customer Support', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  if (_userEmail.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Please sign in to use in-app support chat')),
+                    );
+                    return;
+                  }
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => UserSupportLandingPage(userEmail: _userEmail),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.chat_bubble_outline, size: 20),
+                label: const Text('Chat with support'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF334155),
+                  side: const BorderSide(color: Color(0xFF334155)),
+                ),
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: () async {
+                  Navigator.pop(context);
+                  final uri = Uri.parse('mailto:contact@dyganox.com');
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(uri);
+                  } else {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Could not open email app')),
+                      );
+                    }
+                  }
+                },
+                icon: const Icon(Icons.email_outlined, size: 20),
+                label: const Text('Send through email'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF1E40AF),
+                  side: const BorderSide(color: Color(0xFF1E40AF)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text('Contact', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              _buildContactItem(Icons.email, 'contact@dyganox.com'),
+              _buildContactItem(Icons.language, 'www.dyganox.com'),
+            ],
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Close', style: GoogleFonts.outfit(color: const Color(0xFF6366F1))),
+            child: Text('Close', style: GoogleFonts.outfit(color: const Color(0xFF1E40AF))),
           ),
         ],
       ),

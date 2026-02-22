@@ -2,29 +2,47 @@ package com.example.demo.controller;
 
 import com.example.demo.model.Mechanic;
 import com.example.demo.model.Person;
+import com.example.demo.model.VehicleMake;
+import com.example.demo.model.VehicleModel;
 import com.example.demo.repository.MechanicRepo;
 import com.example.demo.repository.PersonRepo;
+import com.example.demo.repository.VehicleMakeRepo;
+import com.example.demo.repository.VehicleModelRepo;
 import com.example.demo.service.S3Service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.File;
+import java.nio.file.Files;
 import java.util.*;
+import java.util.regex.Pattern;
 
 @RestController
 @RequestMapping("/api/upload")
+@CrossOrigin(origins = "*")
 public class UploadController {
+
+    private static final Pattern SAFE_SUPPORT_FILENAME = Pattern.compile("^[a-fA-F0-9-]+\\.(jpg|jpeg|png|gif|webp)$");
+    private static final String SUPPORT_PHOTOS_DIR = "support-photos";
 
     private final S3Service s3Service;
     private final MechanicRepo mechanicRepo;
     private final PersonRepo personRepo;
+    private final VehicleMakeRepo vehicleMakeRepo;
+    private final VehicleModelRepo vehicleModelRepo;
 
-    public UploadController(S3Service s3Service, MechanicRepo mechanicRepo, PersonRepo personRepo) {
+    public UploadController(S3Service s3Service, MechanicRepo mechanicRepo, PersonRepo personRepo,
+                            VehicleMakeRepo vehicleMakeRepo, VehicleModelRepo vehicleModelRepo) {
         this.s3Service = s3Service;
         this.mechanicRepo = mechanicRepo;
         this.personRepo = personRepo;
+        this.vehicleMakeRepo = vehicleMakeRepo;
+        this.vehicleModelRepo = vehicleModelRepo;
     }
 
     /**
@@ -69,8 +87,69 @@ public class UploadController {
     }
 
     /**
-     * Upload banner/carousel image for homepage.
-     * Response: { "url": "https://bucket.s3.amazonaws.com/banners/..." }
+     * Upload support chat photo. Call with multipart: "file", "email". User must have photo permission (enforced when sending message).
+     * Uses S3 when configured; otherwise saves locally and returns path like /api/upload/serve-support-photo/{id}.jpg
+     * Response: { "url": "https://..." or "/api/upload/serve-support-photo/..." }
+     */
+    @PostMapping("/support-photo")
+    public ResponseEntity<Map<String, String>> uploadSupportPhoto(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("email") String email) {
+        try {
+            String url = s3Service.uploadSupportPhoto(email != null ? email : "unknown", file);
+            return ResponseEntity.ok(Map.of("url", url));
+        } catch (Exception e) {
+            String fallbackUrl = saveSupportPhotoLocally(file);
+            if (fallbackUrl != null) {
+                return ResponseEntity.ok(Map.of("url", fallbackUrl));
+            }
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage() != null ? e.getMessage() : "Upload failed"));
+        }
+    }
+
+    /** Save support photo to local dir when S3 is unavailable. Returns path like /api/upload/serve-support-photo/uuid.jpg or null. */
+    private String saveSupportPhotoLocally(MultipartFile file) {
+        try {
+            File dir = new File(SUPPORT_PHOTOS_DIR);
+            if (!dir.exists() && !dir.mkdirs()) return null;
+            String ext = "jpg";
+            String name = file.getOriginalFilename();
+            if (name != null && name.contains(".")) ext = name.substring(name.lastIndexOf('.') + 1).toLowerCase();
+            if (!Arrays.asList("jpg", "jpeg", "png", "gif", "webp").contains(ext)) ext = "jpg";
+            String id = UUID.randomUUID().toString();
+            File target = new File(dir, id + "." + ext);
+            file.transferTo(target.toPath());
+            return "/api/upload/serve-support-photo/" + id + "." + ext;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** Serve locally stored support photos (fallback when S3 not configured). */
+    @GetMapping("/serve-support-photo/{filename}")
+    public ResponseEntity<byte[]> serveSupportPhoto(@PathVariable String filename) {
+        if (filename == null || !SAFE_SUPPORT_FILENAME.matcher(filename).matches()) {
+            return ResponseEntity.badRequest().build();
+        }
+        try {
+            File file = new File(SUPPORT_PHOTOS_DIR, filename);
+            if (!file.exists() || !file.isFile()) return ResponseEntity.notFound().build();
+            byte[] bytes = Files.readAllBytes(file.toPath());
+            String contentType = filename.toLowerCase().endsWith(".png") ? "image/png"
+                    : filename.toLowerCase().endsWith(".gif") ? "image/gif"
+                    : filename.toLowerCase().endsWith(".webp") ? "image/webp" : "image/jpeg";
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.parseMediaType(contentType));
+            headers.setCacheControl("max-age=86400");
+            return ResponseEntity.ok().headers(headers).body(bytes);
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    /**
+     * Upload banner/carousel image to S3. Returns public S3 URL for use in app.
+     * Requires AWS S3 configured (bucket, access-key-id, secret-access-key in application.properties or application-ec2.properties).
      */
     @PostMapping("/banner")
     public ResponseEntity<Map<String, String>> uploadBanner(@RequestParam("file") MultipartFile file) {
@@ -79,7 +158,99 @@ public class UploadController {
             return ResponseEntity.ok(Map.of("url", url));
         } catch (Exception e) {
             System.err.println("❌ Banner upload failed: " + e.getMessage());
+            String msg = e.getMessage() != null ? e.getMessage() : "Upload failed";
+            if (msg.contains("S3") || msg.contains("not configured")) {
+                msg = "S3 is not configured. Set aws.s3.bucket, aws.access-key-id, aws.secret-access-key (e.g. in application-ec2.properties on EC2).";
+            }
+            return ResponseEntity.status(500).body(Map.of("error", msg));
+        }
+    }
+
+    /**
+     * Upload marketing poster to S3. Returns public S3 URL. Shown in app when admin sets poster active.
+     * Requires S3 configured.
+     */
+    @PostMapping("/poster")
+    public ResponseEntity<Map<String, String>> uploadPoster(@RequestParam("file") MultipartFile file) {
+        try {
+            String url = s3Service.uploadPoster(file);
+            return ResponseEntity.ok(Map.of("url", url));
+        } catch (Exception e) {
+            System.err.println("❌ Poster upload failed: " + e.getMessage());
+            String msg = e.getMessage() != null ? e.getMessage() : "Upload failed";
+            if (msg.contains("S3") || msg.contains("not configured")) {
+                msg = "S3 is not configured. Set aws.s3.bucket, aws.access-key-id, aws.secret-access-key (e.g. in application-ec2.properties on EC2).";
+            }
+            return ResponseEntity.status(500).body(Map.of("error", msg));
+        }
+    }
+
+    /**
+     * Upload section poster image (e.g. below-services). Returns S3 URL.
+     * Call with multipart: "file", optional "section" (default BELOW_SERVICES).
+     */
+    @PostMapping("/section-poster")
+    public ResponseEntity<Map<String, String>> uploadSectionPoster(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "section", required = false, defaultValue = "BELOW_SERVICES") String section) {
+        try {
+            String url = s3Service.uploadSectionPoster(section, file);
+            return ResponseEntity.ok(Map.of("url", url));
+        } catch (Exception e) {
+            String msg = e.getMessage() != null ? e.getMessage() : "Upload failed";
+            if (msg.contains("S3") || msg.contains("not configured")) {
+                msg = "S3 is not configured. Set aws.s3.bucket, aws.access-key-id, aws.secret-access-key.";
+            }
+            return ResponseEntity.status(500).body(Map.of("error", msg));
+        }
+    }
+
+    /**
+     * Upload user vehicle photo. Call with multipart: "file", "email".
+     * Response: { "url": "https://..." }. App can then PATCH/PUT user vehicle with this url.
+     */
+    @PostMapping("/vehicle-photo")
+    public ResponseEntity<Map<String, String>> uploadVehiclePhoto(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("email") String email) {
+        try {
+            String url = s3Service.uploadVehiclePhoto(email != null ? email : "unknown", file);
+            return ResponseEntity.ok(Map.of("url", url));
+        } catch (Exception e) {
+            System.err.println("❌ Vehicle photo upload failed: " + e.getMessage());
             return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * Upload vehicle catalog image (make or model) to S3. Updates make/model imageUrl with S3 URL for app.
+     * Call with multipart: "file", "type" (make|model), "id" (makeId or modelId).
+     * Requires S3 configured.
+     */
+    @PostMapping("/vehicle-catalog-photo")
+    public ResponseEntity<Map<String, String>> uploadVehicleCatalogPhoto(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("type") String type,
+            @RequestParam("id") Long id) {
+        String typeNorm = type != null ? type.toLowerCase() : "";
+        if (!"make".equals(typeNorm) && !"model".equals(typeNorm)) {
+            return ResponseEntity.badRequest().body(Map.of("error", "type must be 'make' or 'model'"));
+        }
+        try {
+            String url = s3Service.uploadVehicleCatalogPhoto(typeNorm, String.valueOf(id), file);
+            if ("make".equals(typeNorm)) {
+                vehicleMakeRepo.findById(id).ifPresent(m -> { m.setImageUrl(url); vehicleMakeRepo.save(m); });
+            } else {
+                vehicleModelRepo.findById(id).ifPresent(m -> { m.setImageUrl(url); vehicleModelRepo.save(m); });
+            }
+            return ResponseEntity.ok(Map.of("url", url));
+        } catch (Exception e) {
+            System.err.println("❌ Vehicle catalog photo upload failed: " + e.getMessage());
+            String msg = e.getMessage() != null ? e.getMessage() : "Upload failed";
+            if (msg.contains("S3") || msg.contains("not configured")) {
+                msg = "S3 is not configured. Set aws.s3.bucket, aws.access-key-id, aws.secret-access-key (e.g. in application-ec2.properties on EC2).";
+            }
+            return ResponseEntity.status(500).body(Map.of("error", msg));
         }
     }
 

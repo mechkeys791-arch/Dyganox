@@ -50,6 +50,7 @@ class ApiConfig {
   // API Endpoints
   static String get mechanicEndpoint => '$baseUrl/api/mechanic';
   static String get mechanicRequestsEndpoint => '$baseUrl/api/mechanic-requests';
+  static String get vehicleEndpoint => '$baseUrl/api/vehicle';
   static String get evProviderEndpoint => '$baseUrl/api/evprovider';
   static String get personEndpoint => '$baseUrl/api/person';
   

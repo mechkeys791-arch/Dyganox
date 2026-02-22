@@ -2,8 +2,10 @@ package com.example.demo.controller;
 
 import com.example.demo.model.Mechanic;
 import com.example.demo.model.MechanicRequest;
+import com.example.demo.model.UserVehicle;
 import com.example.demo.repository.MechanicRepo;
 import com.example.demo.repository.MechanicRequestRepo;
+import com.example.demo.repository.UserVehicleRepo;
 import com.example.demo.service.FcmService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -29,12 +31,27 @@ public class MechanicRequestController {
     @Autowired
     private FcmService fcmService;
 
+    @Autowired
+    private UserVehicleRepo userVehicleRepo;
+
     @PostMapping
     public ResponseEntity<MechanicRequest> createRequest(@RequestBody MechanicRequest request) {
         System.out.println("📥 [Request] Received mechanicId=" + request.getMechanicId() + " customer=" + request.getCustomerName());
         try {
             request.setStatus("PENDING");
             request.setRequestTime(LocalDateTime.now());
+            if (request.getUserVehicleId() != null) {
+                Optional<UserVehicle> uvOpt = userVehicleRepo.findById(request.getUserVehicleId());
+                if (uvOpt.isPresent()) {
+                    UserVehicle uv = uvOpt.get();
+                    request.setVehicleMakeName(uv.getMakeName());
+                    request.setVehicleModelName(uv.getModelName());
+                    request.setVehiclePlateNumber(uv.getPlateNumber());
+                    String photo = uv.getPhotoUrl() != null && !uv.getPhotoUrl().isBlank()
+                            ? uv.getPhotoUrl() : uv.getModelImageUrl();
+                    request.setVehiclePhotoUrl(photo);
+                }
+            }
             MechanicRequest savedRequest = mechanicRequestRepo.save(request);
             Long requestId = savedRequest.getId();
             Long mechanicId = savedRequest.getMechanicId();
