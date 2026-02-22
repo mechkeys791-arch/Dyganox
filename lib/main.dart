@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'screens/auth/splash_screen.dart';
 import 'homepage.dart';
@@ -8,10 +9,7 @@ import 'screens/test/backend_test_page.dart';
 import 'screens/test/test_ev_api_page.dart';
 import 'screens/auth/login_page.dart';
 import 'screens/auth/signup_page.dart';
-import 'screens/auth/otp_verification_page.dart';
 import 'screens/auth/user_type_selection_page.dart';
-import 'screens/auth/forgot_password_page.dart';
-import 'screens/auth/reset_password_page.dart';
 import 'screens/mechanic/mechanic_registration_page.dart';
 import 'screens/mechanic/mechanic_dashboard_page.dart';
 import 'screens/mechanic/mechanic_request_detail_page.dart';
@@ -19,17 +17,93 @@ import 'services/fcm_notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await FcmNotificationService.initialize();
-  await FcmNotificationService.processLaunchNotificationResponse();
+  FcmNotificationService.didOpenRequestDetailFromNotification = false;
+  // Background handler must be registered before any other FCM usage (required for background messages).
+  FcmNotificationService.registerBackgroundHandler();
+  try {
+    await FcmNotificationService.initialize();
+    await FcmNotificationService.processLaunchNotificationResponse();
+  } catch (e) {
+    // On web or when Firebase/FCM is unavailable, still run the app
+    debugPrint('FCM init skipped: $e');
+    if (e.toString().contains('dart:io') || e.toString().contains('Platform')) {
+      debugPrint('(Web or unsupported platform - notifications disabled)');
+    }
+  }
   runApp(const ServiceProviderApp());
 }
 
-class ServiceProviderApp extends StatelessWidget {
+class ServiceProviderApp extends StatefulWidget {
   const ServiceProviderApp({super.key});
+
+  @override
+  State<ServiceProviderApp> createState() => _ServiceProviderAppState();
+}
+
+class _ServiceProviderAppState extends State<ServiceProviderApp> with WidgetsBindingObserver {
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _setupOpenRequestDetailChannel();
+  }
+
+  /// When user taps Accept on notification, native calls this so we open request detail (and clear stack so dashboard is not shown).
+  void _setupOpenRequestDetailChannel() {
+    const MethodChannel('dyganox/mechanic_alarm').setMethodCallHandler((call) async {
+      if (call.method != 'openRequestDetail' || call.arguments == null) return null;
+      final id = call.arguments as String;
+      if (id.isEmpty) return null;
+      await FcmNotificationService.clearLaunchRequestId();
+      FcmNotificationService.didOpenRequestDetailFromNotification = true;
+      // Delay then clear stack and show only request detail
+      Future.delayed(const Duration(milliseconds: 400), () {
+        if (!mounted) return;
+        final state = _navigatorKey.currentState;
+        if (state == null) return;
+        state.pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (_) => MechanicRequestDetailPage(requestId: id),
+          ),
+          (route) => false,
+        );
+      });
+      return null;
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
+    // When app comes to foreground, open request detail if we were launched from Accept
+    _pushLaunchRequestDetailIfAny();
+  }
+
+  Future<void> _pushLaunchRequestDetailIfAny() async {
+    final id = await FcmNotificationService.getLaunchRequestId();
+    if (id == null || id.isEmpty) return;
+    await FcmNotificationService.clearLaunchRequestId();
+    FcmNotificationService.didOpenRequestDetailFromNotification = true;
+    _navigatorKey.currentState?.pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (_) => MechanicRequestDetailPage(requestId: id),
+      ),
+      (route) => false,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: _navigatorKey,
       title: 'Dyganox - Vehicle Service Provider',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(

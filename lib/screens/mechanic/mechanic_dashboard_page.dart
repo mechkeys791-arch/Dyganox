@@ -24,7 +24,7 @@ class MechanicDashboardPage extends StatefulWidget {
   State<MechanicDashboardPage> createState() => _MechanicDashboardPageState();
 }
 
-class _MechanicDashboardPageState extends State<MechanicDashboardPage> with TickerProviderStateMixin {
+class _MechanicDashboardPageState extends State<MechanicDashboardPage> with TickerProviderStateMixin, WidgetsBindingObserver {
   GoogleMapController? _mapController;
   LatLng? _mapPosition; // Shop location from registration, or current GPS as fallback
   String? _mapAddress;
@@ -106,6 +106,7 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
     // Register FCM token so mechanic receives request notifications (Accept/Reject)
     if (_mechanicId != null) FcmNotificationService.registerMechanicToken(_mechanicId!);
 
+    WidgetsBinding.instance.addObserver(this);
     _loadMechanicProfile(); // Load profile (shop name, shop location, status)
     _fetchRequests();
     _checkLaunchRequestId();
@@ -196,7 +197,14 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
   }
 
   @override
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _checkLaunchRequestId();
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _animationController.dispose();
     super.dispose();
   }
