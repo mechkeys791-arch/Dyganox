@@ -294,6 +294,40 @@ body {
     font-size: 14px;
 }
 
+/* Alert banner for pending registration requests */
+.alert-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    background: linear-gradient(135deg, #FEF3C7, #FDE68A);
+    border: 1px solid #F59E0B;
+    border-radius: 10px;
+    margin-bottom: 24px;
+    color: #92400E;
+}
+
+.alert-banner.hidden { display: none; }
+
+.btn-alert {
+    padding: 8px 16px;
+    background: #F59E0B;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+}
+
+.btn-alert:hover {
+    background: #D97706;
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.35);
+}
+
 /* Charts Grid – small by default */
 .charts-grid {
     display: grid;

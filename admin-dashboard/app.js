@@ -62,6 +62,7 @@ document.addEventListener('DOMContentLoaded', function() {
 function initDashboard() {
     initializeNavigation();
     loadDashboard();
+    loadRegistrationRequests();
     setupModal();
     document.body.addEventListener('click', function(e) {
         const el = e.target.closest('.photo-thumb-clickable');
@@ -267,6 +268,16 @@ function updateDashboardStats(data) {
     const pendingBadge = document.getElementById('pending-badge');
     if (pendingBadge) {
         pendingBadge.textContent = data.mechanics?.pending || 0;
+    }
+    // Update registration requests badge and alert (new mechanic signups from app)
+    const pendingReg = data.pendingRegistrationRequests ?? 0;
+    const regBadge = document.getElementById('registration-requests-badge');
+    if (regBadge) regBadge.textContent = pendingReg;
+    const alertBanner = document.getElementById('registration-requests-alert');
+    if (alertBanner) {
+        alertBanner.style.display = pendingReg > 0 ? 'flex' : 'none';
+        const countEl = document.getElementById('registration-requests-alert-count');
+        if (countEl) countEl.textContent = pendingReg;
     }
 }
 
