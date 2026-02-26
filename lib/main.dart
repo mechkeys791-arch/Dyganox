@@ -1,6 +1,9 @@
+import 'dart:convert';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:http/http.dart' as http;
 import 'screens/auth/splash_screen.dart';
 import 'homepage.dart';
 import 'screens/profile/profile_page.dart';
@@ -13,6 +16,8 @@ import 'screens/auth/user_type_selection_page.dart';
 import 'screens/mechanic/mechanic_registration_page.dart';
 import 'screens/mechanic/mechanic_dashboard_page.dart';
 import 'screens/mechanic/mechanic_request_detail_page.dart';
+import 'screens/mechanic/mechanic_service_dashboard.dart';
+import 'services/api_config.dart';
 import 'services/fcm_notification_service.dart';
 
 void main() async {
@@ -42,12 +47,16 @@ class ServiceProviderApp extends StatefulWidget {
 
 class _ServiceProviderAppState extends State<ServiceProviderApp> with WidgetsBindingObserver {
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+  String? _pendingOpenRequestId;
+  bool _openRequestInProgress = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _setupOpenRequestDetailChannel();
+    // If native already has a pending Accept id, open it once navigator is ready.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _attemptOpenPendingRequestDetail());
   }
 
   /// When user taps Accept on notification, native calls this so we open request detail (and clear stack so dashboard is not shown).
@@ -56,22 +65,73 @@ class _ServiceProviderAppState extends State<ServiceProviderApp> with WidgetsBin
       if (call.method != 'openRequestDetail' || call.arguments == null) return null;
       final id = call.arguments as String;
       if (id.isEmpty) return null;
-      await FcmNotificationService.clearLaunchRequestId();
-      FcmNotificationService.didOpenRequestDetailFromNotification = true;
-      // Delay then clear stack and show only request detail
-      Future.delayed(const Duration(milliseconds: 400), () {
-        if (!mounted) return;
-        final state = _navigatorKey.currentState;
-        if (state == null) return;
-        state.pushAndRemoveUntil(
-          MaterialPageRoute(
-            builder: (_) => MechanicRequestDetailPage(requestId: id),
-          ),
-          (route) => false,
-        );
-      });
+      _enqueueOpenRequestDetail(id);
       return null;
     });
+  }
+
+  void _enqueueOpenRequestDetail(String requestId) {
+    // Coalesce duplicates (native may retry / fire multiple times).
+    if (_pendingOpenRequestId == requestId && _openRequestInProgress) return;
+    _pendingOpenRequestId = requestId;
+    _attemptOpenPendingRequestDetail();
+  }
+
+  void _attemptOpenPendingRequestDetail({int attempt = 0}) async {
+    if (!mounted) return;
+    final requestId = _pendingOpenRequestId;
+    if (requestId == null || requestId.isEmpty) return;
+    if (_openRequestInProgress) return;
+
+    final nav = _navigatorKey.currentState;
+    if (nav == null) {
+      if (attempt < 30) {
+        Future.delayed(const Duration(milliseconds: 100), () {
+          _attemptOpenPendingRequestDetail(attempt: attempt + 1);
+        });
+      }
+      return;
+    }
+
+    _openRequestInProgress = true;
+    FcmNotificationService.didOpenRequestDetailFromNotification = true;
+
+    try {
+      // Fetch request to get mechanicId for dashboard
+      final url = '${ApiConfig.mechanicRequestsEndpoint}/$requestId';
+      final res = await http.get(Uri.parse(url), headers: {'Content-Type': 'application/json'});
+      int? mechanicId;
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body) as Map<String, dynamic>?;
+        final m = data?['mechanicId'];
+        mechanicId = m is int ? m : (m is num ? m.toInt() : int.tryParse(m?.toString() ?? ''));
+      }
+      if (!mounted) return;
+      nav.pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => MechanicServiceDashboard(
+            mechanicData: mechanicId != null ? {'id': mechanicId} : null,
+            openRequestIdAfterMount: requestId,
+          ),
+        ),
+        (route) => false,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      nav.pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => MechanicServiceDashboard(
+            mechanicData: null,
+            openRequestIdAfterMount: requestId,
+          ),
+        ),
+        (route) => false,
+      );
+    }
+
+    FcmNotificationService.clearLaunchRequestId();
+    _pendingOpenRequestId = null;
+    _openRequestInProgress = false;
   }
 
   @override
@@ -90,14 +150,7 @@ class _ServiceProviderAppState extends State<ServiceProviderApp> with WidgetsBin
   Future<void> _pushLaunchRequestDetailIfAny() async {
     final id = await FcmNotificationService.getLaunchRequestId();
     if (id == null || id.isEmpty) return;
-    await FcmNotificationService.clearLaunchRequestId();
-    FcmNotificationService.didOpenRequestDetailFromNotification = true;
-    _navigatorKey.currentState?.pushAndRemoveUntil(
-      MaterialPageRoute(
-        builder: (_) => MechanicRequestDetailPage(requestId: id),
-      ),
-      (route) => false,
-    );
+    _enqueueOpenRequestDetail(id);
   }
 
   @override
@@ -175,7 +228,22 @@ class _ServiceProviderAppState extends State<ServiceProviderApp> with WidgetsBin
           contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
         ),
       ),
-      home: const SplashScreen(),
+      // Use initial route from native (Accept tap → /open-accept/123) - set by getInitialRoute()
+      initialRoute: ui.PlatformDispatcher.instance.defaultRouteName,
+      onGenerateRoute: (settings) {
+        // Accept-from-notification: /open-accept/REQUEST_ID → Dashboard with Bookings + Request Detail
+        final name = settings.name ?? '/';
+        if (name.startsWith('/open-accept/')) {
+          final requestId = name.substring('/open-accept/'.length).trim();
+          if (requestId.isNotEmpty) {
+            return MaterialPageRoute(
+              settings: settings,
+              builder: (_) => _AcceptLaunchLoader(requestId: requestId),
+            );
+          }
+        }
+        return null; // fall through to routes
+      },
       routes: {
         '/home': (context) => const HomePage(),
         '/profile': (context) => const ProfilePage(),
@@ -204,7 +272,59 @@ class _ServiceProviderAppState extends State<ServiceProviderApp> with WidgetsBin
           if (requestId == null) return const SizedBox.shrink();
           return MechanicRequestDetailPage(requestId: requestId);
         },
+        '/': (context) => const SplashScreen(),
       },
+    );
+  }
+}
+
+/// Shown when app launches from Accept notification (/open-accept/ID).
+/// Fetches mechanicId then shows Dashboard with Bookings + Request Detail.
+class _AcceptLaunchLoader extends StatefulWidget {
+  final String requestId;
+
+  const _AcceptLaunchLoader({required this.requestId});
+
+  @override
+  State<_AcceptLaunchLoader> createState() => _AcceptLaunchLoaderState();
+}
+
+class _AcceptLaunchLoaderState extends State<_AcceptLaunchLoader> {
+  @override
+  void initState() {
+    super.initState();
+    _loadAndNavigate();
+  }
+
+  Future<void> _loadAndNavigate() async {
+    int? mechanicId;
+    try {
+      final res = await http.get(
+        Uri.parse('${ApiConfig.mechanicRequestsEndpoint}/${widget.requestId}'),
+        headers: {'Content-Type': 'application/json'},
+      );
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body) as Map<String, dynamic>?;
+        final m = data?['mechanicId'];
+        mechanicId = m is int ? m : (m is num ? m.toInt() : int.tryParse(m?.toString() ?? ''));
+      }
+    } catch (_) {}
+    if (!mounted) return;
+    FcmNotificationService.didOpenRequestDetailFromNotification = true;
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => MechanicServiceDashboard(
+          mechanicData: mechanicId != null ? {'id': mechanicId} : null,
+          openRequestIdAfterMount: widget.requestId,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      body: Center(child: CircularProgressIndicator(color: Color(0xFF6366F1))),
     );
   }
 }

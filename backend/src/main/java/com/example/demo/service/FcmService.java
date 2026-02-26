@@ -1,12 +1,54 @@
 package com.example.demo.service;
 
+import com.google.auth.oauth2.GoogleCredentials;
+import com.google.firebase.FirebaseApp;
+import com.google.firebase.FirebaseOptions;
+import com.google.firebase.messaging.FirebaseMessaging;
+import com.google.firebase.messaging.Message;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 
+import jakarta.annotation.PostConstruct;
+import java.io.InputStream;
+
 /**
- * Stub FCM service; push notifications disabled. Kept so MechanicRequestController compiles.
+ * Sends FCM push notifications to mechanics when a customer creates a request.
+ * Uses data-only messages so DyganoxFirebaseMessagingService receives them in foreground, background, and when app is killed.
  */
 @Service
 public class FcmService {
+
+    private boolean initialized = false;
+
+    @PostConstruct
+    public void init() {
+        if (FirebaseApp.getApps().isEmpty()) {
+            try {
+                Resource resource = new ClassPathResource("firebase-service-account.json");
+                if (!resource.exists()) {
+                    System.err.println("⚠️ Firebase FCM not initialized: firebase-service-account.json not found in classpath. Put it in backend/src/main/resources/");
+                    return;
+                }
+                try (InputStream is = resource.getInputStream()) {
+                    FirebaseOptions options = FirebaseOptions.builder()
+                            .setCredentials(GoogleCredentials.fromStream(is))
+                            .build();
+                    FirebaseApp.initializeApp(options);
+                    initialized = true;
+                    System.out.println("✅ Firebase initialized for FCM");
+                }
+            } catch (Exception e) {
+                System.err.println("⚠️ Firebase FCM not initialized (missing or invalid service account file): " + e.getMessage());
+            }
+        } else {
+            initialized = true;
+        }
+    }
+
+    public boolean isInitialized() {
+        return initialized;
+    }
 
     public void sendMechanicRequestNotification(
             String fcmToken,
@@ -17,6 +59,40 @@ public class FcmService {
             double amount,
             Double distanceKm,
             String description) {
-        // No-op: FCM not configured
+        if (!initialized) {
+            System.err.println("⚠️ [FCM] NOT INITIALIZED - cannot send notification for requestId=" + requestId);
+            return;
+        }
+        if (fcmToken == null || fcmToken.isBlank()) {
+            System.err.println("⚠️ [Request " + requestId + "] Notification NOT sent: mechanic has no FCM token");
+            return;
+        }
+
+        String customerDisplay = (customerName != null && !customerName.isBlank()) ? customerName : "Customer";
+        String distanceStr = (distanceKm != null) ? String.format("%.1f km", distanceKm) : "";
+        String title = "New request";
+        String body = (customerName != null && !customerName.isBlank())
+                ? customerName + " requested " + (serviceType != null ? serviceType : "service")
+                : "A customer requested your service.";
+
+        try {
+            var builder = Message.builder()
+                    .setToken(fcmToken)
+                    .putData("type", "mechanic_request")
+                    .putData("requestId", String.valueOf(requestId))
+                    .putData("title", title)
+                    .putData("body", body)
+                    .putData("customerName", customerDisplay);
+            if (distanceStr.length() > 0) {
+                builder = builder.putData("distanceKm", distanceStr);
+            }
+            Message message = builder.build();
+
+            String messageId = FirebaseMessaging.getInstance().send(message);
+            System.out.println("✅ [FCM] SENT requestId=" + requestId + " -> " + messageId);
+        } catch (Exception e) {
+            System.err.println("❌ [FCM] SEND FAILED requestId=" + requestId + ": " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 }

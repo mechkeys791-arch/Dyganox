@@ -1,18 +1,22 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'dart:typed_data';
+import '../../services/api_config.dart';
 import '../profile/location_picker_map_page.dart';
 
 class MechanicProfileEditPage extends StatefulWidget {
   final Map<String, dynamic> mechanicProfile;
+  final int mechanicId;
   final Function(Map<String, dynamic>) onSave;
   
   const MechanicProfileEditPage({
     super.key,
     required this.mechanicProfile,
+    required this.mechanicId,
     required this.onSave,
   });
 
@@ -22,6 +26,7 @@ class MechanicProfileEditPage extends StatefulWidget {
 
 class _MechanicProfileEditPageState extends State<MechanicProfileEditPage> {
   final _formKey = GlobalKey<FormState>();
+  bool _saving = false;
   
   late TextEditingController _nameController;
   late TextEditingController _phoneController;
@@ -122,26 +127,63 @@ class _MechanicProfileEditPageState extends State<MechanicProfileEditPage> {
     );
   }
   
-  void _saveProfile() {
-    if (_formKey.currentState!.validate()) {
-      final updatedProfile = {
-        'name': _nameController.text,
-        'phone': _phoneController.text,
-        'email': _emailController.text,
-        'experience': _experienceController.text,
-        'specialty': _specialtyController.text,
+  Future<void> _saveProfile() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _saving = true);
+    try {
+      String? profilePhotoUrl = widget.mechanicProfile['profilePhotoUrl']?.toString();
+      if (_profileImageBytes != null && _profileImageBytes!.isNotEmpty) {
+        final uri = Uri.parse('${ApiConfig.baseUrl}/api/upload/profile/mechanic');
+        final request = http.MultipartRequest('POST', uri);
+        request.files.add(http.MultipartFile.fromBytes('file', _profileImageBytes!, filename: 'profile.jpg'));
+        final streamed = await request.send().timeout(const Duration(seconds: 30));
+        final response = await http.Response.fromStream(streamed);
+        if (response.statusCode == 200) {
+          final json = jsonDecode(response.body) as Map<String, dynamic>;
+          profilePhotoUrl = json['url'] as String?;
+        }
+      }
+      final body = <String, dynamic>{
+        'name': _nameController.text.trim(),
+        'phone': _phoneController.text.trim(),
+        'email': _emailController.text.trim(),
+        'specialty': _specialtyController.text.trim(),
+        'experience': _experienceController.text.trim(),
         'latitude': _savedLatitude?.toString() ?? widget.mechanicProfile['latitude']?.toString(),
         'longitude': _savedLongitude?.toString() ?? widget.mechanicProfile['longitude']?.toString(),
         'shopAddress': _savedShopAddress ?? widget.mechanicProfile['shopAddress'] ?? widget.mechanicProfile['shop_address'],
-        'rate': _rateController.text,
         'nightTimeAvailable': _isAvailableForNightService,
-        'rating': widget.mechanicProfile['rating'],
-        'completedJobs': widget.mechanicProfile['completedJobs'],
       };
-      
-      widget.onSave(updatedProfile);
-      Navigator.pop(context);
-      _showSnackBar('Profile updated successfully!', const Color(0xFF10B981));
+      if (profilePhotoUrl != null) body['profilePhotoUrl'] = profilePhotoUrl;
+      final res = await http.put(
+        Uri.parse('${ApiConfig.mechanicEndpoint}/${widget.mechanicId}'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(body),
+      ).timeout(const Duration(seconds: 15));
+      if (!mounted) return;
+      if (res.statusCode == 200) {
+        final updatedProfile = {
+          'name': _nameController.text.trim(),
+          'phone': _phoneController.text.trim(),
+          'email': _emailController.text.trim(),
+          'experience': _experienceController.text.trim(),
+          'specialty': _specialtyController.text.trim(),
+          'latitude': _savedLatitude?.toString(),
+          'longitude': _savedLongitude?.toString(),
+          'shopAddress': _savedShopAddress,
+          'profilePhotoUrl': profilePhotoUrl,
+          'nightTimeAvailable': _isAvailableForNightService,
+        };
+        widget.onSave(updatedProfile);
+        Navigator.pop(context);
+        _showSnackBar('Profile updated successfully!', const Color(0xFF10B981));
+      } else {
+        _showSnackBar('Failed to update: ${res.statusCode}', Colors.red);
+      }
+    } catch (e) {
+      if (mounted) _showSnackBar('Error: $e', Colors.red);
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
   }
 
@@ -151,10 +193,18 @@ class _MechanicProfileEditPageState extends State<MechanicProfileEditPage> {
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: const Color(0xFF6366F1),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF111111), Color(0xFFFBBF24)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
+          onPressed: _saving ? null : () => Navigator.pop(context),
         ),
         title: Text(
           'Edit Profile',
@@ -166,10 +216,10 @@ class _MechanicProfileEditPageState extends State<MechanicProfileEditPage> {
         centerTitle: true,
         actions: [
           TextButton.icon(
-            onPressed: _saveProfile,
-            icon: const Icon(Icons.check, color: Colors.white),
+            onPressed: _saving ? null : _saveProfile,
+            icon: _saving ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.check, color: Colors.white),
             label: Text(
-              'Save',
+              _saving ? 'Saving...' : 'Save',
               style: GoogleFonts.outfit(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
@@ -179,16 +229,7 @@ class _MechanicProfileEditPageState extends State<MechanicProfileEditPage> {
         ],
       ),
       body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              const Color(0xFF6366F1).withOpacity(0.05),
-              Colors.white.withOpacity(0.8),
-            ],
-          ),
-        ),
+        color: const Color(0xFFF8FAFC),
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Form(
@@ -303,7 +344,7 @@ class _MechanicProfileEditPageState extends State<MechanicProfileEditPage> {
                         'Earn extra with night surcharge',
                         style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[600]),
                       ),
-                      activeColor: const Color(0xFF6366F1),
+                      activeColor: const Color(0xFFFBBF24),
                     ),
                   ],
                 ),
@@ -315,7 +356,7 @@ class _MechanicProfileEditPageState extends State<MechanicProfileEditPage> {
                   child: ElevatedButton(
                     onPressed: _saveProfile,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF6366F1),
+                      backgroundColor: const Color(0xFFFBBF24),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
@@ -358,12 +399,12 @@ class _MechanicProfileEditPageState extends State<MechanicProfileEditPage> {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: const LinearGradient(
-                      colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                      colors: [Color(0xFF111111), Color(0xFFFBBF24)],
                     ),
                     border: Border.all(color: Colors.white, width: 4),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF6366F1).withOpacity(0.3),
+                        color: const Color(0xFFFBBF24).withOpacity(0.3),
                         blurRadius: 20,
                         offset: const Offset(0, 8),
                       ),
@@ -415,7 +456,7 @@ class _MechanicProfileEditPageState extends State<MechanicProfileEditPage> {
         color: Colors.white.withOpacity(0.9),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: const Color(0xFF6366F1).withOpacity(0.2),
+          color: const Color(0xFFFBBF24).withOpacity(0.15),
           width: 1,
         ),
         boxShadow: [
@@ -434,10 +475,10 @@ class _MechanicProfileEditPageState extends State<MechanicProfileEditPage> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF6366F1).withOpacity(0.1),
+                  color: const Color(0xFFFBBF24).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(icon, color: const Color(0xFF6366F1), size: 20),
+                child: Icon(icon, color: const Color(0xFFFBBF24), size: 20),
               ),
               const SizedBox(width: 12),
               Text(
@@ -478,7 +519,7 @@ class _MechanicProfileEditPageState extends State<MechanicProfileEditPage> {
           controller: controller,
           keyboardType: keyboardType,
           decoration: InputDecoration(
-            prefixIcon: Icon(icon, color: const Color(0xFF6366F1)),
+            prefixIcon: Icon(icon, color: const Color(0xFFFBBF24)),
             filled: true,
             fillColor: Colors.grey[50],
             border: OutlineInputBorder(
@@ -491,7 +532,7 @@ class _MechanicProfileEditPageState extends State<MechanicProfileEditPage> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Color(0xFF6366F1), width: 2),
+              borderSide: const BorderSide(color: Color(0xFFFBBF24), width: 2),
             ),
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           ),
@@ -511,7 +552,7 @@ class _MechanicProfileEditPageState extends State<MechanicProfileEditPage> {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+          colors: [Color(0xFF111111), Color(0xFFFBBF24)],
         ),
         borderRadius: BorderRadius.circular(16),
       ),

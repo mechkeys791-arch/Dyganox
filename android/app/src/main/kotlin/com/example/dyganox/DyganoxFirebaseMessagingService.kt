@@ -45,8 +45,10 @@ class DyganoxFirebaseMessagingService : FirebaseMessagingService() {
             Log.w(TAG, "onMessageReceived: ignored - requestId missing")
             return
         }
+        val customerName = data["customerName"] ?: "Customer"
+        val distanceKm = data["distanceKm"] ?: ""
         val title = data["title"] ?: "New request"
-        val body = data["body"] ?: "A customer requested your service."
+        val body = if (distanceKm.isNotEmpty()) "$customerName • $distanceKm" else (data["body"] ?: "A customer requested your service.")
         Log.d(TAG, "onMessageReceived: showing notification requestId=$requestId (foreground/background)")
 
         // Always show notification first so user always sees something (even if service fails on Android 12+ background)
@@ -76,7 +78,7 @@ class DyganoxFirebaseMessagingService : FirebaseMessagingService() {
         }
     }
 
-    /** Notification with Accept/Reject - always shown so user never misses a request. */
+    /** Notification with View only - shows customer name + distance. Tapping opens mechanic dashboard. */
     private fun showFallbackNotification(requestId: String, title: String, body: String) {
         val channelId = "mechanic_requests"
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -93,32 +95,25 @@ class DyganoxFirebaseMessagingService : FirebaseMessagingService() {
             }
             getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
         }
-        val acceptIntent = Intent(this, MechanicRequestActionReceiver::class.java).apply {
-            putExtra(MechanicRequestActionReceiver.EXTRA_REQUEST_ID, requestId)
-            putExtra(MechanicRequestActionReceiver.EXTRA_ACTION, MechanicRequestActionReceiver.ACTION_ACCEPT)
-        }
-        val rejectIntent = Intent(this, MechanicRequestActionReceiver::class.java).apply {
-            putExtra(MechanicRequestActionReceiver.EXTRA_REQUEST_ID, requestId)
-            putExtra(MechanicRequestActionReceiver.EXTRA_ACTION, MechanicRequestActionReceiver.ACTION_REJECT)
-        }
-        val acceptPending = PendingIntent.getBroadcast(
-            this, requestId.hashCode(), acceptIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        val rejectPending = PendingIntent.getBroadcast(
-            this, requestId.hashCode() + 1, rejectIntent,
+        // Content intent & View action: tapping opens app to mechanic dashboard (bookings + request detail)
+        val contentIntent = PendingIntent.getActivity(
+            this, requestId.hashCode(),
+            Intent(this, MainActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                putExtra("open_request_id", requestId)
+            },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val notificationId = NOTIFICATION_ID
         val notification = NotificationCompat.Builder(this, channelId)
             .setContentTitle(title)
             .setContentText(body)
+            .setContentIntent(contentIntent)
             .setSmallIcon(R.mipmap.ic_launcher)
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setDefaults(NotificationCompat.DEFAULT_ALL)
             .setCategory(NotificationCompat.CATEGORY_CALL)
-            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Reject", rejectPending)
-            .addAction(android.R.drawable.ic_menu_call, "Accept", acceptPending)
+            .addAction(android.R.drawable.ic_menu_info_details, "View", contentIntent)
             .setAutoCancel(true)
             .build()
         getSystemService(NotificationManager::class.java).notify(notificationId, notification)

@@ -10,11 +10,14 @@ import 'mechanic_services_page.dart';
 import 'mechanic_profile_edit_page.dart';
 import 'mechanic_help_chat_page.dart';
 import 'mechanic_suspended_page.dart';
+import 'mechanic_request_detail_page.dart';
 
 class MechanicServiceDashboard extends StatefulWidget {
   final Map<String, dynamic>? mechanicData;
+  /// When set, dashboard will auto-open Bookings section then Request Detail (for Accept-from-notification flow).
+  final String? openRequestIdAfterMount;
   
-  const MechanicServiceDashboard({super.key, this.mechanicData});
+  const MechanicServiceDashboard({super.key, this.mechanicData, this.openRequestIdAfterMount});
 
   @override
   State<MechanicServiceDashboard> createState() => _MechanicServiceDashboardState();
@@ -99,6 +102,44 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
     _refreshTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
       _fetchBookings();
       _loadMechanicProfileFromApi();
+    });
+
+    // Accept-from-notification: open Bookings section first, then Request Detail
+    final requestId = widget.openRequestIdAfterMount;
+    if (requestId != null && requestId.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Future.delayed(const Duration(milliseconds: 600), () {
+          if (!mounted) return;
+          _openBookingsThenRequestDetail(requestId);
+        });
+      });
+    }
+  }
+
+  void _openBookingsThenRequestDetail(String requestId) {
+    if (!mounted) return;
+    // 1. Open Bookings section with highlighted/shaking card for this request
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MechanicBookingsPage(
+          bookings: _bookings,
+          onAccept: _acceptBooking,
+          onReject: _rejectBooking,
+          onComplete: _completeBooking,
+          highlightRequestId: requestId,
+        ),
+      ),
+    );
+    // 2. Then open Request Detail on top (short delay so Bookings appears first)
+    Future.delayed(const Duration(milliseconds: 350), () {
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => MechanicRequestDetailPage(requestId: requestId),
+        ),
+      );
     });
   }
 
@@ -226,19 +267,26 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
             String status = request['status'] ?? 'PENDING';
             status = status[0].toUpperCase() + status.substring(1).toLowerCase();
             
+            final lat = request['latitude'];
+            final lng = request['longitude'];
+            final locStr = request['address'] ?? request['location'] ?? 
+                (lat != null && lng != null ? '${lat}, $lng' : 'Location not shared');
             return {
               'id': request['id'],
               'customerName': request['customerName'] ?? 'Unknown',
               'customerPhone': request['customerPhone'] ?? 'Not provided',
               'service': request['serviceType'] ?? 'General Service',
-              'vehicle': 'Customer Vehicle',  // Add vehicle field to backend if needed
-              'location': '${request['latitude']}, ${request['longitude']}',
+              'vehicle': request['vehicle'] ?? 'Customer Vehicle',
+              'location': locStr.toString(),
+              'latitude': lat,
+              'longitude': lng,
               'date': request['createdAt']?.substring(0, 10) ?? 'Today',
               'time': request['createdAt']?.substring(11, 16) ?? 'Now',
               'status': status,
               'amount': '₹${request['amount'] ?? 50}',
               'description': request['description'] ?? 'Service request',
               'email': request['customerEmail'] ?? '',
+              'distanceKm': request['distanceKm'],
             };
           }).toList();
         });
@@ -295,7 +343,144 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
           ),
         ],
       ),
-      body: _buildOverviewTab(),
+      body: Stack(
+        children: [
+          _buildOverviewTab(),
+          _buildFloatingHelpBot(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFloatingHelpBot() {
+    final email = (_mechanicProfile['email'] ?? widget.mechanicData?['email'] ?? '').toString();
+    return Positioned(
+      right: 16,
+      bottom: 24,
+      child: AnimatedBuilder(
+        animation: _pulseAnimation,
+        builder: (context, child) => Transform.scale(
+          scale: 0.95 + 0.15 * _pulseAnimation.value,
+          child: child,
+        ),
+        child: GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => MechanicHelpChatPage(mechanicEmail: email),
+              ),
+            );
+          },
+          child: _buildCuteRobotBot(),
+        ),
+      ),
+    );
+  }
+
+  /// Cute robot appearance for the help bot
+  Widget _buildCuteRobotBot() {
+    return Container(
+      width: 60,
+      height: 60,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF111111), Color(0xFFFBBF24)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFFBBF24).withOpacity(0.5),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+        border: Border.all(color: Colors.white.withOpacity(0.5), width: 2),
+      ),
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
+        children: [
+          // Antenna
+          Positioned(
+            top: -6,
+            child: Container(
+              width: 3,
+              height: 12,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          Positioned(
+            top: -10,
+            child: Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: const Color(0xFFFBBF24),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          // Face
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Eyes
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _robotEye(),
+                  const SizedBox(width: 10),
+                  _robotEye(),
+                ],
+              ),
+              const SizedBox(height: 2),
+              // Smile - simple arc
+              SizedBox(
+                width: 18,
+                height: 6,
+                child: CustomPaint(
+                  painter: _SmilePainter(),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _robotEye() {
+    return Container(
+      width: 10,
+      height: 10,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        shape: BoxShape.circle,
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 2)],
+      ),
+      child: Center(
+        child: Container(
+          width: 4,
+          height: 4,
+          decoration: const BoxDecoration(
+            color: Color(0xFF111111),
+            shape: BoxShape.circle,
+          ),
+        ),
+      ),
     );
   }
   
@@ -377,11 +562,18 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
   Widget _buildProfileCard() {
     return GestureDetector(
       onTap: () async {
+        final mechanicId = widget.mechanicData?['id'];
+        final id = mechanicId is int ? mechanicId : (mechanicId != null ? int.tryParse(mechanicId.toString()) : null);
+        if (id == null) {
+          _showSnackBar('Mechanic ID not found', Colors.orange);
+          return;
+        }
         await Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => MechanicProfileEditPage(
               mechanicProfile: _mechanicProfile,
+              mechanicId: id,
               onSave: (updatedProfile) {
                 setState(() {
                   _mechanicProfile['name'] = updatedProfile['name'];
@@ -392,6 +584,8 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
                   _mechanicProfile['shopAddress'] = updatedProfile['shopAddress'];
                   _mechanicProfile['latitude'] = updatedProfile['latitude'];
                   _mechanicProfile['longitude'] = updatedProfile['longitude'];
+                  if (updatedProfile['profilePhotoUrl'] != null) _mechanicProfile['profilePhotoUrl'] = updatedProfile['profilePhotoUrl'];
+                  if (updatedProfile['nightTimeAvailable'] != null) _mechanicProfile['nightTimeAvailable'] = updatedProfile['nightTimeAvailable'];
                 });
               },
             ),
@@ -540,24 +734,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
         Row(
           children: [
             Expanded(
-              child: _buildQuickActionButton(
-                'Bookings',
-                Icons.calendar_month,
-                const Color(0xFF111111),
-                () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => MechanicBookingsPage(
-                        bookings: _bookings,
-                        onAccept: _acceptBooking,
-                        onReject: _rejectBooking,
-                        onComplete: _completeBooking,
-                      ),
-                    ),
-                  );
-                },
-              ),
+              child: _buildBookingsQuickAction(),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -1022,6 +1199,37 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
     );
   }
   
+  Widget _buildBookingsQuickAction() {
+    final onTap = () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => MechanicBookingsPage(
+            bookings: _bookings,
+            onAccept: _acceptBooking,
+            onReject: _rejectBooking,
+            onComplete: _completeBooking,
+          ),
+        ),
+      );
+    };
+    final button = _buildQuickActionButton(
+      'Bookings',
+      Icons.calendar_month,
+      const Color(0xFF111111),
+      onTap,
+    );
+    if (_bookings.isEmpty) return button;
+    return AnimatedBuilder(
+      animation: _pulseAnimation,
+      builder: (context, child) => Transform.scale(
+        scale: 0.92 + 0.16 * _pulseAnimation.value,
+        child: child,
+      ),
+      child: button,
+    );
+  }
+  
   Widget _buildQuickActionButton(String title, IconData icon, Color color, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
@@ -1135,18 +1343,56 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
     }
   }
   
-  // SERVICE MANAGEMENT
-  void _addService(String service) {
-    setState(() {
-      if (!_myServices.contains(service)) {
-        _myServices.add(service);
-      }
-    });
+  // SERVICE MANAGEMENT - real-time DB update
+  Future<void> _addService(String service) async {
+    if (_myServices.contains(service)) return;
+    setState(() => _myServices.add(service));
+    await _updateServicesInDb();
   }
   
-  void _removeService(String service) {
-    setState(() {
-      _myServices.remove(service);
-    });
+  Future<void> _removeService(String service) async {
+    setState(() => _myServices.remove(service));
+    await _updateServicesInDb();
   }
+  
+  Future<void> _updateServicesInDb() async {
+    final mechanicId = widget.mechanicData?['id'];
+    if (mechanicId == null) return;
+    final id = mechanicId is int ? mechanicId : int.tryParse(mechanicId.toString());
+    if (id == null) return;
+    try {
+      final servicesStr = _myServices.join(',');
+      final res = await http.put(
+        Uri.parse('${ApiConfig.mechanicEndpoint}/$id'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'services': servicesStr}),
+      );
+      if (res.statusCode == 200) {
+        if (mounted) _showSnackBar('Services saved', const Color(0xFF10B981));
+      } else {
+        _showSnackBar('Failed to update services', Colors.orange);
+      }
+    } catch (e) {
+      _showSnackBar('Error: $e', Colors.red);
+    }
+  }
+}
+
+class _SmilePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white
+      ..strokeWidth = 2.5
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    final path = Path();
+    // Smile: corners up, center down (curve bulges downward)
+    path.moveTo(0, 1);
+    path.quadraticBezierTo(size.width / 2, size.height, size.width, 1);
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

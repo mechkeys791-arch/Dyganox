@@ -18,9 +18,25 @@ class MechanicServicesPage extends StatefulWidget {
 }
 
 class _MechanicServicesPageState extends State<MechanicServicesPage> {
+  late List<String> _activeServices;
+
+  @override
+  void initState() {
+    super.initState();
+    _activeServices = List.from(widget.myServices);
+  }
+
+  @override
+  void didUpdateWidget(MechanicServicesPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.myServices != widget.myServices) {
+      _activeServices = List.from(widget.myServices);
+    }
+  }
+
   // Available services list
   final List<Map<String, dynamic>> _availableServices = [
-    {'name': 'General Repair', 'icon': Icons.handyman, 'color': Color(0xFF6366F1)},
+    {'name': 'General Repair', 'icon': Icons.handyman, 'color': Color(0xFFFBBF24)},
     {'name': 'Engine Service', 'icon': Icons.settings_suggest, 'color': Color(0xFFEF4444)},
     {'name': 'Electrical Works', 'icon': Icons.electrical_services, 'color': Color(0xFFF59E0B)},
     {'name': 'Brake Service', 'icon': Icons.speed, 'color': Color(0xFF10B981)},
@@ -36,7 +52,15 @@ class _MechanicServicesPageState extends State<MechanicServicesPage> {
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: const Color(0xFF8B5CF6),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF111111), Color(0xFFFBBF24)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
@@ -59,7 +83,7 @@ class _MechanicServicesPageState extends State<MechanicServicesPage> {
             ),
             child: Center(
               child: Text(
-                '${widget.myServices.length} Active',
+                '${_activeServices.length} Active',
                 style: GoogleFonts.inter(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -112,7 +136,7 @@ class _MechanicServicesPageState extends State<MechanicServicesPage> {
                   const Icon(Icons.check_circle, size: 14, color: Color(0xFF10B981)),
                   const SizedBox(width: 4),
                   Text(
-                    '${widget.myServices.length} Services',
+                    '${_activeServices.length} Services',
                     style: GoogleFonts.inter(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -126,7 +150,7 @@ class _MechanicServicesPageState extends State<MechanicServicesPage> {
         ),
         const SizedBox(height: 16),
         
-        if (widget.myServices.isEmpty)
+        if (_activeServices.isEmpty)
           Container(
             padding: const EdgeInsets.all(32),
             decoration: BoxDecoration(
@@ -162,10 +186,10 @@ class _MechanicServicesPageState extends State<MechanicServicesPage> {
           Wrap(
             spacing: 12,
             runSpacing: 12,
-            children: widget.myServices.map((service) {
+            children: _activeServices.map((service) {
               final serviceData = _availableServices.firstWhere(
                 (s) => s['name'] == service,
-                orElse: () => {'name': service, 'icon': Icons.handyman, 'color': Color(0xFF6366F1)},
+                orElse: () => {'name': service, 'icon': Icons.handyman, 'color': Color(0xFFFBBF24)},
               );
               
               return Container(
@@ -197,8 +221,8 @@ class _MechanicServicesPageState extends State<MechanicServicesPage> {
                     const SizedBox(width: 8),
                     GestureDetector(
                       onTap: () {
+                        setState(() => _activeServices.remove(service));
                         widget.onRemoveService(service);
-                        Navigator.pop(context);
                       },
                       child: Container(
                         padding: const EdgeInsets.all(4),
@@ -246,27 +270,20 @@ class _MechanicServicesPageState extends State<MechanicServicesPage> {
             crossAxisCount: 2,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
-            childAspectRatio: 1.2,
+            childAspectRatio: 1.35,
           ),
           itemCount: _availableServices.length,
           itemBuilder: (context, index) {
             final service = _availableServices[index];
-            final isAdded = widget.myServices.contains(service['name']);
+            final isAdded = _activeServices.contains(service['name']);
             
             return GestureDetector(
-              onTap: isAdded ? null : () {
-                widget.onAddService(service['name']);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      '${service['name']} added to your services!',
-                      style: GoogleFonts.inter(),
-                    ),
-                    backgroundColor: const Color(0xFF10B981),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              },
+              onTap: isAdded
+                  ? null
+                  : () {
+                      setState(() => _activeServices.add(service['name']));
+                      widget.onAddService(service['name']);
+                    },
               child: Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -287,22 +304,26 @@ class _MechanicServicesPageState extends State<MechanicServicesPage> {
                 ),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
                       service['icon'],
-                      size: 36,
+                      size: 28,
                       color: isAdded ? Colors.grey[400] : service['color'],
                     ),
-                    const SizedBox(height: 12),
-                    Text(
-                      service['name'],
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: isAdded ? Colors.grey[500] : Colors.black87,
+                    const SizedBox(height: 6),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Text(
+                        service['name'],
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: isAdded ? Colors.grey[500] : Colors.black87,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 8),

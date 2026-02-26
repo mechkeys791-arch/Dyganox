@@ -62,9 +62,13 @@ class MechanicAlarmService : Service() {
             getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
         }
 
-        val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
+        // Content intent: tapping notification body opens app to request detail (same as Accept)
         val contentIntent = PendingIntent.getActivity(
-            this, 0, launchIntent,
+            this, 0,
+            Intent(this, MainActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                putExtra("open_request_id", requestId)
+            },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
@@ -77,24 +81,7 @@ class MechanicAlarmService : Service() {
             .setSilent(true)
             .setPriority(NotificationCompat.PRIORITY_MAX)
         if (requestId.isNotEmpty()) {
-            val acceptIntent = Intent(this, MechanicRequestActionReceiver::class.java).apply {
-                putExtra(MechanicRequestActionReceiver.EXTRA_REQUEST_ID, requestId)
-                putExtra(MechanicRequestActionReceiver.EXTRA_ACTION, MechanicRequestActionReceiver.ACTION_ACCEPT)
-            }
-            val rejectIntent = Intent(this, MechanicRequestActionReceiver::class.java).apply {
-                putExtra(MechanicRequestActionReceiver.EXTRA_REQUEST_ID, requestId)
-                putExtra(MechanicRequestActionReceiver.EXTRA_ACTION, MechanicRequestActionReceiver.ACTION_REJECT)
-            }
-            val acceptPending = PendingIntent.getBroadcast(
-                this, requestId.hashCode(), acceptIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-            val rejectPending = PendingIntent.getBroadcast(
-                this, requestId.hashCode() + 1, rejectIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-            notifBuilder.addAction(android.R.drawable.ic_menu_close_clear_cancel, "Reject", rejectPending)
-            notifBuilder.addAction(android.R.drawable.ic_menu_call, "Accept", acceptPending)
+            notifBuilder.addAction(android.R.drawable.ic_menu_info_details, "View", contentIntent)
         }
         val notification = notifBuilder.build()
         try {

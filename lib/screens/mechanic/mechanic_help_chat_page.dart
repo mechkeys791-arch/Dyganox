@@ -1,11 +1,8 @@
-import 'dart:async';
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:http/http.dart' as http;
-import '../../services/api_config.dart';
+import 'mechanic_help_faq.dart';
 
-/// Help chat for mechanics. Messages by date, "Customer care is typing", real-time polling. No photo.
+/// Help chat for mechanics - local FAQ bot. No backend. Responds to questions with ProMech FAQs.
 class MechanicHelpChatPage extends StatefulWidget {
   final String mechanicEmail;
 
@@ -18,77 +15,44 @@ class MechanicHelpChatPage extends StatefulWidget {
 class _MechanicHelpChatPageState extends State<MechanicHelpChatPage> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  List<Map<String, dynamic>> _messages = [];
-  bool _loading = true;
+  final List<Map<String, dynamic>> _messages = [];
   bool _sending = false;
-  bool _adminTyping = false;
-  Timer? _pollTimer;
-  Timer? _typingTimer;
 
   @override
   void initState() {
     super.initState();
-    _loadMessages();
-    _pollTimer = Timer.periodic(const Duration(milliseconds: 2500), (_) {
-      if (mounted) {
-        _loadMessages();
-        _fetchAdminTyping();
-      }
-    });
+    _addBotMessage(
+      'Hello! I\'m the ProMech Help bot. Ask me anything about the app: bookings, profile, services, payments, notifications, and more. Try "How do I receive booking requests?" or tap a suggestion below.',
+    );
   }
 
   @override
   void dispose() {
-    _pollTimer?.cancel();
-    _typingTimer?.cancel();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadMessages() async {
-    if (_loading && _messages.isNotEmpty) return;
-    try {
-      final r = await http.get(Uri.parse(
-          '${ApiConfig.baseUrl}/api/mechanic/help?email=${Uri.encodeComponent(widget.mechanicEmail)}'));
-      if (!mounted) return;
-      if (r.statusCode == 200) {
-        final list = jsonDecode(r.body) as List<dynamic>;
-        setState(() {
-          _messages = list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
-          _loading = false;
-        });
-        _scrollToBottom();
-      } else {
-        setState(() => _loading = false);
-      }
-    } catch (_) {
-      if (mounted) setState(() => _loading = false);
-    }
+  void _addBotMessage(String text) {
+    setState(() {
+      _messages.add({
+        'sender': 'BOT',
+        'message': text,
+        'createdAt': DateTime.now().toIso8601String(),
+      });
+    });
+    _scrollToBottom();
   }
 
-  Future<void> _fetchAdminTyping() async {
-    try {
-      final r = await http.get(Uri.parse(
-          '${ApiConfig.baseUrl}/api/mechanic/help/typing?email=${Uri.encodeComponent(widget.mechanicEmail)}'));
-      if (!mounted) return;
-      if (r.statusCode == 200) {
-        final d = jsonDecode(r.body) as Map<String, dynamic>;
-        setState(() => _adminTyping = d['adminTyping'] == true);
-      }
-    } catch (_) {}
-  }
-
-  void _setMechanicTyping(bool typing) {
-    _typingTimer?.cancel();
-    http.post(
-      Uri.parse('${ApiConfig.baseUrl}/api/mechanic/help/typing'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'email': widget.mechanicEmail, 'isTyping': typing}),
-    ).ignore();
-    if (typing) {
-      _typingTimer = Timer(const Duration(seconds: 2), () => _setMechanicTyping(false));
-    }
+  void _addUserMessage(String text) {
+    setState(() {
+      _messages.add({
+        'sender': 'MECHANIC',
+        'message': text,
+        'createdAt': DateTime.now().toIso8601String(),
+      });
+    });
+    _scrollToBottom();
   }
 
   void _scrollToBottom() {
@@ -103,164 +67,157 @@ class _MechanicHelpChatPageState extends State<MechanicHelpChatPage> {
     });
   }
 
-  Map<String, List<Map<String, dynamic>>> _groupByDate() {
-    final Map<String, List<Map<String, dynamic>>> groups = {};
-    for (final m in _messages) {
-      String key;
-      try {
-        key = DateTime.parse(m['createdAt'].toString()).toLocal().toIso8601String().split('T')[0];
-      } catch (_) {
-        key = DateTime.now().toIso8601String().split('T')[0];
-      }
-      groups.putIfAbsent(key, () => []).add(m);
-    }
-    return groups;
-  }
-
   Future<void> _sendMessage() async {
     final text = _messageController.text.trim();
     if (text.isEmpty || _sending) return;
-    _setMechanicTyping(false);
     setState(() => _sending = true);
     _messageController.clear();
-    try {
-      final r = await http.post(
-        Uri.parse('${ApiConfig.baseUrl}/api/mechanic/help'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'email': widget.mechanicEmail, 'message': text}),
-      ).timeout(const Duration(seconds: 10));
-      if (!mounted) return;
-      setState(() => _sending = false);
-      if (r.statusCode == 201 || r.statusCode == 200) {
-        await _loadMessages();
+    _addUserMessage(text);
+
+    // Simulate slight delay
+    await Future.delayed(const Duration(milliseconds: 400));
+
+    final answer = MechanicHelpFaq.getAnswer(text);
+    if (mounted) {
+      if (answer != null) {
+        _addBotMessage(answer);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to send message'), backgroundColor: Colors.red));
+        _addBotMessage(
+          'I couldn\'t find an exact answer for that. Try one of these: "How do I receive booking requests?", "How do I add services?", "Why am I not getting notifications?" Or type "Help" for suggestions.',
+        );
       }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _sending = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
-      }
+      setState(() => _sending = false);
     }
   }
 
-  String _formatTime(String iso) {
-    try {
-      final dt = DateTime.parse(iso).toLocal();
-      return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-    } catch (_) { return ''; }
-  }
-
-  String _formatDate(String isoDate) {
-    try {
-      final d = DateTime.parse(isoDate);
-      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-      return '${d.day} ${d.month >= 1 && d.month <= 12 ? months[d.month - 1] : ''} ${d.year}';
-    } catch (_) { return isoDate; }
+  void _onSuggestionTap(String question) {
+    _messageController.text = question;
+    _sendMessage();
   }
 
   @override
   Widget build(BuildContext context) {
-    final groups = _groupByDate();
-    final sortedDates = groups.keys.toList()..sort();
-
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        title: Text('Help Chat', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
-        backgroundColor: Colors.white,
+        title: Text('Help', style: GoogleFonts.outfit(fontWeight: FontWeight.w600, color: Colors.white)),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF111111), Color(0xFFFBBF24)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
         elevation: 0,
-        foregroundColor: const Color(0xFF1E293B),
+        foregroundColor: Colors.white,
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: Column(
         children: [
-          if (_adminTyping)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              color: Colors.amber.shade50,
-              child: Text('Customer care is typing...',
-                  style: GoogleFonts.inter(fontSize: 13, fontStyle: FontStyle.italic, color: Colors.amber.shade900)),
-            ),
           Expanded(
-            child: _loading && _messages.isEmpty
-                ? const Center(child: CircularProgressIndicator())
-                : ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    itemCount: sortedDates.fold<int>(0, (sum, d) => sum + (groups[d]!.length) + 1),
-                    itemBuilder: (context, idx) {
-                      int i = 0;
-                      for (final date in sortedDates) {
-                        if (i == idx) {
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            child: Center(
-                              child: Text(
-                                _formatDate(date),
-                                style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade600),
-                              ),
-                            ),
-                          );
-                        }
-                        i++;
-                        for (final m in groups[date]!) {
-                          if (i == idx) {
-                            final isMechanic = (m['sender'] ?? '').toString().toUpperCase() == 'MECHANIC';
-                            final time = _formatTime((m['createdAt'] ?? '').toString());
-                            return Align(
-                              alignment: isMechanic ? Alignment.centerRight : Alignment.centerLeft,
+            child: ListView.builder(
+              controller: _scrollController,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              itemCount: _messages.length + 1,
+              itemBuilder: (context, index) {
+                if (index == 0) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Quick questions',
+                          style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey.shade600),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: MechanicHelpFaq.suggestedQuestions.map((q) {
+                            return GestureDetector(
+                              onTap: () => _onSuggestionTap(q),
                               child: Container(
-                                margin: const EdgeInsets.only(bottom: 8),
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                                constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                 decoration: BoxDecoration(
-                                  color: isMechanic ? const Color(0xFF6366F1) : Colors.white,
-                                  borderRadius: BorderRadius.circular(16),
-                                  boxShadow: [
-                                    BoxShadow(
-                                        color: Colors.black.withOpacity(0.06),
-                                        blurRadius: 8,
-                                        offset: const Offset(0, 2)),
-                                  ],
+                                  color: const Color(0xFFFBBF24).withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(color: const Color(0xFFFBBF24).withOpacity(0.5)),
                                 ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      m['message'] ?? '',
-                                      style: GoogleFonts.inter(
-                                        fontSize: 15,
-                                        color: isMechanic ? Colors.white : const Color(0xFF1E293B),
-                                      ),
-                                    ),
-                                    if (time.isNotEmpty)
-                                      Padding(
-                                        padding: const EdgeInsets.only(top: 4),
-                                        child: Text(
-                                          time,
-                                          style: GoogleFonts.inter(
-                                              fontSize: 11,
-                                              color: isMechanic ? Colors.white70 : Colors.grey),
-                                        ),
-                                      ),
-                                  ],
+                                child: Text(
+                                  q,
+                                  style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500),
                                 ),
                               ),
                             );
-                          }
-                          i++;
-                        }
-                      }
-                      return const SizedBox.shrink();
-                    },
+                          }).toList(),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+                final m = _messages[index - 1];
+                final isMechanic = (m['sender'] ?? '').toString().toUpperCase() == 'MECHANIC';
+                final time = _formatTime((m['createdAt'] ?? '').toString());
+                return Align(
+                  alignment: isMechanic ? Alignment.centerRight : Alignment.centerLeft,
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.82),
+                    decoration: BoxDecoration(
+                      color: isMechanic ? const Color(0xFFFBBF24) : Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.06),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (!isMechanic)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Text(
+                              'ProMech Bot',
+                              style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: const Color(0xFF111111)),
+                            ),
+                          ),
+                        Text(
+                          m['message'] ?? '',
+                          style: GoogleFonts.inter(
+                            fontSize: 15,
+                            color: isMechanic ? const Color(0xFF111111) : const Color(0xFF1E293B),
+                          ),
+                        ),
+                        if (time.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              time,
+                              style: GoogleFonts.inter(fontSize: 11, color: isMechanic ? Colors.black54 : Colors.grey),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
+                );
+              },
+            ),
           ),
           Container(
             padding: EdgeInsets.only(
-                left: 16, right: 16, top: 12, bottom: 12 + MediaQuery.of(context).padding.bottom),
+              left: 16,
+              right: 16,
+              top: 12,
+              bottom: 12 + MediaQuery.of(context).padding.bottom,
+            ),
             color: Colors.white,
             child: SafeArea(
               child: Row(
@@ -269,7 +226,7 @@ class _MechanicHelpChatPageState extends State<MechanicHelpChatPage> {
                     child: TextField(
                       controller: _messageController,
                       decoration: InputDecoration(
-                        hintText: 'Type a message...',
+                        hintText: 'Ask a question...',
                         hintStyle: GoogleFonts.inter(color: Colors.grey),
                         filled: true,
                         fillColor: Colors.grey.shade100,
@@ -281,7 +238,6 @@ class _MechanicHelpChatPageState extends State<MechanicHelpChatPage> {
                       ),
                       maxLines: 2,
                       minLines: 1,
-                      onChanged: (_) => _setMechanicTyping(true),
                       onSubmitted: (_) => _sendMessage(),
                     ),
                   ),
@@ -292,12 +248,12 @@ class _MechanicHelpChatPageState extends State<MechanicHelpChatPage> {
                         ? const SizedBox(
                             width: 22,
                             height: 22,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF111111)),
                           )
                         : const Icon(Icons.send_rounded),
                     style: IconButton.styleFrom(
-                      backgroundColor: const Color(0xFF6366F1),
-                      foregroundColor: Colors.white,
+                      backgroundColor: const Color(0xFFFBBF24),
+                      foregroundColor: const Color(0xFF111111),
                     ),
                   ),
                 ],
@@ -308,8 +264,13 @@ class _MechanicHelpChatPageState extends State<MechanicHelpChatPage> {
       ),
     );
   }
+
+  String _formatTime(String iso) {
+    try {
+      final dt = DateTime.parse(iso).toLocal();
+      return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    } catch (_) {
+      return '';
+    }
+  }
 }
-
-
-
-

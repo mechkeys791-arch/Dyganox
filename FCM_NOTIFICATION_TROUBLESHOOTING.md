@@ -10,6 +10,7 @@ When you create a mechanic request, the app shows "Request OK" but the **mechani
 - **Mechanic opens dashboard first:** On the **mechanic’s phone**, open the app → log in as that mechanic → open **Mechanic Dashboard** and wait a few seconds. The app registers the FCM token with the backend on every dashboard open and when the app resumes.
 - **Backend has Firebase key:** EC2 backend must have `firebase-service-account.json` (redeploy after adding it).
 - **Backend is latest:** EC2 must be running the code that sends FCM (run `./update-backend-ec2.sh` to redeploy).
+- **Check FCM status:** `curl http://YOUR_SERVER:8081/api/fcm-status` — should return `fcmInitialized: true`.
 
 ---
 

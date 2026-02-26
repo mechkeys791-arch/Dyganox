@@ -34,7 +34,8 @@ class MechanicRequestActionReceiver : BroadcastReceiver() {
                 conn.readTimeout = 10_000
                 val code = conn.responseCode
                 Log.d(TAG, "API $action requestId=$requestId -> $code")
-                if (action == ACTION_ACCEPT && code in 200..299) {
+                // Always open to request detail when mechanic taps Accept (even if API failed - user intent was to view it)
+                if (action == ACTION_ACCEPT) {
                     android.os.Handler(android.os.Looper.getMainLooper()).post {
                         openAppToRequestDetail(context, requestId)
                     }
@@ -51,10 +52,11 @@ class MechanicRequestActionReceiver : BroadcastReceiver() {
             .edit()
             .putString(KEY_PENDING_ACCEPT_REQUEST_ID, requestId)
             .commit()
-        // Explicit MainActivity intent with extra as well
+        // Launch with BOTH open_request_id AND Flutter initial route (bulletproof - Flutter reads route at engine start)
         val launch = Intent(context, MainActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             putExtra("open_request_id", requestId)
+            putExtra("route", "/open-accept/$requestId")  // FlutterActivity initial route
         }
         context.startActivity(launch)
     }

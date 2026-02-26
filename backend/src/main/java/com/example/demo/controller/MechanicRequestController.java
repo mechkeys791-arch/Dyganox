@@ -69,6 +69,10 @@ public class MechanicRequestController {
                     System.err.println("⚠️ [Request " + requestId + "] Notification NOT sent: mechanic " + mechanicId + " has no FCM token. Mechanic must open the app and go to Mechanic Dashboard on the device that should receive notifications (token is saved on first dashboard open).");
                 } else {
                     System.out.println("[FCM] mechanicId=" + mechanicId + ", requestId=" + requestId + ", sending...");
+                    Double distanceKm = savedRequest.getDistanceKm();
+                    if (distanceKm == null) {
+                        distanceKm = computeDistanceKm(mechanic, savedRequest);
+                    }
                     fcmService.sendMechanicRequestNotification(
                             fcmToken,
                             requestId,
@@ -76,7 +80,7 @@ public class MechanicRequestController {
                             savedRequest.getServiceType(),
                             savedRequest.getCustomerPhone(),
                             savedRequest.getAmount(),
-                            savedRequest.getDistanceKm(),
+                            distanceKm,
                             savedRequest.getDescription());
                 }
             }
@@ -86,6 +90,31 @@ public class MechanicRequestController {
             System.err.println("❌ Error saving request: " + e.getMessage());
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /** Compute distance in km between mechanic location and customer (request) location using Haversine formula. */
+    private Double computeDistanceKm(Mechanic mechanic, MechanicRequest request) {
+        String mLat = mechanic.getCurrentLatitude() != null ? mechanic.getCurrentLatitude() : mechanic.getLatitude();
+        String mLng = mechanic.getCurrentLongitude() != null ? mechanic.getCurrentLongitude() : mechanic.getLongitude();
+        String rLat = request.getLatitude();
+        String rLng = request.getLongitude();
+        if (mLat == null || mLng == null || rLat == null || rLng == null) return null;
+        try {
+            double lat1 = Double.parseDouble(mLat);
+            double lon1 = Double.parseDouble(mLng);
+            double lat2 = Double.parseDouble(rLat);
+            double lon2 = Double.parseDouble(rLng);
+            final int R = 6371;
+            double dLat = Math.toRadians(lat2 - lat1);
+            double dLon = Math.toRadians(lon2 - lon1);
+            double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                    + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                    * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c;
+        } catch (NumberFormatException e) {
+            return null;
         }
     }
 

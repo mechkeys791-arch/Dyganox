@@ -6,6 +6,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 import '../../services/api_config.dart';
+import 'mechanic_service_dashboard.dart';
 
 /// Full-screen request details shown after mechanic accepts from notification.
 /// Map in a box on top, then service type, distance, customer, amount, description, Call, Navigate.
@@ -96,6 +97,26 @@ class _MechanicRequestDetailPageState extends State<MechanicRequestDetailPage> {
     return null;
   }
 
+  /// When mechanic taps back/cancel, go to mechanic dashboard (not splash).
+  void _navigateBackToDashboard() {
+    final mechanicId = _request?['mechanicId'];
+    final id = mechanicId is int
+        ? mechanicId
+        : mechanicId is num
+            ? mechanicId.toInt()
+            : mechanicId != null
+                ? int.tryParse(mechanicId.toString())
+                : null;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (_) => MechanicServiceDashboard(
+          mechanicData: id != null ? {'id': id} : null,
+        ),
+      ),
+      (route) => false,
+    );
+  }
+
   LatLng? get _customerPosition {
     if (_request == null) return null;
     final lat = _parseDouble(_request!['latitude']);
@@ -106,59 +127,73 @@ class _MechanicRequestDetailPageState extends State<MechanicRequestDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF1F5F9),
-      appBar: AppBar(
-        title: Text(
-          'Request Details',
-          style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) _navigateBackToDashboard();
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF1F5F9),
+        appBar: AppBar(
+          title: Text(
+            'Request Details',
+            style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white),
+          ),
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF111111), Color(0xFFFBBF24)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+          ),
+          elevation: 0,
+          foregroundColor: Colors.white,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+            onPressed: () => _navigateBackToDashboard(),
+          ),
         ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        foregroundColor: const Color(0xFF1E293B),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF6366F1)))
-          : _error != null
-              ? _buildError()
-              : _request == null
-                  ? const SizedBox.shrink()
-                  : SingleChildScrollView(
-                      padding: const EdgeInsets.only(bottom: 24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _buildMapBox(),
-                          const SizedBox(height: 16),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                _buildStatusChip(),
-                                const SizedBox(height: 12),
-                                _buildInfoCard(),
-                                const SizedBox(height: 12),
-                                _buildCustomerCard(),
-                                const SizedBox(height: 12),
-                                _buildAmountAndService(),
-                                if (_request!['description'] != null &&
-                                    (_request!['description'] as String).isNotEmpty) ...[
+        body: _loading
+            ? const Center(child: CircularProgressIndicator(color: Color(0xFFFBBF24)))
+            : _error != null
+                ? _buildError()
+                : _request == null
+                    ? const SizedBox.shrink()
+                    : SingleChildScrollView(
+                        padding: const EdgeInsets.only(bottom: 24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _buildMapBox(),
+                            const SizedBox(height: 16),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  _buildStatusChip(),
                                   const SizedBox(height: 12),
-                                  _buildDescriptionCard(),
+                                  _buildInfoCard(),
+                                  const SizedBox(height: 12),
+                                  _buildCustomerCard(),
+                                  const SizedBox(height: 12),
+                                  _buildAmountAndService(),
+                                  if (_request!['description'] != null &&
+                                      (_request!['description'] as String).isNotEmpty) ...[
+                                    const SizedBox(height: 12),
+                                    _buildDescriptionCard(),
+                                  ],
+                                  const SizedBox(height: 20),
+                                  _buildActionButtons(),
                                 ],
-                                const SizedBox(height: 20),
-                                _buildActionButtons(),
-                              ],
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
+        ),
     );
   }
 
@@ -178,7 +213,7 @@ class _MechanicRequestDetailPageState extends State<MechanicRequestDetailPage> {
             ),
             const SizedBox(height: 16),
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () => _navigateBackToDashboard(),
               child: Text('Back', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
             ),
           ],
@@ -333,7 +368,7 @@ class _MechanicRequestDetailPageState extends State<MechanicRequestDetailPage> {
               _infoChip(
                 Icons.build_circle_outlined,
                 _request!['serviceType']?.toString() ?? 'General Service',
-                const Color(0xFF6366F1),
+                const Color(0xFFFBBF24),
               ),
               const SizedBox(width: 10),
               if (_distanceKm != null)
@@ -402,12 +437,12 @@ class _MechanicRequestDetailPageState extends State<MechanicRequestDetailPage> {
           Row(
             children: [
               CircleAvatar(
-                backgroundColor: const Color(0xFF6366F1).withOpacity(0.2),
+                backgroundColor: const Color(0xFFFBBF24).withOpacity(0.2),
                 child: Text(
                   name.isNotEmpty ? name[0].toUpperCase() : '?',
                   style: GoogleFonts.outfit(
                     fontWeight: FontWeight.bold,
-                    color: const Color(0xFF6366F1),
+                    color: const Color(0xFF111111),
                   ),
                 ),
               ),
@@ -479,7 +514,7 @@ class _MechanicRequestDetailPageState extends State<MechanicRequestDetailPage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
-              color: const Color(0xFF6366F1).withOpacity(0.1),
+              color: const Color(0xFFFBBF24).withOpacity(0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Text(
@@ -487,7 +522,7 @@ class _MechanicRequestDetailPageState extends State<MechanicRequestDetailPage> {
               style: GoogleFonts.outfit(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: const Color(0xFF6366F1),
+                color: const Color(0xFFFBBF24),
               ),
             ),
           ),
@@ -562,8 +597,8 @@ class _MechanicRequestDetailPageState extends State<MechanicRequestDetailPage> {
               icon: const Icon(Icons.directions_rounded, size: 22),
               label: Text('Navigate', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
               style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF6366F1),
-                side: const BorderSide(color: Color(0xFF6366F1)),
+                foregroundColor: const Color(0xFFFBBF24),
+                side: const BorderSide(color: Color(0xFFFBBF24)),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               ),
             ),

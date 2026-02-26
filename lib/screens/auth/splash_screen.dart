@@ -1,13 +1,16 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../services/api_config.dart';
 import '../../services/cognito_service.dart';
 import '../../services/fcm_notification_service.dart';
 import '../../homepage.dart';
 import 'user_type_selection_page.dart';
 import '../mechanic/mechanic_login_request_page.dart';
-import '../mechanic/mechanic_request_detail_page.dart';
+import '../mechanic/mechanic_service_dashboard.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -67,20 +70,36 @@ class _SplashScreenState extends State<SplashScreen>
       if (!mounted) return;
       final navigator = Navigator.of(context);
       try {
+        // If we already navigated to Request Details (from notification Accept),
+        // never override it with the normal splash flow.
+        if (FcmNotificationService.didOpenRequestDetailFromNotification) return;
+
         // Use id we read at 2s, or read again now (in case 2s hadn't run yet)
         String? launchRequestId = _launchRequestId;
         if (launchRequestId == null || launchRequestId.isEmpty) {
           launchRequestId = await FcmNotificationService.getLaunchRequestId();
         }
         final isCustomer = await CognitoService.isLoggedIn();
-        final isMechanic = await CognitoService.isMechanicLoggedIn();
-        // When opened from Accept → show request detail (mechanic or customer)
-        if (launchRequestId != null && launchRequestId.isNotEmpty && (isCustomer || isMechanic)) {
+        // When opened from Accept → go to mechanic dashboard with Bookings + Request Detail
+        if (launchRequestId != null && launchRequestId.isNotEmpty) {
             await FcmNotificationService.clearLaunchRequestId();
             FcmNotificationService.didOpenRequestDetailFromNotification = true;
+            int? mechanicId;
+            try {
+              final res = await http.get(Uri.parse('${ApiConfig.mechanicRequestsEndpoint}/$launchRequestId'), headers: {'Content-Type': 'application/json'});
+              if (res.statusCode == 200) {
+                final data = jsonDecode(res.body) as Map<String, dynamic>?;
+                final m = data?['mechanicId'];
+                mechanicId = m is int ? m : (m is num ? m.toInt() : int.tryParse(m?.toString() ?? ''));
+              }
+            } catch (_) {}
+            if (!mounted) return;
             navigator.pushAndRemoveUntil(
               MaterialPageRoute(
-                builder: (_) => MechanicRequestDetailPage(requestId: launchRequestId as String),
+                builder: (_) => MechanicServiceDashboard(
+                  mechanicData: mechanicId != null ? {'id': mechanicId} : null,
+                  openRequestIdAfterMount: launchRequestId,
+                ),
               ),
               (route) => false,
             );
@@ -123,20 +142,34 @@ class _SplashScreenState extends State<SplashScreen>
     });
   }
 
-  /// If app was opened from "Accept" notification, go to request detail immediately (mechanic or customer).
+  /// If app was opened from "Accept" notification, go to mechanic dashboard with Bookings + Request Detail.
   Future<void> _openRequestDetailIfLaunchedFromAccept() async {
     if (!mounted) return;
-    final id = await FcmNotificationService.getLaunchRequestId();
+    String? id = await FcmNotificationService.getLaunchRequestId();
+    if ((id == null || id.isEmpty) && mounted) {
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (!mounted) return;
+      id = await FcmNotificationService.getLaunchRequestId();
+    }
     if (!mounted || id == null || id.isEmpty) return;
-    final isCustomer = await CognitoService.isLoggedIn();
-    final isMechanic = await CognitoService.isMechanicLoggedIn();
-    if ((!isCustomer && !isMechanic) || !mounted) return;
     await FcmNotificationService.clearLaunchRequestId();
     FcmNotificationService.didOpenRequestDetailFromNotification = true;
+    int? mechanicId;
+    try {
+      final res = await http.get(Uri.parse('${ApiConfig.mechanicRequestsEndpoint}/$id'), headers: {'Content-Type': 'application/json'});
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body) as Map<String, dynamic>?;
+        final m = data?['mechanicId'];
+        mechanicId = m is int ? m : (m is num ? m.toInt() : int.tryParse(m?.toString() ?? ''));
+      }
+    } catch (_) {}
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(
-        builder: (_) => MechanicRequestDetailPage(requestId: id),
+        builder: (_) => MechanicServiceDashboard(
+          mechanicData: mechanicId != null ? {'id': mechanicId} : null,
+          openRequestIdAfterMount: id,
+        ),
       ),
       (route) => false,
     );

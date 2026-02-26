@@ -16,11 +16,20 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterActivity() {
 
     private val CHANNEL = "dyganox/mechanic_alarm"
+    private val ROUTE_OPEN_ACCEPT = "/open-accept/"
     private var methodChannel: MethodChannel? = null
+    private var openRequestDetailRetryCount: Int = 0
 
     companion object {
         @Volatile
         var pendingLaunchRequestId: String? = null
+    }
+
+    override fun getInitialRoute(): String? {
+        intent?.getStringExtra("open_request_id")?.let { return "$ROUTE_OPEN_ACCEPT$it" }
+        applicationContext.getSharedPreferences("dyganox_launch", MODE_PRIVATE)
+            .getString("pending_accept_request_id", null)?.let { return "$ROUTE_OPEN_ACCEPT$it" }
+        return super.getInitialRoute()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -93,13 +102,25 @@ class MainActivity : FlutterActivity() {
     /** Tell Flutter to open the request detail page (e.g. when user tapped Accept and app was in background). */
     private fun notifyFlutterOpenRequestDetail(requestId: String) {
         Handler(Looper.getMainLooper()).postDelayed({
+            // Critical: configureFlutterEngine may not have run yet on slower devices.
+            // If the channel isn't ready, retry briefly instead of dropping the navigation.
+            val channel = methodChannel
+            if (channel == null) {
+                if (openRequestDetailRetryCount < 15) {
+                    openRequestDetailRetryCount++
+                    notifyFlutterOpenRequestDetail(requestId)
+                }
+                return@postDelayed
+            }
+
+            openRequestDetailRetryCount = 0
             val result = object : MethodChannel.Result {
                 override fun success(result: Any?) {}
                 override fun error(errorCode: String, errorMessage: String?, errorDetails: Any?) {}
                 override fun notImplemented() {}
             }
-            methodChannel?.invokeMethod("openRequestDetail", requestId, result)
-        }, 350)
+            channel.invokeMethod("openRequestDetail", requestId, result)
+        }, 200)
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -142,6 +163,13 @@ class MainActivity : FlutterActivity() {
                     }
                     else -> result.notImplemented()
                 }
+            }
+        }
+        // If we were launched from notification Accept, guarantee the open request detail signal
+        // is fired AFTER the channel is ready.
+        pendingLaunchRequestId?.let { requestId ->
+            Handler(Looper.getMainLooper()).post {
+                notifyFlutterOpenRequestDetail(requestId)
             }
         }
     }
