@@ -9,9 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../services/api_config.dart';
 
 // Teal theme
-const _primary = Color(0xFF0D9488);
-const _cardBg = Color(0xFFFFFFFF);
-const _surface = Color(0xFFF0FDFA);
+import '../../core/theme/app_colors.dart';
 
 /// Full request details for Book Mechanic: map (customer location + distance), all details, photos. Accept or Dismiss.
 class MechanicRequestDetailBookFlowPage extends StatefulWidget {
@@ -132,13 +130,13 @@ class _MechanicRequestDetailBookFlowPageState extends State<MechanicRequestDetai
   Widget build(BuildContext context) {
     if (_loading) {
       return Scaffold(
-        appBar: AppBar(backgroundColor: _primary, title: Text('Request #${widget.requestId}', style: GoogleFonts.outfit(color: Colors.white))),
-        body: const Center(child: CircularProgressIndicator(color: _primary)),
+        appBar: AppBar(backgroundColor: AppColors.burntOrange, title: Text('Request #${widget.requestId}', style: GoogleFonts.outfit(color: AppColors.onBurntOrange))),
+        body: const Center(child: CircularProgressIndicator(color: AppColors.burntOrange)),
       );
     }
     if (_error != null || _request == null) {
       return Scaffold(
-        appBar: AppBar(backgroundColor: _primary, title: Text('Request #${widget.requestId}', style: GoogleFonts.outfit(color: Colors.white))),
+        appBar: AppBar(backgroundColor: AppColors.burntOrange, title: Text('Request #${widget.requestId}', style: GoogleFonts.outfit(color: AppColors.onBurntOrange))),
         body: Center(child: Text(_error ?? 'Request not found', style: GoogleFonts.inter())),
       );
     }
@@ -158,12 +156,12 @@ class _MechanicRequestDetailBookFlowPageState extends State<MechanicRequestDetai
     } catch (_) {}
 
     return Scaffold(
-      backgroundColor: _surface,
+      backgroundColor: AppColors.cream,
       appBar: AppBar(
-        backgroundColor: _primary,
+        backgroundColor: AppColors.burntOrange,
         elevation: 0,
-        leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: () => Navigator.pop(context)),
-        title: Text('Request details', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold)),
+        leading: IconButton(icon: const Icon(Icons.arrow_back, color: AppColors.onBurntOrange), onPressed: () => Navigator.pop(context)),
+        title: Text('Request details', style: GoogleFonts.outfit(color: AppColors.onBurntOrange, fontWeight: FontWeight.bold)),
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -198,14 +196,14 @@ class _MechanicRequestDetailBookFlowPageState extends State<MechanicRequestDetai
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                  color: _primary.withValues(alpha: 0.1),
+                  color: AppColors.burntOrange.withValues(alpha: 0.1),
                   child: Row(
                     children: [
-                      Icon(Icons.straighten, color: _primary, size: 22),
+                      Icon(Icons.straighten, color: AppColors.burntOrange, size: 22),
                       const SizedBox(width: 10),
                       Text(
                         '${_distanceKm!.toStringAsFixed(1)} km from you',
-                        style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600, color: _primary),
+                        style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.burntOrange),
                       ),
                     ],
                   ),
@@ -300,13 +298,13 @@ class _MechanicRequestDetailBookFlowPageState extends State<MechanicRequestDetai
                           child: ElevatedButton(
                             onPressed: _accepting ? null : _accept,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF10B981),
+                              backgroundColor: AppColors.warmAmber,
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             ),
                             child: _accepting
-                                ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                                : Text('Accept request', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.w600)),
+                                ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onBurntOrange))
+                                : Text('Accept request', style: GoogleFonts.outfit(color: AppColors.onBurntOrange, fontWeight: FontWeight.w600)),
                           ),
                         ),
                       ],
@@ -327,15 +325,15 @@ class _MechanicRequestDetailBookFlowPageState extends State<MechanicRequestDetai
                             label: const Text('Get directions to customer'),
                             style: OutlinedButton.styleFrom(
                               padding: const EdgeInsets.symmetric(vertical: 12),
-                              foregroundColor: _primary,
-                              side: const BorderSide(color: _primary),
+                              foregroundColor: AppColors.burntOrange,
+                              side: const BorderSide(color: AppColors.burntOrange),
                             ),
                           ),
                         ),
                       ),
                     const SizedBox(height: 8),
                     Center(
-                      child: Text('Waiting for customer to pay', style: GoogleFonts.outfit(fontSize: 14, color: Colors.grey[600])),
+                      child: Text('Waiting for customer to pay', style: GoogleFonts.outfit(fontSize: 14, color: AppColors.warmBrownMuted)),
                     ),
                   ],
                 ],
@@ -390,7 +388,7 @@ class _MechanicRequestDetailBookFlowPageState extends State<MechanicRequestDetai
         width: double.infinity,
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: _cardBg,
+          color: AppColors.creamElevated,
           borderRadius: BorderRadius.circular(12),
           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 2))],
         ),
@@ -399,15 +397,15 @@ class _MechanicRequestDetailBookFlowPageState extends State<MechanicRequestDetai
           children: [
             Container(
               padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(color: _primary.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
-              child: Icon(icon, color: _primary, size: 20),
+              decoration: BoxDecoration(color: AppColors.burntOrange.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
+              child: Icon(icon, color: AppColors.burntOrange, size: 20),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: GoogleFonts.outfit(fontSize: 12, color: Colors.grey[600], fontWeight: FontWeight.w600)),
+                  Text(title, style: GoogleFonts.outfit(fontSize: 12, color: AppColors.warmBrownMuted, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 4),
                   Text(value.isEmpty ? '—' : value, style: GoogleFonts.inter(fontSize: 14)),
                 ],

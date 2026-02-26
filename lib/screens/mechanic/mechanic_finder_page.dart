@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/theme/app_colors.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -439,7 +440,7 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
             Polyline(
               polylineId: const PolylineId('route'),
               points: polylineCoordinates,
-              color: const Color(0xFF6366F1),
+              color: AppColors.burntOrange,
               width: 4,
               patterns: [],
             ),
@@ -463,7 +464,7 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
             LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
             destination,
           ],
-          color: const Color(0xFF6366F1),
+          color: AppColors.burntOrange,
           width: 4,
           patterns: [],
         ),
@@ -581,10 +582,10 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
         });
         Navigator.pop(context);
       },
-      selectedColor: const Color(0xFF6366F1).withOpacity(0.2),
-      checkmarkColor: const Color(0xFF6366F1),
+      selectedColor: AppColors.burntOrange.withOpacity(0.2),
+      checkmarkColor: AppColors.burntOrange,
       labelStyle: GoogleFonts.outfit(
-        color: isSelected ? const Color(0xFF6366F1) : Colors.grey[700],
+        color: isSelected ? AppColors.burntOrange : Colors.grey[700],
         fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
       ),
     );
@@ -619,12 +620,12 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF6366F1).withOpacity(0.1),
+                        color: AppColors.burntOrange.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Icon(
                         Icons.handyman,
-                        color: Color(0xFF6366F1),
+                        color: AppColors.burntOrange,
                         size: 18,
                       ),
                     ),
@@ -665,7 +666,7 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
                           width: 6,
                           height: 6,
                           decoration: BoxDecoration(
-                            color: const Color(0xFF6366F1),
+                            color: AppColors.burntOrange,
                             shape: BoxShape.circle,
                           ),
                         ),
@@ -710,12 +711,12 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF6366F1).withOpacity(0.1),
+                        color: AppColors.burntOrange.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Icon(
                         Icons.person,
-                        color: Color(0xFF6366F1),
+                        color: AppColors.burntOrange,
                         size: 24,
                       ),
                     ),
@@ -789,7 +790,7 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
                         icon: const Icon(Icons.directions, size: 20),
                         label: const Text('Get direction'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF6366F1),
+                          backgroundColor: AppColors.burntOrange,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
@@ -806,7 +807,7 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
                           _showRequestMechanicDialog(mechanic);
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF10B981),
+                          backgroundColor: AppColors.warmAmber,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
@@ -829,7 +830,7 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
   Widget _buildDetailRow(IconData icon, String label, String value) {
     return Row(
       children: [
-        Icon(icon, size: 18, color: const Color(0xFF6366F1)),
+        Icon(icon, size: 18, color: AppColors.burntOrange),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
@@ -928,7 +929,7 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
             mainAxisSize: MainAxisSize.min,
             children: [
               const CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF10B981)),
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.warmAmber),
               ),
               const SizedBox(height: 16),
               Text(
@@ -1010,12 +1011,12 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withOpacity(0.1),
+                  color: AppColors.warmAmber.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
                   Icons.check_circle,
-                  color: Color(0xFF10B981),
+                  color: AppColors.warmAmber,
                   size: 20,
                 ),
               ),
@@ -1044,9 +1045,9 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF0FDF4),
+                  color: AppColors.creamElevated,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFF10B981).withOpacity(0.3)),
+                  border: Border.all(color: AppColors.warmAmber.withOpacity(0.3)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1056,7 +1057,7 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
                       style: GoogleFonts.inter(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: const Color(0xFF10B981),
+                        color: AppColors.warmAmber,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -1064,7 +1065,7 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
                       '• Mechanic will respond within 15 minutes\n• Booking sent successfully',
                       style: GoogleFonts.inter(
                         fontSize: 12,
-                        color: const Color(0xFF10B981),
+                        color: AppColors.warmAmber,
                       ),
                     ),
                   ],
@@ -1076,7 +1077,7 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
             ElevatedButton(
               onPressed: () => Navigator.pop(context),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF10B981),
+                backgroundColor: AppColors.warmAmber,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -1108,12 +1109,12 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEF4444).withOpacity(0.1),
+                  color: AppColors.errorRed.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
                   Icons.error,
-                  color: Color(0xFFEF4444),
+                  color: AppColors.errorRed,
                   size: 20,
                 ),
               ),
@@ -1137,7 +1138,7 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
             ElevatedButton(
               onPressed: () => Navigator.pop(context),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFEF4444),
+                backgroundColor: AppColors.errorRed,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -1159,9 +1160,9 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: AppColors.cream,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF6366F1),
+        backgroundColor: AppColors.burntOrange,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white, size: 24),
@@ -1278,7 +1279,7 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF6366F1).withOpacity(0.1),
+                          color: AppColors.burntOrange.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
@@ -1286,7 +1287,7 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
                           style: GoogleFonts.inter(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: const Color(0xFF6366F1),
+                            color: AppColors.burntOrange,
                           ),
                         ),
                       ),
@@ -1336,14 +1337,14 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 14, color: const Color(0xFF6366F1)),
+            Icon(icon, size: 14, color: AppColors.burntOrange),
             const SizedBox(width: 5),
             Text(
               label,
               style: GoogleFonts.outfit(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
-                color: const Color(0xFF1E293B),
+                color: AppColors.darkChocolate,
               ),
             ),
           ],
@@ -1365,19 +1366,19 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              const Color(0xFFFF6B35).withOpacity(0.15),
-              const Color(0xFFFF8C42).withOpacity(0.12),
+              AppColors.burntOrange.withOpacity(0.15),
+              AppColors.warmBrown.withOpacity(0.12),
             ],
             begin: Alignment.centerLeft,
             end: Alignment.centerRight,
           ),
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: const Color(0xFFFF6B35).withOpacity(0.25)),
+          border: Border.all(color: AppColors.burntOrange.withOpacity(0.25)),
         ),
         child: Center(
           child: Text(
             'Find & request a mechanic below',
-            style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)),
+            style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.darkChocolate),
           ),
         ),
       ),
@@ -1406,7 +1407,7 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF6366F1).withOpacity(0.08),
+              color: AppColors.burntOrange.withOpacity(0.08),
               spreadRadius: 0,
               blurRadius: 20,
               offset: const Offset(0, 4),
@@ -1437,7 +1438,7 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF6366F1).withOpacity(0.3),
+                              color: AppColors.burntOrange.withOpacity(0.3),
                               blurRadius: 6,
                               offset: const Offset(0, 3),
                             ),
@@ -1452,9 +1453,9 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
                                   fit: BoxFit.cover,
                                   width: 44,
                                   height: 44,
-                                  errorBuilder: (_, __, ___) => const Icon(Icons.build_circle, color: Color(0xFF6366F1), size: 22),
+                                  errorBuilder: (_, __, ___) => const Icon(Icons.build_circle, color: AppColors.burntOrange, size: 22),
                                 )
-                              : const Icon(Icons.build_circle, color: Color(0xFF6366F1), size: 22),
+                              : const Icon(Icons.build_circle, color: AppColors.burntOrange, size: 22),
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -1468,7 +1469,7 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
                               style: GoogleFonts.outfit(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 15,
-                                color: const Color(0xFF1E293B),
+                                color: AppColors.darkChocolate,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -1520,7 +1521,7 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
                           style: GoogleFonts.outfit(
                             fontWeight: FontWeight.bold,
                             fontSize: 12,
-                            color: const Color(0xFF10B981),
+                            color: AppColors.warmAmber,
                           ),
                         ),
                       ),
@@ -1537,17 +1538,17 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
                       _buildInfoChip(
                         Icons.location_on,
                         '${mechanic['distance'].toStringAsFixed(1)} km',
-                        const Color(0xFF6366F1),
+                        AppColors.burntOrange,
                       ),
                       _buildInfoChip(
                         Icons.category,
                         mechanic['specialty'],
-                        const Color(0xFF8B7ED8),
+                        AppColors.warmBrown,
                       ),
                       _buildInfoChip(
                         Icons.work_history,
                         mechanic['experience'],
-                        const Color(0xFF10B981),
+                        AppColors.warmAmber,
                       ),
                       // Services chip with dropdown
                       GestureDetector(
@@ -1557,23 +1558,23 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFFF6B35).withOpacity(0.1),
+                            color: AppColors.burntOrange.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(6),
                             border: Border.all(
-                              color: const Color(0xFFFF6B35).withOpacity(0.2),
+                              color: AppColors.burntOrange.withOpacity(0.2),
                               width: 1,
                             ),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.handyman, size: 11, color: const Color(0xFFFF6B35)),
+                              Icon(Icons.handyman, size: 11, color: AppColors.burntOrange),
                               const SizedBox(width: 4),
                               Text(
                                 'Services',
                                 style: GoogleFonts.outfit(
                                   fontSize: 10,
-                                  color: const Color(0xFFFF6B35),
+                                  color: AppColors.burntOrange,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -1581,7 +1582,7 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
                               Icon(
                                 Icons.arrow_drop_down,
                                 size: 16,
-                                color: const Color(0xFFFF6B35),
+                                color: AppColors.burntOrange,
                               ),
                             ],
                           ),
@@ -1605,11 +1606,11 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
                       List<Color> gradientColors;
                       
                       if (isAvailable) {
-                        statusColor = const Color(0xFF10B981);
-                        statusBgColor = const Color(0xFF10B981).withOpacity(0.15);
+                        statusColor = AppColors.warmAmber;
+                        statusBgColor = AppColors.warmAmber.withOpacity(0.15);
                         gradientColors = [
-                          const Color(0xFF10B981).withOpacity(0.15),
-                          const Color(0xFF06B6D4).withOpacity(0.15),
+                          AppColors.warmAmber.withOpacity(0.15),
+                          AppColors.warmAmber.withOpacity(0.15),
                         ];
                       } else if (isBusy) {
                         statusColor = Colors.orange[800]!;
@@ -1676,7 +1677,7 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
                             style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 12),
                           ),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFFF6B35),
+                            backgroundColor: AppColors.burntOrange,
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 8),
                             shape: RoundedRectangleBorder(
@@ -1702,7 +1703,7 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
                             style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 12),
                           ),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF6366F1),
+                            backgroundColor: AppColors.burntOrange,
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 8),
                             shape: RoundedRectangleBorder(
@@ -1736,16 +1737,16 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF6366F1).withOpacity(0.05) : Colors.white,
+          color: isSelected ? AppColors.burntOrange.withOpacity(0.05) : Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? const Color(0xFF6366F1) : Colors.grey[300]!,
+            color: isSelected ? AppColors.burntOrange : Colors.grey[300]!,
             width: isSelected ? 2 : 1,
           ),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: const Color(0xFF6366F1).withOpacity(0.2),
+                    color: AppColors.burntOrange.withOpacity(0.2),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -1766,7 +1767,7 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
               height: 50,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
-                color: const Color(0xFF6366F1).withOpacity(0.2),
+                color: AppColors.burntOrange.withOpacity(0.2),
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
@@ -1777,9 +1778,9 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
                         fit: BoxFit.cover,
                         width: 50,
                         height: 50,
-                        errorBuilder: (_, __, ___) => const Icon(Icons.build_circle, color: Color(0xFF6366F1), size: 26),
+                        errorBuilder: (_, __, ___) => const Icon(Icons.build_circle, color: AppColors.burntOrange, size: 26),
                       )
-                    : const Icon(Icons.build_circle, color: Color(0xFF6366F1), size: 26),
+                    : const Icon(Icons.build_circle, color: AppColors.burntOrange, size: 26),
               ),
             ),
             const SizedBox(width: 12),
@@ -1821,7 +1822,7 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
                   const SizedBox(height: 6),
                   Row(
                     children: [
-                      Icon(Icons.location_on, size: 14, color: const Color(0xFF6366F1)),
+                      Icon(Icons.location_on, size: 14, color: AppColors.burntOrange),
                       const SizedBox(width: 4),
                       Text(
                         '${mechanic['distance'].toStringAsFixed(1)} km',
@@ -1840,7 +1841,7 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
                           
                           Color statusColor;
                           if (isAvail) {
-                            statusColor = const Color(0xFF10B981);
+                            statusColor = AppColors.warmAmber;
                           } else if (isBusy) {
                             statusColor = Colors.orange[800]!;
                           } else { // Offline
@@ -1888,7 +1889,7 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
             Icon(
               Icons.arrow_forward_ios,
               size: 16,
-              color: isSelected ? const Color(0xFF6366F1) : Colors.grey[400],
+              color: isSelected ? AppColors.burntOrange : Colors.grey[400],
             ),
           ],
         ),
@@ -2005,13 +2006,13 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
                         return Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF6366F1).withOpacity(0.1),
+                            color: AppColors.burntOrange.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Text(
                             service,
                             style: GoogleFonts.outfit(
-                              color: const Color(0xFF6366F1),
+                              color: AppColors.burntOrange,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -2030,7 +2031,7 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
                             icon: const Icon(Icons.add_circle_outline),
                             label: const Text('Request mechanic'),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFFF6B35),
+                              backgroundColor: AppColors.burntOrange,
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 16),
                               shape: RoundedRectangleBorder(
@@ -2052,7 +2053,7 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
                             icon: const Icon(Icons.directions),
                             label: const Text('Get direction'),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF6366F1),
+                              backgroundColor: AppColors.burntOrange,
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 16),
                               shape: RoundedRectangleBorder(

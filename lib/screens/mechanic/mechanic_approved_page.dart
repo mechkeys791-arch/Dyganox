@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/theme/app_colors.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -94,13 +95,13 @@ class _MechanicApprovedPageState extends State<MechanicApprovedPage> {
                 width: 100,
                 height: 100,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withOpacity(0.12),
+                  color: AppColors.warmAmber.withOpacity(0.12),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
                   Icons.check_circle_rounded,
                   size: 56,
-                  color: Color(0xFF10B981),
+                  color: AppColors.warmAmber,
                 ),
               ),
               const SizedBox(height: 24),
@@ -137,7 +138,7 @@ class _MechanicApprovedPageState extends State<MechanicApprovedPage> {
                 obscureText: _obscurePassword,
                 decoration: InputDecoration(
                   labelText: 'Password (you will receive via WhatsApp)',
-                  prefixIcon: const Icon(Icons.lock, color: Color(0xFF6366F1)),
+                  prefixIcon: const Icon(Icons.lock, color: AppColors.burntOrange),
                   suffixIcon: IconButton(
                     icon: Icon(
                       _obscurePassword ? Icons.visibility : Icons.visibility_off,
@@ -157,7 +158,7 @@ class _MechanicApprovedPageState extends State<MechanicApprovedPage> {
               ElevatedButton(
                 onPressed: _isLoading ? null : _login,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6366F1),
+                  backgroundColor: AppColors.burntOrange,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),

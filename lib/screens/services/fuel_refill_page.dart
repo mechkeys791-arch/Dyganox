@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'dart:async';
+import '../../core/theme/app_colors.dart';
 
 class FuelRefillPage extends StatefulWidget {
   const FuelRefillPage({super.key});
@@ -132,8 +133,8 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
               child: Material(
                 elevation: 8,
                 borderRadius: BorderRadius.circular(20),
-                color: Colors.white,
-                shadowColor: const Color(0xFF706DC7).withOpacity(0.2),
+                color: AppColors.creamElevated,
+                shadowColor: AppColors.burntOrange.withOpacity(0.2),
                 child: InkWell(
                   onTap: () {
                     HapticFeedback.lightImpact();
@@ -146,14 +147,14 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
                       borderRadius: BorderRadius.circular(20),
                       gradient: LinearGradient(
                         colors: [
-                          Colors.white,
-                          const Color(0xFF706DC7).withOpacity(0.02),
+                          AppColors.creamElevated,
+                          AppColors.burntOrange.withOpacity(0.02),
                         ],
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                       ),
                       border: Border.all(
-                        color: const Color(0xFF706DC7).withOpacity(0.1),
+                        color: AppColors.burntOrange.withOpacity(0.1),
                         width: 1,
                       ),
                     ),
@@ -163,10 +164,10 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
                           width: 60,
                           height: 60,
                           decoration: BoxDecoration(
-                            color: const Color(0xFF706DC7).withOpacity(0.1),
+                            color: AppColors.burntOrange.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: const Color(0xFF706DC7).withOpacity(0.2),
+                              color: AppColors.burntOrange.withOpacity(0.2),
                               width: 1,
                             ),
                           ),
@@ -189,7 +190,7 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
                                 style: GoogleFonts.outfit(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.black87,
+                                  color: AppColors.darkChocolate,
                                 ),
                               ),
                               const SizedBox(height: 4),
@@ -197,7 +198,7 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
                                 description,
                                 style: GoogleFonts.inter(
                                   fontSize: 13,
-                                  color: Colors.grey[600],
+                                  color: AppColors.warmBrownMuted,
                                   height: 1.3,
                                 ),
                               ),
@@ -205,14 +206,14 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF706DC7).withOpacity(0.1),
+                                  color: AppColors.burntOrange.withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Text(
                                   'Service fee $price',
                                   style: GoogleFonts.outfit(
                                     fontSize: 12,
-                                    color: const Color(0xFF706DC7),
+                                    color: AppColors.burntOrange,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -223,12 +224,12 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF706DC7).withOpacity(0.1),
+                            color: AppColors.burntOrange.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: const Icon(
                             Icons.arrow_forward_ios,
-                            color: Color(0xFF706DC7),
+                            color: AppColors.burntOrange,
                             size: 16,
                           ),
                         ),
@@ -259,13 +260,13 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
       child: Material(
         elevation: 4,
         borderRadius: BorderRadius.circular(16),
-        color: Colors.white,
+        color: AppColors.creamElevated,
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: const Color(0xFF706DC7).withOpacity(0.1),
+              color: AppColors.burntOrange.withOpacity(0.1),
               width: 1,
             ),
           ),
@@ -281,7 +282,7 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
                       style: GoogleFonts.outfit(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                        color: AppColors.darkChocolate,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -289,7 +290,7 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
                       location,
                       style: GoogleFonts.inter(
                         fontSize: 13,
-                        color: Colors.grey[600],
+                        color: AppColors.warmBrownMuted,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -314,14 +315,14 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF706DC7).withOpacity(0.1),
+                            color: AppColors.burntOrange.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
                             distance,
                             style: GoogleFonts.outfit(
                               fontSize: 11,
-                              color: const Color(0xFF706DC7),
+                              color: AppColors.burntOrange,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -337,7 +338,7 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
                   _openMapView(name, location, lat, lng);
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF706DC7),
+                  backgroundColor: AppColors.burntOrange,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -346,7 +347,7 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
                 child: Text(
                   'Navigate',
                   style: GoogleFonts.outfit(
-                    color: Colors.white,
+                    color: AppColors.creamElevated,
                     fontWeight: FontWeight.w600,
                     fontSize: 11,
                   ),
@@ -401,7 +402,7 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
     ];
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: AppColors.cream,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -409,24 +410,24 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
           icon: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppColors.creamElevated,
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
+                  color: AppColors.darkChocolate.withOpacity(0.1),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
               ],
             ),
-            child: const Icon(Icons.arrow_back, color: Colors.black, size: 20),
+            child: Icon(Icons.arrow_back, color: AppColors.darkChocolate, size: 20),
           ),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           'Fuel Services',
           style: GoogleFonts.outfit(
-            color: Colors.black,
+            color: AppColors.darkChocolate,
             fontSize: 22,
             fontWeight: FontWeight.bold,
           ),
@@ -446,14 +447,14 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [Color(0xFF706DC7), Color(0xFF8B7ED8)],
+                    colors: [AppColors.burntOrange, AppColors.warmBrown],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF706DC7).withOpacity(0.3),
+                      color: AppColors.burntOrange.withOpacity(0.3),
                       blurRadius: 20,
                       offset: const Offset(0, 10),
                     ),
@@ -468,7 +469,7 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
                           Text(
                             'Nearby Fuel Stations',
                             style: GoogleFonts.outfit(
-                              color: Colors.white,
+                              color: AppColors.creamElevated,
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
                             ),
@@ -477,7 +478,7 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
                           Text(
                             'Find the nearest fuel station and navigate easily',
                             style: GoogleFonts.inter(
-                              color: Colors.white.withOpacity(0.9),
+                              color: AppColors.creamElevated.withOpacity(0.9),
                               fontSize: 12,
                             ),
                           ),
@@ -497,7 +498,7 @@ class _FuelRefillPageState extends State<FuelRefillPage> with TickerProviderStat
                   style: GoogleFonts.outfit(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                    color: AppColors.darkChocolate,
                   ),
                 ),
               ),
@@ -607,7 +608,7 @@ class _FuelStationMapViewState extends State<FuelStationMapView> {
           LatLng(widget.currentLat, widget.currentLng),
           LatLng(widget.stationLat, widget.stationLng),
         ],
-        color: const Color(0xFF706DC7),
+        color: AppColors.burntOrange,
         width: 5,
         patterns: [PatternItem.dot],
       ),
@@ -644,18 +645,18 @@ class _FuelStationMapViewState extends State<FuelStationMapView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: AppColors.cream,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.creamElevated,
         elevation: 2,
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: const Color(0xFF706DC7).withOpacity(0.1),
+              color: AppColors.burntOrange.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.arrow_back, color: Color(0xFF706DC7), size: 20),
+            child: Icon(Icons.arrow_back, color: AppColors.burntOrange, size: 20),
           ),
           onPressed: () => Navigator.pop(context),
         ),
@@ -665,7 +666,7 @@ class _FuelStationMapViewState extends State<FuelStationMapView> {
             Text(
               widget.stationName,
               style: GoogleFonts.outfit(
-                color: Colors.black,
+                color: AppColors.darkChocolate,
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
@@ -673,7 +674,7 @@ class _FuelStationMapViewState extends State<FuelStationMapView> {
             Text(
               widget.stationLocation,
               style: GoogleFonts.inter(
-                color: Colors.grey[600],
+                color: AppColors.warmBrownMuted,
                 fontSize: 12,
               ),
             ),
@@ -707,10 +708,10 @@ class _FuelStationMapViewState extends State<FuelStationMapView> {
           // Loading indicator
           if (_isLoading)
             Container(
-              color: Colors.white.withOpacity(0.8),
+              color: AppColors.creamElevated.withOpacity(0.8),
               child: const Center(
                 child: CircularProgressIndicator(
-                  color: Color(0xFF706DC7),
+                  color: AppColors.burntOrange,
                 ),
               ),
             ),
@@ -723,11 +724,11 @@ class _FuelStationMapViewState extends State<FuelStationMapView> {
             child: Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.creamElevated,
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: AppColors.darkChocolate.withOpacity(0.1),
                     blurRadius: 10,
                     offset: const Offset(0, 5),
                   ),
@@ -741,12 +742,12 @@ class _FuelStationMapViewState extends State<FuelStationMapView> {
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF706DC7).withOpacity(0.1),
+                          color: AppColors.burntOrange.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Icon(
                           Icons.local_gas_station,
-                          color: Color(0xFF706DC7),
+                          color: AppColors.burntOrange,
                           size: 24,
                         ),
                       ),
@@ -760,7 +761,7 @@ class _FuelStationMapViewState extends State<FuelStationMapView> {
                               style: GoogleFonts.outfit(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.black87,
+                                color: AppColors.darkChocolate,
                               ),
                             ),
                             const SizedBox(height: 4),
@@ -768,7 +769,7 @@ class _FuelStationMapViewState extends State<FuelStationMapView> {
                               'Tap markers for more details',
                               style: GoogleFonts.inter(
                                 fontSize: 12,
-                                color: Colors.grey[600],
+                                color: AppColors.warmBrownMuted,
                               ),
                             ),
                           ],

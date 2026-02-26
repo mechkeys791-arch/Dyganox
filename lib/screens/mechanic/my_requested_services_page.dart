@@ -10,9 +10,7 @@ import '../../services/payment/payment_gateway.dart';
 import 'book_mechanic_flow_page.dart';
 
 // Teal theme - no purple
-const _primary = Color(0xFF0D9488);
-const _cardBg = Color(0xFFFFFFFF);
-const _surface = Color(0xFFF0FDFA);
+import '../../core/theme/app_colors.dart';
 
 /// Lists user's mechanic requests: Pending, Accepted, Rejected, Cancelled. Cancel for pending; Pay when accepted.
 class MyRequestedServicesPage extends StatefulWidget {
@@ -118,15 +116,15 @@ class _MyRequestedServicesPageState extends State<MyRequestedServicesPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _surface,
+      backgroundColor: AppColors.cream,
       appBar: AppBar(
-        backgroundColor: _primary,
+        backgroundColor: AppColors.burntOrange,
         elevation: 0,
         leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: () => Navigator.pop(context)),
         title: Text('My requested services', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold)),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: _primary))
+          ? const Center(child: CircularProgressIndicator(color: AppColors.burntOrange))
           : _requests.isEmpty
               ? Center(
                   child: Column(
@@ -140,7 +138,7 @@ class _MyRequestedServicesPageState extends State<MyRequestedServicesPage> {
                 )
               : RefreshIndicator(
                   onRefresh: _loadUserAndRequests,
-                  color: _primary,
+                  color: AppColors.burntOrange,
                   child: ListView.builder(
                     padding: const EdgeInsets.all(16),
                     itemCount: _requests.length,
@@ -190,7 +188,7 @@ class _RequestCard extends StatelessWidget {
     Color statusColor = Colors.orange;
     String statusText = 'Pending';
     if (isAccepted) {
-      statusColor = _primary;
+      statusColor = AppColors.burntOrange;
       statusText = 'Mechanic accepted – Pay now';
     } else if (isPending) {
       statusColor = Colors.orange;
@@ -202,14 +200,14 @@ class _RequestCard extends StatelessWidget {
       statusColor = Colors.red;
       statusText = 'Rejected';
     } else if (isCompleted) {
-      statusColor = const Color(0xFF10B981);
+      statusColor = AppColors.warmAmber;
       statusText = 'Completed';
     }
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      color: _cardBg,
+      color: AppColors.creamElevated,
       child: InkWell(
         onTap: (isAccepted || isCompleted) ? onTapAccepted : null,
         borderRadius: BorderRadius.circular(12),
@@ -222,8 +220,8 @@ class _RequestCard extends StatelessWidget {
               children: [
                 Container(
                   padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(color: _primary.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
-                  child: Icon(Icons.build_circle, color: _primary, size: 22),
+                  decoration: BoxDecoration(color: AppColors.burntOrange.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
+                  child: Icon(Icons.build_circle, color: AppColors.burntOrange, size: 22),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -259,7 +257,7 @@ class _RequestCard extends StatelessWidget {
                     const SizedBox(width: 8),
                     ElevatedButton(
                       onPressed: onPay,
-                      style: ElevatedButton.styleFrom(backgroundColor: _primary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                      style: ElevatedButton.styleFrom(backgroundColor: AppColors.burntOrange, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
                       child: Text('Pay now', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.w600)),
                     ),
                   ],
@@ -327,7 +325,7 @@ class _MechanicAcceptedDetailPageState extends State<_MechanicAcceptedDetailPage
                 children: [
                   Text(
                     'Rate your mechanic',
-                    style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                    style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.darkChocolate),
                   ),
                   const SizedBox(height: 16),
                   Row(
@@ -360,7 +358,7 @@ class _MechanicAcceptedDetailPageState extends State<_MechanicAcceptedDetailPage
                       await _submitRating(selectedStars[0].toDouble(), commentController.text);
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _primary,
+                      backgroundColor: AppColors.burntOrange,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
@@ -388,7 +386,7 @@ class _MechanicAcceptedDetailPageState extends State<_MechanicAcceptedDetailPage
         setState(() => _ratingSubmitted = true);
         if (r.statusCode == 200) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Thank you for your rating!'), backgroundColor: Color(0xFF10B981), behavior: SnackBarBehavior.floating),
+            const SnackBar(content: Text('Thank you for your rating!'), backgroundColor: AppColors.warmAmber, behavior: SnackBarBehavior.floating),
           );
           widget.onRated?.call();
         } else {
@@ -460,9 +458,9 @@ class _MechanicAcceptedDetailPageState extends State<_MechanicAcceptedDetailPage
     }
 
     return Scaffold(
-      backgroundColor: _surface,
+      backgroundColor: AppColors.cream,
       appBar: AppBar(
-        backgroundColor: _primary,
+        backgroundColor: AppColors.burntOrange,
         elevation: 0,
         leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: () => Navigator.pop(context)),
         title: Text('Request details', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold)),
@@ -478,12 +476,12 @@ class _MechanicAcceptedDetailPageState extends State<_MechanicAcceptedDetailPage
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.check_circle, color: _primary, size: 32),
+                      Icon(Icons.check_circle, color: AppColors.burntOrange, size: 32),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
                           'Mechanic will contact you shortly',
-                          style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                          style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.darkChocolate),
                         ),
                       ),
                     ],
@@ -498,7 +496,7 @@ class _MechanicAcceptedDetailPageState extends State<_MechanicAcceptedDetailPage
                     width: double.infinity,
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: _cardBg,
+                      color: AppColors.creamElevated,
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
                     ),
@@ -517,7 +515,7 @@ class _MechanicAcceptedDetailPageState extends State<_MechanicAcceptedDetailPage
                 height: 220,
                 width: double.infinity,
                 child: _loading
-                    ? const Center(child: CircularProgressIndicator(color: _primary))
+                    ? const Center(child: CircularProgressIndicator(color: AppColors.burntOrange))
                     : GoogleMap(
                         initialCameraPosition: CameraPosition(target: LatLng(centerLat, centerLng), zoom: 14),
                         markers: markers,

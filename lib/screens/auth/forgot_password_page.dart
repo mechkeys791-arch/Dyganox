@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../services/cognito_service.dart';
 import 'reset_password_page.dart';
+import '../../core/theme/app_colors.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
   const ForgotPasswordPage({super.key});
@@ -127,9 +128,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage>
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              const Color(0xFFFF6B35),
-              const Color(0xFFFF8C42),
-              const Color(0xFFFFA500),
+              AppColors.burntOrange,
+              AppColors.warmBrown,
+              AppColors.warmAmber,
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -176,7 +177,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage>
                           child: const Icon(
                             Icons.lock_reset_rounded,
                             size: 50,
-                            color: Color(0xFFFF6B35),
+                            color: AppColors.burntOrange,
                           ),
                         ),
                       ),
@@ -260,7 +261,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage>
                                 ElevatedButton(
                                   onPressed: _isLoading ? null : _handleForgotPassword,
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFFFF6B35),
+                                    backgroundColor: AppColors.burntOrange,
                                     foregroundColor: Colors.white,
                                     padding: const EdgeInsets.symmetric(vertical: 16),
                                     shape: RoundedRectangleBorder(

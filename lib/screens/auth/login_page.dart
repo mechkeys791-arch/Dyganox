@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import '../../core/theme/app_colors.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -260,9 +261,9 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              const Color(0xFFFF6B35),
-              const Color(0xFFFF8C42),
-              const Color(0xFFFFA500),
+              AppColors.burntOrange,
+              AppColors.warmBrown,
+              AppColors.warmAmber,
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -287,7 +288,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                           width: 100,
                           height: 100,
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: AppColors.onBurntOrange,
                             borderRadius: BorderRadius.circular(25),
                             boxShadow: [
                               BoxShadow(
@@ -300,7 +301,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                           child: const Icon(
                             Icons.car_repair_rounded,
                             size: 50,
-                            color: Color(0xFFFF6B35),
+                            color: AppColors.burntOrange,
                           ),
                         ),
                       ),
@@ -311,7 +312,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                         style: GoogleFonts.outfit(
                           fontSize: 32,
                           fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                          color: AppColors.onBurntOrange,
                           letterSpacing: 0.5,
                         ),
                         textAlign: TextAlign.center,
@@ -321,7 +322,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                         'Sign in to continue',
                         style: GoogleFonts.inter(
                           fontSize: 16,
-                          color: Colors.white.withOpacity(0.9),
+                          color: AppColors.onBurntOrange.withOpacity(0.9),
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -329,7 +330,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                       // Login Form Card
                       Container(
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: AppColors.onBurntOrange,
                           borderRadius: BorderRadius.circular(24),
                           boxShadow: [
                             BoxShadow(
@@ -357,7 +358,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                                       borderRadius: BorderRadius.circular(16),
                                     ),
                                     filled: true,
-                                    fillColor: Colors.grey[50],
+                                    fillColor: AppColors.creamElevated,
                                   ),
                                   validator: (value) {
                                     if (value == null || value.isEmpty) {
@@ -390,7 +391,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                                       borderRadius: BorderRadius.circular(16),
                                     ),
                                     filled: true,
-                                    fillColor: Colors.grey[50],
+                                    fillColor: AppColors.creamElevated,
                                   ),
                                   validator: (value) {
                                     if (value == null || value.isEmpty) {
@@ -428,7 +429,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                                     child: Text(
                                       'Forgot Password?',
                                       style: GoogleFonts.inter(
-                                        color: const Color(0xFFFF6B35),
+                                        color: AppColors.burntOrange,
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
@@ -439,8 +440,8 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                                 ElevatedButton(
                                   onPressed: _isLoading ? null : _handleLogin,
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFFFF6B35),
-                                    foregroundColor: Colors.white,
+                                    backgroundColor: AppColors.burntOrange,
+                                    foregroundColor: AppColors.onBurntOrange,
                                     padding: const EdgeInsets.symmetric(vertical: 16),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(16),
@@ -453,7 +454,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                                           width: 20,
                                           child: CircularProgressIndicator(
                                             strokeWidth: 2,
-                                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                            valueColor: AlwaysStoppedAnimation<Color>(AppColors.onBurntOrange),
                                           ),
                                         )
                                       : Text(
@@ -468,18 +469,18 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                                 // Divider
                                 Row(
                                   children: [
-                                    Expanded(child: Divider(color: Colors.grey[300])),
+                                    Expanded(child: Divider(color: AppColors.warmBrownMuted)),
                                     Padding(
                                       padding: const EdgeInsets.symmetric(horizontal: 16),
                                       child: Text(
                                         'OR',
                                         style: GoogleFonts.inter(
-                                          color: Colors.grey[600],
+                                          color: AppColors.warmBrownMuted,
                                           fontSize: 14,
                                         ),
                                       ),
                                     ),
-                                    Expanded(child: Divider(color: Colors.grey[300])),
+                                    Expanded(child: Divider(color: AppColors.warmBrownMuted)),
                                   ],
                                 ),
                                 const SizedBox(height: 24),
@@ -503,7 +504,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                                   ),
                                   style: OutlinedButton.styleFrom(
                                     padding: const EdgeInsets.symmetric(vertical: 14),
-                                    side: BorderSide(color: Colors.grey[300]!),
+                                    side: BorderSide(color: AppColors.warmBrownMuted!),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(16),
                                     ),
@@ -522,7 +523,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                           Text(
                             'New to app? ',
                             style: GoogleFonts.inter(
-                              color: Colors.white.withOpacity(0.9),
+                              color: AppColors.onBurntOrange.withOpacity(0.9),
                               fontSize: 15,
                             ),
                           ),
@@ -548,7 +549,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                             child: Text(
                               'Sign Up',
                               style: GoogleFonts.outfit(
-                                color: Colors.white,
+                                color: AppColors.onBurntOrange,
                                 fontSize: 15,
                                 fontWeight: FontWeight.bold,
                                 decoration: TextDecoration.underline,

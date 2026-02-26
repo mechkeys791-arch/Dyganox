@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../core/theme/app_colors.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
@@ -191,7 +192,7 @@ class _MapServicePageState extends State<MapServicePage> with SingleTickerProvid
       builder: (context) {
         return Container(
           decoration: const BoxDecoration(
-            color: Colors.white,
+            color: AppColors.creamElevated,
             borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
           padding: const EdgeInsets.all(20),
@@ -204,7 +205,7 @@ class _MapServicePageState extends State<MapServicePage> with SingleTickerProvid
                 style: GoogleFonts.outfit(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+                  color: AppColors.darkChocolate,
                 ),
               ),
               const SizedBox(height: 20),
@@ -235,10 +236,10 @@ class _MapServicePageState extends State<MapServicePage> with SingleTickerProvid
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
           margin: const EdgeInsets.only(bottom: 8),
           decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFF6366F1).withOpacity(0.1) : Colors.transparent,
+            color: isSelected ? AppColors.burntOrange.withOpacity(0.1) : Colors.transparent,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: isSelected ? const Color(0xFF6366F1) : Colors.grey.shade300,
+              color: isSelected ? AppColors.burntOrange : AppColors.warmBrownMuted,
               width: isSelected ? 2 : 1,
             ),
           ),
@@ -246,7 +247,7 @@ class _MapServicePageState extends State<MapServicePage> with SingleTickerProvid
             children: [
               Icon(
                 icon,
-                color: isSelected ? const Color(0xFF6366F1) : Colors.grey,
+                color: isSelected ? AppColors.burntOrange : AppColors.warmBrownMuted,
                 size: 24,
               ),
               const SizedBox(width: 16),
@@ -255,14 +256,14 @@ class _MapServicePageState extends State<MapServicePage> with SingleTickerProvid
                 style: GoogleFonts.outfit(
                   fontSize: 16,
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                  color: isSelected ? const Color(0xFF6366F1) : Colors.black87,
+                  color: isSelected ? AppColors.burntOrange : AppColors.darkChocolate,
                 ),
               ),
               const Spacer(),
               if (isSelected)
                 const Icon(
                   Icons.check_circle,
-                  color: Color(0xFF6366F1),
+                  color: AppColors.burntOrange,
                   size: 20,
                 ),
             ],
@@ -291,7 +292,7 @@ class _MapServicePageState extends State<MapServicePage> with SingleTickerProvid
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('OK', style: GoogleFonts.outfit(color: const Color(0xFF6366F1))),
+            child: Text('OK', style: GoogleFonts.outfit(color: AppColors.burntOrange)),
           ),
         ],
       ),
@@ -308,7 +309,7 @@ class _MapServicePageState extends State<MapServicePage> with SingleTickerProvid
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('OK', style: GoogleFonts.outfit(color: const Color(0xFF6366F1))),
+            child: Text('OK', style: GoogleFonts.outfit(color: AppColors.burntOrange)),
           ),
         ],
       ),
@@ -325,7 +326,7 @@ class _MapServicePageState extends State<MapServicePage> with SingleTickerProvid
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancel', style: GoogleFonts.outfit(color: Colors.grey)),
+            child: Text('Cancel', style: GoogleFonts.outfit(color: AppColors.warmBrownMuted)),
           ),
           ElevatedButton(
             onPressed: () {
@@ -333,10 +334,10 @@ class _MapServicePageState extends State<MapServicePage> with SingleTickerProvid
               Navigator.pop(context);
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF6366F1),
+              backgroundColor: AppColors.burntOrange,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
-            child: Text('Open Settings', style: GoogleFonts.outfit(color: Colors.white)),
+            child: Text('Open Settings', style: GoogleFonts.outfit(color: AppColors.creamElevated)),
           ),
         ],
       ),
@@ -353,7 +354,7 @@ class _MapServicePageState extends State<MapServicePage> with SingleTickerProvid
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('OK', style: GoogleFonts.outfit(color: const Color(0xFF6366F1))),
+            child: Text('OK', style: GoogleFonts.outfit(color: AppColors.burntOrange)),
           ),
         ],
       ),
@@ -363,25 +364,25 @@ class _MapServicePageState extends State<MapServicePage> with SingleTickerProvid
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: AppColors.cream,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.creamElevated,
         elevation: 0,
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: const Color(0xFF6366F1).withOpacity(0.1),
+              color: AppColors.burntOrange.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.arrow_back, color: Color(0xFF6366F1), size: 20),
+            child: Icon(Icons.arrow_back, color: AppColors.burntOrange, size: 20),
           ),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           'Map Service',
           style: GoogleFonts.outfit(
-            color: Colors.black87,
+            color: AppColors.darkChocolate,
             fontSize: 22,
             fontWeight: FontWeight.bold,
           ),
@@ -392,10 +393,10 @@ class _MapServicePageState extends State<MapServicePage> with SingleTickerProvid
             icon: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: const Color(0xFF6366F1).withOpacity(0.1),
+                color: AppColors.burntOrange.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.layers, color: Color(0xFF6366F1), size: 20),
+              child: Icon(Icons.layers, color: AppColors.burntOrange, size: 20),
             ),
             onPressed: _changeMapType,
           ),
@@ -431,10 +432,10 @@ class _MapServicePageState extends State<MapServicePage> with SingleTickerProvid
             // Loading Indicator
             if (_isLoading)
               Container(
-                color: Colors.black.withOpacity(0.3),
+                color: AppColors.darkChocolate.withOpacity(0.3),
                 child: const Center(
                   child: CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
+                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.burntOrange),
                   ),
                 ),
               ),
@@ -449,16 +450,16 @@ class _MapServicePageState extends State<MapServicePage> with SingleTickerProvid
                   FloatingActionButton(
                     heroTag: 'location',
                     onPressed: _getCurrentLocation,
-                    backgroundColor: Colors.white,
-                    child: const Icon(Icons.my_location, color: Color(0xFF6366F1)),
+                    backgroundColor: AppColors.creamElevated,
+                    child: Icon(Icons.my_location, color: AppColors.burntOrange),
                   ),
                   const SizedBox(height: 12),
                   // Open in Google Maps Button
                   FloatingActionButton(
                     heroTag: 'google_maps',
                     onPressed: _openInGoogleMaps,
-                    backgroundColor: const Color(0xFF6366F1),
-                    child: const Icon(Icons.map, color: Colors.white),
+                    backgroundColor: AppColors.burntOrange,
+                    child: Icon(Icons.map, color: AppColors.creamElevated),
                   ),
                 ],
               ),
@@ -472,11 +473,11 @@ class _MapServicePageState extends State<MapServicePage> with SingleTickerProvid
               child: Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppColors.creamElevated,
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
+                      color: AppColors.darkChocolate.withOpacity(0.1),
                       blurRadius: 15,
                       offset: const Offset(0, 5),
                     ),
@@ -491,12 +492,12 @@ class _MapServicePageState extends State<MapServicePage> with SingleTickerProvid
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF6366F1).withOpacity(0.1),
+                            color: AppColors.burntOrange.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: const Icon(
                             Icons.location_on,
-                            color: Color(0xFF6366F1),
+                            color: AppColors.burntOrange,
                             size: 20,
                           ),
                         ),
@@ -510,7 +511,7 @@ class _MapServicePageState extends State<MapServicePage> with SingleTickerProvid
                                 style: GoogleFonts.outfit(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.black87,
+                                  color: AppColors.darkChocolate,
                                 ),
                               ),
                                 Text(
@@ -519,7 +520,7 @@ class _MapServicePageState extends State<MapServicePage> with SingleTickerProvid
                                     : 'Getting location...',
                                 style: GoogleFonts.inter(
                                   fontSize: 11,
-                                  color: Colors.grey[600],
+                                  color: AppColors.warmBrownMuted,
                                 ),
                               ),
                             ],

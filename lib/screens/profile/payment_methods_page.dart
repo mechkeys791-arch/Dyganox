@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/theme/app_colors.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
@@ -49,12 +50,12 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF6366F1).withOpacity(0.1),
+                  color: AppColors.burntOrange.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
                   payment == null ? Icons.add : Icons.edit,
-                  color: const Color(0xFF6366F1),
+                  color: AppColors.burntOrange,
                   size: 20,
                 ),
               ),
@@ -117,7 +118,7 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
               child: Text(
                 'Cancel',
                 style: GoogleFonts.outfit(
-                  color: const Color(0xFF64748B),
+                  color: AppColors.warmBrownMuted,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -162,7 +163,7 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
                         'Please fill all fields',
                         style: GoogleFonts.inter(color: Colors.white),
                       ),
-                      backgroundColor: const Color(0xFFEF4444),
+                      backgroundColor: AppColors.errorRed,
                       behavior: SnackBarBehavior.floating,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
@@ -170,7 +171,7 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
                 }
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF6366F1),
+                backgroundColor: AppColors.burntOrange,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
               child: Text(
@@ -224,10 +225,10 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: const Color(0xFFEF4444).withOpacity(0.1),
+                color: AppColors.errorRed.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.delete, color: Color(0xFFEF4444), size: 20),
+              child: const Icon(Icons.delete, color: AppColors.errorRed, size: 20),
             ),
             const SizedBox(width: 12),
             Text('Delete Payment Method', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
@@ -235,12 +236,12 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
         ),
         content: Text(
           'Are you sure you want to delete this payment method?',
-          style: GoogleFonts.inter(color: const Color(0xFF64748B)),
+          style: GoogleFonts.inter(color: AppColors.warmBrownMuted),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancel', style: GoogleFonts.outfit(color: const Color(0xFF64748B))),
+            child: Text('Cancel', style: GoogleFonts.outfit(color: AppColors.warmBrownMuted)),
           ),
           ElevatedButton(
             onPressed: () {
@@ -253,14 +254,14 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
                 SnackBar(
                   content: Text('Payment method deleted successfully!',
                       style: GoogleFonts.inter(color: Colors.white)),
-                  backgroundColor: const Color(0xFFEF4444),
+                  backgroundColor: AppColors.errorRed,
                   behavior: SnackBarBehavior.floating,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
               );
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFEF4444),
+              backgroundColor: AppColors.errorRed,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
             child: Text('Delete', style: GoogleFonts.outfit(color: Colors.white)),
@@ -303,7 +304,7 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: AppColors.cream,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -342,7 +343,7 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: const Color(0xFFFEF3C7).withOpacity(0.3),
+                color: AppColors.creamElevated.withOpacity(0.3),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -357,7 +358,7 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
               style: GoogleFonts.outfit(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: const Color(0xFF64748B),
+                color: AppColors.warmBrownMuted,
               ),
             ),
             const SizedBox(height: 12),
@@ -368,7 +369,7 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(
                   fontSize: 14,
-                  color: const Color(0xFF94A3B8),
+                  color: AppColors.warmBrownMuted,
                 ),
               ),
             ),

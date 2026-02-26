@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/theme/app_colors.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
@@ -345,7 +346,7 @@ class _MechanicLoginRequestPageState extends State<MechanicLoginRequestPage> {
       return const Scaffold(
         backgroundColor: Colors.white,
         body: Center(
-          child: CircularProgressIndicator(color: Color(0xFFFBBF24)),
+          child: CircularProgressIndicator(color: AppColors.warmAmber),
         ),
       );
     }
@@ -365,7 +366,7 @@ class _MechanicLoginRequestPageState extends State<MechanicLoginRequestPage> {
                 height: 100,
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [Color(0xFF111111), Color(0xFFFBBF24)],
+                    colors: [AppColors.darkChocolate, AppColors.warmAmber],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -399,7 +400,7 @@ class _MechanicLoginRequestPageState extends State<MechanicLoginRequestPage> {
                     : 'Add email and password, then fill the form. After admin approves, log in to go to your dashboard.',
                 style: GoogleFonts.inter(
                   fontSize: 16,
-                  color: Colors.grey[600],
+                  color: AppColors.warmBrownMuted,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -424,13 +425,13 @@ class _MechanicLoginRequestPageState extends State<MechanicLoginRequestPage> {
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           decoration: BoxDecoration(
-                            color: _isLoginMode ? const Color(0xFFFBBF24) : Colors.transparent,
+                            color: _isLoginMode ? AppColors.warmAmber : Colors.transparent,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
                             'Login',
                             style: GoogleFonts.outfit(
-                              color: _isLoginMode ? const Color(0xFF111111) : Colors.grey[600],
+                              color: _isLoginMode ? AppColors.darkChocolate : AppColors.warmBrownMuted,
                               fontWeight: FontWeight.w600,
                             ),
                             textAlign: TextAlign.center,
@@ -448,13 +449,13 @@ class _MechanicLoginRequestPageState extends State<MechanicLoginRequestPage> {
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           decoration: BoxDecoration(
-                            color: !_isLoginMode ? const Color(0xFFFBBF24) : Colors.transparent,
+                            color: !_isLoginMode ? AppColors.warmAmber : Colors.transparent,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
                             'Create Account',
                             style: GoogleFonts.outfit(
-                              color: !_isLoginMode ? const Color(0xFF111111) : Colors.grey[600],
+                              color: !_isLoginMode ? AppColors.darkChocolate : AppColors.warmBrownMuted,
                               fontWeight: FontWeight.w600,
                             ),
                             textAlign: TextAlign.center,
@@ -499,7 +500,7 @@ class _MechanicLoginRequestPageState extends State<MechanicLoginRequestPage> {
                 ElevatedButton(
                   onPressed: _isLoading ? null : _login,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFBBF24),
+                    backgroundColor: AppColors.warmAmber,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -511,13 +512,13 @@ class _MechanicLoginRequestPageState extends State<MechanicLoginRequestPage> {
                           width: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF111111)),
+                            valueColor: const AlwaysStoppedAnimation<Color>(AppColors.darkChocolate),
                           ),
                         )
                       : Text(
                           'Login',
                           style: GoogleFonts.outfit(
-                            color: const Color(0xFF111111),
+                            color: AppColors.darkChocolate,
                             fontWeight: FontWeight.w600,
                             fontSize: 16,
                           ),
@@ -567,7 +568,7 @@ class _MechanicLoginRequestPageState extends State<MechanicLoginRequestPage> {
                 ElevatedButton(
                   onPressed: _isLoading ? null : _createAccount,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFBBF24),
+                    backgroundColor: AppColors.warmAmber,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -579,13 +580,13 @@ class _MechanicLoginRequestPageState extends State<MechanicLoginRequestPage> {
                           width: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF111111)),
+                            valueColor: const AlwaysStoppedAnimation<Color>(AppColors.darkChocolate),
                           ),
                         )
                       : Text(
                           'Create Account',
                           style: GoogleFonts.outfit(
-                            color: const Color(0xFF111111),
+                            color: AppColors.darkChocolate,
                             fontWeight: FontWeight.w600,
                             fontSize: 16,
                           ),
@@ -625,7 +626,7 @@ class _MechanicLoginRequestPageState extends State<MechanicLoginRequestPage> {
           keyboardType: keyboardType,
           decoration: InputDecoration(
             hintText: hint,
-            prefixIcon: Icon(icon, color: const Color(0xFFFBBF24)),
+            prefixIcon: Icon(icon, color: AppColors.warmAmber),
             suffixIcon: suffixIcon,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),

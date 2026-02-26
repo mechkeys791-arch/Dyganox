@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import '../../core/theme/app_colors.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -209,7 +210,7 @@ class _SplashScreenState extends State<SplashScreen>
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                  colors: [AppColors.burntOrange, AppColors.warmBrown],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -218,7 +219,7 @@ class _SplashScreenState extends State<SplashScreen>
               child: const Icon(
                 Icons.car_repair,
                 size: 60,
-                color: Colors.white,
+                color: AppColors.cream,
               ),
             ),
             const SizedBox(height: 16),
@@ -227,7 +228,7 @@ class _SplashScreenState extends State<SplashScreen>
               style: GoogleFonts.outfit(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF6366F1),
+                color: AppColors.burntOrange,
                 letterSpacing: 2,
               ),
             ),
@@ -240,16 +241,16 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF6366F1),
+      backgroundColor: AppColors.burntOrange,
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Color(0xFF6366F1), // Indigo-500
-              Color(0xFF8B5CF6), // Violet-500
-              Color(0xFF06B6D4), // Cyan-500
+              AppColors.burntOrange, // Indigo-500
+              AppColors.warmBrown, // Violet-500
+              AppColors.warmAmber, // Cyan-500
             ],
             stops: [0.0, 0.5, 1.0],
           ),
@@ -270,7 +271,7 @@ class _SplashScreenState extends State<SplashScreen>
                         width: 250,
                         height: 220,
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: AppColors.cream,
                           borderRadius: BorderRadius.circular(205),
                           boxShadow: [
                             BoxShadow(
@@ -304,7 +305,7 @@ class _SplashScreenState extends State<SplashScreen>
                       style: GoogleFonts.inter(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
-                        color: Colors.white.withOpacity(0.95),
+                        color: AppColors.cream.withOpacity(0.95),
                         letterSpacing: 1.5,
                       ),
                     ),
@@ -326,7 +327,7 @@ class _SplashScreenState extends State<SplashScreen>
                       child: CircularProgressIndicator(
                         strokeWidth: 3,
                         valueColor: AlwaysStoppedAnimation<Color>(
-                          Colors.white.withOpacity(0.8),
+                          AppColors.cream.withOpacity(0.8),
                         ),
                       ),
                     ),

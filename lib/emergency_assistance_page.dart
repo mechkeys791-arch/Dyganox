@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'core/theme/app_colors.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'widgets/custom_nav_bar.dart';
@@ -85,12 +86,12 @@ class _EmergencyAssistancePageState extends State<EmergencyAssistancePage>
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF706DC7).withOpacity(0.1),
+                      color: AppColors.burntOrange.withOpacity(0.1),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
                       Icons.warning_rounded,
-                      color: Color(0xFF706DC7),
+                      color: AppColors.burntOrange,
                       size: 40,
                     ),
                   ),
@@ -195,23 +196,23 @@ class _EmergencyAssistancePageState extends State<EmergencyAssistancePage>
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             border: Border.all(
-              color: const Color(0xFF706DC7).withOpacity(0.3),
+              color: AppColors.burntOrange.withOpacity(0.3),
               width: 1.5,
             ),
             borderRadius: BorderRadius.circular(14),
-            color: const Color(0xFF706DC7).withOpacity(0.03),
+            color: AppColors.burntOrange.withOpacity(0.03),
           ),
           child: Row(
             children: [
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF706DC7).withOpacity(0.15),
+                  color: AppColors.burntOrange.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   icon,
-                  color: const Color(0xFF706DC7),
+                  color: AppColors.burntOrange,
                   size: 26,
                 ),
               ),
@@ -243,7 +244,7 @@ class _EmergencyAssistancePageState extends State<EmergencyAssistancePage>
               ),
               const Icon(
                 Icons.arrow_forward_ios_rounded,
-                color: Color(0xFF706DC7),
+                color: AppColors.burntOrange,
                 size: 16,
               ),
             ],
@@ -265,7 +266,7 @@ class _EmergencyAssistancePageState extends State<EmergencyAssistancePage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: AppColors.cream,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -307,7 +308,7 @@ class _EmergencyAssistancePageState extends State<EmergencyAssistancePage>
         opacity: _fadeAnimation,
         child: RefreshIndicator(
           onRefresh: () async { setState(() {}); },
-          color: const Color(0xFFEF4444),
+          color: AppColors.errorRed,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
           child: Column(
@@ -323,8 +324,8 @@ class _EmergencyAssistancePageState extends State<EmergencyAssistancePage>
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
                       colors: [
-                        Color(0xFFEF4444), // Reddish color
-                        Color(0xFFDC2626), // Darker reddish color
+                        AppColors.errorRed, // Reddish color
+                        AppColors.errorRed, // Darker reddish color
                       ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
@@ -332,7 +333,7 @@ class _EmergencyAssistancePageState extends State<EmergencyAssistancePage>
                     borderRadius: BorderRadius.circular(28),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFFEF4444).withOpacity(0.4),
+                        color: AppColors.errorRed.withOpacity(0.4),
                         blurRadius: 24,
                         offset: const Offset(0, 12),
                       ),
@@ -451,12 +452,12 @@ class _EmergencyAssistancePageState extends State<EmergencyAssistancePage>
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF706DC7).withOpacity(0.1),
+                            color: AppColors.burntOrange.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: const Icon(
                             Icons.stars_rounded,
-                            color: Color(0xFF706DC7),
+                            color: AppColors.burntOrange,
                             size: 24,
                           ),
                         ),
@@ -478,7 +479,7 @@ class _EmergencyAssistancePageState extends State<EmergencyAssistancePage>
                       icon: Icons.speed_rounded,
                       title: 'Instant Response',
                       description: 'Get connected to mechanics within 15-30 minutes',
-                      color: const Color(0xFF706DC7),
+                      color: AppColors.burntOrange,
                     ),
                     const SizedBox(height: 16),
 
@@ -486,7 +487,7 @@ class _EmergencyAssistancePageState extends State<EmergencyAssistancePage>
                       icon: Icons.verified_rounded,
                       title: 'Verified Professionals',
                       description: 'All mechanics are certified and background verified',
-                      color: const Color(0xFF706DC7),
+                      color: AppColors.burntOrange,
                     ),
                     const SizedBox(height: 16),
 
@@ -494,7 +495,7 @@ class _EmergencyAssistancePageState extends State<EmergencyAssistancePage>
                       icon: Icons.location_on_rounded,
                       title: 'Nearest Location',
                       description: 'Find mechanics closest to your current location',
-                      color: const Color(0xFF706DC7),
+                      color: AppColors.burntOrange,
                     ),
                     const SizedBox(height: 16),
 
@@ -502,7 +503,7 @@ class _EmergencyAssistancePageState extends State<EmergencyAssistancePage>
                       icon: Icons.phone_in_talk_rounded,
                       title: 'Direct Contact',
                       description: 'Call mechanics instantly or book appointments',
-                      color: const Color(0xFF706DC7),
+                      color: AppColors.burntOrange,
                     ),
                     const SizedBox(height: 16),
 
@@ -510,7 +511,7 @@ class _EmergencyAssistancePageState extends State<EmergencyAssistancePage>
                       icon: Icons.access_time_rounded,
                       title: '24/7 Availability',
                       description: 'Round-the-clock emergency assistance available',
-                      color: const Color(0xFF706DC7),
+                      color: AppColors.burntOrange,
                     ),
                     const SizedBox(height: 16),
 
@@ -518,7 +519,7 @@ class _EmergencyAssistancePageState extends State<EmergencyAssistancePage>
                       icon: Icons.payments_rounded,
                       title: 'Transparent Pricing',
                       description: 'Know the costs upfront with no hidden charges',
-                      color: const Color(0xFF706DC7),
+                      color: AppColors.burntOrange,
                     ),
                   ],
                 ),
@@ -531,10 +532,10 @@ class _EmergencyAssistancePageState extends State<EmergencyAssistancePage>
                 margin: const EdgeInsets.all(20),
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF706DC7).withOpacity(0.1),
+                  color: AppColors.burntOrange.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: const Color(0xFF706DC7).withOpacity(0.3),
+                    color: AppColors.burntOrange.withOpacity(0.3),
                     width: 2,
                   ),
                 ),
@@ -542,7 +543,7 @@ class _EmergencyAssistancePageState extends State<EmergencyAssistancePage>
                   children: [
                     const Icon(
                       Icons.info_outline_rounded,
-                      color: Color(0xFF706DC7),
+                      color: AppColors.burntOrange,
                       size: 32,
                     ),
                     const SizedBox(width: 16),
@@ -551,7 +552,7 @@ class _EmergencyAssistancePageState extends State<EmergencyAssistancePage>
                         'Tap "Find Mechanic Now" to get started and select your vehicle type',
                         style: GoogleFonts.inter(
                           fontSize: 14,
-                          color: const Color(0xFF706DC7),
+                          color: AppColors.burntOrange,
                           fontWeight: FontWeight.w600,
                           height: 1.4,
                         ),
@@ -786,7 +787,7 @@ class _MechanicsListPageState extends State<MechanicsListPage>
     final mechanics = _getMechanics();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: AppColors.cream,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 2,
@@ -795,12 +796,12 @@ class _MechanicsListPageState extends State<MechanicsListPage>
           icon: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: const Color(0xFF706DC7).withOpacity(0.1),
+              color: AppColors.burntOrange.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(
               Icons.arrow_back_rounded,
-              color: Color(0xFF706DC7),
+              color: AppColors.burntOrange,
               size: 20,
             ),
           ),
@@ -865,13 +866,13 @@ class _MechanicsListPageState extends State<MechanicsListPage>
         elevation: 6,
         borderRadius: BorderRadius.circular(22),
         color: Colors.white,
-        shadowColor: const Color(0xFF706DC7).withOpacity(0.1),
+        shadowColor: AppColors.burntOrange.withOpacity(0.1),
         child: Container(
           padding: const EdgeInsets.all(22),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(22),
             border: Border.all(
-              color: const Color(0xFF706DC7).withOpacity(0.15),
+              color: AppColors.burntOrange.withOpacity(0.15),
               width: 1.5,
             ),
           ),
@@ -885,14 +886,14 @@ class _MechanicsListPageState extends State<MechanicsListPage>
                     padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
-                        colors: [Color(0xFF706DC7), Color(0xFF8B7ED8)],
+                        colors: [AppColors.burntOrange, AppColors.warmBrown],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
                       borderRadius: BorderRadius.circular(18),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF706DC7).withOpacity(0.3),
+                          color: AppColors.burntOrange.withOpacity(0.3),
                           blurRadius: 12,
                           offset: const Offset(0, 6),
                         ),
@@ -924,7 +925,7 @@ class _MechanicsListPageState extends State<MechanicsListPage>
                             const Icon(
                               Icons.location_on_rounded,
                               size: 16,
-                              color: Color(0xFF706DC7),
+                              color: AppColors.burntOrange,
                             ),
                             const SizedBox(width: 4),
                             Expanded(
@@ -952,7 +953,7 @@ class _MechanicsListPageState extends State<MechanicsListPage>
                             _buildInfoBadge(
                               Icons.near_me_rounded,
                               distance,
-                              const Color(0xFF706DC7),
+                              AppColors.burntOrange,
                             ),
                             _buildInfoBadge(
                               Icons.workspace_premium_rounded,
@@ -985,14 +986,14 @@ class _MechanicsListPageState extends State<MechanicsListPage>
                     ),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF706DC7),
+                    backgroundColor: AppColors.burntOrange,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
                     elevation: 4,
-                    shadowColor: const Color(0xFF706DC7).withOpacity(0.4),
+                    shadowColor: AppColors.burntOrange.withOpacity(0.4),
                   ),
                 ),
               ),
@@ -1071,7 +1072,7 @@ class _BookingConfirmationPageState extends State<BookingConfirmationPage> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(primary: Color(0xFF706DC7)),
+            colorScheme: const ColorScheme.light(primary: AppColors.burntOrange),
           ),
           child: child!,
         );
@@ -1089,7 +1090,7 @@ class _BookingConfirmationPageState extends State<BookingConfirmationPage> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(primary: Color(0xFF706DC7)),
+            colorScheme: const ColorScheme.light(primary: AppColors.burntOrange),
           ),
           child: child!,
         );
@@ -1114,7 +1115,7 @@ class _BookingConfirmationPageState extends State<BookingConfirmationPage> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: const BoxDecoration(
-                  color: Color(0xFF706DC7),
+                  color: AppColors.burntOrange,
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -1145,7 +1146,7 @@ class _BookingConfirmationPageState extends State<BookingConfirmationPage> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF706DC7).withOpacity(0.1),
+                  color: AppColors.burntOrange.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Column(
@@ -1173,7 +1174,7 @@ class _BookingConfirmationPageState extends State<BookingConfirmationPage> {
                   Navigator.of(context).pop();
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF706DC7),
+                  backgroundColor: AppColors.burntOrange,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
@@ -1233,7 +1234,7 @@ class _BookingConfirmationPageState extends State<BookingConfirmationPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: AppColors.cream,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 2,
@@ -1241,12 +1242,12 @@ class _BookingConfirmationPageState extends State<BookingConfirmationPage> {
           icon: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: const Color(0xFF706DC7).withOpacity(0.1),
+              color: AppColors.burntOrange.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(
               Icons.arrow_back_rounded,
-              color: Color(0xFF706DC7),
+              color: AppColors.burntOrange,
               size: 20,
             ),
           ),
@@ -1274,14 +1275,14 @@ class _BookingConfirmationPageState extends State<BookingConfirmationPage> {
                 padding: const EdgeInsets.all(22),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [Color(0xFF706DC7), Color(0xFF8B7ED8)],
+                    colors: [AppColors.burntOrange, AppColors.warmBrown],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF706DC7).withOpacity(0.3),
+                      color: AppColors.burntOrange.withOpacity(0.3),
                       blurRadius: 15,
                       offset: const Offset(0, 8),
                     ),
@@ -1359,7 +1360,7 @@ class _BookingConfirmationPageState extends State<BookingConfirmationPage> {
                 controller: _nameController,
                 decoration: InputDecoration(
                   labelText: 'Full Name *',
-                  prefixIcon: const Icon(Icons.person_rounded, color: Color(0xFF706DC7)),
+                  prefixIcon: const Icon(Icons.person_rounded, color: AppColors.burntOrange),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
                   filled: true,
                   fillColor: Colors.white,
@@ -1369,7 +1370,7 @@ class _BookingConfirmationPageState extends State<BookingConfirmationPage> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: Color(0xFF706DC7), width: 2),
+                    borderSide: const BorderSide(color: AppColors.burntOrange, width: 2),
                   ),
                 ),
                 validator: (value) => value!.isEmpty ? 'Please enter your name' : null,
@@ -1380,7 +1381,7 @@ class _BookingConfirmationPageState extends State<BookingConfirmationPage> {
                 controller: _phoneController,
                 decoration: InputDecoration(
                   labelText: 'Phone Number *',
-                  prefixIcon: const Icon(Icons.phone_rounded, color: Color(0xFF706DC7)),
+                  prefixIcon: const Icon(Icons.phone_rounded, color: AppColors.burntOrange),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
                   filled: true,
                   fillColor: Colors.white,
@@ -1390,7 +1391,7 @@ class _BookingConfirmationPageState extends State<BookingConfirmationPage> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: Color(0xFF706DC7), width: 2),
+                    borderSide: const BorderSide(color: AppColors.burntOrange, width: 2),
                   ),
                 ),
                 keyboardType: TextInputType.phone,
@@ -1409,7 +1410,7 @@ class _BookingConfirmationPageState extends State<BookingConfirmationPage> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.calendar_today_rounded, color: Color(0xFF706DC7)),
+                      const Icon(Icons.calendar_today_rounded, color: AppColors.burntOrange),
                       const SizedBox(width: 14),
                       Text(
                         _selectedDate == null
@@ -1437,7 +1438,7 @@ class _BookingConfirmationPageState extends State<BookingConfirmationPage> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.access_time_rounded, color: Color(0xFF706DC7)),
+                      const Icon(Icons.access_time_rounded, color: AppColors.burntOrange),
                       const SizedBox(width: 14),
                       Text(
                         _selectedTime == null ? 'Select Time *' : _selectedTime!.format(context),
@@ -1456,7 +1457,7 @@ class _BookingConfirmationPageState extends State<BookingConfirmationPage> {
                 controller: _issueController,
                 decoration: InputDecoration(
                   labelText: 'Describe Issue (Optional)',
-                  prefixIcon: const Icon(Icons.description_rounded, color: Color(0xFF706DC7)),
+                  prefixIcon: const Icon(Icons.description_rounded, color: AppColors.burntOrange),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
                   filled: true,
                   fillColor: Colors.white,
@@ -1466,7 +1467,7 @@ class _BookingConfirmationPageState extends State<BookingConfirmationPage> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: Color(0xFF706DC7), width: 2),
+                    borderSide: const BorderSide(color: AppColors.burntOrange, width: 2),
                   ),
                 ),
                 maxLines: 3,
@@ -1479,12 +1480,12 @@ class _BookingConfirmationPageState extends State<BookingConfirmationPage> {
                 child: ElevatedButton(
                   onPressed: _confirmBooking,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF706DC7),
+                    backgroundColor: AppColors.burntOrange,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
                     elevation: 6,
-                    shadowColor: const Color(0xFF706DC7).withOpacity(0.4),
+                    shadowColor: AppColors.burntOrange.withOpacity(0.4),
                   ),
                   child: Text(
                     'Confirm Booking',
