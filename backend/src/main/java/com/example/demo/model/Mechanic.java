@@ -58,6 +58,16 @@ public class Mechanic {
     @Column(length = 500)
     private String fcmToken;
 
+    // Book Mechanic: how far mechanic can come (km), per-km charge after 5km
+    private Integer maxServingRadiusKm = 20;   // 5, 10, or 20 - set at registration / admin
+    private Double perKmCharge = 3.0;         // INR per km after 5km
+    @Column(length = 500)
+    private String serviceCategories;         // JSON array e.g. ["tyre_puncture","battery_jump","engine_repair"]
+    @Column(length = 500)
+    private String categoryIconUrl;           // Optional icon URL for this mechanic (admin)
+    private Double rating;                     // Average customer rating (1-5), updated when customer rates
+    private Integer ratingCount = 0;          // Number of ratings received
+
     public Mechanic() {}
 
     public Mechanic(String name, String email, String phone, String specialty, String experience, boolean nightTimeAvailable, String latitude, String longitude) {
@@ -171,6 +181,19 @@ public class Mechanic {
 
     public String getFcmToken() { return fcmToken; }
     public void setFcmToken(String fcmToken) { this.fcmToken = fcmToken; }
+
+    public Integer getMaxServingRadiusKm() { return maxServingRadiusKm; }
+    public void setMaxServingRadiusKm(Integer maxServingRadiusKm) { this.maxServingRadiusKm = maxServingRadiusKm; }
+    public Double getPerKmCharge() { return perKmCharge; }
+    public void setPerKmCharge(Double perKmCharge) { this.perKmCharge = perKmCharge; }
+    public String getServiceCategories() { return serviceCategories; }
+    public void setServiceCategories(String serviceCategories) { this.serviceCategories = serviceCategories; }
+    public String getCategoryIconUrl() { return categoryIconUrl; }
+    public void setCategoryIconUrl(String categoryIconUrl) { this.categoryIconUrl = categoryIconUrl; }
+    public Double getRating() { return rating; }
+    public void setRating(Double rating) { this.rating = rating; }
+    public Integer getRatingCount() { return ratingCount; }
+    public void setRatingCount(Integer ratingCount) { this.ratingCount = ratingCount; }
 
     @Override
     public String toString() {

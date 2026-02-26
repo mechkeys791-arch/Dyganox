@@ -174,8 +174,8 @@ class MechanicAlarmService : Service() {
     companion object {
         private const val TAG = "MechanicAlarmService"
         private const val NOTIFICATION_ID = 9001
-        const val ACTION_START_ALARM = "com.example.dyganox.START_ALARM"
-        const val ACTION_STOP_ALARM = "com.example.dyganox.STOP_ALARM"
+        const val ACTION_START_ALARM = "com.dyganox.app.START_ALARM"
+        const val ACTION_STOP_ALARM = "com.dyganox.app.STOP_ALARM"
         const val EXTRA_REQUEST_ID = "requestId"
         const val EXTRA_TITLE = "title"
         const val EXTRA_BODY = "body"

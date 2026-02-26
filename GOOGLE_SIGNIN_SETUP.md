@@ -25,7 +25,7 @@ Follow these steps **once** so "Continue with Google" works in your Android app.
 4. Create the Android client:
    - Application type: **Android**.
    - Name: e.g. **Dyganox Android**.
-   - **Package name:** must match your app. Check `android/app/build.gradle` → `applicationId` (e.g. `com.example.dyganox`).
+   - **Package name:** must match your app. Check `android/app/build.gradle.kts` → `applicationId` (e.g. `com.dyganox.app`).
    - **SHA-1 certificate fingerprint:** run in your project folder:
      ```bash
      cd android && ./gradlew signingReport
@@ -71,7 +71,7 @@ Android often needs a **Web** OAuth client so the app can receive an `id_token`.
 ## 5. Troubleshooting (Android)
 
 - **“Sign in failed” / “Invalid token” / 12501:**  
-  - Package name in Google Cloud must exactly match `applicationId` in `android/app/build.gradle`.  
+  - Package name in Google Cloud must exactly match `applicationId` in `android/app/build.gradle.kts` (e.g. `com.dyganox.app`).  
   - SHA-1 must match the key you’re signing with. Run `cd android && ./gradlew signingReport` and use that SHA-1 in the Android OAuth client.  
   - OAuth client type must be **Android**, not Web.
 - **Backend returns error:**  

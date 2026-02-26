@@ -204,7 +204,7 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
       case 'card':
         return 'Last 4 digits (e.g., 1234)';
       case 'upi':
-        return 'e.g., user@paytm';
+        return 'e.g., name@bank';
       case 'netbanking':
         return 'Last 4 digits';
       case 'wallet':

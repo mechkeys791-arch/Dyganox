@@ -8,12 +8,15 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/payment/square")
+@CrossOrigin(origins = "*")
 public class SquarePaymentController {
 
     @Value("${square.application.id}")
@@ -190,6 +193,34 @@ public class SquarePaymentController {
             response.put("success", false);
             response.put("message", "Payment not found");
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+        }
+    }
+
+    /**
+     * Get all payments for a customer (for User Payment Section in app).
+     * GET /api/payment/square/user?email=user@example.com
+     */
+    @GetMapping("/user")
+    public ResponseEntity<List<Map<String, Object>>> getUserPayments(@RequestParam String email) {
+        try {
+            List<Payment> payments = paymentRepo.findByCustomerEmailOrderByCreatedAtDesc(email == null ? "" : email.trim());
+            List<Map<String, Object>> list = new ArrayList<>();
+            for (Payment p : payments) {
+                Map<String, Object> m = new HashMap<>();
+                m.put("id", p.getId());
+                m.put("orderId", p.getOrderId());
+                m.put("amount", p.getAmount());
+                m.put("currency", p.getCurrency() != null ? p.getCurrency() : "INR");
+                m.put("status", p.getStatus());
+                m.put("paymentMethod", p.getPaymentMethod());
+                m.put("requestId", p.getRequestId());
+                m.put("createdAt", p.getCreatedAt());
+                m.put("completedAt", p.getCompletedAt());
+                list.add(m);
+            }
+            return ResponseEntity.ok(list);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(List.of());
         }
     }
 }

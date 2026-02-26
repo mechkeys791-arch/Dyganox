@@ -78,7 +78,7 @@ class DyganoxFirebaseMessagingService : FirebaseMessagingService() {
         }
     }
 
-    /** Notification with View only - shows customer name + distance. Tapping opens mechanic dashboard. */
+    /** Notification with View (open app to see map & details), Accept, Reject. Sound + high priority. */
     private fun showFallbackNotification(requestId: String, title: String, body: String) {
         val channelId = "mechanic_requests"
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -90,30 +90,47 @@ class DyganoxFirebaseMessagingService : FirebaseMessagingService() {
                 description = "New mechanic service requests"
                 enableVibration(true)
                 setShowBadge(true)
-                setSound(android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_NOTIFICATION), null)
+                setSound(android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_RINGTONE), android.media.AudioAttributes.Builder().setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION_RINGTONE).build())
                 enableLights(true)
             }
             getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
         }
-        // Content intent & View action: tapping opens app to mechanic dashboard (bookings + request detail)
-        val contentIntent = PendingIntent.getActivity(
-            this, requestId.hashCode(),
-            Intent(this, MainActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                putExtra("open_request_id", requestId)
-            },
+        val viewIntent = Intent(this, MechanicRequestActionReceiver::class.java).apply {
+            putExtra(MechanicRequestActionReceiver.EXTRA_REQUEST_ID, requestId)
+            putExtra(MechanicRequestActionReceiver.EXTRA_ACTION, MechanicRequestActionReceiver.ACTION_VIEW)
+        }
+        val acceptIntent = Intent(this, MechanicRequestActionReceiver::class.java).apply {
+            putExtra(MechanicRequestActionReceiver.EXTRA_REQUEST_ID, requestId)
+            putExtra(MechanicRequestActionReceiver.EXTRA_ACTION, MechanicRequestActionReceiver.ACTION_ACCEPT)
+        }
+        val rejectIntent = Intent(this, MechanicRequestActionReceiver::class.java).apply {
+            putExtra(MechanicRequestActionReceiver.EXTRA_REQUEST_ID, requestId)
+            putExtra(MechanicRequestActionReceiver.EXTRA_ACTION, MechanicRequestActionReceiver.ACTION_REJECT)
+        }
+        val viewPending = PendingIntent.getBroadcast(
+            this, requestId.hashCode(), viewIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val acceptPending = PendingIntent.getBroadcast(
+            this, requestId.hashCode() + 1, acceptIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val rejectPending = PendingIntent.getBroadcast(
+            this, requestId.hashCode() + 2, rejectIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val notificationId = NOTIFICATION_ID
         val notification = NotificationCompat.Builder(this, channelId)
             .setContentTitle(title)
             .setContentText(body)
-            .setContentIntent(contentIntent)
+            .setContentIntent(viewPending)
             .setSmallIcon(R.mipmap.ic_launcher)
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setDefaults(NotificationCompat.DEFAULT_ALL)
             .setCategory(NotificationCompat.CATEGORY_CALL)
-            .addAction(android.R.drawable.ic_menu_info_details, "View", contentIntent)
+            .addAction(android.R.drawable.ic_menu_info_details, "View", viewPending)
+            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Reject", rejectPending)
+            .addAction(android.R.drawable.ic_menu_call, "Accept", acceptPending)
             .setAutoCancel(true)
             .build()
         getSystemService(NotificationManager::class.java).notify(notificationId, notification)

@@ -208,7 +208,12 @@ class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateM
       }
       final email = data!['email']?.toString() ?? account.email ?? '';
       final name = data['name']?.toString() ?? account.displayName ?? email;
+      final photoUrl = data['profilePhotoUrl']?.toString() ?? account.photoUrl;
       await CognitoService.saveGoogleAuthData(email: email, name: name);
+      if (photoUrl != null && photoUrl.isNotEmpty) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('profilePhotoUrl', photoUrl);
+      }
       final profileResult = await UserProfileService.getUserProfile(email);
       final profileData = profileResult['success'] == true ? profileResult['data'] as Map<String, dynamic>? : null;
       await _loadUserProfileFromDatabase(email);

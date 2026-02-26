@@ -12,5 +12,7 @@ public interface MechanicRequestRepo extends JpaRepository<MechanicRequest, Long
     List<MechanicRequest> findByMechanicIdOrderByRequestTimeDesc(Long mechanicId);
     List<MechanicRequest> findByCustomerEmailOrderByRequestTimeDesc(String customerEmail);
     List<MechanicRequest> findByCustomerPhoneOrderByRequestTimeDesc(String customerPhone);
-    List<MechanicRequest> findByStatus(String status); // For active jobs (ACCEPTED status)
+    List<MechanicRequest> findByStatus(String status);
+    List<MechanicRequest> findByAcceptedMechanicIdOrderByRequestTimeDesc(Long mechanicId);
+    List<MechanicRequest> findByStatusAndAcceptedMechanicIdIsNull(String status);
 }

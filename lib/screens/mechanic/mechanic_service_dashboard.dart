@@ -5,19 +5,19 @@ import 'dart:convert';
 import 'dart:async';
 import '../../services/api_config.dart';
 import '../../services/fcm_notification_service.dart';
+import 'package:geolocator/geolocator.dart';
 import 'mechanic_bookings_page.dart';
 import 'mechanic_services_page.dart';
 import 'mechanic_profile_edit_page.dart';
 import 'mechanic_help_chat_page.dart';
 import 'mechanic_suspended_page.dart';
-import 'mechanic_request_detail_page.dart';
+import 'mechanic_request_detail_book_flow_page.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MechanicServiceDashboard extends StatefulWidget {
   final Map<String, dynamic>? mechanicData;
-  /// When set, dashboard will auto-open Bookings section then Request Detail (for Accept-from-notification flow).
-  final String? openRequestIdAfterMount;
   
-  const MechanicServiceDashboard({super.key, this.mechanicData, this.openRequestIdAfterMount});
+  const MechanicServiceDashboard({super.key, this.mechanicData});
 
   @override
   State<MechanicServiceDashboard> createState() => _MechanicServiceDashboardState();
@@ -29,6 +29,8 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
   
   String _mechanicStatus = 'Available'; // Available, Busy, Offline
   List<Map<String, dynamic>> _bookings = [];
+  List<dynamic> _nearbyBroadcastRequests = [];
+  bool _isLoadingNearby = false;
   List<String> _myServices = ['General Repair', 'Engine Service', 'Electrical Works'];
   // ignore: unused_field
   bool _isLoadingBookings = false;
@@ -36,7 +38,14 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
   // Auto-refresh timer
   Timer? _refreshTimer;
   
-  // Mock data for mechanic profile
+  // Wallet (from API) - no fake balance
+  double _walletBalance = 0.0;
+  double _walletTotalEarned = 0.0;
+  static const int _minWithdraw = 100;
+  int _completedJobs = 0;
+  List<Map<String, dynamic>> _transactions = []; // Real data from completed bookings only
+  
+  // Mechanic profile (from API / widget)
   final Map<String, dynamic> _mechanicProfile = {
     'name': 'John Mechanic',
     'specialty': 'General Repair',
@@ -90,65 +99,92 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
     
     _loadMechanicProfileFromApi();
     _fetchBookings();
+    _fetchWallet();
+    _fetchNearbyBroadcastRequests();
 
-    // Register FCM token so mechanic receives request notifications (Accept/Reject)
+    // Register FCM token and save mechanic ID for notification Accept/View (accept-by/mechanicId, open Book flow detail)
     final mechanicId = widget.mechanicData?['id'];
     if (mechanicId != null) {
       final id = mechanicId is int ? mechanicId : int.tryParse(mechanicId.toString());
-      if (id != null) FcmNotificationService.registerMechanicToken(id);
+      if (id != null) {
+        FcmNotificationService.registerMechanicToken(id);
+        FcmNotificationService.saveMechanicId(id);
+        SharedPreferences.getInstance().then((prefs) {
+          prefs.setInt('mechanic_id', id);
+        });
+      }
     }
+
+    // When request FCM arrives in foreground, show bottom sheet (pop up from bottom)
+    FcmNotificationService.onMechanicRequestInForeground = _showRequestBottomSheet;
 
     // Auto-refresh bookings every 30 seconds
     _refreshTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
       _fetchBookings();
       _loadMechanicProfileFromApi();
     });
-
-    // Accept-from-notification: open Bookings section first, then Request Detail
-    final requestId = widget.openRequestIdAfterMount;
-    if (requestId != null && requestId.isNotEmpty) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        Future.delayed(const Duration(milliseconds: 600), () {
-          if (!mounted) return;
-          _openBookingsThenRequestDetail(requestId);
-        });
-      });
-    }
-  }
-
-  void _openBookingsThenRequestDetail(String requestId) {
-    if (!mounted) return;
-    // 1. Open Bookings section with highlighted/shaking card for this request
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => MechanicBookingsPage(
-          bookings: _bookings,
-          onAccept: _acceptBooking,
-          onReject: _rejectBooking,
-          onComplete: _completeBooking,
-          highlightRequestId: requestId,
-        ),
-      ),
-    );
-    // 2. Then open Request Detail on top (short delay so Bookings appears first)
-    Future.delayed(const Duration(milliseconds: 350), () {
-      if (!mounted) return;
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => MechanicRequestDetailPage(requestId: requestId),
-        ),
-      );
-    });
   }
 
   @override
   void dispose() {
+    FcmNotificationService.onMechanicRequestInForeground = null;
     WidgetsBinding.instance.removeObserver(this);
     _refreshTimer?.cancel();
     _pulseController.dispose();
     super.dispose();
+  }
+
+  void _showRequestBottomSheet(String requestId) {
+    if (!mounted) return;
+    final mechanicId = widget.mechanicData?['id'];
+    final id = mechanicId is int ? mechanicId : int.tryParse(mechanicId?.toString() ?? '');
+    if (id == null || id == 0) return;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(20),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+              const SizedBox(height: 16),
+              Text('New request', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Text('A customer has requested your service.', style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[700])),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    final reqId = int.tryParse(requestId) ?? 0;
+                    if (reqId > 0) {
+                      Navigator.push(ctx, MaterialPageRoute(
+                        builder: (_) => MechanicRequestDetailBookFlowPage(requestId: reqId, mechanicId: id),
+                      ));
+                    }
+                  },
+                  icon: const Icon(Icons.visibility),
+                  label: const Text('View problem'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0D9488),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -267,26 +303,19 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
             String status = request['status'] ?? 'PENDING';
             status = status[0].toUpperCase() + status.substring(1).toLowerCase();
             
-            final lat = request['latitude'];
-            final lng = request['longitude'];
-            final locStr = request['address'] ?? request['location'] ?? 
-                (lat != null && lng != null ? '${lat}, $lng' : 'Location not shared');
             return {
               'id': request['id'],
               'customerName': request['customerName'] ?? 'Unknown',
               'customerPhone': request['customerPhone'] ?? 'Not provided',
               'service': request['serviceType'] ?? 'General Service',
-              'vehicle': request['vehicle'] ?? 'Customer Vehicle',
-              'location': locStr.toString(),
-              'latitude': lat,
-              'longitude': lng,
+              'vehicle': 'Customer Vehicle',  // Add vehicle field to backend if needed
+              'location': '${request['latitude']}, ${request['longitude']}',
               'date': request['createdAt']?.substring(0, 10) ?? 'Today',
               'time': request['createdAt']?.substring(11, 16) ?? 'Now',
               'status': status,
               'amount': '₹${request['amount'] ?? 50}',
               'description': request['description'] ?? 'Service request',
               'email': request['customerEmail'] ?? '',
-              'distanceKm': request['distanceKm'],
             };
           }).toList();
         });
@@ -309,6 +338,59 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
     }
   }
   
+  Future<void> _fetchNearbyBroadcastRequests() async {
+    final mechanicId = widget.mechanicData?['id'];
+    if (mechanicId == null) return;
+    final id = mechanicId is int ? mechanicId : int.tryParse(mechanicId.toString());
+    if (id == null) return;
+    setState(() => _isLoadingNearby = true);
+    try {
+      Position? pos;
+      try {
+        pos = await Geolocator.getCurrentPosition();
+      } catch (_) {}
+      final lat = pos?.latitude ?? 0.0;
+      final lng = pos?.longitude ?? 0.0;
+      final url = Uri.parse('${ApiConfig.mechanicRequestsEndpoint}/nearby-for-mechanic').replace(
+        queryParameters: {'mechanicId': id.toString(), 'lat': lat.toString(), 'lng': lng.toString()},
+      );
+      final r = await http.get(url, headers: {'Content-Type': 'application/json'});
+      if (r.statusCode == 200 && mounted) {
+        final list = jsonDecode(r.body) as List;
+        setState(() {
+          _nearbyBroadcastRequests = list;
+          _isLoadingNearby = false;
+        });
+      } else {
+        setState(() { _nearbyBroadcastRequests = []; _isLoadingNearby = false; });
+      }
+    } catch (e) {
+      if (mounted) setState(() { _nearbyBroadcastRequests = []; _isLoadingNearby = false; });
+    }
+  }
+
+  Future<void> _fetchWallet() async {
+    final mechanicId = widget.mechanicData?['id'];
+    if (mechanicId == null) return;
+    final id = mechanicId is int ? mechanicId : int.tryParse(mechanicId.toString());
+    if (id == null) return;
+    try {
+      final r = await http.get(
+        Uri.parse('${ApiConfig.mechanicWalletEndpoint}/$id'),
+        headers: {'Content-Type': 'application/json'},
+      );
+      if (r.statusCode == 200 && mounted) {
+        final w = jsonDecode(r.body) as Map<String, dynamic>;
+        setState(() {
+          _walletBalance = (w['balance'] as num?)?.toDouble() ?? 0.0;
+          _walletTotalEarned = (w['totalEarned'] as num?)?.toDouble() ?? 0.0;
+        });
+      }
+    } catch (e) {
+      print('MechanicServiceDashboard: Wallet fetch error: $e');
+    }
+  }
+
   void _showSnackBar(String message, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -322,10 +404,10 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF9E6),
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: const Color(0xFF111111),
+        backgroundColor: const Color(0xFF0D9488),
         title: Text(
           (_mechanicProfile['shopName'] ?? _mechanicProfile['shop_name'] ?? 'Service Provider').toString(),
           style: GoogleFonts.outfit(
@@ -343,144 +425,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
           ),
         ],
       ),
-      body: Stack(
-        children: [
-          _buildOverviewTab(),
-          _buildFloatingHelpBot(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFloatingHelpBot() {
-    final email = (_mechanicProfile['email'] ?? widget.mechanicData?['email'] ?? '').toString();
-    return Positioned(
-      right: 16,
-      bottom: 24,
-      child: AnimatedBuilder(
-        animation: _pulseAnimation,
-        builder: (context, child) => Transform.scale(
-          scale: 0.95 + 0.15 * _pulseAnimation.value,
-          child: child,
-        ),
-        child: GestureDetector(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => MechanicHelpChatPage(mechanicEmail: email),
-              ),
-            );
-          },
-          child: _buildCuteRobotBot(),
-        ),
-      ),
-    );
-  }
-
-  /// Cute robot appearance for the help bot
-  Widget _buildCuteRobotBot() {
-    return Container(
-      width: 60,
-      height: 60,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF111111), Color(0xFFFBBF24)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFFBBF24).withOpacity(0.5),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-        border: Border.all(color: Colors.white.withOpacity(0.5), width: 2),
-      ),
-      child: Stack(
-        clipBehavior: Clip.none,
-        alignment: Alignment.center,
-        children: [
-          // Antenna
-          Positioned(
-            top: -6,
-            child: Container(
-              width: 3,
-              height: 12,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          Positioned(
-            top: -10,
-            child: Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                color: const Color(0xFFFBBF24),
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-          // Face
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Eyes
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _robotEye(),
-                  const SizedBox(width: 10),
-                  _robotEye(),
-                ],
-              ),
-              const SizedBox(height: 2),
-              // Smile - simple arc
-              SizedBox(
-                width: 18,
-                height: 6,
-                child: CustomPaint(
-                  painter: _SmilePainter(),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _robotEye() {
-    return Container(
-      width: 10,
-      height: 10,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        shape: BoxShape.circle,
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 2)],
-      ),
-      child: Center(
-        child: Container(
-          width: 4,
-          height: 4,
-          decoration: const BoxDecoration(
-            color: Color(0xFF111111),
-            shape: BoxShape.circle,
-          ),
-        ),
-      ),
+      body: _buildOverviewTab(),
     );
   }
   
@@ -489,16 +434,16 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
       margin: const EdgeInsets.only(right: 8),
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFFBBF24).withOpacity(0.2),
+        color: Colors.white.withOpacity(0.2),
         borderRadius: BorderRadius.circular(20),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: _mechanicStatus,
-          dropdownColor: const Color(0xFF111111),
-          icon: const Icon(Icons.arrow_drop_down, color: Color(0xFFFBBF24)),
+          dropdownColor: const Color(0xFF0D9488),
+          icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
           style: GoogleFonts.inter(
-            color: const Color(0xFFFBBF24),
+            color: Colors.white,
             fontSize: 14,
             fontWeight: FontWeight.w600,
           ),
@@ -524,6 +469,8 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
     return RefreshIndicator(
       onRefresh: () async {
         await _fetchBookings();
+        await _fetchNearbyBroadcastRequests();
+        await _fetchWallet();
         _showSnackBar('Dashboard refreshed!', const Color(0xFF10B981));
       },
       child: SingleChildScrollView(
@@ -538,20 +485,37 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
             ),
             const SizedBox(height: 20),
             
+            _buildShopAndServicesCard(),
+            const SizedBox(height: 20),
+            
             // Quick Actions Section
             _buildQuickActions(),
             const SizedBox(height: 20),
             
-            // Stats Cards: Total Jobs, Pending, Today
+            // New requests near you (Book Mechanic flow - 5 min window)
+            if (_nearbyBroadcastRequests.isNotEmpty) ...[
+              _buildNearbyRequestsCard(),
+              const SizedBox(height: 20),
+            ],
+            
+            // Stats Cards with staggered animation
             _buildStatsCards(),
             const SizedBox(height: 20),
             
-            // Today's service & Today's earning - small boxes side by side
-            _buildTodayServiceAndEarningBoxes(),
+            // Performance Metrics
+            _buildPerformanceMetrics(),
             const SizedBox(height: 20),
             
-            // Earnings Overview + Service Summary (like image)
-            _buildEarningsOverviewAndServiceSummary(),
+            // Today's Schedule
+            _buildTodaySchedule(),
+            const SizedBox(height: 20),
+            
+            // Recent Activity
+            _buildRecentActivity(),
+            const SizedBox(height: 20),
+            
+            // Earnings Summary with trend
+            _buildEarningsSummary(),
             const SizedBox(height: 20),
           ],
         ),
@@ -562,18 +526,11 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
   Widget _buildProfileCard() {
     return GestureDetector(
       onTap: () async {
-        final mechanicId = widget.mechanicData?['id'];
-        final id = mechanicId is int ? mechanicId : (mechanicId != null ? int.tryParse(mechanicId.toString()) : null);
-        if (id == null) {
-          _showSnackBar('Mechanic ID not found', Colors.orange);
-          return;
-        }
         await Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => MechanicProfileEditPage(
               mechanicProfile: _mechanicProfile,
-              mechanicId: id,
               onSave: (updatedProfile) {
                 setState(() {
                   _mechanicProfile['name'] = updatedProfile['name'];
@@ -584,8 +541,6 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
                   _mechanicProfile['shopAddress'] = updatedProfile['shopAddress'];
                   _mechanicProfile['latitude'] = updatedProfile['latitude'];
                   _mechanicProfile['longitude'] = updatedProfile['longitude'];
-                  if (updatedProfile['profilePhotoUrl'] != null) _mechanicProfile['profilePhotoUrl'] = updatedProfile['profilePhotoUrl'];
-                  if (updatedProfile['nightTimeAvailable'] != null) _mechanicProfile['nightTimeAvailable'] = updatedProfile['nightTimeAvailable'];
                 });
               },
             ),
@@ -596,12 +551,12 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
-            colors: [Color(0xFF111111), Color(0xFFFBBF24)],
+            colors: [Color(0xFF0D9488), Color(0xFF14B8A6)],
           ),
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFFFBBF24).withOpacity(0.35),
+              color: const Color(0xFF0D9488).withOpacity(0.3),
               blurRadius: 15,
               offset: const Offset(0, 8),
             ),
@@ -625,9 +580,9 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
                       fit: BoxFit.cover,
                       width: 80,
                       height: 80,
-                      errorBuilder: (_, __, ___) => const Icon(Icons.account_circle, size: 40, color: Color(0xFF111111)),
+                      errorBuilder: (_, __, ___) => const Icon(Icons.account_circle, size: 40, color: Color(0xFF0D9488)),
                     )
-                  : const Icon(Icons.account_circle, size: 40, color: Color(0xFF111111)),
+                  : const Icon(Icons.account_circle, size: 40, color: Color(0xFF0D9488)),
             ),
           ),
           const SizedBox(width: 16),
@@ -635,37 +590,48 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        _mechanicProfile['name'],
-                        style: GoogleFonts.outfit(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                    Container(
-                      margin: const EdgeInsets.only(top: 2),
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(Icons.edit, color: Colors.white, size: 16),
-                    ),
-                  ],
+                Text(
+                  _mechanicProfile['name'],
+                  style: GoogleFonts.outfit(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  _mechanicProfile['specialty'],
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    color: Colors.white.withOpacity(0.9),
-                  ),
+                Row(
+                  children: [
+                    Text(
+                      _mechanicProfile['specialty'],
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        color: Colors.white.withOpacity(0.9),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.touch_app, color: Colors.white, size: 10),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Tap to edit',
+                            style: GoogleFonts.inter(
+                              fontSize: 10,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 8),
                 Row(
@@ -712,100 +678,178 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
               ],
             ),
           ),
+          // Edit indicator
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child:           const Icon(Icons.edit, color: Colors.white, size: 20),
+          ),
         ],
         ),
       ),
     );
   }
   
-  // QUICK ACTIONS
-  Widget _buildQuickActions() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Quick Actions',
-          style: GoogleFonts.outfit(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
+  Widget _buildShopAndServicesCard() {
+    final shopName = (_mechanicProfile['shopName'] ?? _mechanicProfile['shop_name'] ?? '').toString();
+    final shopAddr = (_mechanicProfile['shopAddress'] ?? _mechanicProfile['shop_address'] ?? '').toString();
+    final specialty = (_mechanicProfile['specialty'] ?? '').toString();
+    final experience = (_mechanicProfile['experience'] ?? '').toString();
+    final opening = (_mechanicProfile['openingTime'] ?? '').toString();
+    final closing = (_mechanicProfile['closingTime'] ?? '').toString();
+    final workingDays = (_mechanicProfile['workingDays'] ?? '').toString();
+    final nightAvailable = _mechanicProfile['nightTimeAvailable'] == true;
+    
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _buildBookingsQuickAction(),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildQuickActionButton(
-                'My Services',
-                Icons.handyman,
-                const Color(0xFFFBBF24),
-                () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => MechanicServicesPage(
-                        myServices: _myServices,
-                        onAddService: _addService,
-                        onRemoveService: _removeService,
-                      ),
-                    ),
-                  );
-                },
+        ],
+        border: Border.all(color: const Color(0xFF0D9488).withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0D9488).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.store, color: Color(0xFF0D9488), size: 24),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'My Shop & Info',
+                style: GoogleFonts.outfit(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (shopName.isNotEmpty)
+            _buildInfoRow(Icons.storefront, 'Shop', shopName),
+          if (shopAddr.isNotEmpty)
+            _buildInfoRow(Icons.location_on, 'Address', shopAddr),
+          if (specialty.isNotEmpty)
+            _buildInfoRow(Icons.build_circle, 'Specialty', specialty),
+          if (experience.isNotEmpty)
+            _buildInfoRow(Icons.timeline, 'Experience', experience),
+          if (opening.isNotEmpty || closing.isNotEmpty)
+            _buildInfoRow(Icons.access_time, 'Hours', 
+              opening.isNotEmpty && closing.isNotEmpty 
+                ? '$opening - $closing' 
+                : (opening.isNotEmpty ? opening : closing)),
+          if (workingDays.isNotEmpty)
+            _buildInfoRow(Icons.calendar_today, 'Working Days', workingDays.replaceAll(',', ', ')),
+          if (nightAvailable)
+            Container(
+              margin: const EdgeInsets.only(top: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFF14B8A6).withOpacity(0.15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.nightlight_round, color: Color(0xFF14B8A6), size: 18),
+                  const SizedBox(width: 8),
+                  Text('24/7 Night service available', style: GoogleFonts.inter(
+                    fontSize: 13, fontWeight: FontWeight.w600, color: const Color(0xFF14B8A6),
+                  )),
+                ],
               ),
             ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _buildQuickActionButton(
-                'Help Chat',
-                Icons.chat_rounded,
-                const Color(0xFF111111),
-                () {
-                  final email = (_mechanicProfile['email'] ?? widget.mechanicData?['email'] ?? '').toString();
-                  if (email.isEmpty) {
-                    _showSnackBar('Email not found', Colors.orange);
-                    return;
-                  }
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => MechanicHelpChatPage(mechanicEmail: email),
-                    ),
-                  );
-                },
-              ),
+          if (_myServices.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Text('Services Offered', style: GoogleFonts.inter(
+              fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey[700],
+            )),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _myServices.map((s) => Chip(
+                label: Text(s, style: GoogleFonts.inter(fontSize: 12)),
+                backgroundColor: const Color(0xFF10B981).withOpacity(0.15),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              )).toList(),
             ),
           ],
-        ),
-      ],
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildInfoRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18, color: Colors.grey[600]),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: GoogleFonts.inter(fontSize: 11, color: Colors.grey[500], fontWeight: FontWeight.w500)),
+                const SizedBox(height: 2),
+                Text(value, style: GoogleFonts.inter(fontSize: 14, color: Colors.black87)),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
   
   Widget _buildStatsCards() {
-    final todayStr = '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}';
-    final todayCount = _bookings.where((b) {
-      final d = (b['date'] ?? '').toString();
-      return d.startsWith(todayStr) || d == todayStr;
-    }).length;
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final gap = constraints.maxWidth < 320 ? 6.0 : 12.0;
-        return Row(
-          children: [
-            Expanded(child: _buildStatCard('Total Jobs', '${_mechanicProfile['completedJobs']}', Icons.check_circle_outline, const Color(0xFF10B981))),
-            SizedBox(width: gap),
-            Expanded(child: _buildStatCard('Pending', '${_bookings.where((b) => b['status'] == 'Pending').length}', Icons.pending_actions, const Color(0xFFF59E0B))),
-            SizedBox(width: gap),
-            Expanded(child: _buildStatCard('Today', '$todayCount', Icons.today, const Color(0xFFFBBF24))),
-          ],
-        );
-      },
+    return Row(
+      children: [
+        Expanded(
+          child: _buildStatCard(
+            'Total Jobs',
+            '${_mechanicProfile['completedJobs']}',
+            Icons.check_circle_outline,
+            const Color(0xFF10B981),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildStatCard(
+            'Pending',
+            '${_bookings.where((b) => b['status'] == 'Pending').length}',
+            Icons.pending_actions,
+            const Color(0xFFF59E0B),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildStatCard(
+            'Today',
+            '${_bookings.where((b) => b['date'] == '2024-01-15').length}',
+            Icons.today,
+            const Color(0xFF0D9488),
+          ),
+        ),
+      ],
     );
   }
   
@@ -847,351 +891,110 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
     );
   }
   
-  Widget _buildTodayServiceAndEarningBoxes() {
-    final todayStr = '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}';
-    final todayBookings = _bookings.where((b) => (b['date'] ?? '').toString().startsWith(todayStr) || (b['date'] ?? '') == todayStr).toList();
-    final todayCount = todayBookings.length;
-    double todayEarnings = 0;
-    for (final b in todayBookings) {
-      final amt = b['amount'];
-      if (amt != null) {
-        if (amt is num) {
-          todayEarnings += amt.toDouble();
-        } else {
-          final parsed = double.tryParse(amt.toString().replaceAll(RegExp(r'[^0-9.]'), ''));
-          if (parsed != null) todayEarnings += parsed;
-        }
-      }
-    }
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isNarrow = constraints.maxWidth < 320;
-        final padding = isNarrow ? 10.0 : 14.0;
-        final gap = isNarrow ? 8.0 : 12.0;
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Container(
-                padding: EdgeInsets.all(padding),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          padding: EdgeInsets.all(isNarrow ? 6 : 8),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF111111).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Icon(Icons.build_circle_outlined, color: const Color(0xFF111111), size: isNarrow ? 18 : 20),
-                        ),
-                        SizedBox(width: isNarrow ? 6 : 10),
-                        Flexible(
-                          child: Text(
-                            'Today\'s service',
-                            style: GoogleFonts.inter(
-                              fontSize: isNarrow ? 11 : 13,
-                              color: Colors.grey[700],
-                              fontWeight: FontWeight.w500,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '$todayCount',
-                      style: GoogleFonts.outfit(
-                        fontSize: isNarrow ? 20 : 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
+  Widget _buildTodaySchedule() {
+    final todayBookings = _bookings.where((b) => b['date'] == '2024-01-15').toList();
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Today\'s Schedule',
+          style: GoogleFonts.outfit(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (todayBookings.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Center(
+              child: Column(
+                children: [
+                  Icon(Icons.event_available, size: 48, color: Colors.grey[400]),
+                  const SizedBox(height: 8),
+                  Text(
+                    'No bookings for today',
+                    style: GoogleFonts.inter(color: Colors.grey[600]),
+                  ),
+                ],
               ),
             ),
-            SizedBox(width: gap),
-            Expanded(
-              child: Container(
-                padding: EdgeInsets.all(padding),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          padding: EdgeInsets.all(isNarrow ? 6 : 8),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF10B981).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Icon(Icons.currency_rupee, color: const Color(0xFF10B981), size: isNarrow ? 18 : 20),
-                        ),
-                        SizedBox(width: isNarrow ? 6 : 10),
-                        Flexible(
-                          child: Text(
-                            'Today\'s earning',
-                            style: GoogleFonts.inter(
-                              fontSize: isNarrow ? 11 : 13,
-                              color: Colors.grey[700],
-                              fontWeight: FontWeight.w500,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        '₹${todayEarnings.toStringAsFixed(0)}',
-                        style: GoogleFonts.outfit(
-                          fontSize: isNarrow ? 18 : 24,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        );
-      },
+          )
+        else
+          ...todayBookings.map((booking) => _buildMiniBookingCard(booking)),
+      ],
     );
   }
-
-  Widget _buildEarningsOverviewAndServiceSummary() {
-    // Mock weekly earnings (Sun-Sat) - in real app would come from API
-    final weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    final primaryEarnings = [1200.0, 950.0, 800.0, 1500.0, 2200.0, 1800.0, 1100.0];
-    final secondaryEarnings = [300.0, 250.0, 200.0, 0.0, 400.0, 350.0, 280.0];
-    final maxEarning = [...primaryEarnings, ...secondaryEarnings].fold<double>(0, (a, b) => a > b ? a : b);
-    final completedJobs = _mechanicProfile['completedJobs'] is int
-        ? _mechanicProfile['completedJobs'] as int
-        : int.tryParse(_mechanicProfile['completedJobs']?.toString() ?? '0') ?? 0;
-    final pendingCount = _bookings.where((b) => b['status'] == 'Pending').length;
-    final totalJobs = completedJobs + pendingCount;
-    const cancelledCount = 0;
+  
+  Widget _buildMiniBookingCard(Map<String, dynamic> booking) {
     return Container(
+      margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final isNarrow = constraints.maxWidth < 350;
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    flex: isNarrow ? 4 : 5,
-                    child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Earnings Overview',
-                      style: GoogleFonts.outfit(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    LayoutBuilder(
-                      builder: (context, chartConstraints) {
-                        final cellWidth = chartConstraints.maxWidth / 7;
-                        final barW = (cellWidth * 0.35).clamp(3.0, 10.0);
-                        const barHeight = 95.0;
-                        return SizedBox(
-                          height: 120,
-                          child: Stack(
-                            children: [
-                              // 7 horizontal grid lines
-                              Column(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: List.generate(7, (_) => Container(
-                                  height: 1,
-                                  color: Colors.grey.withOpacity(0.15),
-                                )),
-                              ),
-                              Row(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: List.generate(7, (i) {
-                              final primary = primaryEarnings[i];
-                              final secondary = secondaryEarnings[i];
-                              final ph = maxEarning > 0 ? (primary / maxEarning) * barHeight : 0.0;
-                              final sh = maxEarning > 0 ? (secondary / maxEarning) * barHeight : 0.0;
-                              return Expanded(
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 0),
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    mainAxisAlignment: MainAxisAlignment.end,
-                                    children: [
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        crossAxisAlignment: CrossAxisAlignment.end,
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          if (secondary > 0)
-                                            Container(
-                                              width: barW,
-                                              height: sh,
-                                              margin: const EdgeInsets.only(right: 1),
-                                              decoration: BoxDecoration(
-                                                color: const Color(0xFF10B981).withOpacity(0.6),
-                                                borderRadius: BorderRadius.circular(2),
-                                              ),
-                                            ),
-                                          Container(
-                                            width: barW,
-                                            height: ph,
-                                            decoration: BoxDecoration(
-                                              color: i == 5
-                                                  ? const Color(0xFF059669)
-                                                  : const Color(0xFFFBBF24),
-                                              borderRadius: BorderRadius.circular(2),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 3),
-                                      Text(
-                                        weekDays[i],
-                                        style: GoogleFonts.inter(
-                                          fontSize: 7,
-                                          color: Colors.grey[600],
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                        maxLines: 1,
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            }),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                flex: 2,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Service Summary',
-                        style: GoogleFonts.outfit(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    _buildSummaryRow('Total Jobs:', '$totalJobs'),
-                    _buildSummaryRow('Completed:', '$completedJobs'),
-                    _buildSummaryRow('Cancelled:', '$cancelledCount'),
-                    _buildSummaryRow('Pending:', '$pendingCount', highlight: true),
-                  ],
-                ),
-              ),
-            ],
-          );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSummaryRow(String label, String value, {bool highlight = false}) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-      margin: const EdgeInsets.only(bottom: 2),
-      decoration: BoxDecoration(
-        color: highlight ? Colors.grey.withOpacity(0.08) : null,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: booking['status'] == 'Accepted' 
+            ? const Color(0xFF10B981) 
+            : const Color(0xFFF59E0B),
+          width: 2,
+        ),
       ),
       child: Row(
         children: [
+          Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              color: const Color(0xFF0D9488).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.car_repair, color: Color(0xFF0D9488)),
+          ),
+          const SizedBox(width: 12),
           Expanded(
-            child: Text(
-              label,
-              style: GoogleFonts.inter(
-                fontSize: 10,
-                color: Colors.grey[700],
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  booking['customerName'],
+                  style: GoogleFonts.outfit(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                  ),
+                ),
+                Text(
+                  '${booking['service']} - ${booking['time']}',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(width: 6),
-          Text(
-            value,
-            style: GoogleFonts.outfit(
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: booking['status'] == 'Accepted'
+                  ? const Color(0xFF10B981).withOpacity(0.1)
+                  : const Color(0xFFF59E0B).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              booking['status'],
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: booking['status'] == 'Accepted'
+                    ? const Color(0xFF10B981)
+                    : const Color(0xFFF59E0B),
+              ),
             ),
           ),
         ],
@@ -1199,34 +1002,593 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
     );
   }
   
-  Widget _buildBookingsQuickAction() {
-    final onTap = () {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => MechanicBookingsPage(
-            bookings: _bookings,
-            onAccept: _acceptBooking,
-            onReject: _rejectBooking,
-            onComplete: _completeBooking,
+  Widget _buildEarningsSummary() {
+    final progress = _minWithdraw > 0 ? (_walletBalance / _minWithdraw).clamp(0.0, 1.0) : 0.0;
+    final avgPerJob = _completedJobs > 0 ? _walletTotalEarned / _completedJobs : 0.0;
+    
+    return GestureDetector(
+      onTap: _showEarningsDetailsDialog,
+      child: Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF10B981), Color(0xFF14B8A6)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+          borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF10B981).withOpacity(0.4),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'This Month\'s Earnings',
+                    style: GoogleFonts.outfit(
+                      color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(Icons.trending_up, color: Colors.white, size: 16),
+                      const SizedBox(width: 4),
+                      Text(
+                        '+25% from last month',
+                        style: GoogleFonts.inter(
+                            color: Colors.white.withOpacity(0.95),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.account_balance_wallet, color: Colors.white, size: 28),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                      '₹${_walletBalance.toStringAsFixed(0)}',
+                    style: GoogleFonts.outfit(
+                      color: Colors.white,
+                        fontSize: 42,
+                      fontWeight: FontWeight.bold,
+                        height: 1,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                      '$_completedJobs jobs completed',
+                    style: GoogleFonts.inter(
+                      color: Colors.white.withOpacity(0.9),
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+              Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                        'Total earned: ₹${_walletTotalEarned.toStringAsFixed(0)}',
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                      'Min ₹$_minWithdraw to withdraw',
+                    style: GoogleFonts.inter(
+                        color: Colors.white.withOpacity(0.9),
+                        fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+            Column(
+              children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: LinearProgressIndicator(
+                    value: progress,
+              backgroundColor: Colors.white.withOpacity(0.3),
+              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                    minHeight: 8,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Min ₹$_minWithdraw to withdraw',
+                      style: GoogleFonts.inter(
+                        color: Colors.white.withOpacity(0.85),
+                        fontSize: 11,
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        Text(
+                          'View Details',
+                          style: GoogleFonts.inter(
+                            color: Colors.white.withOpacity(0.85),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.arrow_forward_ios,
+                          size: 10,
+                          color: Colors.white.withOpacity(0.85),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  void _showEarningsDetailsDialog() {
+    final progress = _minWithdraw > 0 ? (_walletBalance / _minWithdraw).clamp(0.0, 1.0) : 0.0;
+    final avgPerJob = _completedJobs > 0 ? _walletTotalEarned / _completedJobs : 0.0;
+    
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Container(
+            constraints: const BoxConstraints(maxHeight: 600),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header with gradient
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFF10B981), Color(0xFF059669)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(20),
+                      topRight: Radius.circular(20),
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              Icons.account_balance_wallet,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Wallet',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                Text(
+                                  'Balance • Min ₹$_minWithdraw to withdraw',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    color: Colors.white.withOpacity(0.9),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close, color: Colors.white),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            '₹${_walletBalance.toStringAsFixed(0)}',
+                            style: GoogleFonts.outfit(
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          Text(
+                            'of ₹$_minWithdraw to withdraw',
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              color: Colors.white.withOpacity(0.9),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: LinearProgressIndicator(
+                          value: progress,
+                          minHeight: 10,
+                          backgroundColor: Colors.white.withOpacity(0.3),
+                          valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Total earned: ₹${_walletTotalEarned.toStringAsFixed(0)}',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: Colors.white.withOpacity(0.9),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                // Stats Row
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _buildEarningStatCard(
+                          'Completed Jobs',
+                          _completedJobs.toString(),
+                          Icons.check_circle,
+                          const Color(0xFF10B981),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildEarningStatCard(
+                          'Avg per Job',
+                          '₹${avgPerJob.toStringAsFixed(0)}',
+                          Icons.trending_up,
+                          const Color(0xFF0D9488),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                // Transaction History Header
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.history, size: 20, color: Color(0xFF64748B)),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Transaction History',
+                        style: GoogleFonts.outfit(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                
+                // Transaction List (real data only)
+                Expanded(
+                  child: _transactions.isEmpty
+                      ? Center(
+                          child: Text(
+                            'No completed jobs yet',
+                            style: GoogleFonts.inter(color: Colors.grey[600], fontSize: 14),
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          itemCount: _transactions.length,
+                          itemBuilder: (context, index) {
+                            final transaction = _transactions[index];
+                            return _buildTransactionItem(transaction);
+                          },
+                        ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildEarningStatCard(String title, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 24),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: GoogleFonts.outfit(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(
+              fontSize: 11,
+              color: const Color(0xFF64748B),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTransactionItem(Map<String, dynamic> transaction) {
+    final isCompleted = transaction['status'] == 'Completed';
+    final statusColor = isCompleted ? const Color(0xFF10B981) : const Color(0xFFF59E0B);
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 5,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: statusColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              isCompleted ? Icons.check_circle : Icons.pending,
+              color: statusColor,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  transaction['customerName'],
+                  style: GoogleFonts.outfit(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  transaction['service'],
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(Icons.calendar_today, size: 10, color: Colors.grey[500]),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${transaction['date']} • ${transaction['time']}',
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        color: Colors.grey[500],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '₹${transaction['amount'].toStringAsFixed(0)}',
+                style: GoogleFonts.outfit(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: statusColor,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  transaction['paymentMethod'],
+                  style: GoogleFonts.inter(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: statusColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+  
+  // QUICK ACTIONS
+  Widget _buildQuickActions() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Quick Actions',
+          style: GoogleFonts.outfit(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
           ),
         ),
-      );
-    };
-    final button = _buildQuickActionButton(
-      'Bookings',
-      Icons.calendar_month,
-      const Color(0xFF111111),
-      onTap,
-    );
-    if (_bookings.isEmpty) return button;
-    return AnimatedBuilder(
-      animation: _pulseAnimation,
-      builder: (context, child) => Transform.scale(
-        scale: 0.92 + 0.16 * _pulseAnimation.value,
-        child: child,
-      ),
-      child: button,
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildQuickActionButton(
+                'Bookings',
+                Icons.calendar_month,
+                const Color(0xFF0D9488),
+                () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => MechanicBookingsPage(
+                        bookings: _bookings,
+                        onAccept: _acceptBooking,
+                        onReject: _rejectBooking,
+                        onComplete: _completeBooking,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildQuickActionButton(
+                'My Services',
+                Icons.handyman,
+                const Color(0xFF14B8A6),
+                () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => MechanicServicesPage(
+                        myServices: _myServices,
+                        onAddService: _addService,
+                        onRemoveService: _removeService,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildQuickActionButton(
+                'Help Chat',
+                Icons.chat_rounded,
+                const Color(0xFF10B981),
+                () {
+                  final email = (_mechanicProfile['email'] ?? widget.mechanicData?['email'] ?? '').toString();
+                  if (email.isEmpty) {
+                    _showSnackBar('Email not found', Colors.orange);
+                    return;
+                  }
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => MechanicHelpChatPage(mechanicEmail: email),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
   
@@ -1266,6 +1628,301 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildNearbyRequestsCard() {
+    final mechanicId = widget.mechanicData?['id'];
+    final id = mechanicId is int ? mechanicId : int.tryParse(mechanicId?.toString() ?? '0');
+    if (id == null) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'New requests near you',
+                style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${_nearbyBroadcastRequests.length}',
+                  style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600, color: const Color(0xFF10B981)),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (_isLoadingNearby)
+            const Center(child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator()))
+          else
+            ...(_nearbyBroadcastRequests.map((req) {
+              final r = req as Map<String, dynamic>;
+              final requestId = r['id'] is int ? r['id'] as int : int.tryParse(r['id']?.toString() ?? '0') ?? 0;
+              final problem = r['problemCategory'] ?? r['serviceType'] ?? 'Service';
+              final desc = r['description'] ?? '';
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Material(
+                  color: const Color(0xFFF0FDF4),
+                  borderRadius: BorderRadius.circular(12),
+                  child: InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => MechanicRequestDetailBookFlowPage(
+                            requestId: requestId,
+                            mechanicId: id,
+                            mechanicLat: null,
+                            mechanicLng: null,
+                          ),
+                        ),
+                      ).then((_) => _fetchNearbyBroadcastRequests());
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.build_circle, color: Color(0xFF10B981), size: 28),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(problem.toString(), style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+                                if (desc.isNotEmpty) Text(desc, style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[700]), maxLines: 1, overflow: TextOverflow.ellipsis),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.arrow_forward_ios, size: 14),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            })),
+        ],
+      ),
+    );
+  }
+  
+  // PERFORMANCE METRICS
+  Widget _buildPerformanceMetrics() {
+    final completionRate = (_mechanicProfile['completedJobs'] / 150 * 100).clamp(0, 100);
+    final responseRate = 95.0; // Mock data
+    final customerSatisfaction = _mechanicProfile['rating'] / 5 * 100;
+    
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Performance',
+                style: GoogleFonts.outfit(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.trending_up, size: 14, color: Color(0xFF10B981)),
+                    const SizedBox(width: 4),
+                    Text(
+                      '+12%',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF10B981),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          _buildMetricBar('Completion Rate', completionRate, const Color(0xFF0D9488)),
+          const SizedBox(height: 16),
+          _buildMetricBar('Response Rate', responseRate, const Color(0xFF10B981)),
+          const SizedBox(height: 16),
+          _buildMetricBar('Customer Satisfaction', customerSatisfaction, const Color(0xFFF59E0B)),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildMetricBar(String label, double percentage, Color color) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                color: Colors.grey[700],
+              ),
+            ),
+            Text(
+              '${percentage.toStringAsFixed(0)}%',
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: LinearProgressIndicator(
+            value: percentage / 100,
+            backgroundColor: color.withOpacity(0.1),
+            valueColor: AlwaysStoppedAnimation<Color>(color),
+            minHeight: 8,
+          ),
+        ),
+      ],
+    );
+  }
+  
+  // RECENT ACTIVITY
+  Widget _buildRecentActivity() {
+    final activities = [
+      {'action': 'Completed job', 'detail': 'Engine Service for Rajesh Kumar', 'time': '2 hours ago', 'icon': Icons.check_circle, 'color': Color(0xFF10B981)},
+      {'action': 'New booking', 'detail': 'Brake Service requested', 'time': '4 hours ago', 'icon': Icons.event, 'color': Color(0xFF0D9488)},
+      {'action': 'Payment received', 'detail': '₹1,500 from Priya Sharma', 'time': '5 hours ago', 'icon': Icons.currency_rupee, 'color': Color(0xFFF59E0B)},
+    ];
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Recent Activity',
+          style: GoogleFonts.outfit(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(16),
+            itemCount: activities.length,
+            separatorBuilder: (context, index) => Divider(
+              height: 20,
+              color: Colors.grey[200],
+            ),
+            itemBuilder: (context, index) {
+              final activity = activities[index];
+              return Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: (activity['color'] as Color).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      activity['icon'] as IconData,
+                      color: activity['color'] as Color,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          activity['action'] as String,
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          activity['detail'] as String,
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    activity['time'] as String,
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      color: Colors.grey[500],
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
   
@@ -1343,56 +2000,18 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
     }
   }
   
-  // SERVICE MANAGEMENT - real-time DB update
-  Future<void> _addService(String service) async {
-    if (_myServices.contains(service)) return;
-    setState(() => _myServices.add(service));
-    await _updateServicesInDb();
-  }
-  
-  Future<void> _removeService(String service) async {
-    setState(() => _myServices.remove(service));
-    await _updateServicesInDb();
-  }
-  
-  Future<void> _updateServicesInDb() async {
-    final mechanicId = widget.mechanicData?['id'];
-    if (mechanicId == null) return;
-    final id = mechanicId is int ? mechanicId : int.tryParse(mechanicId.toString());
-    if (id == null) return;
-    try {
-      final servicesStr = _myServices.join(',');
-      final res = await http.put(
-        Uri.parse('${ApiConfig.mechanicEndpoint}/$id'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'services': servicesStr}),
-      );
-      if (res.statusCode == 200) {
-        if (mounted) _showSnackBar('Services saved', const Color(0xFF10B981));
-      } else {
-        _showSnackBar('Failed to update services', Colors.orange);
+  // SERVICE MANAGEMENT
+  void _addService(String service) {
+    setState(() {
+      if (!_myServices.contains(service)) {
+        _myServices.add(service);
       }
-    } catch (e) {
-      _showSnackBar('Error: $e', Colors.red);
-    }
+    });
   }
-}
-
-class _SmilePainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white
-      ..strokeWidth = 2.5
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-    final path = Path();
-    // Smile: corners up, center down (curve bulges downward)
-    path.moveTo(0, 1);
-    path.quadraticBezierTo(size.width / 2, size.height, size.width, 1);
-    canvas.drawPath(path, paint);
+  
+  void _removeService(String service) {
+    setState(() {
+      _myServices.remove(service);
+    });
   }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

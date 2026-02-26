@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../homepage.dart';
 import '../screens/profile/profile_page.dart';
-import '../emergency_assistance_page.dart';
+import '../screens/vehicles/vehicles_page.dart';
 
 class CustomNavBar extends StatelessWidget {
-  final int currentIndex; // 0: Home, 1: Emergency, 2: Profile
+  final int currentIndex; // 0: Home, 1: My Vehicle, 2: Profile
   
   const CustomNavBar({
     super.key,
@@ -41,11 +41,11 @@ class CustomNavBar extends StatelessWidget {
               currentIndex == 0,
               0,
             ),
-            // Emergency FAB - Center
+            // My Vehicle FAB - Center
             _buildFABNavItem(
               context,
-              Icons.report_problem_rounded,
-              'Emergency',
+              Icons.directions_car_rounded,
+              'My Vehicle',
               currentIndex == 1,
               1,
             ),
@@ -118,14 +118,12 @@ class CustomNavBar extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         HapticFeedback.heavyImpact();
-        
-        // Navigate to Emergency page if not already there
         if (currentIndex != 1) {
           Navigator.pushReplacement(
             context,
             PageRouteBuilder(
               pageBuilder: (context, animation, secondaryAnimation) =>
-                  const EmergencyAssistancePage(),
+                  const VehiclesPage(),
               transitionsBuilder: (context, animation, secondaryAnimation, child) {
                 return SlideTransition(
                   position: Tween<Offset>(
@@ -147,14 +145,14 @@ class CustomNavBar extends StatelessWidget {
         height: 65,
         decoration: BoxDecoration(
           gradient: const LinearGradient(
-            colors: [Color(0xFFEF4444), Color(0xFFDC2626)],
+            colors: [Color(0xFFFF6B35), Color(0xFFFF8C42)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFFEF4444).withOpacity(0.4),
+              color: const Color(0xFFFF6B35).withOpacity(0.4),
               blurRadius: 15,
               offset: const Offset(0, 5),
             ),

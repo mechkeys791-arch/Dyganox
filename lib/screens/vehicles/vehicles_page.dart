@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/vehicle_service.dart';
 import '../../services/api_config.dart';
 import '../../services/cognito_service.dart';
+import '../../widgets/custom_nav_bar.dart';
 import 'add_edit_vehicle_page.dart';
 
 class VehiclesPage extends StatefulWidget {
@@ -319,6 +320,7 @@ class _VehiclesPageState extends State<VehiclesPage> {
                       },
                     ),
             ),
+      bottomNavigationBar: const CustomNavBar(currentIndex: 1),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _navigateToAdd,
         backgroundColor: const Color(0xFF6366F1),

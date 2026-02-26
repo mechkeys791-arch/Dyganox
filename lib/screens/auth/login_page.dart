@@ -83,14 +83,11 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     final password = _passwordController.text;
 
     try {
-      // Request OTP: backend validates email+password with Cognito and sends OTP to email
-      final r = await http.post(
-        Uri.parse('${ApiConfig.baseUrl}/api/auth/login-request-otp'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'email': email, 'password': password}),
+      // Sign in directly with Cognito (no backend OTP required)
+      final result = await CognitoService.signIn(
+        username: email,
+        password: password,
       );
-      final data = r.statusCode == 200 ? jsonDecode(r.body) as Map<String, dynamic>? : null;
-      final success = data != null && (data['success'] == true);
 
       if (!mounted) return;
       setState(() {
@@ -98,28 +95,15 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       });
       if (!mounted) return;
 
-      if (success) {
-        // Navigate to OTP verification; after OTP user will sign in with Cognito and go to Home
-        Navigator.of(context).push(
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => OTPVerificationPage(
-              phoneNumber: '',
-              email: email,
-              name: '',
-              password: password,
-              isSignIn: true,
-              forLoginWithOtp: true,
-            ),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              return FadeTransition(opacity: animation, child: child);
-            },
-            transitionDuration: const Duration(milliseconds: 400),
-          ),
+      if (result['success'] == true) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const HomePage()),
+          (route) => false,
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(data?['message'] ?? 'Invalid email or password'),
+            content: Text(result['message'] as String? ?? 'Invalid email or password'),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
           ),
@@ -133,7 +117,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Network error. Check backend and try again.'),
+          content: Text('Login failed. Please try again.'),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
         ),
@@ -192,7 +176,12 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       }
       final email = data!['email']?.toString() ?? account.email ?? '';
       final name = data['name']?.toString() ?? account.displayName ?? email;
+      final photoUrl = data['profilePhotoUrl']?.toString() ?? account.photoUrl;
       await CognitoService.saveGoogleAuthData(email: email, name: name);
+      if (photoUrl != null && photoUrl.isNotEmpty) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('profilePhotoUrl', photoUrl);
+      }
       final profileResult = await UserProfileService.getUserProfile(email);
       final profileData = profileResult['success'] == true ? profileResult['data'] as Map<String, dynamic>? : null;
       await _loadUserProfileFromDatabase(email);

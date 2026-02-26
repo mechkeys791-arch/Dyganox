@@ -13,14 +13,33 @@ import '../../services/payment/payment_config.dart';
 import '../../services/payment/payment_gateway.dart';
 import '../../services/vehicle_service.dart';
 import '../../services/cognito_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../vehicles/add_edit_vehicle_page.dart';
+import 'book_mechanic_flow_page.dart';
 
 class MechanicFinderPage extends StatefulWidget {
-  const MechanicFinderPage({super.key});
+  /// Optional: filter mechanics by vehicle type (BIKE, CAR). If null, show all.
+  final String? vehicleType;
+
+  const MechanicFinderPage({super.key, this.vehicleType});
 
   @override
   State<MechanicFinderPage> createState() => _MechanicFinderPageState();
 }
+
+/// Black/white attractive map style (grayscale with subtle contrast).
+const String _mapStyleBlackWhite = '''
+[
+  {"featureType":"all","elementType":"geometry.fill","stylers":[{"color":"#f5f5f5"}]},
+  {"featureType":"water","elementType":"geometry.fill","stylers":[{"color":"#e0e0e0"}]},
+  {"featureType":"road","elementType":"geometry","stylers":[{"lightness":100},{"visibility":"simplified"}]},
+  {"featureType":"road.arterial","elementType":"labels","stylers":[{"visibility":"off"}]},
+  {"featureType":"poi","elementType":"labels","stylers":[{"visibility":"off"}]},
+  {"featureType":"transit","elementType":"labels","stylers":[{"visibility":"off"}]},
+  {"featureType":"landscape","elementType":"geometry.fill","stylers":[{"color":"#ffffff"}]},
+  {"featureType":"administrative","elementType":"geometry","stylers":[{"visibility":"off"}]}
+]
+''';
 
 class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProviderStateMixin {
   GoogleMapController? mapController;
@@ -89,8 +108,8 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
           double lat = double.tryParse(mechanic['latitude']?.toString() ?? '0') ?? 0.0;
           double lng = double.tryParse(mechanic['longitude']?.toString() ?? '0') ?? 0.0;
           
-          double rating = 4.0 + ((mechanic['id'] as int) % 10) * 0.1;
-          int reviewCount = 50 + ((mechanic['id'] as int) % 200);
+          double rating = (mechanic['rating'] is num) ? (mechanic['rating'] as num).toDouble() : (4.0 + ((mechanic['id'] as int) % 10) * 0.1);
+          int reviewCount = (mechanic['ratingCount'] is int) ? mechanic['ratingCount'] as int : (50 + ((mechanic['id'] as int) % 200));
           String priceRange = ['₹₹', '₹₹₹'][(mechanic['id'] as int) % 2];
           
           List<String> services = _getServicesForSpecialty(mechanic['specialty'] ?? 'General Repair');
@@ -101,6 +120,7 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
             "email": mechanic['email'],
             "phone": mechanic['phone'],
             "specialty": mechanic['specialty'] ?? 'General Repair',
+            "serviceCategories": mechanic['serviceCategories'] ?? mechanic['service_categories'],
             "experience": mechanic['experience'] ?? 'Not specified',
             "nightTimeAvailable": mechanic['nightTimeAvailable'] ?? false,
             "rating": rating,
@@ -115,7 +135,7 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
         }).toList();
 
         setState(() {
-          _mechanics = _allMechanics;
+          _mechanics = _filterByVehicle(_allMechanics, widget.vehicleType);
         });
 
         print("Mechanic Finder: Successfully loaded ${_allMechanics.length} mechanics");
@@ -132,6 +152,24 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
         _isLoading = false;
       });
     }
+  }
+
+  /// Filter mechanics by vehicle type (BIKE / CAR). Shows all if type is null.
+  List<Map<String, dynamic>> _filterByVehicle(List<Map<String, dynamic>> list, String? vehicleType) {
+    if (vehicleType == null || vehicleType.isEmpty) return list;
+    final type = vehicleType.toUpperCase();
+    final filtered = list.where((m) {
+      final specialty = (m['specialty'] ?? 'General Repair').toString().toLowerCase();
+      final categories = (m['serviceCategories'] ?? m['service_categories'] ?? '').toString().toLowerCase();
+      if (type == 'BIKE') {
+        return specialty.contains('bike') || specialty.contains('two wheeler') || categories.contains('bike');
+      }
+      if (type == 'CAR') {
+        return specialty.contains('car') || specialty.contains('general') || specialty.contains('engine') || specialty.contains('electrical') || specialty.contains('brake') || specialty.contains('ac') || categories.contains('car') || categories.isEmpty;
+      }
+      return true;
+    }).toList();
+    return filtered.isEmpty ? list : filtered;
   }
 
   String _getAvailabilityStatus(Map<String, dynamic> mechanic) {
@@ -326,13 +364,22 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
   }
 
   void _showDirections(LatLng destination, String mechanicName) async {
-    if (_currentPosition == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not determine current location')));
-      return;
+    final url = Uri.parse(
+      'https://www.google.com/maps/dir/?api=1&destination=${destination.latitude},${destination.longitude}',
+    );
+    try {
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      } else {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open Google Maps')),
+        );
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not open Maps: $e')),
+      );
     }
-
-    _showInAppMap(destination, mechanicName);
   }
 
   void _showInAppMap(LatLng destination, String mechanicName) async {
@@ -720,8 +767,6 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
                       const SizedBox(height: 12),
                       _buildDetailRow(Icons.work, 'Experience', mechanic['experience'] ?? 'Not specified'),
                       const SizedBox(height: 12),
-                      _buildDetailRow(Icons.phone, 'Phone', mechanic['phone'] ?? 'Not available'),
-                      const SizedBox(height: 12),
                       _buildDetailRow(Icons.access_time, 'Availability', mechanic['availability'] ?? 'Check availability'),
                     ],
                   ),
@@ -742,7 +787,7 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
                           _showDirectionsOnMap(index);
                         },
                         icon: const Icon(Icons.directions, size: 20),
-                        label: const Text('Show Direction'),
+                        label: const Text('Get direction'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF6366F1),
                           foregroundColor: Colors.white,
@@ -768,7 +813,7 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        child: const Text('Request'),
+                        child: const Text('Request mechanic'),
                       ),
                     ),
                   ],
@@ -813,175 +858,14 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
     );
   }
 
-  void _showRequestMechanicDialog(Map<String, dynamic> mechanic) async {
-    final prefs = await SharedPreferences.getInstance();
-    final userData = await CognitoService.getCurrentUser();
-    final email = userData['email']?.toString() ?? prefs.getString('user_email') ?? '';
-    final customerName = userData['name']?.toString() ?? prefs.getString('user_name') ?? 'Customer';
-    final customerPhone = userData['phone']?.toString() ?? prefs.getString('user_phone') ?? '+91 98765 43210';
-    final customerEmail = email.isEmpty ? 'customer@example.com' : email;
-
-    final vehicles = email.isNotEmpty ? await VehicleService.getMyVehicles(email) : <Map<String, dynamic>>[];
-    if (!mounted) return;
-    if (vehicles.isEmpty) {
-      showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            title: Row(
-              children: [
-                const Icon(Icons.directions_car, color: Color(0xFF6366F1)),
-                const SizedBox(width: 12),
-                Text('Select Vehicle', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18)),
-              ],
-            ),
-            content: Text(
-              email.isEmpty
-                  ? 'Please sign in to add a vehicle, then add at least one vehicle before requesting a mechanic.'
-                  : 'You need to add at least one vehicle before requesting a mechanic. Please add your vehicle first.',
-              style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[700]),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text('Cancel', style: GoogleFonts.outfit(color: const Color(0xFF64748B), fontWeight: FontWeight.w600)),
-              ),
-              if (email.isNotEmpty)
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => AddEditVehiclePage(userEmail: email),
-                      ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF6366F1),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: Text('Add Vehicle', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.w600)),
-                ),
-            ],
-          );
-        },
-      );
-      return;
-    }
-
-    Map<String, dynamic>? selectedVehicle = vehicles.firstWhere(
-      (v) => v['isDefault'] == true,
-      orElse: () => vehicles.first,
-    );
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              title: Text(
-                'Select vehicle (breakdown)',
-                style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18),
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Request ${mechanic['name']} for help',
-                      style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        const Icon(Icons.phone, color: Color(0xFF6366F1), size: 16),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Contact: ${mechanic['phone'] ?? 'Not available'}',
-                            style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[700]),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Which vehicle has broken down?',
-                      style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 8),
-                    ...vehicles.map((v) {
-                      final sel = selectedVehicle;
-                      final isSelected = sel != null && v['id'] == sel['id'];
-                      final label = '${v['makeName'] ?? ''} ${v['modelName'] ?? ''} (${v['plateNumber'] ?? 'No plate'})'.trim();
-                      return InkWell(
-                        onTap: () => setDialogState(() => selectedVehicle = v),
-                        child: Container(
-                          margin: const EdgeInsets.only(bottom: 6),
-                          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-                          decoration: BoxDecoration(
-                            color: isSelected ? const Color(0xFF6366F1).withOpacity(0.1) : Colors.grey.shade100,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: isSelected ? const Color(0xFF6366F1) : Colors.transparent,
-                              width: 2,
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                (v['type'] ?? 'CAR').toString().toUpperCase() == 'BIKE' ? Icons.two_wheeler : Icons.directions_car,
-                                size: 20,
-                                color: isSelected ? const Color(0xFF6366F1) : Colors.grey,
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  label.isNotEmpty ? label : 'Vehicle',
-                                  style: GoogleFonts.outfit(
-                                    fontSize: 13,
-                                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                                    color: isSelected ? const Color(0xFF6366F1) : Colors.black87,
-                                  ),
-                                ),
-                              ),
-                              if (isSelected) const Icon(Icons.check_circle, color: Color(0xFF6366F1), size: 20),
-                            ],
-                          ),
-                        ),
-                      );
-                    }),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text('Cancel', style: GoogleFonts.outfit(color: const Color(0xFF64748B), fontWeight: FontWeight.w600)),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    _processMechanicRequest(mechanic, selectedVehicle, customerName, customerEmail, customerPhone);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF10B981),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: Text(
-                    'Request Mechanic',
-                    style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-      },
+  void _showRequestMechanicDialog(Map<String, dynamic> mechanic) {
+    // Navigate to Book Mechanic flow: vehicle (with Add new vehicle) → problem → details → location → send to this mechanic
+    final mechanicId = mechanic['id'] as int?;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => BookMechanicFlowPage(preselectedMechanicId: mechanicId),
+      ),
     );
   }
 
@@ -1177,7 +1061,7 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '• Mechanic will respond within 15 minutes\n• Booking sent successfully\n• You can call ${mechanic['phone']} for urgent help',
+                      '• Mechanic will respond within 15 minutes\n• Booking sent successfully',
                       style: GoogleFonts.inter(
                         fontSize: 12,
                         color: const Color(0xFF10B981),
@@ -1284,7 +1168,7 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Find Nearest Mechanic',
+          'Book Mechanic',
           style: GoogleFonts.outfit(
             color: Colors.white,
             fontSize: 18,
@@ -1350,6 +1234,7 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
               mapType: MapType.normal,
               zoomControlsEnabled: false,
               compassEnabled: true,
+              style: _mapStyleBlackWhite,
             ),
           ),
         ),
@@ -1374,6 +1259,8 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
+                // Small non-dismissible banner (content from admin dashboard when available)
+                _buildFinderBanner(),
                 // Header
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -1381,7 +1268,7 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'Nearest Mechanics',
+                        'Mechanics nearby',
                         style: GoogleFonts.outfit(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -1460,6 +1347,38 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// Small non-dismissible banner; image/URL can be set from admin dashboard.
+  Widget _buildFinderBanner() {
+    // Optional: load banner URL from ApiConfig.baseUrl + /api/settings/finder-banner
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.92, end: 1),
+      duration: const Duration(milliseconds: 600),
+      builder: (context, value, child) => Opacity(opacity: value, child: child),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        height: 44,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              const Color(0xFFFF6B35).withOpacity(0.15),
+              const Color(0xFFFF8C42).withOpacity(0.12),
+            ],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFFFF6B35).withOpacity(0.25)),
+        ),
+        child: Center(
+          child: Text(
+            'Find & request a mechanic below',
+            style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)),
+          ),
         ),
       ),
     );
@@ -1742,9 +1661,32 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
                   
                   const SizedBox(height: 10),
                   
-                  // Action buttons
+                  // Action buttons: Request mechanic + Get direction only
                   Row(
                     children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            HapticFeedback.mediumImpact();
+                            _showRequestMechanicDialog(mechanic);
+                          },
+                          icon: const Icon(Icons.add_circle_outline, size: 14),
+                          label: Text(
+                            'Request mechanic',
+                            style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 12),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFFF6B35),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            elevation: 0,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: ElevatedButton.icon(
                           onPressed: () {
@@ -1756,7 +1698,7 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
                           },
                           icon: const Icon(Icons.directions, size: 14),
                           label: Text(
-                            'Navigate',
+                            'Get direction',
                             style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 12),
                           ),
                           style: ElevatedButton.styleFrom(
@@ -1768,37 +1710,6 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
                             ),
                             elevation: 0,
                           ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF10B981), Color(0xFF06B6D4)],
-                          ),
-                          borderRadius: BorderRadius.circular(10),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF10B981).withOpacity(0.3),
-                              blurRadius: 6,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
-                        ),
-                        child: ElevatedButton(
-                          onPressed: () {
-                            HapticFeedback.mediumImpact();
-                            _makePhoneCall(mechanic['phone']);
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.transparent,
-                            shadowColor: Colors.transparent,
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          child: const Icon(Icons.phone, color: Colors.white, size: 16),
                         ),
                       ),
                     ],
@@ -2076,7 +1987,6 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
                     _buildDetailRow(Icons.category, 'Specialty', mechanic['specialty']),
                     _buildDetailRow(Icons.work_history, 'Experience', mechanic['experience']),
                     _buildDetailRow(Icons.location_on, 'Distance', '${mechanic['distance'].toStringAsFixed(1)} km'),
-                    _buildDetailRow(Icons.phone, 'Phone', mechanic['phone']),
                     _buildDetailRow(Icons.access_time, 'Availability', mechanic['availability']),
                     _buildDetailRow(Icons.attach_money, 'Price Range', mechanic['priceRange']),
                     const SizedBox(height: 24),
@@ -2115,15 +2025,12 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
                           child: ElevatedButton.icon(
                             onPressed: () {
                               Navigator.pop(context);
-                              _showDirections(
-                                LatLng(mechanic['lat'], mechanic['lng']),
-                                mechanic['name'],
-                              );
+                              _showRequestMechanicDialog(mechanic);
                             },
-                            icon: const Icon(Icons.map),
-                            label: const Text('Get Directions'),
+                            icon: const Icon(Icons.add_circle_outline),
+                            label: const Text('Request mechanic'),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF6366F1),
+                              backgroundColor: const Color(0xFFFF6B35),
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 16),
                               shape: RoundedRectangleBorder(
@@ -2137,12 +2044,15 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> with TickerProv
                           child: ElevatedButton.icon(
                             onPressed: () {
                               Navigator.pop(context);
-                              _makePhoneCall(mechanic['phone']);
+                              _showDirections(
+                                LatLng(mechanic['lat'], mechanic['lng']),
+                                mechanic['name'],
+                              );
                             },
-                            icon: const Icon(Icons.phone),
-                            label: const Text('Call Now'),
+                            icon: const Icon(Icons.directions),
+                            label: const Text('Get direction'),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF10B981),
+                              backgroundColor: const Color(0xFF6366F1),
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 16),
                               shape: RoundedRectangleBorder(
