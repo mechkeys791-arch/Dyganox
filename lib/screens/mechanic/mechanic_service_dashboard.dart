@@ -16,8 +16,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class MechanicServiceDashboard extends StatefulWidget {
   final Map<String, dynamic>? mechanicData;
+  final String? openRequestIdAfterMount;
   
-  const MechanicServiceDashboard({super.key, this.mechanicData});
+  const MechanicServiceDashboard({super.key, this.mechanicData, this.openRequestIdAfterMount});
 
   @override
   State<MechanicServiceDashboard> createState() => _MechanicServiceDashboardState();
@@ -38,12 +39,17 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
   // Auto-refresh timer
   Timer? _refreshTimer;
   
-  // Wallet (from API) - no fake balance
+  // Wallet (from API) - kept for potential future use
+  // ignore: unused_field
   double _walletBalance = 0.0;
+  // ignore: unused_field
   double _walletTotalEarned = 0.0;
+  // ignore: unused_field
   static const int _minWithdraw = 100;
+  // ignore: unused_field
   int _completedJobs = 0;
-  List<Map<String, dynamic>> _transactions = []; // Real data from completed bookings only
+  // ignore: unused_field
+  List<Map<String, dynamic>> _transactions = [];
   
   // Mechanic profile (from API / widget)
   final Map<String, dynamic> _mechanicProfile = {
@@ -118,6 +124,19 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
     // When request FCM arrives in foreground, show bottom sheet (pop up from bottom)
     FcmNotificationService.onMechanicRequestInForeground = _showRequestBottomSheet;
 
+    // When launched from notification tap: show same popup as foreground FCM (then View opens detail)
+    final openId = widget.openRequestIdAfterMount;
+    if (openId != null && openId.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final mid = widget.mechanicData?['id'];
+        final id = mid is int ? mid : int.tryParse(mid?.toString() ?? '0');
+        if (id != null && id > 0) {
+          _showRequestBottomSheet(openId);
+        }
+      });
+    }
+
     // Auto-refresh bookings every 30 seconds
     _refreshTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
       _fetchBookings();
@@ -146,18 +165,18 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
       builder: (ctx) => Container(
         padding: const EdgeInsets.all(20),
         decoration: const BoxDecoration(
-          color: Colors.white,
+          color: Color(0xFF111111),
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+              Container(width: 40, height: 4, decoration: BoxDecoration(color: const Color(0xFFFBBF24).withOpacity(0.5), borderRadius: BorderRadius.circular(2))),
               const SizedBox(height: 16),
-              Text('New request', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold)),
+              Text('New request', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFFFBBF24))),
               const SizedBox(height: 8),
-              Text('A customer has requested your service.', style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[700])),
+              Text('A customer has requested your service.', style: GoogleFonts.inter(fontSize: 14, color: Colors.white70)),
               const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
@@ -174,7 +193,8 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
                   icon: const Icon(Icons.visibility),
                   label: const Text('View problem'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0D9488),
+                    backgroundColor: const Color(0xFFFBBF24),
+                    foregroundColor: const Color(0xFF111111),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
@@ -270,7 +290,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
       
       if (response.statusCode == 200) {
         setState(() => _mechanicStatus = newStatus);
-        _showSnackBar('Status updated to $newStatus', const Color(0xFF10B981));
+        _showSnackBar('Status updated to $newStatus', const Color(0xFFFBBF24));
       } else {
         _showSnackBar('Failed to update status', Colors.orange);
       }
@@ -302,19 +322,34 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
             // Convert backend status (PENDING) to title case (Pending) for UI
             String status = request['status'] ?? 'PENDING';
             status = status[0].toUpperCase() + status.substring(1).toLowerCase();
-            
+            // Build vehicle string from make, model, plate (same as user provided)
+            final make = request['vehicleMakeName']?.toString() ?? '';
+            final model = request['vehicleModelName']?.toString() ?? '';
+            final plate = request['vehiclePlateNumber']?.toString() ?? '';
+            final vehicleStr = '${make} ${model}'.trim();
+            final vehicle = vehicleStr.isNotEmpty ? '$vehicleStr${plate.isNotEmpty ? ' ($plate)' : ''}' : (plate.isNotEmpty ? plate : 'Customer Vehicle');
             return {
               'id': request['id'],
               'customerName': request['customerName'] ?? 'Unknown',
               'customerPhone': request['customerPhone'] ?? 'Not provided',
-              'service': request['serviceType'] ?? 'General Service',
-              'vehicle': 'Customer Vehicle',  // Add vehicle field to backend if needed
+              'customerEmail': request['customerEmail'] ?? '',
+              'service': request['serviceType'] ?? request['problemCategory'] ?? 'General Service',
+              'problemCategory': request['problemCategory'],
+              'vehicle': vehicle,
+              'vehicleMakeName': make,
+              'vehicleModelName': model,
+              'vehiclePlateNumber': plate,
+              'latitude': request['latitude'],
+              'longitude': request['longitude'],
               'location': '${request['latitude']}, ${request['longitude']}',
               'date': request['createdAt']?.substring(0, 10) ?? 'Today',
               'time': request['createdAt']?.substring(11, 16) ?? 'Now',
               'status': status,
               'amount': '₹${request['amount'] ?? 50}',
-              'description': request['description'] ?? 'Service request',
+              'description': request['description'] ?? '',
+              'comment': request['comment'] ?? '',
+              'diagnosticAnswers': request['diagnosticAnswers'],
+              'photoUrls': request['photoUrls'],
               'email': request['customerEmail'] ?? '',
             };
           }).toList();
@@ -407,7 +442,15 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: const Color(0xFF0D9488),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF111111), Color(0xFFFBBF24)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
         title: Text(
           (_mechanicProfile['shopName'] ?? _mechanicProfile['shop_name'] ?? 'Service Provider').toString(),
           style: GoogleFonts.outfit(
@@ -425,7 +468,12 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
           ),
         ],
       ),
-      body: _buildOverviewTab(),
+      body: Stack(
+        children: [
+          _buildOverviewTab(),
+          _buildFloatingHelpBot(),
+        ],
+      ),
     );
   }
   
@@ -440,7 +488,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: _mechanicStatus,
-          dropdownColor: const Color(0xFF0D9488),
+          dropdownColor: const Color(0xFF111111),
           icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
           style: GoogleFonts.inter(
             color: Colors.white,
@@ -471,7 +519,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
         await _fetchBookings();
         await _fetchNearbyBroadcastRequests();
         await _fetchWallet();
-        _showSnackBar('Dashboard refreshed!', const Color(0xFF10B981));
+        _showSnackBar('Dashboard refreshed!', const Color(0xFFFBBF24));
       },
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -485,9 +533,6 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
             ),
             const SizedBox(height: 20),
             
-            _buildShopAndServicesCard(),
-            const SizedBox(height: 20),
-            
             // Quick Actions Section
             _buildQuickActions(),
             const SizedBox(height: 20),
@@ -498,24 +543,12 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
               const SizedBox(height: 20),
             ],
             
-            // Stats Cards with staggered animation
+            // Stats Cards
             _buildStatsCards(),
-            const SizedBox(height: 20),
-            
-            // Performance Metrics
-            _buildPerformanceMetrics(),
             const SizedBox(height: 20),
             
             // Today's Schedule
             _buildTodaySchedule(),
-            const SizedBox(height: 20),
-            
-            // Recent Activity
-            _buildRecentActivity(),
-            const SizedBox(height: 20),
-            
-            // Earnings Summary with trend
-            _buildEarningsSummary(),
             const SizedBox(height: 20),
           ],
         ),
@@ -526,11 +559,18 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
   Widget _buildProfileCard() {
     return GestureDetector(
       onTap: () async {
+        final mid = widget.mechanicData?['id'];
+        final mechanicId = mid is int ? mid : (int.tryParse(mid?.toString() ?? '') ?? 0);
+        if (mechanicId == 0) {
+          _showSnackBar('Unable to load mechanic profile', Colors.orange);
+          return;
+        }
         await Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => MechanicProfileEditPage(
               mechanicProfile: _mechanicProfile,
+              mechanicId: mechanicId,
               onSave: (updatedProfile) {
                 setState(() {
                   _mechanicProfile['name'] = updatedProfile['name'];
@@ -551,12 +591,14 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
-            colors: [Color(0xFF0D9488), Color(0xFF14B8A6)],
+            colors: [Color(0xFF111111), Color(0xFFFBBF24)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF0D9488).withOpacity(0.3),
+              color: const Color(0xFFFBBF24).withOpacity(0.3),
               blurRadius: 15,
               offset: const Offset(0, 8),
             ),
@@ -580,9 +622,9 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
                       fit: BoxFit.cover,
                       width: 80,
                       height: 80,
-                      errorBuilder: (_, __, ___) => const Icon(Icons.account_circle, size: 40, color: Color(0xFF0D9488)),
+                      errorBuilder: (_, __, ___) => const Icon(Icons.account_circle, size: 40, color: Color(0xFFFBBF24)),
                     )
-                  : const Icon(Icons.account_circle, size: 40, color: Color(0xFF0D9488)),
+                  : const Icon(Icons.account_circle, size: 40, color: Color(0xFFFBBF24)),
             ),
           ),
           const SizedBox(width: 16),
@@ -591,24 +633,29 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _mechanicProfile['name'],
+                  (_mechanicProfile['name'] ?? 'Mechanic').toString(),
                   style: GoogleFonts.outfit(
-                    fontSize: 22,
+                    fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    Text(
-                      _mechanicProfile['specialty'],
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        color: Colors.white.withOpacity(0.9),
+                    Expanded(
+                      child: Text(
+                        (_mechanicProfile['specialty'] ?? 'General Repair').toString(),
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          color: Colors.white.withOpacity(0.9),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
@@ -621,7 +668,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
                           const Icon(Icons.touch_app, color: Colors.white, size: 10),
                           const SizedBox(width: 4),
                           Text(
-                            'Tap to edit',
+                            'Edit',
                             style: GoogleFonts.inter(
                               fontSize: 10,
                               color: Colors.white,
@@ -635,27 +682,29 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
                 ),
                 const SizedBox(height: 8),
                 Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.star, color: Colors.amber, size: 18),
+                    const Icon(Icons.star, color: Colors.amber, size: 16),
                     const SizedBox(width: 4),
                     Text(
-                      '${_mechanicProfile['rating']}',
+                      '${_mechanicProfile['rating'] ?? '0'}',
                       style: GoogleFonts.inter(
                         color: Colors.white,
                         fontWeight: FontWeight.w600,
+                        fontSize: 13,
                       ),
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 8),
                     AnimatedBuilder(
                       animation: _pulseAnimation,
-                      builder: (context, child) {
+                      builder: (context, _) {
                         return Transform.scale(
                           scale: _mechanicStatus == 'Available' ? _pulseAnimation.value : 1.0,
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
                               color: _mechanicStatus == 'Available'
-                                  ? Colors.green
+                                  ? const Color(0xFFFBBF24)
                                   : _mechanicStatus == 'Busy'
                                       ? Colors.orange
                                       : Colors.red,
@@ -664,8 +713,8 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
                             child: Text(
                               _mechanicStatus,
                               style: GoogleFonts.inter(
-                                color: Colors.white,
-                                fontSize: 12,
+                                color: _mechanicStatus == 'Available' ? const Color(0xFF111111) : Colors.white,
+                                fontSize: 11,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -686,136 +735,10 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
               color: Colors.white.withOpacity(0.2),
               borderRadius: BorderRadius.circular(10),
             ),
-            child:           const Icon(Icons.edit, color: Colors.white, size: 20),
+            child: const Icon(Icons.edit, color: Colors.white, size: 20),
           ),
         ],
         ),
-      ),
-    );
-  }
-  
-  Widget _buildShopAndServicesCard() {
-    final shopName = (_mechanicProfile['shopName'] ?? _mechanicProfile['shop_name'] ?? '').toString();
-    final shopAddr = (_mechanicProfile['shopAddress'] ?? _mechanicProfile['shop_address'] ?? '').toString();
-    final specialty = (_mechanicProfile['specialty'] ?? '').toString();
-    final experience = (_mechanicProfile['experience'] ?? '').toString();
-    final opening = (_mechanicProfile['openingTime'] ?? '').toString();
-    final closing = (_mechanicProfile['closingTime'] ?? '').toString();
-    final workingDays = (_mechanicProfile['workingDays'] ?? '').toString();
-    final nightAvailable = _mechanicProfile['nightTimeAvailable'] == true;
-    
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-        border: Border.all(color: const Color(0xFF0D9488).withOpacity(0.2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0D9488).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.store, color: Color(0xFF0D9488), size: 24),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'My Shop & Info',
-                style: GoogleFonts.outfit(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          if (shopName.isNotEmpty)
-            _buildInfoRow(Icons.storefront, 'Shop', shopName),
-          if (shopAddr.isNotEmpty)
-            _buildInfoRow(Icons.location_on, 'Address', shopAddr),
-          if (specialty.isNotEmpty)
-            _buildInfoRow(Icons.build_circle, 'Specialty', specialty),
-          if (experience.isNotEmpty)
-            _buildInfoRow(Icons.timeline, 'Experience', experience),
-          if (opening.isNotEmpty || closing.isNotEmpty)
-            _buildInfoRow(Icons.access_time, 'Hours', 
-              opening.isNotEmpty && closing.isNotEmpty 
-                ? '$opening - $closing' 
-                : (opening.isNotEmpty ? opening : closing)),
-          if (workingDays.isNotEmpty)
-            _buildInfoRow(Icons.calendar_today, 'Working Days', workingDays.replaceAll(',', ', ')),
-          if (nightAvailable)
-            Container(
-              margin: const EdgeInsets.only(top: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xFF14B8A6).withOpacity(0.15),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.nightlight_round, color: Color(0xFF14B8A6), size: 18),
-                  const SizedBox(width: 8),
-                  Text('24/7 Night service available', style: GoogleFonts.inter(
-                    fontSize: 13, fontWeight: FontWeight.w600, color: const Color(0xFF14B8A6),
-                  )),
-                ],
-              ),
-            ),
-          if (_myServices.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            Text('Services Offered', style: GoogleFonts.inter(
-              fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey[700],
-            )),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _myServices.map((s) => Chip(
-                label: Text(s, style: GoogleFonts.inter(fontSize: 12)),
-                backgroundColor: const Color(0xFF10B981).withOpacity(0.15),
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              )).toList(),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-  
-  Widget _buildInfoRow(IconData icon, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 18, color: Colors.grey[600]),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label, style: GoogleFonts.inter(fontSize: 11, color: Colors.grey[500], fontWeight: FontWeight.w500)),
-                const SizedBox(height: 2),
-                Text(value, style: GoogleFonts.inter(fontSize: 14, color: Colors.black87)),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -828,7 +751,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
             'Total Jobs',
             '${_mechanicProfile['completedJobs']}',
             Icons.check_circle_outline,
-            const Color(0xFF10B981),
+            const Color(0xFFFBBF24),
           ),
         ),
         const SizedBox(width: 12),
@@ -846,7 +769,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
             'Today',
             '${_bookings.where((b) => b['date'] == '2024-01-15').length}',
             Icons.today,
-            const Color(0xFF0D9488),
+            const Color(0xFF111111),
           ),
         ),
       ],
@@ -868,23 +791,30 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
         ],
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: color, size: 32),
-          const SizedBox(height: 8),
+          Icon(icon, color: color, size: 28),
+          const SizedBox(height: 6),
           Text(
             value,
             style: GoogleFonts.outfit(
-              fontSize: 24,
+              fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Colors.black87,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
           ),
           Text(
             title,
             style: GoogleFonts.inter(
-              fontSize: 12,
+              fontSize: 11,
               color: Colors.grey[600],
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
           ),
         ],
       ),
@@ -940,7 +870,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: booking['status'] == 'Accepted' 
-            ? const Color(0xFF10B981) 
+            ? const Color(0xFFFBBF24) 
             : const Color(0xFFF59E0B),
           width: 2,
         ),
@@ -951,38 +881,43 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
             width: 50,
             height: 50,
             decoration: BoxDecoration(
-              color: const Color(0xFF0D9488).withOpacity(0.1),
+              color: const Color(0xFF111111).withOpacity(0.1),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.car_repair, color: Color(0xFF0D9488)),
+            child: const Icon(Icons.car_repair, color: Color(0xFFFBBF24)),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  booking['customerName'],
+                  (booking['customerName'] ?? 'Customer').toString(),
                   style: GoogleFonts.outfit(
                     fontWeight: FontWeight.w600,
-                    fontSize: 16,
+                    fontSize: 14,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  '${booking['service']} - ${booking['time']}',
+                  '${booking['service'] ?? '—'} • ${booking['time'] ?? '—'}',
                   style: GoogleFonts.inter(
-                    fontSize: 13,
+                    fontSize: 12,
                     color: Colors.grey[600],
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
           ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
               color: booking['status'] == 'Accepted'
-                  ? const Color(0xFF10B981).withOpacity(0.1)
+                  ? const Color(0xFFFBBF24).withOpacity(0.1)
                   : const Color(0xFFF59E0B).withOpacity(0.1),
               borderRadius: BorderRadius.circular(8),
             ),
@@ -992,514 +927,10 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
                 color: booking['status'] == 'Accepted'
-                    ? const Color(0xFF10B981)
+                    ? const Color(0xFFFBBF24)
                     : const Color(0xFFF59E0B),
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  Widget _buildEarningsSummary() {
-    final progress = _minWithdraw > 0 ? (_walletBalance / _minWithdraw).clamp(0.0, 1.0) : 0.0;
-    final avgPerJob = _completedJobs > 0 ? _walletTotalEarned / _completedJobs : 0.0;
-    
-    return GestureDetector(
-      onTap: _showEarningsDetailsDialog,
-      child: Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF10B981), Color(0xFF14B8A6)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-          borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF10B981).withOpacity(0.4),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'This Month\'s Earnings',
-                    style: GoogleFonts.outfit(
-                      color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      const Icon(Icons.trending_up, color: Colors.white, size: 16),
-                      const SizedBox(width: 4),
-                      Text(
-                        '+25% from last month',
-                        style: GoogleFonts.inter(
-                            color: Colors.white.withOpacity(0.95),
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.account_balance_wallet, color: Colors.white, size: 28),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                      '₹${_walletBalance.toStringAsFixed(0)}',
-                    style: GoogleFonts.outfit(
-                      color: Colors.white,
-                        fontSize: 42,
-                      fontWeight: FontWeight.bold,
-                        height: 1,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                      '$_completedJobs jobs completed',
-                    style: GoogleFonts.inter(
-                      color: Colors.white.withOpacity(0.9),
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-              Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                        'Total earned: ₹${_walletTotalEarned.toStringAsFixed(0)}',
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                      'Min ₹$_minWithdraw to withdraw',
-                    style: GoogleFonts.inter(
-                        color: Colors.white.withOpacity(0.9),
-                        fontSize: 13,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-            Column(
-              children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: LinearProgressIndicator(
-                    value: progress,
-              backgroundColor: Colors.white.withOpacity(0.3),
-              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-                    minHeight: 8,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Min ₹$_minWithdraw to withdraw',
-                      style: GoogleFonts.inter(
-                        color: Colors.white.withOpacity(0.85),
-                        fontSize: 11,
-                      ),
-                    ),
-                    Row(
-                      children: [
-                        Text(
-                          'View Details',
-                          style: GoogleFonts.inter(
-                            color: Colors.white.withOpacity(0.85),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Icon(
-                          Icons.arrow_forward_ios,
-                          size: 10,
-                          color: Colors.white.withOpacity(0.85),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-  
-  void _showEarningsDetailsDialog() {
-    final progress = _minWithdraw > 0 ? (_walletBalance / _minWithdraw).clamp(0.0, 1.0) : 0.0;
-    final avgPerJob = _completedJobs > 0 ? _walletTotalEarned / _completedJobs : 0.0;
-    
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Container(
-            constraints: const BoxConstraints(maxHeight: 600),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Header with gradient
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Color(0xFF10B981), Color(0xFF059669)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(20),
-                      topRight: Radius.circular(20),
-                    ),
-                  ),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Icon(
-                              Icons.account_balance_wallet,
-                              color: Colors.white,
-                              size: 24,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Wallet',
-                                  style: GoogleFonts.outfit(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                Text(
-                                  'Balance • Min ₹$_minWithdraw to withdraw',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 12,
-                                    color: Colors.white.withOpacity(0.9),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.close, color: Colors.white),
-                            onPressed: () => Navigator.pop(context),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            '₹${_walletBalance.toStringAsFixed(0)}',
-                            style: GoogleFonts.outfit(
-                              fontSize: 32,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                          Text(
-                            'of ₹$_minWithdraw to withdraw',
-                            style: GoogleFonts.inter(
-                              fontSize: 14,
-                              color: Colors.white.withOpacity(0.9),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: LinearProgressIndicator(
-                          value: progress,
-                          minHeight: 10,
-                          backgroundColor: Colors.white.withOpacity(0.3),
-                          valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Total earned: ₹${_walletTotalEarned.toStringAsFixed(0)}',
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          color: Colors.white.withOpacity(0.9),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                
-                // Stats Row
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _buildEarningStatCard(
-                          'Completed Jobs',
-                          _completedJobs.toString(),
-                          Icons.check_circle,
-                          const Color(0xFF10B981),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildEarningStatCard(
-                          'Avg per Job',
-                          '₹${avgPerJob.toStringAsFixed(0)}',
-                          Icons.trending_up,
-                          const Color(0xFF0D9488),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                
-                // Transaction History Header
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.history, size: 20, color: Color(0xFF64748B)),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Transaction History',
-                        style: GoogleFonts.outfit(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                
-                // Transaction List (real data only)
-                Expanded(
-                  child: _transactions.isEmpty
-                      ? Center(
-                          child: Text(
-                            'No completed jobs yet',
-                            style: GoogleFonts.inter(color: Colors.grey[600], fontSize: 14),
-                          ),
-                        )
-                      : ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          itemCount: _transactions.length,
-                          itemBuilder: (context, index) {
-                            final transaction = _transactions[index];
-                            return _buildTransactionItem(transaction);
-                          },
-                        ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildEarningStatCard(String title, String value, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: GoogleFonts.outfit(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: GoogleFonts.inter(
-              fontSize: 11,
-              color: const Color(0xFF64748B),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTransactionItem(Map<String, dynamic> transaction) {
-    final isCompleted = transaction['status'] == 'Completed';
-    final statusColor = isCompleted ? const Color(0xFF10B981) : const Color(0xFFF59E0B);
-    
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 5,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              isCompleted ? Icons.check_circle : Icons.pending,
-              color: statusColor,
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  transaction['customerName'],
-                  style: GoogleFonts.outfit(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  transaction['service'],
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(Icons.calendar_today, size: 10, color: Colors.grey[500]),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${transaction['date']} • ${transaction['time']}',
-                      style: GoogleFonts.inter(
-                        fontSize: 10,
-                        color: Colors.grey[500],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                '₹${transaction['amount'].toStringAsFixed(0)}',
-                style: GoogleFonts.outfit(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: statusColor,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  transaction['paymentMethod'],
-                  style: GoogleFonts.inter(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: statusColor,
-                  ),
-                ),
-              ),
-            ],
           ),
         ],
       ),
@@ -1522,12 +953,40 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
         Row(
           children: [
             Expanded(
-              child: _buildQuickActionButton(
-                'Bookings',
-                Icons.calendar_month,
-                const Color(0xFF0D9488),
-                () {
-                  Navigator.push(
+              child: _bookings.isNotEmpty
+                  ? AnimatedBuilder(
+                      animation: _pulseAnimation,
+                      builder: (context, child) {
+                        return Transform.scale(
+                          scale: _pulseAnimation.value,
+                          child: child,
+                        );
+                      },
+                      child: _buildQuickActionButton(
+                        'Bookings',
+                        Icons.calendar_month,
+                        const Color(0xFF111111),
+                        () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => MechanicBookingsPage(
+                                bookings: _bookings,
+                                onAccept: _acceptBooking,
+                                onReject: _rejectBooking,
+                                onComplete: _completeBooking,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    )
+                  : _buildQuickActionButton(
+                      'Bookings',
+                      Icons.calendar_month,
+                      const Color(0xFF111111),
+                      () {
+                          Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) => MechanicBookingsPage(
@@ -1546,7 +1005,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
               child: _buildQuickActionButton(
                 'My Services',
                 Icons.handyman,
-                const Color(0xFF14B8A6),
+                const Color(0xFFFBBF24),
                 () {
                   Navigator.push(
                     context,
@@ -1570,7 +1029,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
               child: _buildQuickActionButton(
                 'Help Chat',
                 Icons.chat_rounded,
-                const Color(0xFF10B981),
+                const Color(0xFFFBBF24),
                 () {
                   final email = (_mechanicProfile['email'] ?? widget.mechanicData?['email'] ?? '').toString();
                   if (email.isEmpty) {
@@ -1631,6 +1090,57 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
     );
   }
 
+  Widget _buildFloatingHelpBot() {
+    final email = (_mechanicProfile['email'] ?? widget.mechanicData?['email'] ?? '').toString();
+    if (email.isEmpty) return const SizedBox.shrink();
+    return Positioned(
+      right: 16,
+      bottom: 24,
+      child: AnimatedBuilder(
+        animation: _pulseAnimation,
+        builder: (context, child) {
+          return Transform.scale(
+            scale: _pulseAnimation.value,
+            child: child,
+          );
+        },
+        child: GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => MechanicHelpChatPage(mechanicEmail: email),
+              ),
+            );
+          },
+          child: Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF111111), Color(0xFFFBBF24)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFFBBF24).withOpacity(0.4),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: CustomPaint(
+              painter: _CuteRobotBotPainter(),
+              size: const Size(56, 56),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildNearbyRequestsCard() {
     final mechanicId = widget.mechanicData?['id'];
     final id = mechanicId is int ? mechanicId : int.tryParse(mechanicId?.toString() ?? '0');
@@ -1661,12 +1171,12 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withOpacity(0.2),
+                  color: const Color(0xFFFBBF24).withOpacity(0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   '${_nearbyBroadcastRequests.length}',
-                  style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600, color: const Color(0xFF10B981)),
+                  style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600, color: const Color(0xFFFBBF24)),
                 ),
               ),
             ],
@@ -1683,7 +1193,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
               return Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Material(
-                  color: const Color(0xFFF0FDF4),
+                  color: const Color(0xFFFEFCE8),
                   borderRadius: BorderRadius.circular(12),
                   child: InkWell(
                     onTap: () {
@@ -1704,7 +1214,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
                       padding: const EdgeInsets.all(12),
                       child: Row(
                         children: [
-                          const Icon(Icons.build_circle, color: Color(0xFF10B981), size: 28),
+                          const Icon(Icons.build_circle, color: Color(0xFFFBBF24), size: 28),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
@@ -1728,204 +1238,6 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
     );
   }
   
-  // PERFORMANCE METRICS
-  Widget _buildPerformanceMetrics() {
-    final completionRate = (_mechanicProfile['completedJobs'] / 150 * 100).clamp(0, 100);
-    final responseRate = 95.0; // Mock data
-    final customerSatisfaction = _mechanicProfile['rating'] / 5 * 100;
-    
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Performance',
-                style: GoogleFonts.outfit(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.trending_up, size: 14, color: Color(0xFF10B981)),
-                    const SizedBox(width: 4),
-                    Text(
-                      '+12%',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFF10B981),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          _buildMetricBar('Completion Rate', completionRate, const Color(0xFF0D9488)),
-          const SizedBox(height: 16),
-          _buildMetricBar('Response Rate', responseRate, const Color(0xFF10B981)),
-          const SizedBox(height: 16),
-          _buildMetricBar('Customer Satisfaction', customerSatisfaction, const Color(0xFFF59E0B)),
-        ],
-      ),
-    );
-  }
-  
-  Widget _buildMetricBar(String label, double percentage, Color color) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              label,
-              style: GoogleFonts.inter(
-                fontSize: 13,
-                color: Colors.grey[700],
-              ),
-            ),
-            Text(
-              '${percentage.toStringAsFixed(0)}%',
-              style: GoogleFonts.inter(
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: LinearProgressIndicator(
-            value: percentage / 100,
-            backgroundColor: color.withOpacity(0.1),
-            valueColor: AlwaysStoppedAnimation<Color>(color),
-            minHeight: 8,
-          ),
-        ),
-      ],
-    );
-  }
-  
-  // RECENT ACTIVITY
-  Widget _buildRecentActivity() {
-    final activities = [
-      {'action': 'Completed job', 'detail': 'Engine Service for Rajesh Kumar', 'time': '2 hours ago', 'icon': Icons.check_circle, 'color': Color(0xFF10B981)},
-      {'action': 'New booking', 'detail': 'Brake Service requested', 'time': '4 hours ago', 'icon': Icons.event, 'color': Color(0xFF0D9488)},
-      {'action': 'Payment received', 'detail': '₹1,500 from Priya Sharma', 'time': '5 hours ago', 'icon': Icons.currency_rupee, 'color': Color(0xFFF59E0B)},
-    ];
-    
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Recent Activity',
-          style: GoogleFonts.outfit(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(16),
-            itemCount: activities.length,
-            separatorBuilder: (context, index) => Divider(
-              height: 20,
-              color: Colors.grey[200],
-            ),
-            itemBuilder: (context, index) {
-              final activity = activities[index];
-              return Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: (activity['color'] as Color).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(
-                      activity['icon'] as IconData,
-                      color: activity['color'] as Color,
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          activity['action'] as String,
-                          style: GoogleFonts.inter(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        Text(
-                          activity['detail'] as String,
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Text(
-                    activity['time'] as String,
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      color: Colors.grey[500],
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-  
   // BOOKING ACTIONS
   Future<void> _acceptBooking(Map<String, dynamic> booking) async {
     try {
@@ -1939,7 +1251,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
         setState(() {
           booking['status'] = 'Accepted';
         });
-        _showSnackBar('Booking accepted! Customer has been notified.', const Color(0xFF10B981));
+        _showSnackBar('Booking accepted! Customer has been notified.', const Color(0xFFFBBF24));
         print("✅ Booking ${booking['id']} accepted successfully");
       } else {
         print("❌ Failed to accept booking: ${response.statusCode}");
@@ -1988,7 +1300,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
           booking['status'] = 'Completed';
           _mechanicProfile['completedJobs']++;
         });
-        _showSnackBar('Job marked as completed! Payment will be processed.', const Color(0xFF10B981));
+        _showSnackBar('Job marked as completed! Payment will be processed.', const Color(0xFFFBBF24));
         print("✅ Booking ${booking['id']} completed successfully");
       } else {
         print("❌ Failed to complete booking: ${response.statusCode}");
@@ -2014,4 +1326,50 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
       _myServices.remove(service);
     });
   }
+}
+
+/// Cute robot bot icon for floating help button (eyes, antenna, smile).
+class _CuteRobotBotPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final cx = w / 2;
+    final cy = h / 2;
+
+    // Antenna
+    final antennaPaint = Paint()
+      ..color = Colors.white
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke;
+    canvas.drawLine(Offset(cx - 6, cy - 20), Offset(cx - 12, cy - 28), antennaPaint);
+    canvas.drawLine(Offset(cx + 6, cy - 20), Offset(cx + 12, cy - 28), antennaPaint);
+    canvas.drawCircle(Offset(cx - 12, cy - 28), 3, Paint()..color = Colors.white);
+    canvas.drawCircle(Offset(cx + 12, cy - 28), 3, Paint()..color = Colors.white);
+
+    // Eyes
+    final eyePaint = Paint()..color = Colors.white;
+    canvas.drawCircle(Offset(cx - 8, cy - 6), 5, eyePaint);
+    canvas.drawCircle(Offset(cx + 8, cy - 6), 5, eyePaint);
+    final pupilPaint = Paint()..color = const Color(0xFF111111);
+    canvas.drawCircle(Offset(cx - 8, cy - 6), 2, pupilPaint);
+    canvas.drawCircle(Offset(cx + 8, cy - 6), 2, pupilPaint);
+
+    // Smile (curved mouth)
+    final mouthPath = Path();
+    mouthPath.moveTo(cx - 10, cy + 8);
+    mouthPath.quadraticBezierTo(cx, cy + 16, cx + 10, cy + 8);
+    final mouthPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round;
+    canvas.drawPath(mouthPath, mouthPaint);
+
+    // Chat bubble hint
+    canvas.drawCircle(Offset(cx + 18, cy - 18), 4, Paint()..color = Colors.white.withOpacity(0.9));
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

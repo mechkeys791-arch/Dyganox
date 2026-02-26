@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -369,6 +371,26 @@ class _MechanicBookingsPageState extends State<MechanicBookingsPage> {
                     Expanded(child: _buildDetailCell('Amount', booking['amount']?.toString() ?? '—')),
                   ],
                 ),
+                // Description (problem details from user)
+                if ((booking['description'] ?? '').toString().trim().isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  _buildDetailCell('Description', booking['description']?.toString() ?? '—'),
+                ],
+                // Customer note/comment
+                if ((booking['comment'] ?? '').toString().trim().isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  _buildDetailCell('Customer note', booking['comment']?.toString() ?? '—'),
+                ],
+                // Diagnostic answers (Q&A from problem flow)
+                if (_parseDiagnosticAnswers(booking['diagnosticAnswers']).isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  _buildDetailCell('Diagnostic answers', _parseDiagnosticAnswers(booking['diagnosticAnswers'])),
+                ],
+                // Photos from user
+                if (_parsePhotoUrls(booking['photoUrls']).isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  _buildPhotoRow(_parsePhotoUrls(booking['photoUrls'])),
+                ],
                 if (isPending) ...[
                   const SizedBox(height: 16),
                   Row(
@@ -443,6 +465,90 @@ class _MechanicBookingsPageState extends State<MechanicBookingsPage> {
     if (v is num) return v.toDouble();
     if (v is String) return double.tryParse(v);
     return null;
+  }
+
+  /// Parse diagnostic answers JSON to readable text (e.g. "Which tyre: Front left").
+  String _parseDiagnosticAnswers(dynamic raw) {
+    if (raw == null) return '';
+    Map<String, dynamic> map = {};
+    if (raw is String && raw.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map) map = Map<String, dynamic>.from(decoded);
+      } catch (_) {
+        return raw;
+      }
+    } else if (raw is Map) {
+      map = Map<String, dynamic>.from(raw);
+    }
+    if (map.isEmpty) return '';
+    String humanize(String key) {
+      return key.replaceAll('_', ' ').split(' ').map((s) {
+        if (s.isEmpty) return '';
+        if (s.length == 1) return s.toUpperCase();
+        return s[0].toUpperCase() + s.substring(1).toLowerCase();
+      }).join(' ');
+    }
+    return map.entries.map((e) => '${humanize(e.key)}: ${e.value ?? ''}').join('\n');
+  }
+
+  List<String> _parsePhotoUrls(dynamic raw) {
+    if (raw == null) return [];
+    if (raw is List) return raw.map((e) => e.toString()).where((s) => s.isNotEmpty).toList();
+    if (raw is String && raw.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is List) return decoded.map((e) => e.toString()).where((s) => s.isNotEmpty).toList();
+      } catch (_) {}
+    }
+    return [];
+  }
+
+  Widget _buildPhotoRow(List<String> urls) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Photos', style: GoogleFonts.inter(fontSize: 11, color: Colors.grey[600])),
+        const SizedBox(height: 6),
+        SizedBox(
+          height: 80,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: urls.length,
+            itemBuilder: (context, i) {
+              final url = urls[i];
+              final isFile = url.startsWith('/') || (!url.startsWith('http') && url.isNotEmpty);
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: isFile && url.isNotEmpty && File(url).existsSync()
+                      ? Image.file(File(url), width: 80, height: 80, fit: BoxFit.cover)
+                      : (url.startsWith('http')
+                          ? Image.network(
+                              url,
+                              width: 80,
+                              height: 80,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => _photoPlaceholder(),
+                            )
+                          : _photoPlaceholder()),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _photoPlaceholder() {
+    return Container(
+      width: 80,
+      height: 80,
+      color: Colors.grey[200],
+      child: Icon(Icons.image, size: 28, color: Colors.grey[500]),
+    );
   }
   
   Widget _buildDetailCell(String label, String value) {
