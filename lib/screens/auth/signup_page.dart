@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import '../../core/theme/app_colors.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -269,9 +270,9 @@ class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateM
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              const Color(0xFFFF6B35),
-              const Color(0xFFFF8C42),
-              const Color(0xFFFFA500),
+              AppColors.burntOrange,
+              AppColors.warmBrown,
+              AppColors.warmAmber,
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -308,7 +309,7 @@ class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateM
                         width: 100,
                         height: 100,
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: AppColors.onBurntOrange,
                           borderRadius: BorderRadius.circular(25),
                           boxShadow: [
                             BoxShadow(
@@ -321,7 +322,7 @@ class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateM
                         child: const Icon(
                           Icons.car_repair_rounded,
                           size: 50,
-                          color: Colors.white,
+                          color: AppColors.onBurntOrange,
                         ),
                       ),
                     ),
@@ -334,7 +335,7 @@ class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateM
                       style: GoogleFonts.outfit(
                         fontSize: 32,
                         fontWeight: FontWeight.bold,
-                        color: const Color(0xFF1E293B),
+                        color: AppColors.darkChocolate,
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -345,7 +346,7 @@ class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateM
                       'Sign up to get started',
                       style: GoogleFonts.inter(
                         fontSize: 16,
-                        color: Colors.grey[600],
+                        color: AppColors.warmBrownMuted,
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -355,7 +356,7 @@ class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateM
                     // Signup Form Card
                     Container(
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: AppColors.onBurntOrange,
                         borderRadius: BorderRadius.circular(24),
                         boxShadow: [
                           BoxShadow(
@@ -379,20 +380,20 @@ class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateM
                             decoration: InputDecoration(
                               labelText: 'Full Name',
                               hintText: 'Enter your full name',
-                              prefixIcon: const Icon(Icons.person_outline_rounded, color: Color(0xFFFF6B35)),
+                              prefixIcon: const Icon(Icons.person_outline_rounded, color: AppColors.burntOrange),
                               filled: true,
-                              fillColor: Colors.white,
+                              fillColor: AppColors.creamElevated,
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(16),
                                 borderSide: BorderSide.none,
                               ),
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(16),
-                                borderSide: BorderSide(color: Colors.grey[300]!),
+                                borderSide: BorderSide(color: AppColors.warmBrownMuted!),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(16),
-                                borderSide: const BorderSide(color: Color(0xFFFF6B35), width: 2),
+                                borderSide: const BorderSide(color: AppColors.burntOrange, width: 2),
                               ),
                             ),
                             validator: (value) {
@@ -415,20 +416,20 @@ class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateM
                             decoration: InputDecoration(
                               labelText: 'Email',
                               hintText: 'Enter your email',
-                              prefixIcon: const Icon(Icons.email_outlined, color: Color(0xFFFF6B35)),
+                              prefixIcon: const Icon(Icons.email_outlined, color: AppColors.burntOrange),
                               filled: true,
-                              fillColor: Colors.white,
+                              fillColor: AppColors.creamElevated,
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(16),
                                 borderSide: BorderSide.none,
                               ),
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(16),
-                                borderSide: BorderSide(color: Colors.grey[300]!),
+                                borderSide: BorderSide(color: AppColors.warmBrownMuted!),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(16),
-                                borderSide: const BorderSide(color: Color(0xFFFF6B35), width: 2),
+                                borderSide: const BorderSide(color: AppColors.burntOrange, width: 2),
                               ),
                             ),
                             validator: (value) {
@@ -455,9 +456,9 @@ class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateM
                             decoration: InputDecoration(
                               labelText: 'Phone Number',
                               hintText: 'Enter your phone number',
-                              prefixIcon: const Icon(Icons.phone_outlined, color: Color(0xFFFF6B35)),
+                              prefixIcon: const Icon(Icons.phone_outlined, color: AppColors.burntOrange),
                               filled: true,
-                              fillColor: Colors.grey[50],
+                              fillColor: AppColors.creamElevated,
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(16),
                               ),
@@ -482,7 +483,7 @@ class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateM
                             decoration: InputDecoration(
                               labelText: 'Password',
                               hintText: 'Create a password',
-                              prefixIcon: const Icon(Icons.lock_outline_rounded, color: Color(0xFFFF6B35)),
+                              prefixIcon: const Icon(Icons.lock_outline_rounded, color: AppColors.burntOrange),
                               suffixIcon: IconButton(
                                 icon: Icon(
                                   _obscurePassword
@@ -496,7 +497,7 @@ class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateM
                                 },
                               ),
                               filled: true,
-                              fillColor: Colors.grey[50],
+                              fillColor: AppColors.creamElevated,
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(16),
                               ),
@@ -521,7 +522,7 @@ class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateM
                             child: ElevatedButton(
                               onPressed: _isLoading ? null : _handleSignup,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFFFF6B35),
+                                backgroundColor: AppColors.burntOrange,
                                 foregroundColor: Colors.white,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(16),
@@ -557,18 +558,18 @@ class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateM
                     // Divider
                     Row(
                       children: [
-                        Expanded(child: Divider(color: Colors.grey[300])),
+                        Expanded(child: Divider(color: AppColors.warmBrownMuted)),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: Text(
                             'OR',
                             style: GoogleFonts.inter(
                               fontSize: 14,
-                              color: Colors.grey[600],
+                              color: AppColors.warmBrownMuted,
                             ),
                           ),
                         ),
-                        Expanded(child: Divider(color: Colors.grey[300])),
+                        Expanded(child: Divider(color: AppColors.warmBrownMuted)),
                       ],
                     ),
                     
@@ -581,7 +582,7 @@ class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateM
                       child: OutlinedButton(
                         onPressed: _isGoogleLoading ? null : _handleGoogleSignIn,
                         style: OutlinedButton.styleFrom(
-                          side: BorderSide(color: Colors.grey[300]!),
+                          side: BorderSide(color: AppColors.warmBrownMuted!),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
                           ),
@@ -620,7 +621,7 @@ class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateM
                           "Already have an account? ",
                           style: GoogleFonts.inter(
                             fontSize: 14,
-                            color: Colors.grey[600],
+                            color: AppColors.warmBrownMuted,
                           ),
                         ),
                         GestureDetector(
@@ -630,7 +631,7 @@ class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateM
                             style: GoogleFonts.inter(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
-                              color: const Color(0xFFFF6B35),
+                              color: AppColors.burntOrange,
                             ),
                           ),
                         ),

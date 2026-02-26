@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/theme/app_colors.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
@@ -220,7 +221,7 @@ class _MechanicRegistrationPageState extends State<MechanicRegistrationPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color(0xFF6366F1),
+        backgroundColor: AppColors.burntOrange,
         title: Text(
           'Register as Mechanic',
           style: GoogleFonts.outfit(
@@ -240,7 +241,7 @@ class _MechanicRegistrationPageState extends State<MechanicRegistrationPage> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              const Color(0xFF6366F1).withOpacity(0.05),
+              AppColors.burntOrange.withOpacity(0.05),
               Colors.white.withOpacity(0.8),
             ],
           ),
@@ -253,7 +254,7 @@ class _MechanicRegistrationPageState extends State<MechanicRegistrationPage> {
               color: Colors.white.withOpacity(0.7),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: const Color(0xFF6366F1).withOpacity(0.2),
+                color: AppColors.burntOrange.withOpacity(0.2),
                 width: 1,
               ),
               boxShadow: [
@@ -413,7 +414,7 @@ class _MechanicRegistrationPageState extends State<MechanicRegistrationPage> {
       child: Column(
         children: [
           const Icon(Icons.build_circle,
-              size: 50, color: Color(0xFF6366F1)),
+              size: 50, color: AppColors.burntOrange),
           const SizedBox(height: 16),
           Text(
             'Join as a Professional Mechanic',
@@ -550,16 +551,16 @@ class _MechanicRegistrationPageState extends State<MechanicRegistrationPage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF6366F1).withOpacity(0.1),
+        color: AppColors.burntOrange.withOpacity(0.1),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: const Color(0xFF6366F1).withOpacity(0.3),
+          color: AppColors.burntOrange.withOpacity(0.3),
           width: 1,
         ),
       ),
       child: Row(
         children: [
-          const Icon(Icons.attach_money, color: Color(0xFF6366F1), size: 24),
+          const Icon(Icons.attach_money, color: AppColors.burntOrange, size: 24),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -569,7 +570,7 @@ class _MechanicRegistrationPageState extends State<MechanicRegistrationPage> {
                       style: GoogleFonts.outfit(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
-                        color: Color(0xFF6366F1))),
+                        color: AppColors.burntOrange)),
                 const SizedBox(height: 4),
                 Text(
                   'Professional mechanics earn ₹5000 to ₹15000 per month by providing quality services',
@@ -649,7 +650,7 @@ class _MechanicRegistrationPageState extends State<MechanicRegistrationPage> {
           }
         },
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF6366F1),
+          backgroundColor: AppColors.burntOrange,
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),

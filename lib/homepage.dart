@@ -34,6 +34,7 @@ import 'dart:ui';
 import 'services/api_config.dart';
 import 'services/vehicle_service.dart';
 import 'services/app_remote_service.dart';
+import 'core/theme/app_colors.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -206,14 +207,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       height: 56,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: const Color(0xFF6366F1).withOpacity(0.12),
+        color: AppColors.burntOrange.withOpacity(0.12),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Icon(
         (_defaultVehicle != null && (_defaultVehicle!['type'] ?? '').toString().toUpperCase() == 'BIKE')
             ? Icons.two_wheeler
             : Icons.directions_car,
-        color: const Color(0xFF6366F1),
+        color: AppColors.burntOrange,
         size: 28,
       ),
     );
@@ -247,7 +248,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       builder: (context) => Container(
         height: MediaQuery.of(context).size.height * 0.6,
         decoration: const BoxDecoration(
-          color: Color(0xFFF8FAFC),
+          color: AppColors.cream,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(
@@ -255,7 +256,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             const SizedBox(height: 12),
             Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
             const SizedBox(height: 16),
-            Text('My vehicles', style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1F2937))),
+            Text('My vehicles', style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.darkChocolate)),
             const SizedBox(height: 8),
             Expanded(
               child: ListView.builder(
@@ -281,7 +282,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Color(0xFFE5E7EB)),
+                          border: Border.all(color: AppColors.warmBrownMuted),
                           boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
                         ),
                         child: Row(
@@ -290,15 +291,15 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                               width: 64,
                               height: 64,
                               decoration: BoxDecoration(
-                                color: const Color(0xFFF1F5F9),
+                                color: AppColors.creamElevated,
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: Color(0xFFE2E8F0)),
+                                border: Border.all(color: AppColors.warmBrownMuted),
                               ),
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(10),
                                 child: imgUrl.isNotEmpty
-                                    ? Image.network(imgUrl, fit: BoxFit.contain, errorBuilder: (_, __, ___) => Icon(isBike ? Icons.two_wheeler : Icons.directions_car, color: Color(0xFF6366F1), size: 32))
-                                    : Icon(isBike ? Icons.two_wheeler : Icons.directions_car, color: Color(0xFF6366F1), size: 32),
+                                    ? Image.network(imgUrl, fit: BoxFit.contain, errorBuilder: (_, __, ___) => Icon(isBike ? Icons.two_wheeler : Icons.directions_car, color: AppColors.burntOrange, size: 32))
+                                    : Icon(isBike ? Icons.two_wheeler : Icons.directions_car, color: AppColors.burntOrange, size: 32),
                               ),
                             ),
                             const SizedBox(width: 14),
@@ -306,8 +307,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(title.isNotEmpty ? title : 'Vehicle', style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 16, color: Color(0xFF1F2937))),
-                                  if (plate.isNotEmpty) Text(plate, style: GoogleFonts.inter(fontSize: 13, color: Color(0xFF64748B))),
+                                  Text(title.isNotEmpty ? title : 'Vehicle', style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 16, color: AppColors.darkChocolate)),
+                                  if (plate.isNotEmpty) Text(plate, style: GoogleFonts.inter(fontSize: 13, color: AppColors.warmBrownMuted)),
                                 ],
                               ),
                             ),
@@ -368,20 +369,20 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   width: 140,
                   height: 140,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF1F5F9),
+                    color: AppColors.creamElevated,
                     borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: Color(0xFFE2E8F0)),
+                    border: Border.all(color: AppColors.warmBrownMuted),
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(16),
                     child: imgUrl.isNotEmpty
-                        ? Image.network(imgUrl, fit: BoxFit.contain, errorBuilder: (_, __, ___) => Icon(isBike ? Icons.two_wheeler : Icons.directions_car, color: Color(0xFF6366F1), size: 56))
-                        : Icon(isBike ? Icons.two_wheeler : Icons.directions_car, color: Color(0xFF6366F1), size: 56),
+                        ? Image.network(imgUrl, fit: BoxFit.contain, errorBuilder: (_, __, ___) => Icon(isBike ? Icons.two_wheeler : Icons.directions_car, color: AppColors.burntOrange, size: 56))
+                        : Icon(isBike ? Icons.two_wheeler : Icons.directions_car, color: AppColors.burntOrange, size: 56),
                   ),
                 ),
               ),
               const SizedBox(height: 24),
-              Text('Vehicle details', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1F2937))),
+              Text('Vehicle details', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.darkChocolate)),
               const SizedBox(height: 16),
               _detailRow('Type', type == 'CAR' ? 'Car' : 'Bike'),
               _detailRow('Make', make.isNotEmpty ? make : '—'),
@@ -397,12 +398,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     Navigator.pop(context);
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF6366F1),
+                    backgroundColor: AppColors.burntOrange,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     elevation: 0,
                   ),
-                  child: Text('Use this vehicle', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 16)),
+                  child: Text('Use this vehicle', style: GoogleFonts.outfit(color: AppColors.onBurntOrange, fontWeight: FontWeight.w600, fontSize: 16)),
                 ),
               ),
             ],
@@ -418,8 +419,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(width: 110, child: Text(label, style: GoogleFonts.outfit(fontSize: 14, color: Color(0xFF64748B)))),
-          Expanded(child: Text(value, style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF1F2937)))),
+          SizedBox(width: 110, child: Text(label, style: GoogleFonts.outfit(fontSize: 14, color: AppColors.warmBrownMuted))),
+          Expanded(child: Text(value, style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.darkChocolate))),
         ],
       ),
     );
@@ -879,7 +880,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF2563EB).withOpacity(0.12),
+                  color: AppColors.burntOrange.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Center(
@@ -888,7 +889,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     width: 24,
                     height: 24,
                     fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const Icon(Icons.build, size: 24, color: Color(0xFF2563EB)),
+                    errorBuilder: (_, __, ___) => const Icon(Icons.build, size: 24, color: AppColors.burntOrange),
                   ),
                 ),
               ),
@@ -1048,7 +1049,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           width: 56,
                           height: 56,
                           decoration: BoxDecoration(
-                            color: const Color(0xFF2563EB).withOpacity(0.15),
+                            color: AppColors.burntOrange.withOpacity(0.15),
                             shape: BoxShape.circle,
                           ),
                           child: Center(
@@ -1088,12 +1089,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF2563EB).withOpacity(0.15),
+                            color: AppColors.burntOrange.withOpacity(0.15),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: const Icon(
                             Icons.arrow_forward_ios,
-                            color: Color(0xFF2563EB),
+                            color: AppColors.burntOrange,
                             size: 16,
                           ),
                         ),
@@ -1117,7 +1118,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     
     return Container(
       child: Material(
-        color: isNightTime ? const Color(0xFF1E293B) : Colors.white,
+        color: isNightTime ? AppColors.darkChocolate : AppColors.creamElevated,
         child: InkWell(
           onTap: () {
             HapticFeedback.lightImpact();
@@ -1144,12 +1145,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   gradient: LinearGradient(
                     colors: isNightTime
                         ? [
-                            const Color(0xFF2563EB).withOpacity(0.3),
-                            const Color(0xFF2563EB).withOpacity(0.2),
+                            AppColors.burntOrange.withOpacity(0.3),
+                            AppColors.burntOrange.withOpacity(0.2),
                           ]
                         : [
-                            const Color(0xFF2563EB).withOpacity(0.1),
-                            const Color(0xFF2563EB).withOpacity(0.05),
+                            AppColors.burntOrange.withOpacity(0.1),
+                            AppColors.burntOrange.withOpacity(0.05),
                           ],
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
@@ -1164,8 +1165,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       height: screenWidth * 0.12,
                       decoration: BoxDecoration(
                         color: isNightTime
-                            ? const Color(0xFF2563EB).withOpacity(0.2)
-                            : const Color(0xFF2563EB).withOpacity(0.15),
+                            ? AppColors.burntOrange.withOpacity(0.2)
+                            : AppColors.burntOrange.withOpacity(0.15),
                         shape: BoxShape.circle,
                       ),
                       child: Center(
@@ -1185,7 +1186,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         style: GoogleFonts.outfit(
                           fontSize: screenWidth * 0.028,
                           fontWeight: FontWeight.w600,
-                          color: isNightTime ? Colors.white : const Color(0xFF374151),
+                          color: isNightTime ? AppColors.cream : AppColors.darkChocolate,
                           height: 1.2,
                         ),
                         textAlign: TextAlign.center,
@@ -1204,11 +1205,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF2563EB),
+                      color: AppColors.burntOrange,
                       borderRadius: BorderRadius.circular(8),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF2563EB).withOpacity(0.4),
+                          color: AppColors.burntOrange.withOpacity(0.4),
                           blurRadius: 8,
                           spreadRadius: 1,
                         ),
@@ -1287,7 +1288,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     style: GoogleFonts.outfit(
                       fontSize: screenWidth * 0.028,
                       fontWeight: FontWeight.w600,
-                      color: const Color(0xFF374151),
+                      color: AppColors.darkChocolate,
                       height: 1.2,
                     ),
                     textAlign: TextAlign.center,
@@ -1304,16 +1305,39 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
 
+  /// Full-page smooth gradient: theme colors at top, soft transition to cream.
+  /// Ensures aesthetic consistency and seamless integration with header and content.
+  static BoxDecoration get _homePageBackgroundGradient => BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            AppColors.burntOrange,
+            AppColors.burntOrange.withOpacity(0.95),
+            AppColors.warmBrown.withOpacity(0.85),
+            AppColors.cream.withOpacity(0.98),
+            AppColors.cream,
+          ],
+          stops: const [0.0, 0.18, 0.45, 0.72, 1.0],
+        ),
+      );
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: AppColors.cream,
       body: Stack(
         children: [
+          // Rounded, smooth full-page gradient (behind content)
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: _homePageBackgroundGradient,
+            ),
+          ),
           SafeArea(
             child: RefreshIndicator(
               onRefresh: _refreshHomePage,
-              color: const Color(0xFFFF6B35),
+              color: AppColors.burntOrange,
               child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
             child: FadeTransition(
@@ -1321,30 +1345,31 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Vibrant Colorful Header Section (Zomato/Swiggy Style)
+                // Rounded, smooth header gradient — aligns with full-page gradient
                 Container(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
-                        const Color(0xFFFF6B35), // Vibrant Orange
-                        const Color(0xFFFF8C42), // Light Orange
-                        const Color(0xFFFFA500), // Orange
-                        const Color(0xFFFFB347), // Yellow Orange
+                        AppColors.burntOrange,
+                        AppColors.burntOrange.withOpacity(0.98),
+                        AppColors.warmBrown.withOpacity(0.9),
+                        AppColors.warmAmber.withOpacity(0.85),
+                        AppColors.warmAmber.withOpacity(0.75),
                       ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      stops: const [0.0, 0.3, 0.7, 1.0],
+                      stops: const [0.0, 0.25, 0.5, 0.75, 1.0],
                     ),
                     borderRadius: const BorderRadius.only(
-                      bottomLeft: Radius.circular(30),
-                      bottomRight: Radius.circular(30),
+                      bottomLeft: Radius.circular(36),
+                      bottomRight: Radius.circular(36),
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFFFF6B35).withOpacity(0.3),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
-                        spreadRadius: 5,
+                        color: AppColors.burntOrange.withOpacity(0.2),
+                        blurRadius: 24,
+                        offset: const Offset(0, 8),
+                        spreadRadius: 0,
                       ),
                     ],
                   ),
@@ -1549,7 +1574,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           boxShadow: [
                             BoxShadow(
                               color: _isSearchActive 
-                                  ? const Color(0xFFFF6B35).withOpacity(0.3)
+                                  ? AppColors.burntOrange.withOpacity(0.3)
                                   : Colors.black.withOpacity(0.15),
                               blurRadius: _isSearchActive ? 25 : 20,
                               offset: const Offset(0, 8),
@@ -1558,7 +1583,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           ],
                           border: Border.all(
                             color: _isSearchActive 
-                                ? const Color(0xFFFF6B35).withOpacity(0.6)
+                                ? AppColors.burntOrange.withOpacity(0.6)
                                 : Colors.transparent,
                             width: 2,
                           ),
@@ -1569,15 +1594,15 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
                                 color: _isSearchActive 
-                                    ? const Color(0xFFFF6B35).withOpacity(0.1)
-                                    : const Color(0xFFFF6B35).withOpacity(0.05),
+                                    ? AppColors.burntOrange.withOpacity(0.1)
+                                    : AppColors.burntOrange.withOpacity(0.05),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Icon(
                                 Icons.search_rounded,
                                 color: _isSearchActive 
-                                    ? const Color(0xFFFF6B35)
-                                    : const Color(0xFFFF6B35).withOpacity(0.7),
+                                    ? AppColors.burntOrange
+                                    : AppColors.burntOrange.withOpacity(0.7),
                                 size: 22,
                               ),
                             ),
@@ -1660,14 +1685,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             borderRadius: BorderRadius.circular(20),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFFFF6B35).withOpacity(0.2),
+                                color: AppColors.burntOrange.withOpacity(0.2),
                                 blurRadius: 20,
                                 offset: const Offset(0, 8),
                                 spreadRadius: 2,
                               ),
                             ],
                             border: Border.all(
-                              color: const Color(0xFFFF6B35).withOpacity(0.2),
+                              color: AppColors.burntOrange.withOpacity(0.2),
                               width: 1.5,
                             ),
                           ),
@@ -1695,7 +1720,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                     padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
                                     decoration: BoxDecoration(
                                       color: isFirstItem 
-                                          ? const Color(0xFFFF6B35).withOpacity(0.1)
+                                          ? AppColors.burntOrange.withOpacity(0.1)
                                           : Colors.transparent,
                                       borderRadius: BorderRadius.circular(16),
                                     ),
@@ -1705,14 +1730,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                           padding: const EdgeInsets.all(8),
                                           decoration: BoxDecoration(
                                             color: isFirstItem 
-                                                ? const Color(0xFFFF6B35).withOpacity(0.15)
+                                                ? AppColors.burntOrange.withOpacity(0.15)
                                                 : Colors.grey[100],
                                             borderRadius: BorderRadius.circular(10),
                                           ),
                                           child: Icon(
                                             Icons.search_rounded,
                                             color: isFirstItem 
-                                                ? const Color(0xFFFF6B35)
+                                                ? AppColors.burntOrange
                                                 : Colors.grey[600],
                                             size: 18,
                                           ),
@@ -1725,7 +1750,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                               fontSize: 16,
                                               fontWeight: isFirstItem ? FontWeight.bold : FontWeight.w600,
                                               color: isFirstItem 
-                                                  ? const Color(0xFFFF6B35)
+                                                  ? AppColors.burntOrange
                                                   : Colors.black87,
                                             ),
                                           ),
@@ -1734,7 +1759,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                           Icons.arrow_forward_ios_rounded,
                                           size: 16,
                                           color: isFirstItem 
-                                              ? const Color(0xFFFF6B35)
+                                              ? AppColors.burntOrange
                                               : Colors.grey[400],
                                         ),
                                       ],
@@ -1828,12 +1853,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         height: 8,
                         decoration: BoxDecoration(
                           color: _currentAdIndex == index 
-                              ? const Color(0xFFFF6B35) 
+                              ? AppColors.burntOrange 
                               : Colors.grey[300],
                           borderRadius: BorderRadius.circular(4),
                           boxShadow: _currentAdIndex == index ? [
                             BoxShadow(
-                              color: const Color(0xFFFF6B35).withOpacity(0.5),
+                              color: AppColors.burntOrange.withOpacity(0.5),
                               blurRadius: 8,
                               offset: const Offset(0, 2),
                             ),
@@ -1858,7 +1883,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: const Color(0xFFE5E7EB)),
+                        border: Border.all(color: AppColors.warmBrownMuted),
                         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 3))],
                       ),
                       child: Row(
@@ -1866,17 +1891,17 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFFF6B35).withOpacity(0.1),
+                              color: AppColors.burntOrange.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(10),
                             ),
-                            child: const Icon(Icons.build_circle_rounded, color: Color(0xFFFF6B35), size: 24),
+                            child: const Icon(Icons.build_circle_rounded, color: AppColors.burntOrange, size: 24),
                           ),
                           const SizedBox(width: 14),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('Book Mechanic', style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF1E293B))),
+                                Text('Book Mechanic', style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.darkChocolate)),
                                 Text('At your location or get to place', style: GoogleFonts.inter(fontSize: 13, color: Colors.grey.shade600)),
                               ],
                             ),
@@ -1902,7 +1927,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: const Color(0xFFE5E7EB)),
+                        border: Border.all(color: AppColors.warmBrownMuted),
                         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 3))],
                       ),
                       child: Row(
@@ -1910,17 +1935,17 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFFF6B35).withOpacity(0.1),
+                              color: AppColors.burntOrange.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(10),
                             ),
-                            child: const Icon(Icons.location_on, color: Color(0xFFFF6B35), size: 24),
+                            child: const Icon(Icons.location_on, color: AppColors.burntOrange, size: 24),
                           ),
                           const SizedBox(width: 14),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('See nearest mechanic', style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF1E293B))),
+                                Text('See nearest mechanic', style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.darkChocolate)),
                                 Text('Find by vehicle • or request one', style: GoogleFonts.inter(fontSize: 13, color: Colors.grey.shade600)),
                               ],
                             ),
@@ -1948,8 +1973,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
                                 colors: [
-                                  const Color(0xFFFF6B35),
-                                  const Color(0xFFFF8C42),
+                                  AppColors.burntOrange,
+                                  AppColors.warmBrown,
                                 ],
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
@@ -1967,7 +1992,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             style: GoogleFonts.outfit(
                               fontSize: screenWidth * 0.055,
                               fontWeight: FontWeight.bold,
-                              color: const Color(0xFF1F2937),
+                              color: AppColors.darkChocolate,
                               letterSpacing: 0.5,
                             ),
                           ),
@@ -1977,15 +2002,15 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
                                 colors: [
-                                  const Color(0xFFFF6B35).withOpacity(0.15),
-                                  const Color(0xFFFF8C42).withOpacity(0.15),
+                                  AppColors.burntOrange.withOpacity(0.15),
+                                  AppColors.warmBrown.withOpacity(0.15),
                                 ],
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
                               ),
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
-                                color: const Color(0xFFFF6B35).withOpacity(0.3),
+                                color: AppColors.burntOrange.withOpacity(0.3),
                                 width: 1.5,
                               ),
                             ),
@@ -1994,7 +2019,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                               style: GoogleFonts.inter(
                                 fontSize: 13,
                                 fontWeight: FontWeight.bold,
-                                color: const Color(0xFFFF6B35),
+                                color: AppColors.burntOrange,
                               ),
                             ),
                           ),
@@ -2026,7 +2051,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             _buildQuickServiceCard(
                               title: 'Towing',
                               iconPath: 'assets/icons/tow-truck.png',
-                              color: const Color(0xFF2563EB),
+                              color: AppColors.burntOrange,
                               onTap: () {
                                 Navigator.push(
                                   context,
@@ -2056,7 +2081,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             _buildQuickServiceCard(
                               title: 'Fuel Refill',
                               iconPath: 'assets/icons/fuel-station.png',
-                              color: const Color(0xFF2563EB),
+                              color: AppColors.burntOrange,
                               onTap: () {
                                 Navigator.push(
                                   context,
@@ -2086,7 +2111,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             _buildQuickServiceCard(
                               title: 'EV Charging',
                               iconPath: 'assets/icons/charging-station.png',
-                              color: const Color(0xFF2563EB),
+                              color: AppColors.burntOrange,
                               onTap: () {
                                 Navigator.push(
                                   context,
@@ -2116,7 +2141,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             _buildQuickServiceCard(
                               title: 'Tyre Care',
                               iconPath: 'assets/icons/tyre.png',
-                              color: const Color(0xFF2563EB),
+                              color: AppColors.burntOrange,
                               onTap: () {
                                 Navigator.push(
                                   context,
@@ -2146,7 +2171,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             _buildQuickServiceCard(
                               title: 'Minor Repair',
                               iconPath: 'assets/icons/repair-tools.png',
-                              color: const Color(0xFF2563EB),
+                              color: AppColors.burntOrange,
                               onTap: () {
                                 Navigator.push(
                                   context,
@@ -2176,7 +2201,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                            _buildQuickServiceCard(
                              title: 'Battery Jump',
                              iconPath: 'assets/icons/jump-start.png',
-                             color: const Color(0xFF2563EB),
+                             color: AppColors.burntOrange,
                              onTap: () {
                                Navigator.push(
                                  context,
@@ -2220,12 +2245,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF2563EB).withOpacity(0.1),
+                              color: AppColors.burntOrange.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: const Icon(
                               Icons.build,
-                              color: Color(0xFF2563EB),
+                              color: AppColors.burntOrange,
                               size: 24,
                             ),
                           ),
@@ -2242,7 +2267,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF2563EB).withOpacity(0.1),
+                              color: AppColors.burntOrange.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(
@@ -2250,7 +2275,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                               style: GoogleFonts.inter(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color: const Color(0xFF2563EB),
+                                color: AppColors.burntOrange,
                               ),
                             ),
                           ),
@@ -2295,24 +2320,24 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       'title': 'Emergency Roadside Assistance',
       'subtitle': '24/7 Support Available',
       'icon': Icons.emergency,
-      'color': Color(0xFFFF6B35),
-      'gradient': [Color(0xFFFF6B35), Color(0xFFFF8C42), Color(0xFFFFA500)],
+      'color': AppColors.burntOrange,
+      'gradient': [AppColors.burntOrange, AppColors.warmBrown, AppColors.warmAmber],
       'image': 'assets/icons/eva_on_road.png',
     },
     {
       'title': 'Premium Car Service',
       'subtitle': 'Expert Mechanics at Your Doorstep',
       'icon': Icons.build_circle,
-      'color': Color(0xFFFF6B35),
-      'gradient': [Color(0xFFFF8C42), Color(0xFFFFA500), Color(0xFFFFB347)],
+      'color': AppColors.burntOrange,
+      'gradient': [AppColors.warmBrown, AppColors.warmAmber, AppColors.warmAmber],
       'image': 'assets/icons/luxcar.png',
     },
     {
       'title': 'EV Charging Network',
       'subtitle': 'Find Nearest Charging Stations',
       'icon': Icons.electric_car,
-      'color': Color(0xFFFF6B35),
-      'gradient': [Color(0xFFFF6B35), Color(0xFFFF8C42), Color(0xFFFFA500)],
+      'color': AppColors.burntOrange,
+      'gradient': [AppColors.burntOrange, AppColors.warmBrown, AppColors.warmAmber],
       'image': 'assets/icons/evnw.png',
     },
   ];
@@ -2333,7 +2358,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     final String? rawImageUrl = ad['imageUrl'] as String?;
     final String bannerImageUrl = _resolveBannerImageUrl(rawImageUrl);
     final gradient = (ad['gradient'] as List<Color>?) ??
-        [const Color(0xFFFF6B35), const Color(0xFFFF8C42), const Color(0xFFFFA500)];
+        [AppColors.burntOrange, AppColors.warmBrown, AppColors.warmAmber];
 
     return Positioned.fill(
       child: Material(
@@ -2412,8 +2437,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     final String? rawImageUrl = ad['imageUrl'] as String?;
     final String bannerImageUrl = _resolveBannerImageUrl(rawImageUrl);
     final gradient = (ad['gradient'] as List<Color>?) ??
-        [const Color(0xFFFF6B35), const Color(0xFFFF8C42), const Color(0xFFFFA500)];
-    final color = ad['color'] as Color? ?? const Color(0xFFFF6B35);
+        [AppColors.burntOrange, AppColors.warmBrown, AppColors.warmAmber];
+    final color = ad['color'] as Color? ?? AppColors.burntOrange;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 4),
@@ -2749,11 +2774,11 @@ class _NearestMechanicVehicleSheetState extends State<_NearestMechanicVehicleShe
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
               child: Text(
                 'Find mechanic for',
-                style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.darkChocolate),
               ),
             ),
             if (_loading)
-              const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator(color: Color(0xFFFF6B35))))
+              const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator(color: AppColors.burntOrange)))
             else
               Flexible(
                 child: ListView(
@@ -2782,7 +2807,7 @@ class _NearestMechanicVehicleSheetState extends State<_NearestMechanicVehicleShe
                                 Expanded(
                                   child: Text(
                                     _vehicleName(v),
-                                    style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)),
+                                    style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.darkChocolate),
                                   ),
                                 ),
                                 Icon(Icons.chevron_right, color: Colors.grey[400], size: 22),
@@ -2808,15 +2833,15 @@ class _NearestMechanicVehicleSheetState extends State<_NearestMechanicVehicleShe
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFF6B35).withOpacity(0.12),
+                          color: AppColors.burntOrange.withOpacity(0.12),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Icon(Icons.add, color: Color(0xFFFF6B35), size: 24),
+                        child: const Icon(Icons.add, color: AppColors.burntOrange, size: 24),
                       ),
                       const SizedBox(width: 14),
                       Text(
                         'Add new vehicle',
-                        style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFFFF6B35)),
+                        style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.burntOrange),
                       ),
                     ],
                   ),
@@ -2833,10 +2858,10 @@ class _NearestMechanicVehicleSheetState extends State<_NearestMechanicVehicleShe
     return Container(
       width: 56,
       height: 56,
-      color: const Color(0xFFF1F5F9),
+      color: AppColors.creamElevated,
       child: Icon(
         type == 'BIKE' ? Icons.two_wheeler : Icons.directions_car,
-        color: const Color(0xFFFF6B35),
+        color: AppColors.burntOrange,
         size: 28,
       ),
     );

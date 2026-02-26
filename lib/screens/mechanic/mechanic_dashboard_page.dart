@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/theme/app_colors.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
@@ -451,12 +452,12 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF6366F1).withOpacity(0.1),
+                  color: AppColors.burntOrange.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
                   Icons.request_quote,
-                  color: Color(0xFF6366F1),
+                  color: AppColors.burntOrange,
                   size: 20,
                 ),
               ),
@@ -490,7 +491,7 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
               child: Text(
                 'Reject',
                 style: GoogleFonts.outfit(
-                  color: const Color(0xFFEF4444),
+                  color: AppColors.errorRed,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -501,7 +502,7 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
                 _acceptRequest(request);
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF10B981),
+                backgroundColor: AppColors.warmAmber,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -542,7 +543,7 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
               value,
               style: GoogleFonts.inter(
                 fontSize: 14,
-                color: Colors.black87,
+                color: AppColors.darkChocolate,
               ),
             ),
           ),
@@ -564,12 +565,12 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF6366F1).withOpacity(0.1),
+                  color: AppColors.burntOrange.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
                   Icons.settings,
-                  color: Color(0xFF6366F1),
+                  color: AppColors.burntOrange,
                   size: 20,
                 ),
               ),
@@ -613,10 +614,10 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF6366F1).withOpacity(0.1) : Colors.grey[50],
+          color: isSelected ? AppColors.burntOrange.withOpacity(0.1) : AppColors.creamElevated,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? const Color(0xFF6366F1) : Colors.grey[300]!,
+            color: isSelected ? AppColors.burntOrange : AppColors.warmBrownMuted!,
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -633,7 +634,7 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
                     style: GoogleFonts.outfit(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
-                      color: isSelected ? const Color(0xFF6366F1) : Colors.black87,
+                      color: isSelected ? AppColors.burntOrange : AppColors.darkChocolate,
                     ),
                   ),
                   Text(
@@ -647,7 +648,7 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
               ),
             ),
             if (isSelected)
-              const Icon(Icons.check_circle, color: Color(0xFF6366F1)),
+              const Icon(Icons.check_circle, color: AppColors.burntOrange),
           ],
         ),
       ),
@@ -675,7 +676,7 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                      colors: [Color(0xFF10B981), Color(0xFF059669)],
+                      colors: [AppColors.warmAmber, AppColors.warmBrown],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
@@ -782,7 +783,7 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
                           'Completed Jobs',
                           _completedJobs.toString(),
                           Icons.check_circle,
-                          const Color(0xFF10B981),
+                          AppColors.warmAmber,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -791,7 +792,7 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
                           'Avg per Job',
                           '₹${avgPerJob.toStringAsFixed(0)}',
                           Icons.trending_up,
-                          const Color(0xFF6366F1),
+                          AppColors.burntOrange,
                         ),
                       ),
                     ],
@@ -803,14 +804,14 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Row(
                     children: [
-                      const Icon(Icons.history, size: 20, color: Color(0xFF64748B)),
+                      const Icon(Icons.history, size: 20, color: AppColors.warmBrownMuted),
                       const SizedBox(width: 8),
                       Text(
                         'Transaction History',
                         style: GoogleFonts.outfit(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: Colors.black87,
+                          color: AppColors.darkChocolate,
                         ),
                       ),
                     ],
@@ -863,7 +864,7 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
             textAlign: TextAlign.center,
             style: GoogleFonts.inter(
               fontSize: 11,
-              color: const Color(0xFF64748B),
+              color: AppColors.warmBrownMuted,
             ),
           ),
         ],
@@ -873,7 +874,7 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
 
   Widget _buildTransactionItem(Map<String, dynamic> transaction) {
     final isCompleted = transaction['status'] == 'Completed';
-    final statusColor = isCompleted ? const Color(0xFF10B981) : const Color(0xFFF59E0B);
+    final statusColor = isCompleted ? AppColors.warmAmber : AppColors.warmAmber;
     
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -914,7 +915,7 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
                   style: GoogleFonts.outfit(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: Colors.black87,
+                    color: AppColors.darkChocolate,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -979,9 +980,9 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: AppColors.cream,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF6366F1),
+        backgroundColor: AppColors.burntOrange,
         elevation: 0,
         leading: Padding(
           padding: const EdgeInsets.all(8.0),
@@ -994,10 +995,10 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
                       fit: BoxFit.cover,
                       width: 40,
                       height: 40,
-                      errorBuilder: (_, __, ___) => const Icon(Icons.person, color: Color(0xFF6366F1)),
+                      errorBuilder: (_, __, ___) => const Icon(Icons.person, color: AppColors.burntOrange),
                     ),
                   )
-                : const Icon(Icons.person, color: Color(0xFF6366F1)),
+                : const Icon(Icons.person, color: AppColors.burntOrange),
           ),
         ),
         title: Text(
@@ -1060,7 +1061,7 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
               child: Material(
-                color: const Color(0xFF6366F1).withOpacity(0.08),
+                color: AppColors.burntOrange.withOpacity(0.08),
                 borderRadius: BorderRadius.circular(12),
                 child: InkWell(
                   onTap: () {},
@@ -1069,7 +1070,7 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
                     padding: const EdgeInsets.all(12),
                     child: Row(
                       children: [
-                        Icon(Icons.notifications_active_outlined, color: const Color(0xFF6366F1), size: 28),
+                        Icon(Icons.notifications_active_outlined, color: AppColors.burntOrange, size: 28),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
@@ -1078,7 +1079,7 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
                             children: [
                               Text(
                                 'Not getting requests when app is closed?',
-                                style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87),
+                                style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.darkChocolate),
                               ),
                               const SizedBox(height: 4),
                               Text(
@@ -1095,7 +1096,7 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
                                       minimumSize: Size.zero,
                                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                     ),
-                                    child: Text('Notifications', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF6366F1))),
+                                    child: Text('Notifications', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.burntOrange)),
                                   ),
                                   TextButton(
                                     onPressed: () => FcmNotificationService.openBatterySettings(),
@@ -1104,7 +1105,7 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
                                       minimumSize: Size.zero,
                                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                     ),
-                                    child: Text('Battery', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF6366F1))),
+                                    child: Text('Battery', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.burntOrange)),
                                   ),
                                 ],
                               ),
@@ -1125,14 +1126,14 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFF10B981), Color(0xFF059669)],
+                  colors: [AppColors.warmAmber, AppColors.warmBrown],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF10B981).withOpacity(0.4),
+                    color: AppColors.warmAmber.withOpacity(0.4),
                     blurRadius: 20,
                     offset: const Offset(0, 10),
                   ),
@@ -1319,7 +1320,7 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
                     if (_mapPosition == null)
                       const Center(
                         child: CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
+                          valueColor: AlwaysStoppedAnimation<Color>(AppColors.burntOrange),
                         ),
                       )
                     else
@@ -1400,12 +1401,12 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF10B981).withOpacity(0.1),
+                          color: AppColors.warmAmber.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Icon(
                           Icons.request_quote,
-                          color: Color(0xFF10B981),
+                          color: AppColors.warmAmber,
                           size: 20,
                         ),
                       ),
@@ -1415,7 +1416,7 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
                         style: GoogleFonts.outfit(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: Colors.black87,
+                          color: AppColors.darkChocolate,
                         ),
                       ),
                     ],
@@ -1425,7 +1426,7 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
                     child: _isLoadingRequests
                         ? const Center(
                             child: CircularProgressIndicator(
-                              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF10B981)),
+                              valueColor: AlwaysStoppedAnimation<Color>(AppColors.warmAmber),
                             ),
                           )
                         : _requests.isEmpty
@@ -1460,7 +1461,7 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
                                       icon: const Icon(Icons.refresh, size: 16),
                                       label: const Text('Refresh'),
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color(0xFF6366F1),
+                                        backgroundColor: AppColors.burntOrange,
                                         foregroundColor: Colors.white,
                                         shape: RoundedRectangleBorder(
                                           borderRadius: BorderRadius.circular(8),
@@ -1496,12 +1497,12 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
                                           Container(
                                             padding: const EdgeInsets.all(8),
                                             decoration: BoxDecoration(
-                                              color: const Color(0xFF10B981).withOpacity(0.1),
+                                              color: AppColors.warmAmber.withOpacity(0.1),
                                               borderRadius: BorderRadius.circular(8),
                                             ),
                                             child: const Icon(
                                               Icons.request_quote,
-                                              color: Color(0xFF10B981),
+                                              color: AppColors.warmAmber,
                                               size: 20,
                                             ),
                                           ),
@@ -1532,7 +1533,7 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
                                               Container(
                                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                                 decoration: BoxDecoration(
-                                                  color: const Color(0xFF10B981).withOpacity(0.1),
+                                                  color: AppColors.warmAmber.withOpacity(0.1),
                                                   borderRadius: BorderRadius.circular(12),
                                                 ),
                                                 child: Text(
@@ -1540,7 +1541,7 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
                                                   style: GoogleFonts.inter(
                                                     fontSize: 12,
                                                     fontWeight: FontWeight.w600,
-                                                    color: const Color(0xFF10B981),
+                                                    color: AppColors.warmAmber,
                                                   ),
                                                 ),
                                               ),
@@ -1548,7 +1549,7 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
                                               Container(
                                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                                 decoration: BoxDecoration(
-                                                  color: const Color(0xFFF59E0B).withOpacity(0.1),
+                                                  color: AppColors.warmAmber.withOpacity(0.1),
                                                   borderRadius: BorderRadius.circular(8),
                                                 ),
                                                 child: Text(
@@ -1556,7 +1557,7 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
                                                   style: GoogleFonts.inter(
                                                     fontSize: 10,
                                                     fontWeight: FontWeight.w600,
-                                                    color: const Color(0xFFF59E0B),
+                                                    color: AppColors.warmAmber,
                                                   ),
                                                 ),
                                               ),
@@ -1588,13 +1589,13 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
   Color _getStatusColor() {
     switch (_status) {
       case 'Available':
-        return const Color(0xFF10B981);
+        return AppColors.warmAmber;
       case 'Busy':
-        return const Color(0xFFF59E0B);
+        return AppColors.warmAmber;
       case 'Offline':
-        return const Color(0xFFEF4444);
+        return AppColors.errorRed;
       default:
-        return const Color(0xFF6366F1);
+        return AppColors.burntOrange;
     }
   }
 }

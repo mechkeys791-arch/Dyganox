@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../core/theme/app_colors.dart';
 import '../homepage.dart';
 import '../screens/profile/profile_page.dart';
 import '../screens/vehicles/vehicles_page.dart';
@@ -18,11 +19,11 @@ class CustomNavBar extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
       height: 70,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.creamElevated,
         borderRadius: BorderRadius.circular(35),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: AppColors.darkChocolate.withOpacity(0.1),
             blurRadius: 15.0,
             spreadRadius: 2.0,
             offset: const Offset(0, 5),
@@ -94,8 +95,8 @@ class CustomNavBar extends StatelessWidget {
             // Selected: Full theme color #706DC7
             // Inactive: Lighter shade of theme color for consistency
             color: isSelected 
-                ? const Color(0xFF706DC7) 
-                : const Color(0xFF706DC7).withOpacity(0.35),
+                ? AppColors.burntOrange 
+                : AppColors.burntOrange.withOpacity(0.35),
             size: 28,
           ),
           const SizedBox(height: 6),
@@ -105,7 +106,7 @@ class CustomNavBar extends StatelessWidget {
               width: 6,
               height: 6,
               decoration: const BoxDecoration(
-                color: Color(0xFF706DC7), // Theme color dot
+                color: AppColors.burntOrange,
                 shape: BoxShape.circle,
               ),
             ),
@@ -145,14 +146,14 @@ class CustomNavBar extends StatelessWidget {
         height: 65,
         decoration: BoxDecoration(
           gradient: const LinearGradient(
-            colors: [Color(0xFFFF6B35), Color(0xFFFF8C42)],
+            colors: [AppColors.burntOrange, AppColors.warmBrown],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFFFF6B35).withOpacity(0.4),
+              color: AppColors.burntOrange.withOpacity(0.4),
               blurRadius: 15,
               offset: const Offset(0, 5),
             ),
@@ -160,7 +161,7 @@ class CustomNavBar extends StatelessWidget {
         ),
         child: Icon(
           icon,
-          color: Colors.white,
+          color: AppColors.onBurntOrange,
           size: 32,
         ),
       ),

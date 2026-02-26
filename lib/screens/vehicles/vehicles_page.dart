@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/theme/app_colors.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/vehicle_service.dart';
@@ -92,10 +93,10 @@ class _VehiclesPageState extends State<VehiclesPage> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: const Color(0xFFEF4444).withOpacity(0.1),
+                color: AppColors.errorRed.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.delete, color: Color(0xFFEF4444), size: 20),
+              child: const Icon(Icons.delete, color: AppColors.errorRed, size: 20),
             ),
             const SizedBox(width: 12),
             Text('Delete Vehicle', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
@@ -103,12 +104,12 @@ class _VehiclesPageState extends State<VehiclesPage> {
         ),
         content: Text(
           'Are you sure you want to delete this vehicle?',
-          style: GoogleFonts.inter(color: const Color(0xFF64748B)),
+          style: GoogleFonts.inter(color: AppColors.warmBrownMuted),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancel', style: GoogleFonts.outfit(color: const Color(0xFF64748B))),
+            child: Text('Cancel', style: GoogleFonts.outfit(color: AppColors.warmBrownMuted)),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -132,7 +133,7 @@ class _VehiclesPageState extends State<VehiclesPage> {
               }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFEF4444),
+              backgroundColor: AppColors.errorRed,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
             child: Text('Delete', style: GoogleFonts.outfit(color: Colors.white)),
@@ -150,7 +151,7 @@ class _VehiclesPageState extends State<VehiclesPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: AppColors.cream,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -183,10 +184,10 @@ class _VehiclesPageState extends State<VehiclesPage> {
         centerTitle: true,
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF6366F1)))
+          ? const Center(child: CircularProgressIndicator(color: AppColors.burntOrange))
           : RefreshIndicator(
               onRefresh: _loadUserAndVehicles,
-              color: const Color(0xFF6366F1),
+              color: AppColors.burntOrange,
               child: _vehicles.isEmpty
                   ? SingleChildScrollView(
                       physics: const AlwaysScrollableScrollPhysics(),
@@ -203,13 +204,13 @@ class _VehiclesPageState extends State<VehiclesPage> {
                                 style: GoogleFonts.outfit(
                                   fontSize: 20,
                                   fontWeight: FontWeight.bold,
-                                  color: const Color(0xFF64748B),
+                                  color: AppColors.warmBrownMuted,
                                 ),
                               ),
                               const SizedBox(height: 8),
                               Text(
                                 'Add your first vehicle to get started',
-                                style: GoogleFonts.inter(fontSize: 14, color: const Color(0xFF94A3B8)),
+                                style: GoogleFonts.inter(fontSize: 14, color: AppColors.warmBrownMuted),
                               ),
                             ],
                           ),
@@ -231,7 +232,7 @@ class _VehiclesPageState extends State<VehiclesPage> {
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(18),
-                            border: Border.all(color: const Color(0xFFE5E7EB)),
+                            border: Border.all(color: AppColors.warmBrownMuted),
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.black.withOpacity(0.04),
@@ -253,9 +254,9 @@ class _VehiclesPageState extends State<VehiclesPage> {
                                       width: 80,
                                       height: 80,
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFFF1F5F9),
+                                        color: AppColors.creamElevated,
                                         borderRadius: BorderRadius.circular(14),
-                                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                                        border: Border.all(color: AppColors.warmBrownMuted),
                                       ),
                                       child: ClipRRect(
                                         borderRadius: BorderRadius.circular(12),
@@ -278,19 +279,19 @@ class _VehiclesPageState extends State<VehiclesPage> {
                                               Expanded(
                                                 child: Text(
                                                   title.isNotEmpty ? title : 'Vehicle',
-                                                  style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 16, color: Color(0xFF1F2937)),
+                                                  style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 16, color: AppColors.darkChocolate),
                                                 ),
                                               ),
                                               if (isDefault)
                                                 Container(
                                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                                   decoration: BoxDecoration(
-                                                    color: const Color(0xFF6366F1).withOpacity(0.1),
+                                                    color: AppColors.burntOrange.withOpacity(0.1),
                                                     borderRadius: BorderRadius.circular(8),
                                                   ),
                                                   child: Text(
                                                     'Default',
-                                                    style: GoogleFonts.outfit(fontSize: 11, color: const Color(0xFF6366F1), fontWeight: FontWeight.w600),
+                                                    style: GoogleFonts.outfit(fontSize: 11, color: AppColors.burntOrange, fontWeight: FontWeight.w600),
                                                   ),
                                                 ),
                                             ],
@@ -298,17 +299,17 @@ class _VehiclesPageState extends State<VehiclesPage> {
                                           const SizedBox(height: 4),
                                           Text(
                                             subtitle,
-                                            style: GoogleFonts.inter(fontSize: 14, color: const Color(0xFF64748B)),
+                                            style: GoogleFonts.inter(fontSize: 14, color: AppColors.warmBrownMuted),
                                           ),
                                         ],
                                       ),
                                     ),
                                     IconButton(
-                                      icon: const Icon(Icons.edit_outlined, color: Color(0xFF6366F1)),
+                                      icon: const Icon(Icons.edit_outlined, color: AppColors.burntOrange),
                                       onPressed: () => _navigateToEdit(vehicle),
                                     ),
                                     IconButton(
-                                      icon: const Icon(Icons.delete_outline, color: Color(0xFFEF4444)),
+                                      icon: const Icon(Icons.delete_outline, color: AppColors.errorRed),
                                       onPressed: () => _deleteVehicle(vehicle),
                                     ),
                                   ],
@@ -323,7 +324,7 @@ class _VehiclesPageState extends State<VehiclesPage> {
       bottomNavigationBar: const CustomNavBar(currentIndex: 1),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _navigateToAdd,
-        backgroundColor: const Color(0xFF6366F1),
+        backgroundColor: AppColors.burntOrange,
         icon: const Icon(Icons.add, color: Colors.white),
         label: Text(
           'Add Vehicle',
@@ -335,7 +336,7 @@ class _VehiclesPageState extends State<VehiclesPage> {
 
   Widget _leadingIcon(String? type) {
     return Center(
-      child: Icon(_getVehicleIcon(type), color: const Color(0xFF6366F1), size: 36),
+      child: Icon(_getVehicleIcon(type), color: AppColors.burntOrange, size: 36),
     );
   }
 }

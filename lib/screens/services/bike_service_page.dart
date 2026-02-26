@@ -5,6 +5,7 @@ import 'bike_battery_page.dart';
 import 'bike_tyre_care_page.dart';
 import 'bike_brake_service_page.dart';
 import 'bike_electrical_works_page.dart';
+import '../../core/theme/app_colors.dart';
 
 class BikeServicePage extends StatefulWidget {
   const BikeServicePage({super.key});
@@ -98,7 +99,7 @@ class _BikeServicePageState extends State<BikeServicePage> with TickerProviderSt
                           width: 48,
                           height: 48,
                           decoration: BoxDecoration(
-                            color: const Color(0xFF2563EB).withOpacity(0.15),
+                            color: const AppColors.burntOrange.withOpacity(0.15),
                             shape: BoxShape.circle,
                           ),
                           child: Center(
@@ -153,7 +154,7 @@ class _BikeServicePageState extends State<BikeServicePage> with TickerProviderSt
     ];
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: const AppColors.cream,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -198,14 +199,14 @@ class _BikeServicePageState extends State<BikeServicePage> with TickerProviderSt
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [Color(0xFF2563EB), Color(0xFF3B82F6)],
+                    colors: [AppColors.burntOrange, AppColors.warmBrown],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF2563EB).withOpacity(0.3),
+                      color: const AppColors.burntOrange.withOpacity(0.3),
                       blurRadius: 20,
                       offset: const Offset(0, 10),
                     ),
@@ -365,7 +366,7 @@ class _BikeServicePageState extends State<BikeServicePage> with TickerProviderSt
                                         Container(
                                           padding: const EdgeInsets.all(12),
                                           decoration: BoxDecoration(
-                                            color: const Color(0xFF2563EB).withOpacity(0.1),
+                                            color: const AppColors.burntOrange.withOpacity(0.1),
                                             borderRadius: BorderRadius.circular(8),
                                           ),
                                           child: Row(
@@ -373,14 +374,14 @@ class _BikeServicePageState extends State<BikeServicePage> with TickerProviderSt
                                               const Icon(
                                                 Icons.access_time,
                                                 size: 16,
-                                                color: Color(0xFF2563EB),
+                                                color: AppColors.burntOrange,
                                               ),
                                               const SizedBox(width: 8),
                                               Text(
                                                 'Service available 24/7',
                                                 style: GoogleFonts.outfit(
                                                   fontSize: 12,
-                                                  color: const Color(0xFF2563EB),
+                                                  color: const AppColors.burntOrange,
                                                   fontWeight: FontWeight.w600,
                                                 ),
                                               ),
@@ -400,7 +401,7 @@ class _BikeServicePageState extends State<BikeServicePage> with TickerProviderSt
                                       ElevatedButton(
                                         onPressed: () => Navigator.pop(context),
                                         style: ElevatedButton.styleFrom(
-                                          backgroundColor: const Color(0xFF2563EB),
+                                          backgroundColor: const AppColors.burntOrange,
                                           shape: RoundedRectangleBorder(
                                             borderRadius: BorderRadius.circular(8),
                                           ),

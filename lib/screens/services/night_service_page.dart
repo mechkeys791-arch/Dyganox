@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../core/theme/app_colors.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'dart:async';
@@ -52,42 +53,42 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
     {
       'name': 'Emergency Towing',
       'icon': Icons.local_shipping,
-      'color': Color(0xFFEF4444),
+      'color': AppColors.burntOrange,
       'surcharge': 30,
       'available': true,
     },
     {
       'name': 'Battery Jump Start',
       'icon': Icons.battery_charging_full,
-      'color': Color(0xFFF59E0B),
+      'color': AppColors.warmBrown,
       'surcharge': 25,
       'available': true,
     },
     {
       'name': 'Puncture Repair',
       'icon': Icons.build_circle,
-      'color': Color(0xFF3B82F6),
+      'color': AppColors.burntOrange,
       'surcharge': 20,
       'available': true,
     },
     {
       'name': 'Fuel Refill',
       'icon': Icons.local_gas_station,
-      'color': Color(0xFF10B981),
+      'color': AppColors.burntOrange,
       'surcharge': 35,
       'available': true,
     },
     {
       'name': 'Minor Repairs',
       'icon': Icons.handyman,
-      'color': Color(0xFF8B5CF6),
+      'color': AppColors.warmBrown,
       'surcharge': 40,
       'available': true,
     },
     {
       'name': 'Lock Opening',
       'icon': Icons.lock_open,
-      'color': Color(0xFFEC4899),
+      'color': AppColors.burntOrange,
       'surcharge': 50,
       'available': true,
     },
@@ -290,7 +291,7 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _isNightTime ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+      backgroundColor: _isNightTime ? AppColors.darkChocolate : AppColors.cream,
       body: SafeArea(
         child: FadeTransition(
           opacity: _fadeAnimation,
@@ -302,9 +303,9 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
                 expandedHeight: 200,
                 floating: false,
                 pinned: true,
-                backgroundColor: _isNightTime ? const Color(0xFF1E293B) : const Color(0xFF6366F1),
+                backgroundColor: _isNightTime ? AppColors.warmBrown : AppColors.burntOrange,
                 leading: IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  icon: Icon(Icons.arrow_back, color: AppColors.creamElevated),
                   onPressed: () => Navigator.pop(context),
                 ),
                 flexibleSpace: FlexibleSpaceBar(
@@ -317,15 +318,15 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
                           Text(
                             'Night Service',
                             style: GoogleFonts.outfit(
-                              color: Colors.white,
+                              color: AppColors.creamElevated,
                               fontWeight: FontWeight.bold,
                               shadows: _isNightTime ? [
                                 Shadow(
-                                  color: const Color(0xFF6366F1).withOpacity(_glowAnimation.value),
+                                  color: AppColors.burntOrange.withOpacity(_glowAnimation.value),
                                   blurRadius: 10 * _glowAnimation.value,
                                 ),
                                 Shadow(
-                                  color: const Color(0xFF8B5CF6).withOpacity(_glowAnimation.value * 0.8),
+                                  color: AppColors.warmBrown.withOpacity(_glowAnimation.value * 0.8),
                                   blurRadius: 20 * _glowAnimation.value,
                                 ),
                               ] : [],
@@ -343,7 +344,7 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
                                     fontSize: 20,
                                     shadows: _isNightTime ? [
                                       Shadow(
-                                        color: Colors.white.withOpacity(_glowAnimation.value * 0.6),
+                                        color: AppColors.creamElevated.withOpacity(_glowAnimation.value * 0.6),
                                         blurRadius: 15 * _glowAnimation.value,
                                       ),
                                     ] : [],
@@ -366,8 +367,8 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                             colors: _isNightTime 
-                              ? [Color(0xFF1E293B), Color(0xFF334155), Color(0xFF475569)]
-                              : [Color(0xFF6366F1), Color(0xFF8B5CF6), Color(0xFFA855F7)],
+                              ? [AppColors.warmBrown, AppColors.darkChocolate, AppColors.warmBrownMuted]
+                              : [AppColors.burntOrange, AppColors.warmBrown, AppColors.warmAmber],
                           ),
                         ),
                       ),
@@ -385,14 +386,14 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
                               children: [
                                 Icon(
                                   Icons.access_time,
-                                  color: Colors.white.withOpacity(0.9),
+                                  color: AppColors.creamElevated.withOpacity(0.9),
                                   size: 16,
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
                                   _currentTime,
                                   style: GoogleFonts.inter(
-                                    color: Colors.white.withOpacity(0.9),
+                                    color: AppColors.creamElevated.withOpacity(0.9),
                                     fontSize: 14,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -407,16 +408,16 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
                                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                                         decoration: BoxDecoration(
                                           color: _isNightTime 
-                                            ? Colors.green.withOpacity(0.2 * _glowAnimation.value)
-                                            : Colors.orange.withOpacity(0.2),
+                                            ? AppColors.burntOrange.withOpacity(0.2 * _glowAnimation.value)
+                                            : AppColors.warmAmber.withOpacity(0.2),
                                           borderRadius: BorderRadius.circular(12),
                                           border: Border.all(
-                                            color: _isNightTime ? Colors.green : Colors.orange,
+                                            color: _isNightTime ? AppColors.burntOrange : AppColors.warmAmber,
                                             width: _isNightTime ? 1 + (_glowAnimation.value * 0.5) : 1,
                                           ),
                                           boxShadow: _isNightTime ? [
                                             BoxShadow(
-                                              color: Colors.green.withOpacity(_glowAnimation.value * 0.5),
+                                              color: AppColors.burntOrange.withOpacity(_glowAnimation.value * 0.5),
                                               blurRadius: 10 * _glowAnimation.value,
                                               spreadRadius: 2 * _glowAnimation.value,
                                             ),
@@ -427,14 +428,14 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
                                           children: [
                                             Icon(
                                               _isNightTime ? Icons.nightlight : Icons.wb_sunny,
-                                              color: _isNightTime ? Colors.green : Colors.orange,
+                                              color: _isNightTime ? AppColors.burntOrange : AppColors.warmAmber,
                                               size: 14,
                                             ),
                                             const SizedBox(width: 6),
                                             Text(
                                               _isNightTime ? 'Night Mode Active' : 'Day Time',
                                               style: GoogleFonts.inter(
-                                                color: _isNightTime ? Colors.green : Colors.orange,
+                                                color: _isNightTime ? AppColors.burntOrange : AppColors.warmAmber,
                                                 fontSize: 12,
                                                 fontWeight: FontWeight.w600,
                                               ),
@@ -494,7 +495,7 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
                             child: Padding(
                               padding: const EdgeInsets.all(20.0),
                               child: CircularProgressIndicator(
-                                color: _isNightTime ? const Color(0xFF6366F1) : const Color(0xFF706DC7),
+                                color: AppColors.burntOrange,
                               ),
                             ),
                           )
@@ -505,7 +506,7 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
                                 child: Text(
                                   'No night service providers available',
                                   style: GoogleFonts.inter(
-                                    color: _isNightTime ? Colors.grey[400] : Colors.grey[600],
+                                    color: AppColors.warmBrownMuted,
                                   ),
                                 ),
                               ),
@@ -552,7 +553,7 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
               scale: 0.8 + (twinkle * 0.4),
               child: Icon(
                 Icons.star,
-                color: Colors.white.withOpacity(opacity),
+                color: AppColors.creamElevated.withOpacity(opacity),
                 size: 4 + (random % 8).toDouble(),
               ),
             );
@@ -570,18 +571,18 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [Color(0xFFDC2626), Color(0xFFEF4444)],
+              colors: [AppColors.burntOrange, AppColors.warmAmber],
             ),
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFFDC2626).withOpacity(0.3 * _glowAnimation.value),
+                color: AppColors.burntOrange.withOpacity(0.3 * _glowAnimation.value),
                 blurRadius: 12 + (8 * _glowAnimation.value),
                 offset: const Offset(0, 4),
                 spreadRadius: 2 * _glowAnimation.value,
               ),
               BoxShadow(
-                color: const Color(0xFFEF4444).withOpacity(0.2 * _glowAnimation.value),
+                color: AppColors.warmAmber.withOpacity(0.2 * _glowAnimation.value),
                 blurRadius: 20 * _glowAnimation.value,
                 offset: const Offset(0, 0),
                 spreadRadius: 4 * _glowAnimation.value,
@@ -593,12 +594,12 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: AppColors.creamElevated.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
                   Icons.emergency,
-                  color: Colors.white,
+                  color: AppColors.creamElevated,
                   size: 28,
                 ),
               ),
@@ -610,7 +611,7 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
                     Text(
                       'Emergency 24/7 Available',
                       style: GoogleFonts.outfit(
-                        color: Colors.white,
+                        color: AppColors.creamElevated,
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
@@ -619,7 +620,7 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
                     Text(
                       'Tap here for immediate assistance',
                       style: GoogleFonts.inter(
-                        color: Colors.white.withOpacity(0.9),
+                        color: AppColors.creamElevated.withOpacity(0.9),
                         fontSize: 13,
                       ),
                     ),
@@ -631,7 +632,7 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
                   setState(() => _emergencyMode = true);
                   _showEmergencyDialog();
                 },
-                icon: const Icon(Icons.phone_in_talk, color: Colors.white),
+                icon: Icon(Icons.phone_in_talk, color: AppColors.creamElevated),
               ),
             ],
           ),
@@ -644,11 +645,11 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: _isNightTime ? const Color(0xFF1E293B) : Colors.white,
+        color: _isNightTime ? AppColors.warmBrown : AppColors.creamElevated,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: AppColors.darkChocolate.withOpacity(0.1),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
@@ -661,14 +662,14 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
             children: [
               Icon(
                 Icons.info_outline,
-                color: _isNightTime ? Colors.blue[300] : const Color(0xFF6366F1),
+                color: AppColors.burntOrange,
                 size: 24,
               ),
               const SizedBox(width: 12),
               Text(
                 'Night Service Information',
                 style: GoogleFonts.outfit(
-                  color: _isNightTime ? Colors.white : const Color(0xFF1E293B),
+                  color: _isNightTime ? AppColors.creamElevated : AppColors.warmBrown,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
@@ -693,7 +694,7 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
       children: [
         Icon(
           icon,
-          color: _isNightTime ? Colors.grey[400] : Colors.grey[600],
+          color: AppColors.warmBrownMuted,
           size: 20,
         ),
         const SizedBox(width: 12),
@@ -701,7 +702,7 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
           child: Text(
             title,
             style: GoogleFonts.inter(
-              color: _isNightTime ? Colors.grey[400] : Colors.grey[600],
+              color: AppColors.warmBrownMuted,
               fontSize: 14,
             ),
           ),
@@ -709,7 +710,7 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
         Text(
           value,
           style: GoogleFonts.inter(
-            color: _isNightTime ? Colors.white : const Color(0xFF1E293B),
+            color: _isNightTime ? AppColors.creamElevated : AppColors.warmBrown,
             fontSize: 14,
             fontWeight: FontWeight.w600,
           ),
@@ -722,7 +723,7 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
     return Text(
       title,
       style: GoogleFonts.outfit(
-        color: _isNightTime ? Colors.white : const Color(0xFF1E293B),
+        color: _isNightTime ? AppColors.creamElevated : AppColors.warmBrown,
         fontSize: 20,
         fontWeight: FontWeight.bold,
       ),
@@ -754,19 +755,19 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: _isNightTime ? const Color(0xFF1E293B) : Colors.white,
+              color: _isNightTime ? AppColors.warmBrown : AppColors.creamElevated,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: isSelected 
                   ? service['color']
-                  : (_isNightTime ? Colors.grey[800]! : Colors.grey[200]!),
+                  : (_isNightTime ? AppColors.darkChocolate : AppColors.cream),
                 width: isSelected ? 2 : 1,
               ),
               boxShadow: [
                 BoxShadow(
                   color: isSelected 
                     ? (service['color'] as Color).withOpacity(0.3)
-                    : Colors.black.withOpacity(0.05),
+                    : AppColors.darkChocolate.withOpacity(0.05),
                   blurRadius: isSelected ? 12 : 8,
                   offset: const Offset(0, 4),
                 ),
@@ -785,7 +786,7 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
                   service['name'],
                   textAlign: TextAlign.center,
                   style: GoogleFonts.inter(
-                    color: _isNightTime ? Colors.white : const Color(0xFF1E293B),
+                    color: _isNightTime ? AppColors.creamElevated : AppColors.warmBrown,
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
@@ -794,13 +795,13 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.1),
+                    color: AppColors.warmAmber.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     '+${service['surcharge']}%',
                     style: GoogleFonts.inter(
-                      color: Colors.orange,
+                      color: AppColors.warmAmber,
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
                     ),
@@ -832,23 +833,23 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
                   margin: const EdgeInsets.only(bottom: 12),
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: _isNightTime ? const Color(0xFF1E293B) : Colors.white,
+                    color: _isNightTime ? AppColors.warmBrown : AppColors.creamElevated,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
                       color: isAvailable 
-                        ? const Color(0xFF10B981) 
-                        : (_isNightTime ? Colors.grey[800]! : Colors.grey[300]!),
+                        ? AppColors.burntOrange 
+                        : (_isNightTime ? AppColors.darkChocolate : AppColors.warmBrownMuted),
                       width: isAvailable ? 2 : 1,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
+                        color: AppColors.darkChocolate.withOpacity(0.05),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),
                       if (isAvailable && _isNightTime)
                         BoxShadow(
-                          color: const Color(0xFF10B981).withOpacity(0.3 * _glowAnimation.value),
+                          color: AppColors.burntOrange.withOpacity(0.3 * _glowAnimation.value),
                           blurRadius: 15 * _glowAnimation.value,
                           spreadRadius: 2 * _glowAnimation.value,
                         ),
@@ -863,13 +864,13 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: isAvailable 
-                        ? const Color(0xFF10B981).withOpacity(0.1)
-                        : Colors.grey.withOpacity(0.1),
+                        ? AppColors.burntOrange.withOpacity(0.1)
+                        : AppColors.warmBrownMuted.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
                       Icons.store,
-                      color: isAvailable ? const Color(0xFF10B981) : Colors.grey,
+                      color: isAvailable ? AppColors.burntOrange : AppColors.warmBrownMuted,
                       size: 24,
                     ),
                   ),
@@ -881,7 +882,7 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
                         Text(
                           provider['name'],
                           style: GoogleFonts.outfit(
-                            color: _isNightTime ? Colors.white : const Color(0xFF1E293B),
+                            color: _isNightTime ? AppColors.creamElevated : AppColors.warmBrown,
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                           ),
@@ -889,22 +890,22 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
                         const SizedBox(height: 4),
                         Row(
                           children: [
-                            Icon(Icons.star, color: Colors.amber, size: 16),
+                            Icon(Icons.star, color: AppColors.warmAmber, size: 16),
                             const SizedBox(width: 4),
                             Text(
                               '${provider['rating']}',
                               style: GoogleFonts.inter(
-                                color: _isNightTime ? Colors.grey[400] : Colors.grey[600],
+                                color: AppColors.warmBrownMuted,
                                 fontSize: 13,
                               ),
                             ),
                             const SizedBox(width: 12),
-                            Icon(Icons.location_on, color: const Color(0xFF6366F1), size: 16),
+                            Icon(Icons.location_on, color: AppColors.burntOrange, size: 16),
                             const SizedBox(width: 4),
                             Text(
                               provider['distance'],
                               style: GoogleFonts.inter(
-                                color: _isNightTime ? Colors.grey[400] : Colors.grey[600],
+                                color: AppColors.warmBrownMuted,
                                 fontSize: 13,
                               ),
                             ),
@@ -917,14 +918,14 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                       color: isAvailable 
-                        ? const Color(0xFF10B981).withOpacity(0.1)
-                        : Colors.grey.withOpacity(0.1),
+                        ? AppColors.burntOrange.withOpacity(0.1)
+                        : AppColors.warmBrownMuted.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       isAvailable ? 'Available' : 'Busy',
                       style: GoogleFonts.inter(
-                        color: isAvailable ? const Color(0xFF10B981) : Colors.grey,
+                        color: isAvailable ? AppColors.burntOrange : AppColors.warmBrownMuted,
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
@@ -941,14 +942,14 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
                       color: _isNightTime 
-                        ? Colors.blue.withOpacity(0.1)
-                        : const Color(0xFF6366F1).withOpacity(0.1),
+                        ? AppColors.burntOrange.withOpacity(0.1)
+                        : AppColors.burntOrange.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
                       service,
                       style: GoogleFonts.inter(
-                        color: _isNightTime ? Colors.blue[300] : const Color(0xFF6366F1),
+                        color: AppColors.burntOrange,
                         fontSize: 11,
                         fontWeight: FontWeight.w500,
                       ),
@@ -971,8 +972,8 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
                         ),
                       ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF6366F1),
-                        foregroundColor: Colors.white,
+                        backgroundColor: AppColors.burntOrange,
+                        foregroundColor: AppColors.creamElevated,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
@@ -984,7 +985,7 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                      color: Colors.orange.withOpacity(0.1),
+                      color: AppColors.warmAmber.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Column(
@@ -992,7 +993,7 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
                         Text(
                           '+${provider['surcharge']}',
                           style: GoogleFonts.inter(
-                            color: Colors.orange,
+                            color: AppColors.warmAmber,
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
                           ),
@@ -1000,7 +1001,7 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
                         Text(
                           'surcharge',
                           style: GoogleFonts.inter(
-                            color: Colors.orange,
+                            color: AppColors.warmAmber,
                             fontSize: 9,
                           ),
                         ),
@@ -1025,7 +1026,7 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
                             gradient: LinearGradient(
                               colors: [
                                 Colors.transparent,
-                                const Color(0xFF10B981).withOpacity(0.1),
+                                AppColors.burntOrange.withOpacity(0.1),
                                 Colors.transparent,
                               ],
                               stops: const [0.0, 0.5, 1.0],
@@ -1055,11 +1056,11 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: _isNightTime 
-          ? const Color(0xFF1E293B)
-          : const Color(0xFFFFF7ED),
+          ? AppColors.warmBrown
+          : AppColors.cream,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: _isNightTime ? Colors.orange.withOpacity(0.3) : Colors.orange.withOpacity(0.2),
+          color: _isNightTime ? AppColors.warmAmber.withOpacity(0.3) : AppColors.warmAmber.withOpacity(0.2),
           width: 1,
         ),
       ),
@@ -1072,12 +1073,12 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.1),
+                    color: AppColors.warmAmber.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
                     tip['icon'] as IconData,
-                    color: Colors.orange,
+                    color: AppColors.warmAmber,
                     size: 20,
                   ),
                 ),
@@ -1089,7 +1090,7 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
                       Text(
                         tip['title'] as String,
                         style: GoogleFonts.inter(
-                          color: _isNightTime ? Colors.white : const Color(0xFF1E293B),
+                          color: _isNightTime ? AppColors.creamElevated : AppColors.warmBrown,
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                         ),
@@ -1097,7 +1098,7 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
                       Text(
                         tip['desc'] as String,
                         style: GoogleFonts.inter(
-                          color: _isNightTime ? Colors.grey[400] : Colors.grey[600],
+                          color: AppColors.warmBrownMuted,
                           fontSize: 12,
                         ),
                       ),
@@ -1115,8 +1116,8 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
   Widget _buildEmergencyFAB() {
     return FloatingActionButton(
       onPressed: () => _showEmergencyDialog(),
-      backgroundColor: const Color(0xFFEF4444),
-      child: const Icon(Icons.report_problem_rounded, color: Colors.white),
+      backgroundColor: AppColors.burntOrange,
+      child: Icon(Icons.report_problem_rounded, color: AppColors.creamElevated),
     );
   }
 
@@ -1127,7 +1128,7 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
       builder: (context) => Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: _isNightTime ? const Color(0xFF1E293B) : Colors.white,
+          color: _isNightTime ? AppColors.warmBrown : AppColors.creamElevated,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(
@@ -1139,7 +1140,7 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.grey[300],
+                  color: AppColors.warmBrownMuted,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -1156,7 +1157,7 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
                 Text(
                   service['name'],
                   style: GoogleFonts.outfit(
-                    color: _isNightTime ? Colors.white : const Color(0xFF1E293B),
+                    color: _isNightTime ? AppColors.creamElevated : AppColors.warmBrown,
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
@@ -1179,7 +1180,7 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: service['color'],
-                  foregroundColor: Colors.white,
+                  foregroundColor: AppColors.creamElevated,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -1207,7 +1208,7 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
-            const Icon(Icons.emergency, color: Color(0xFFEF4444)),
+            Icon(Icons.emergency, color: AppColors.burntOrange),
             const SizedBox(width: 12),
             Text(
               'Emergency Service',
@@ -1227,12 +1228,12 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFFEF4444).withOpacity(0.1),
+                color: AppColors.burntOrange.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.phone, color: Color(0xFFEF4444)),
+                  Icon(Icons.phone, color: AppColors.burntOrange),
                   const SizedBox(width: 12),
                   Text(
                     '+91 98765 43200',
@@ -1261,13 +1262,13 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
                     'Emergency service activated! Help is on the way.',
                     style: GoogleFonts.inter(),
                   ),
-                  backgroundColor: const Color(0xFF10B981),
+                  backgroundColor: AppColors.burntOrange,
                 ),
               );
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFEF4444),
-              foregroundColor: Colors.white,
+              backgroundColor: AppColors.burntOrange,
+              foregroundColor: AppColors.creamElevated,
             ),
             child: Text('Call Now', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
           ),
@@ -1301,12 +1302,12 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
             const SizedBox(height: 8),
             Text(
               'Night surcharge: ${provider['surcharge']}',
-              style: GoogleFonts.inter(fontSize: 13, color: Colors.orange),
+              style: GoogleFonts.inter(fontSize: 13, color: AppColors.warmAmber),
             ),
             const SizedBox(height: 16),
             Text(
               'Your location will be shared with the provider.',
-              style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[600]),
+              style: GoogleFonts.inter(fontSize: 12, color: AppColors.warmBrownMuted),
             ),
           ],
         ),
@@ -1324,13 +1325,13 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
                     'Service requested! Provider will contact you shortly.',
                     style: GoogleFonts.inter(),
                   ),
-                  backgroundColor: const Color(0xFF10B981),
+                  backgroundColor: AppColors.burntOrange,
                 ),
               );
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF6366F1),
-              foregroundColor: Colors.white,
+              backgroundColor: AppColors.burntOrange,
+              foregroundColor: AppColors.creamElevated,
             ),
             child: Text('Confirm', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
           ),

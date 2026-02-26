@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../core/theme/app_colors.dart';
 
 class MinorRepairPage extends StatefulWidget {
   const MinorRepairPage({super.key});
@@ -80,7 +81,7 @@ class _MinorRepairPageState extends State<MinorRepairPage> with TickerProviderSt
                 elevation: 8,
                 borderRadius: BorderRadius.circular(20),
                 color: Colors.white,
-                shadowColor: const Color(0xFF706DC7).withOpacity(0.2),
+                shadowColor: AppColors.burntOrange.withOpacity(0.2),
                 child: InkWell(
                   onTap: () {
                     HapticFeedback.lightImpact();
@@ -94,13 +95,13 @@ class _MinorRepairPageState extends State<MinorRepairPage> with TickerProviderSt
                       gradient: LinearGradient(
                         colors: [
                           Colors.white,
-                          const Color(0xFF706DC7).withOpacity(0.02),
+                          AppColors.burntOrange.withOpacity(0.02),
                         ],
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                       ),
                       border: Border.all(
-                        color: const Color(0xFF706DC7).withOpacity(0.1),
+                        color: AppColors.burntOrange.withOpacity(0.1),
                         width: 1,
                       ),
                     ),
@@ -110,10 +111,10 @@ class _MinorRepairPageState extends State<MinorRepairPage> with TickerProviderSt
                           width: 60,
                           height: 60,
                           decoration: BoxDecoration(
-                            color: const Color(0xFF706DC7).withOpacity(0.1),
+                            color: AppColors.burntOrange.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: const Color(0xFF706DC7).withOpacity(0.2),
+                              color: AppColors.burntOrange.withOpacity(0.2),
                               width: 1,
                             ),
                           ),
@@ -152,14 +153,14 @@ class _MinorRepairPageState extends State<MinorRepairPage> with TickerProviderSt
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF706DC7).withOpacity(0.1),
+                                  color: AppColors.burntOrange.withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Text(
                                   'Starting at $price',
                                   style: GoogleFonts.outfit(
                                     fontSize: 12,
-                                    color: const Color(0xFF706DC7),
+                                    color: AppColors.burntOrange,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -170,12 +171,12 @@ class _MinorRepairPageState extends State<MinorRepairPage> with TickerProviderSt
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF706DC7).withOpacity(0.1),
+                            color: AppColors.burntOrange.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: const Icon(
                             Icons.arrow_forward_ios,
-                            color: Color(0xFF706DC7),
+                            color: AppColors.burntOrange,
                             size: 16,
                           ),
                         ),
@@ -221,12 +222,12 @@ class _MinorRepairPageState extends State<MinorRepairPage> with TickerProviderSt
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: selectedVehicleType == 'car' 
-                          ? const Color(0xFF706DC7).withOpacity(0.1)
+                          ? AppColors.burntOrange.withOpacity(0.1)
                           : Colors.white,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
                         color: selectedVehicleType == 'car'
-                            ? const Color(0xFF706DC7)
+                            ? AppColors.burntOrange
                             : Colors.grey.withOpacity(0.3),
                         width: selectedVehicleType == 'car' ? 2 : 1,
                       ),
@@ -238,7 +239,7 @@ class _MinorRepairPageState extends State<MinorRepairPage> with TickerProviderSt
                           width: 32,
                           height: 32,
                           color: selectedVehicleType == 'car'
-                              ? const Color(0xFF706DC7)
+                              ? AppColors.burntOrange
                               : Colors.grey,
                         ),
                         const SizedBox(height: 8),
@@ -248,7 +249,7 @@ class _MinorRepairPageState extends State<MinorRepairPage> with TickerProviderSt
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                             color: selectedVehicleType == 'car'
-                                ? const Color(0xFF706DC7)
+                                ? AppColors.burntOrange
                                 : Colors.grey,
                           ),
                         ),
@@ -271,12 +272,12 @@ class _MinorRepairPageState extends State<MinorRepairPage> with TickerProviderSt
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: selectedVehicleType == 'bike' 
-                          ? const Color(0xFF706DC7).withOpacity(0.1)
+                          ? AppColors.burntOrange.withOpacity(0.1)
                           : Colors.white,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
                         color: selectedVehicleType == 'bike'
-                            ? const Color(0xFF706DC7)
+                            ? AppColors.burntOrange
                             : Colors.grey.withOpacity(0.3),
                         width: selectedVehicleType == 'bike' ? 2 : 1,
                       ),
@@ -288,7 +289,7 @@ class _MinorRepairPageState extends State<MinorRepairPage> with TickerProviderSt
                           width: 32,
                           height: 32,
                           color: selectedVehicleType == 'bike'
-                              ? const Color(0xFF706DC7)
+                              ? AppColors.burntOrange
                               : Colors.grey,
                         ),
                         const SizedBox(height: 8),
@@ -298,7 +299,7 @@ class _MinorRepairPageState extends State<MinorRepairPage> with TickerProviderSt
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                             color: selectedVehicleType == 'bike'
-                                ? const Color(0xFF706DC7)
+                                ? AppColors.burntOrange
                                 : Colors.grey,
                           ),
                         ),
@@ -344,12 +345,12 @@ class _MinorRepairPageState extends State<MinorRepairPage> with TickerProviderSt
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: selectedServiceType == 'on-spot' 
-                          ? const Color(0xFF706DC7).withOpacity(0.1)
+                          ? AppColors.burntOrange.withOpacity(0.1)
                           : Colors.white,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
                         color: selectedServiceType == 'on-spot'
-                            ? const Color(0xFF706DC7)
+                            ? AppColors.burntOrange
                             : Colors.grey.withOpacity(0.3),
                         width: selectedServiceType == 'on-spot' ? 2 : 1,
                       ),
@@ -360,7 +361,7 @@ class _MinorRepairPageState extends State<MinorRepairPage> with TickerProviderSt
                           Icons.location_on,
                           size: 32,
                           color: selectedServiceType == 'on-spot'
-                              ? const Color(0xFF706DC7)
+                              ? AppColors.burntOrange
                               : Colors.grey,
                         ),
                         const SizedBox(height: 8),
@@ -370,7 +371,7 @@ class _MinorRepairPageState extends State<MinorRepairPage> with TickerProviderSt
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                             color: selectedServiceType == 'on-spot'
-                                ? const Color(0xFF706DC7)
+                                ? AppColors.burntOrange
                                 : Colors.grey,
                           ),
                           textAlign: TextAlign.center,
@@ -394,12 +395,12 @@ class _MinorRepairPageState extends State<MinorRepairPage> with TickerProviderSt
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: selectedServiceType == 'pickup' 
-                          ? const Color(0xFF706DC7).withOpacity(0.1)
+                          ? AppColors.burntOrange.withOpacity(0.1)
                           : Colors.white,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
                         color: selectedServiceType == 'pickup'
-                            ? const Color(0xFF706DC7)
+                            ? AppColors.burntOrange
                             : Colors.grey.withOpacity(0.3),
                         width: selectedServiceType == 'pickup' ? 2 : 1,
                       ),
@@ -410,7 +411,7 @@ class _MinorRepairPageState extends State<MinorRepairPage> with TickerProviderSt
                           Icons.local_shipping,
                           size: 32,
                           color: selectedServiceType == 'pickup'
-                              ? const Color(0xFF706DC7)
+                              ? AppColors.burntOrange
                               : Colors.grey,
                         ),
                         const SizedBox(height: 8),
@@ -420,7 +421,7 @@ class _MinorRepairPageState extends State<MinorRepairPage> with TickerProviderSt
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                             color: selectedServiceType == 'pickup'
-                                ? const Color(0xFF706DC7)
+                                ? AppColors.burntOrange
                                 : Colors.grey,
                           ),
                           textAlign: TextAlign.center,
@@ -473,7 +474,7 @@ class _MinorRepairPageState extends State<MinorRepairPage> with TickerProviderSt
     ];
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: AppColors.cream,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -518,14 +519,14 @@ class _MinorRepairPageState extends State<MinorRepairPage> with TickerProviderSt
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [Color(0xFF706DC7), Color(0xFF5956A8)],
+                    colors: [AppColors.burntOrange, AppColors.warmBrown],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF706DC7).withOpacity(0.3),
+                      color: AppColors.burntOrange.withOpacity(0.3),
                       blurRadius: 20,
                       offset: const Offset(0, 10),
                     ),
@@ -645,7 +646,7 @@ class _MinorRepairPageState extends State<MinorRepairPage> with TickerProviderSt
                                 Container(
                                   padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF706DC7).withOpacity(0.1),
+                                    color: AppColors.burntOrange.withOpacity(0.1),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Column(
@@ -655,14 +656,14 @@ class _MinorRepairPageState extends State<MinorRepairPage> with TickerProviderSt
                                           const Icon(
                                             Icons.access_time,
                                             size: 16,
-                                            color: Color(0xFF706DC7),
+                                            color: AppColors.burntOrange,
                                           ),
                                           const SizedBox(width: 8),
                                           Text(
                                             'Service available 24/7',
                                             style: GoogleFonts.outfit(
                                               fontSize: 12,
-                                              color: const Color(0xFF706DC7),
+                                              color: AppColors.burntOrange,
                                               fontWeight: FontWeight.w600,
                                             ),
                                           ),
@@ -674,7 +675,7 @@ class _MinorRepairPageState extends State<MinorRepairPage> with TickerProviderSt
                                           const Icon(
                                             Icons.location_on,
                                             size: 16,
-                                            color: Color(0xFF706DC7),
+                                            color: AppColors.burntOrange,
                                           ),
                                           const SizedBox(width: 8),
                                           Text(
@@ -683,7 +684,7 @@ class _MinorRepairPageState extends State<MinorRepairPage> with TickerProviderSt
                                                 : 'Pickup & drop service',
                                             style: GoogleFonts.outfit(
                                               fontSize: 12,
-                                              color: const Color(0xFF706DC7),
+                                              color: AppColors.burntOrange,
                                               fontWeight: FontWeight.w600,
                                             ),
                                           ),
@@ -712,7 +713,7 @@ class _MinorRepairPageState extends State<MinorRepairPage> with TickerProviderSt
                                         'Booking ${service['title']} for ${selectedVehicleType.toUpperCase()}',
                                         style: GoogleFonts.outfit(),
                                       ),
-                                      backgroundColor: const Color(0xFF706DC7),
+                                      backgroundColor: AppColors.burntOrange,
                                       behavior: SnackBarBehavior.floating,
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(10),
@@ -721,7 +722,7 @@ class _MinorRepairPageState extends State<MinorRepairPage> with TickerProviderSt
                                   );
                                 },
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF706DC7),
+                                  backgroundColor: AppColors.burntOrange,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(8),
                                   ),

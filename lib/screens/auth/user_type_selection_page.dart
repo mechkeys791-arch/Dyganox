@@ -4,6 +4,7 @@ import '../../services/cognito_service.dart';
 import '../../homepage.dart';
 import 'login_page.dart';
 import '../mechanic/mechanic_login_request_page.dart';
+import '../../core/theme/app_colors.dart';
 
 class UserTypeSelectionPage extends StatefulWidget {
   const UserTypeSelectionPage({super.key});
@@ -77,9 +78,9 @@ class _UserTypeSelectionPageState extends State<UserTypeSelectionPage>
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              const Color(0xFFFF6B35),
-              const Color(0xFFFF8C42),
-              const Color(0xFFFFA500),
+              AppColors.burntOrange,
+              AppColors.warmBrown,
+              AppColors.warmAmber,
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -119,7 +120,7 @@ class _UserTypeSelectionPageState extends State<UserTypeSelectionPage>
                             child: const Icon(
                               Icons.car_repair_rounded,
                               size: 60,
-                              color: Color(0xFFFF6B35),
+                              color: AppColors.burntOrange,
                             ),
                           ),
                         ),
@@ -277,8 +278,8 @@ class _UserTypeSelectionPageState extends State<UserTypeSelectionPage>
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      const Color(0xFFFF6B35),
-                      const Color(0xFFFF8C42),
+                      AppColors.burntOrange,
+                      AppColors.warmBrown,
                     ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
@@ -301,7 +302,7 @@ class _UserTypeSelectionPageState extends State<UserTypeSelectionPage>
                       style: GoogleFonts.outfit(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
-                        color: const Color(0xFF1E293B),
+                        color: AppColors.darkChocolate,
                       ),
                     ),
                     const SizedBox(height: 6),

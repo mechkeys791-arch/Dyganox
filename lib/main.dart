@@ -21,6 +21,7 @@ import 'screens/mechanic/mechanic_request_detail_book_flow_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'services/api_config.dart';
 import 'services/fcm_notification_service.dart';
+import 'core/theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -161,75 +162,7 @@ class _ServiceProviderAppState extends State<ServiceProviderApp> with WidgetsBin
       navigatorKey: _navigatorKey,
       title: 'Dyganox - Vehicle Service Provider',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        fontFamily: GoogleFonts.inter().fontFamily,
-        useMaterial3: true,
-        scaffoldBackgroundColor: const Color(0xFFF8FAFC),
-        primarySwatch: Colors.blue,
-        visualDensity: VisualDensity.adaptivePlatformDensity,
-        textTheme: GoogleFonts.interTextTheme().apply(
-          bodyColor: const Color(0xFF1E293B),
-          displayColor: const Color(0xFF1E293B),
-        ),
-        colorScheme: const ColorScheme.light(
-          primary: Color(0xFF706DC7), // Custom Purple
-          secondary: Color(0xFF8B7ED8), // Light Purple
-          tertiary: Color(0xFF5D4E99), // Dark Purple
-          surface: Color(0xFFFFFFFF),
-          error: Color(0xFFEF4444), // Red-500
-          onPrimary: Color(0xFFFFFFFF),
-          onSecondary: Color(0xFFFFFFFF),
-          onSurface: Color(0xFF1E293B),
-          onError: Color(0xFFFFFFFF),
-        ),
-        appBarTheme: AppBarTheme(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          centerTitle: true,
-          titleTextStyle: GoogleFonts.outfit(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-            color: const Color(0xFF1E293B),
-          ),
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF706DC7),
-            foregroundColor: Colors.white,
-            elevation: 8,
-            shadowColor: const Color(0xFF706DC7).withOpacity(0.3),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          ),
-        ),
-        cardTheme: CardThemeData(
-          elevation: 8,
-          shadowColor: Colors.black.withOpacity(0.1),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          color: Colors.white,
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: Colors.white,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide.none,
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide.none,
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: const BorderSide(color: Color(0xFF706DC7), width: 2),
-          ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-        ),
-      ),
+      theme: chocolateTruffleTheme,
       // Use initial route from native (Accept tap → /open-accept/123) - set by getInitialRoute()
       initialRoute: ui.PlatformDispatcher.instance.defaultRouteName,
       onGenerateRoute: (settings) {
@@ -325,8 +258,8 @@ class _AcceptLaunchLoaderState extends State<_AcceptLaunchLoader> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(child: CircularProgressIndicator(color: Color(0xFF6366F1))),
+    return Scaffold(
+      body: Center(child: CircularProgressIndicator(color: Theme.of(context).colorScheme.primary)),
     );
   }
 }

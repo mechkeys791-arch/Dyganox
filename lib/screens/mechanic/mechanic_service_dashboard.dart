@@ -13,11 +13,14 @@ import 'mechanic_help_chat_page.dart';
 import 'mechanic_suspended_page.dart';
 import 'mechanic_request_detail_book_flow_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/theme/app_colors.dart';
 
 class MechanicServiceDashboard extends StatefulWidget {
   final Map<String, dynamic>? mechanicData;
-  
-  const MechanicServiceDashboard({super.key, this.mechanicData});
+  /// If set, after mount the dashboard will open this request (e.g. from FCM Accept).
+  final String? openRequestIdAfterMount;
+
+  const MechanicServiceDashboard({super.key, this.mechanicData, this.openRequestIdAfterMount});
 
   @override
   State<MechanicServiceDashboard> createState() => _MechanicServiceDashboardState();
@@ -123,6 +126,24 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
       _fetchBookings();
       _loadMechanicProfileFromApi();
     });
+
+    // If launched from FCM with a request id, open that request after first frame
+    final requestIdToOpen = widget.openRequestIdAfterMount;
+    if (requestIdToOpen != null && requestIdToOpen.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final mid = widget.mechanicData?['id'];
+        final id = mid is int ? mid : int.tryParse(mid?.toString() ?? '');
+        if (id != null && id > 0) {
+          final reqId = int.tryParse(requestIdToOpen) ?? 0;
+          if (reqId > 0) {
+            Navigator.push(context, MaterialPageRoute(
+              builder: (_) => MechanicRequestDetailBookFlowPage(requestId: reqId, mechanicId: id),
+            ));
+          }
+        }
+      });
+    }
   }
 
   @override
@@ -174,7 +195,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
                   icon: const Icon(Icons.visibility),
                   label: const Text('View problem'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0D9488),
+                    backgroundColor: AppColors.burntOrange,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
@@ -270,7 +291,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
       
       if (response.statusCode == 200) {
         setState(() => _mechanicStatus = newStatus);
-        _showSnackBar('Status updated to $newStatus', const Color(0xFF10B981));
+        _showSnackBar('Status updated to $newStatus', AppColors.warmAmber);
       } else {
         _showSnackBar('Failed to update status', Colors.orange);
       }
@@ -404,10 +425,10 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: AppColors.cream,
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: const Color(0xFF0D9488),
+        backgroundColor: AppColors.burntOrange,
         title: Text(
           (_mechanicProfile['shopName'] ?? _mechanicProfile['shop_name'] ?? 'Service Provider').toString(),
           style: GoogleFonts.outfit(
@@ -440,7 +461,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: _mechanicStatus,
-          dropdownColor: const Color(0xFF0D9488),
+          dropdownColor: AppColors.burntOrange,
           icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
           style: GoogleFonts.inter(
             color: Colors.white,
@@ -471,7 +492,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
         await _fetchBookings();
         await _fetchNearbyBroadcastRequests();
         await _fetchWallet();
-        _showSnackBar('Dashboard refreshed!', const Color(0xFF10B981));
+        _showSnackBar('Dashboard refreshed!', AppColors.warmAmber);
       },
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -526,11 +547,14 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
   Widget _buildProfileCard() {
     return GestureDetector(
       onTap: () async {
+        final mid = widget.mechanicData?['id'];
+        final mechanicId = mid is int ? mid : int.tryParse(mid?.toString() ?? '0') ?? 0;
         await Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => MechanicProfileEditPage(
               mechanicProfile: _mechanicProfile,
+              mechanicId: mechanicId,
               onSave: (updatedProfile) {
                 setState(() {
                   _mechanicProfile['name'] = updatedProfile['name'];
@@ -551,12 +575,12 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
-            colors: [Color(0xFF0D9488), Color(0xFF14B8A6)],
+            colors: [AppColors.burntOrange, AppColors.warmBrown],
           ),
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF0D9488).withOpacity(0.3),
+              color: AppColors.burntOrange.withOpacity(0.3),
               blurRadius: 15,
               offset: const Offset(0, 8),
             ),
@@ -580,9 +604,9 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
                       fit: BoxFit.cover,
                       width: 80,
                       height: 80,
-                      errorBuilder: (_, __, ___) => const Icon(Icons.account_circle, size: 40, color: Color(0xFF0D9488)),
+                      errorBuilder: (_, __, ___) => const Icon(Icons.account_circle, size: 40, color: AppColors.burntOrange),
                     )
-                  : const Icon(Icons.account_circle, size: 40, color: Color(0xFF0D9488)),
+                  : const Icon(Icons.account_circle, size: 40, color: AppColors.burntOrange),
             ),
           ),
           const SizedBox(width: 16),
@@ -716,7 +740,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
             offset: const Offset(0, 4),
           ),
         ],
-        border: Border.all(color: const Color(0xFF0D9488).withOpacity(0.2)),
+        border: Border.all(color: AppColors.burntOrange.withOpacity(0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -726,10 +750,10 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0D9488).withOpacity(0.1),
+                  color: AppColors.burntOrange.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.store, color: Color(0xFF0D9488), size: 24),
+                child: const Icon(Icons.store, color: AppColors.burntOrange, size: 24),
               ),
               const SizedBox(width: 12),
               Text(
@@ -763,15 +787,15 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
               margin: const EdgeInsets.only(top: 8),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: const Color(0xFF14B8A6).withOpacity(0.15),
+                color: AppColors.warmBrown.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.nightlight_round, color: Color(0xFF14B8A6), size: 18),
+                  const Icon(Icons.nightlight_round, color: AppColors.warmBrown, size: 18),
                   const SizedBox(width: 8),
                   Text('24/7 Night service available', style: GoogleFonts.inter(
-                    fontSize: 13, fontWeight: FontWeight.w600, color: const Color(0xFF14B8A6),
+                    fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.warmBrown,
                   )),
                 ],
               ),
@@ -787,7 +811,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
               runSpacing: 8,
               children: _myServices.map((s) => Chip(
                 label: Text(s, style: GoogleFonts.inter(fontSize: 12)),
-                backgroundColor: const Color(0xFF10B981).withOpacity(0.15),
+                backgroundColor: AppColors.warmAmber.withOpacity(0.15),
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               )).toList(),
             ),
@@ -828,7 +852,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
             'Total Jobs',
             '${_mechanicProfile['completedJobs']}',
             Icons.check_circle_outline,
-            const Color(0xFF10B981),
+            AppColors.warmAmber,
           ),
         ),
         const SizedBox(width: 12),
@@ -837,7 +861,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
             'Pending',
             '${_bookings.where((b) => b['status'] == 'Pending').length}',
             Icons.pending_actions,
-            const Color(0xFFF59E0B),
+            AppColors.warmAmber,
           ),
         ),
         const SizedBox(width: 12),
@@ -846,7 +870,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
             'Today',
             '${_bookings.where((b) => b['date'] == '2024-01-15').length}',
             Icons.today,
-            const Color(0xFF0D9488),
+            AppColors.burntOrange,
           ),
         ),
       ],
@@ -940,8 +964,8 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: booking['status'] == 'Accepted' 
-            ? const Color(0xFF10B981) 
-            : const Color(0xFFF59E0B),
+            ? AppColors.warmAmber 
+            : AppColors.warmAmber,
           width: 2,
         ),
       ),
@@ -951,10 +975,10 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
             width: 50,
             height: 50,
             decoration: BoxDecoration(
-              color: const Color(0xFF0D9488).withOpacity(0.1),
+              color: AppColors.burntOrange.withOpacity(0.1),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.car_repair, color: Color(0xFF0D9488)),
+            child: const Icon(Icons.car_repair, color: AppColors.burntOrange),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -982,8 +1006,8 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
               color: booking['status'] == 'Accepted'
-                  ? const Color(0xFF10B981).withOpacity(0.1)
-                  : const Color(0xFFF59E0B).withOpacity(0.1),
+                  ? AppColors.warmAmber.withOpacity(0.1)
+                  : AppColors.warmAmber.withOpacity(0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
@@ -992,8 +1016,8 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
                 color: booking['status'] == 'Accepted'
-                    ? const Color(0xFF10B981)
-                    : const Color(0xFFF59E0B),
+                    ? AppColors.warmAmber
+                    : AppColors.warmAmber,
               ),
             ),
           ),
@@ -1012,14 +1036,14 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF10B981), Color(0xFF14B8A6)],
+          colors: [AppColors.warmAmber, AppColors.warmBrown],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
           borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF10B981).withOpacity(0.4),
+            color: AppColors.warmAmber.withOpacity(0.4),
             blurRadius: 15,
             offset: const Offset(0, 8),
           ),
@@ -1198,7 +1222,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
                   padding: const EdgeInsets.all(20),
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [Color(0xFF10B981), Color(0xFF059669)],
+                      colors: [AppColors.warmAmber, AppColors.warmBrown],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
@@ -1305,7 +1329,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
                           'Completed Jobs',
                           _completedJobs.toString(),
                           Icons.check_circle,
-                          const Color(0xFF10B981),
+                          AppColors.warmAmber,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -1314,7 +1338,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
                           'Avg per Job',
                           '₹${avgPerJob.toStringAsFixed(0)}',
                           Icons.trending_up,
-                          const Color(0xFF0D9488),
+                          AppColors.burntOrange,
                         ),
                       ),
                     ],
@@ -1326,7 +1350,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Row(
                     children: [
-                      const Icon(Icons.history, size: 20, color: Color(0xFF64748B)),
+                      const Icon(Icons.history, size: 20, color: AppColors.warmBrownMuted),
                       const SizedBox(width: 8),
                       Text(
                         'Transaction History',
@@ -1393,7 +1417,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
             textAlign: TextAlign.center,
             style: GoogleFonts.inter(
               fontSize: 11,
-              color: const Color(0xFF64748B),
+              color: AppColors.warmBrownMuted,
             ),
           ),
         ],
@@ -1403,7 +1427,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
 
   Widget _buildTransactionItem(Map<String, dynamic> transaction) {
     final isCompleted = transaction['status'] == 'Completed';
-    final statusColor = isCompleted ? const Color(0xFF10B981) : const Color(0xFFF59E0B);
+    final statusColor = isCompleted ? AppColors.warmAmber : AppColors.warmAmber;
     
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -1525,7 +1549,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
               child: _buildQuickActionButton(
                 'Bookings',
                 Icons.calendar_month,
-                const Color(0xFF0D9488),
+                AppColors.burntOrange,
                 () {
                   Navigator.push(
                     context,
@@ -1546,7 +1570,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
               child: _buildQuickActionButton(
                 'My Services',
                 Icons.handyman,
-                const Color(0xFF14B8A6),
+                AppColors.warmBrown,
                 () {
                   Navigator.push(
                     context,
@@ -1570,7 +1594,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
               child: _buildQuickActionButton(
                 'Help Chat',
                 Icons.chat_rounded,
-                const Color(0xFF10B981),
+                AppColors.warmAmber,
                 () {
                   final email = (_mechanicProfile['email'] ?? widget.mechanicData?['email'] ?? '').toString();
                   if (email.isEmpty) {
@@ -1661,12 +1685,12 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withOpacity(0.2),
+                  color: AppColors.warmAmber.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   '${_nearbyBroadcastRequests.length}',
-                  style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600, color: const Color(0xFF10B981)),
+                  style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.warmAmber),
                 ),
               ),
             ],
@@ -1683,7 +1707,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
               return Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Material(
-                  color: const Color(0xFFF0FDF4),
+                  color: AppColors.creamElevated,
                   borderRadius: BorderRadius.circular(12),
                   child: InkWell(
                     onTap: () {
@@ -1704,7 +1728,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
                       padding: const EdgeInsets.all(12),
                       child: Row(
                         children: [
-                          const Icon(Icons.build_circle, color: Color(0xFF10B981), size: 28),
+                          const Icon(Icons.build_circle, color: AppColors.warmAmber, size: 28),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
@@ -1763,19 +1787,19 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withOpacity(0.1),
+                  color: AppColors.warmAmber.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.trending_up, size: 14, color: Color(0xFF10B981)),
+                    const Icon(Icons.trending_up, size: 14, color: AppColors.warmAmber),
                     const SizedBox(width: 4),
                     Text(
                       '+12%',
                       style: GoogleFonts.inter(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
-                        color: const Color(0xFF10B981),
+                        color: AppColors.warmAmber,
                       ),
                     ),
                   ],
@@ -1784,11 +1808,11 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
             ],
           ),
           const SizedBox(height: 20),
-          _buildMetricBar('Completion Rate', completionRate, const Color(0xFF0D9488)),
+          _buildMetricBar('Completion Rate', completionRate, AppColors.burntOrange),
           const SizedBox(height: 16),
-          _buildMetricBar('Response Rate', responseRate, const Color(0xFF10B981)),
+          _buildMetricBar('Response Rate', responseRate, AppColors.warmAmber),
           const SizedBox(height: 16),
-          _buildMetricBar('Customer Satisfaction', customerSatisfaction, const Color(0xFFF59E0B)),
+          _buildMetricBar('Customer Satisfaction', customerSatisfaction, AppColors.warmAmber),
         ],
       ),
     );
@@ -1835,9 +1859,9 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
   // RECENT ACTIVITY
   Widget _buildRecentActivity() {
     final activities = [
-      {'action': 'Completed job', 'detail': 'Engine Service for Rajesh Kumar', 'time': '2 hours ago', 'icon': Icons.check_circle, 'color': Color(0xFF10B981)},
-      {'action': 'New booking', 'detail': 'Brake Service requested', 'time': '4 hours ago', 'icon': Icons.event, 'color': Color(0xFF0D9488)},
-      {'action': 'Payment received', 'detail': '₹1,500 from Priya Sharma', 'time': '5 hours ago', 'icon': Icons.currency_rupee, 'color': Color(0xFFF59E0B)},
+      {'action': 'Completed job', 'detail': 'Engine Service for Rajesh Kumar', 'time': '2 hours ago', 'icon': Icons.check_circle, 'color': AppColors.warmAmber},
+      {'action': 'New booking', 'detail': 'Brake Service requested', 'time': '4 hours ago', 'icon': Icons.event, 'color': AppColors.burntOrange},
+      {'action': 'Payment received', 'detail': '₹1,500 from Priya Sharma', 'time': '5 hours ago', 'icon': Icons.currency_rupee, 'color': AppColors.warmAmber},
     ];
     
     return Column(
@@ -1939,7 +1963,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
         setState(() {
           booking['status'] = 'Accepted';
         });
-        _showSnackBar('Booking accepted! Customer has been notified.', const Color(0xFF10B981));
+        _showSnackBar('Booking accepted! Customer has been notified.', AppColors.warmAmber);
         print("✅ Booking ${booking['id']} accepted successfully");
       } else {
         print("❌ Failed to accept booking: ${response.statusCode}");
@@ -1988,7 +2012,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
           booking['status'] = 'Completed';
           _mechanicProfile['completedJobs']++;
         });
-        _showSnackBar('Job marked as completed! Payment will be processed.', const Color(0xFF10B981));
+        _showSnackBar('Job marked as completed! Payment will be processed.', AppColors.warmAmber);
         print("✅ Booking ${booking['id']} completed successfully");
       } else {
         print("❌ Failed to complete booking: ${response.statusCode}");

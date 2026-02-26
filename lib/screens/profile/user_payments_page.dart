@@ -5,9 +5,7 @@ import 'dart:convert';
 import '../../services/api_config.dart';
 import '../../services/cognito_service.dart';
 
-const _primary = Color(0xFF0D9488);
-const _cardBg = Color(0xFFFFFFFF);
-const _surface = Color(0xFFF0FDFA);
+import '../../core/theme/app_colors.dart';
 
 /// User Payment Section: lists successful and other payments for the logged-in user.
 class UserPaymentsPage extends StatefulWidget {
@@ -58,18 +56,18 @@ class _UserPaymentsPageState extends State<UserPaymentsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _surface,
+      backgroundColor: AppColors.cream,
       appBar: AppBar(
-        backgroundColor: _primary,
+        backgroundColor: AppColors.burntOrange,
         elevation: 0,
-        title: Text('Payment history', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: Text('Payment history', style: GoogleFonts.outfit(color: AppColors.onBurntOrange, fontWeight: FontWeight.bold)),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: const Icon(Icons.arrow_back, color: AppColors.onBurntOrange),
           onPressed: () => Navigator.pop(context),
         ),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: _primary))
+          ? const Center(child: CircularProgressIndicator(color: AppColors.burntOrange))
           : _error != null
               ? Center(
                   child: Padding(
@@ -77,9 +75,9 @@ class _UserPaymentsPageState extends State<UserPaymentsPage> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.error_outline, size: 56, color: Colors.grey[600]),
+                        Icon(Icons.error_outline, size: 56, color: AppColors.warmBrownMuted),
                         const SizedBox(height: 16),
-                        Text(_error!, style: GoogleFonts.inter(color: Colors.grey[700]), textAlign: TextAlign.center),
+                        Text(_error!, style: GoogleFonts.inter(color: AppColors.warmBrownMuted), textAlign: TextAlign.center),
                         const SizedBox(height: 16),
                         TextButton.icon(
                           onPressed: _loadPayments,
@@ -95,17 +93,17 @@ class _UserPaymentsPageState extends State<UserPaymentsPage> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.receipt_long, size: 64, color: Colors.grey[400]),
+                          Icon(Icons.receipt_long, size: 64, color: AppColors.warmBrownMuted),
                           const SizedBox(height: 16),
-                          Text('No payments yet', style: GoogleFonts.outfit(fontSize: 18, color: Colors.grey[700])),
+                          Text('No payments yet', style: GoogleFonts.outfit(fontSize: 18, color: AppColors.warmBrownMuted)),
                           const SizedBox(height: 8),
-                          Text('Your successful and other payments will appear here.', style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[600]), textAlign: TextAlign.center),
+                          Text('Your successful and other payments will appear here.', style: GoogleFonts.inter(fontSize: 14, color: AppColors.warmBrownMuted), textAlign: TextAlign.center),
                         ],
                       ),
                     )
                   : RefreshIndicator(
                       onRefresh: _loadPayments,
-                      color: _primary,
+                      color: AppColors.burntOrange,
                       child: ListView.builder(
                         padding: const EdgeInsets.all(16),
                         itemCount: _payments.length,
@@ -126,10 +124,10 @@ class _UserPaymentsPageState extends State<UserPaymentsPage> {
                             child: ListTile(
                               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                               leading: CircleAvatar(
-                                backgroundColor: isSuccess ? _primary.withValues(alpha: 0.2) : (isFailed || isCancelled) ? Colors.red.withValues(alpha: 0.2) : Colors.grey.withValues(alpha: 0.2),
+                                backgroundColor: isSuccess ? AppColors.burntOrange.withValues(alpha: 0.2) : (isFailed || isCancelled) ? AppColors.errorRed.withValues(alpha: 0.2) : AppColors.warmBrownMuted.withValues(alpha: 0.2),
                                 child: Icon(
                                   isSuccess ? Icons.check_circle : (isFailed || isCancelled) ? Icons.cancel : Icons.schedule,
-                                  color: isSuccess ? _primary : (isFailed || isCancelled) ? Colors.red : Colors.grey,
+                                  color: isSuccess ? AppColors.burntOrange : (isFailed || isCancelled) ? AppColors.errorRed : AppColors.warmBrownMuted,
                                 ),
                               ),
                               title: Text(
@@ -138,11 +136,11 @@ class _UserPaymentsPageState extends State<UserPaymentsPage> {
                               ),
                               subtitle: Text(
                                 '${orderId.isNotEmpty ? orderId : "Payment"} • ${status}',
-                                style: GoogleFonts.inter(fontSize: 13, color: Colors.grey[700]),
+                                style: GoogleFonts.inter(fontSize: 13, color: AppColors.warmBrownMuted),
                               ),
                               trailing: Text(
                                 completedAt != null && completedAt.isNotEmpty ? _formatDate(completedAt) : (createdAt != null ? _formatDate(createdAt) : ''),
-                                style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[600]),
+                                style: GoogleFonts.inter(fontSize: 12, color: AppColors.warmBrownMuted),
                               ),
                             ),
                           );

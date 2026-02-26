@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../../services/api_config.dart';
+import '../../core/theme/app_colors.dart';
 
 class TyreCarePage extends StatefulWidget {
   const TyreCarePage({super.key});
@@ -139,8 +140,8 @@ class _TyreCarePageState extends State<TyreCarePage> with TickerProviderStateMix
               child: Material(
                 elevation: 8,
                 borderRadius: BorderRadius.circular(20),
-                color: Colors.white,
-                shadowColor: const Color(0xFF706DC7).withOpacity(0.2),
+                color: AppColors.creamElevated,
+                shadowColor: AppColors.burntOrange.withOpacity(0.2),
                 child: InkWell(
                   onTap: () {
                     HapticFeedback.lightImpact();
@@ -153,14 +154,14 @@ class _TyreCarePageState extends State<TyreCarePage> with TickerProviderStateMix
                       borderRadius: BorderRadius.circular(20),
                       gradient: LinearGradient(
                         colors: [
-                          Colors.white,
-                          const Color(0xFF706DC7).withOpacity(0.02),
+                          AppColors.creamElevated,
+                          AppColors.burntOrange.withOpacity(0.02),
                         ],
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                       ),
                       border: Border.all(
-                        color: const Color(0xFF706DC7).withOpacity(0.1),
+                        color: AppColors.burntOrange.withOpacity(0.1),
                         width: 1,
                       ),
                     ),
@@ -170,10 +171,10 @@ class _TyreCarePageState extends State<TyreCarePage> with TickerProviderStateMix
                           width: 60,
                           height: 60,
                           decoration: BoxDecoration(
-                            color: const Color(0xFF706DC7).withOpacity(0.1),
+                            color: AppColors.burntOrange.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: const Color(0xFF706DC7).withOpacity(0.2),
+                              color: AppColors.burntOrange.withOpacity(0.2),
                               width: 1,
                             ),
                           ),
@@ -196,7 +197,7 @@ class _TyreCarePageState extends State<TyreCarePage> with TickerProviderStateMix
                                 style: GoogleFonts.outfit(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.black87,
+                                  color: AppColors.darkChocolate,
                                 ),
                               ),
                               const SizedBox(height: 4),
@@ -204,7 +205,7 @@ class _TyreCarePageState extends State<TyreCarePage> with TickerProviderStateMix
                                 description,
                                 style: GoogleFonts.inter(
                                   fontSize: 13,
-                                  color: Colors.grey[600],
+                                  color: AppColors.warmBrownMuted,
                                   height: 1.3,
                                 ),
                               ),
@@ -212,14 +213,14 @@ class _TyreCarePageState extends State<TyreCarePage> with TickerProviderStateMix
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF706DC7).withOpacity(0.1),
+                                  color: AppColors.burntOrange.withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Text(
                                   'Starting at $price',
                                   style: GoogleFonts.outfit(
                                     fontSize: 12,
-                                    color: const Color(0xFF706DC7),
+                                    color: AppColors.burntOrange,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -230,12 +231,12 @@ class _TyreCarePageState extends State<TyreCarePage> with TickerProviderStateMix
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF706DC7).withOpacity(0.1),
+                            color: AppColors.burntOrange.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: const Icon(
                             Icons.arrow_forward_ios,
-                            color: Color(0xFF706DC7),
+                            color: AppColors.burntOrange,
                             size: 16,
                           ),
                         ),
@@ -264,13 +265,13 @@ class _TyreCarePageState extends State<TyreCarePage> with TickerProviderStateMix
       child: Material(
         elevation: 4,
         borderRadius: BorderRadius.circular(16),
-        color: Colors.white,
+        color: AppColors.creamElevated,
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: const Color(0xFF706DC7).withOpacity(0.1),
+              color: AppColors.burntOrange.withOpacity(0.1),
               width: 1,
             ),
           ),
@@ -278,13 +279,13 @@ class _TyreCarePageState extends State<TyreCarePage> with TickerProviderStateMix
             children: [
               CircleAvatar(
                 radius: 30,
-                backgroundColor: const Color(0xFF706DC7).withOpacity(0.1),
+                backgroundColor: AppColors.burntOrange.withOpacity(0.1),
                 child: Text(
                   name[0],
                   style: GoogleFonts.outfit(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: const Color(0xFF706DC7),
+                    color: AppColors.burntOrange,
                   ),
                 ),
               ),
@@ -298,7 +299,7 @@ class _TyreCarePageState extends State<TyreCarePage> with TickerProviderStateMix
                       style: GoogleFonts.outfit(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                        color: AppColors.darkChocolate,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -306,7 +307,7 @@ class _TyreCarePageState extends State<TyreCarePage> with TickerProviderStateMix
                       speciality,
                       style: GoogleFonts.inter(
                         fontSize: 13,
-                        color: Colors.grey[600],
+                        color: AppColors.warmBrownMuted,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -338,14 +339,14 @@ class _TyreCarePageState extends State<TyreCarePage> with TickerProviderStateMix
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF706DC7).withOpacity(0.1),
+                            color: AppColors.burntOrange.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
                             distance,
                             style: GoogleFonts.outfit(
                               fontSize: 11,
-                              color: const Color(0xFF706DC7),
+                              color: AppColors.burntOrange,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -371,7 +372,7 @@ class _TyreCarePageState extends State<TyreCarePage> with TickerProviderStateMix
                         phone != 'N/A' ? 'Calling $name at $phone...' : 'Phone number not available',
                         style: GoogleFonts.outfit(),
                       ),
-                      backgroundColor: const Color(0xFF706DC7),
+                      backgroundColor: AppColors.burntOrange,
                       behavior: SnackBarBehavior.floating,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
@@ -380,7 +381,7 @@ class _TyreCarePageState extends State<TyreCarePage> with TickerProviderStateMix
                   );
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF706DC7),
+                  backgroundColor: AppColors.burntOrange,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -389,7 +390,7 @@ class _TyreCarePageState extends State<TyreCarePage> with TickerProviderStateMix
                 child: Text(
                   'Call',
                   style: GoogleFonts.outfit(
-                    color: Colors.white,
+                    color: AppColors.creamElevated,
                     fontWeight: FontWeight.w600,
                     fontSize: 12,
                   ),
@@ -435,7 +436,7 @@ class _TyreCarePageState extends State<TyreCarePage> with TickerProviderStateMix
     final nearbyMechanics = _tyreMechanics.isEmpty ? [] : _tyreMechanics;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: AppColors.cream,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -443,24 +444,24 @@ class _TyreCarePageState extends State<TyreCarePage> with TickerProviderStateMix
           icon: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppColors.creamElevated,
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
+                  color: AppColors.darkChocolate.withOpacity(0.1),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
               ],
             ),
-            child: const Icon(Icons.arrow_back, color: Colors.black, size: 20),
+            child: Icon(Icons.arrow_back, color: AppColors.darkChocolate, size: 20),
           ),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           'Tyre Care',
           style: GoogleFonts.outfit(
-            color: Colors.black,
+            color: AppColors.darkChocolate,
             fontSize: 22,
             fontWeight: FontWeight.bold,
           ),
@@ -480,14 +481,14 @@ class _TyreCarePageState extends State<TyreCarePage> with TickerProviderStateMix
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [Color(0xFF706DC7), Color(0xFF5956A8)],
+                    colors: [AppColors.burntOrange, AppColors.warmBrown],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF706DC7).withOpacity(0.3),
+                      color: AppColors.burntOrange.withOpacity(0.3),
                       blurRadius: 20,
                       offset: const Offset(0, 10),
                     ),
@@ -498,14 +499,14 @@ class _TyreCarePageState extends State<TyreCarePage> with TickerProviderStateMix
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
+                        color: AppColors.creamElevated.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Image.asset(
                         'assets/icons/punctured-tire.png',
                         width: 30,
                         height: 30,
-                        color: Colors.white,
+                        color: AppColors.creamElevated,
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -516,7 +517,7 @@ class _TyreCarePageState extends State<TyreCarePage> with TickerProviderStateMix
                           Text(
                             'Complete Tyre Care',
                             style: GoogleFonts.outfit(
-                              color: Colors.white,
+                              color: AppColors.creamElevated,
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
                             ),
@@ -525,7 +526,7 @@ class _TyreCarePageState extends State<TyreCarePage> with TickerProviderStateMix
                           Text(
                             'Puncture repair • Replacement • Balancing',
                             style: GoogleFonts.inter(
-                              color: Colors.white.withOpacity(0.9),
+                              color: AppColors.creamElevated.withOpacity(0.9),
                               fontSize: 12,
                             ),
                           ),
@@ -544,7 +545,7 @@ class _TyreCarePageState extends State<TyreCarePage> with TickerProviderStateMix
                   style: GoogleFonts.outfit(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                    color: AppColors.darkChocolate,
                   ),
                 ),
               ),
@@ -601,7 +602,7 @@ class _TyreCarePageState extends State<TyreCarePage> with TickerProviderStateMix
                                 Container(
                                   padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF706DC7).withOpacity(0.1),
+                                    color: AppColors.burntOrange.withOpacity(0.1),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Column(
@@ -611,14 +612,14 @@ class _TyreCarePageState extends State<TyreCarePage> with TickerProviderStateMix
                                           const Icon(
                                             Icons.access_time,
                                             size: 16,
-                                            color: Color(0xFF706DC7),
+                                            color: AppColors.burntOrange,
                                           ),
                                           const SizedBox(width: 8),
                                           Text(
                                             'Available 24/7',
                                             style: GoogleFonts.outfit(
                                               fontSize: 12,
-                                              color: const Color(0xFF706DC7),
+                                              color: AppColors.burntOrange,
                                               fontWeight: FontWeight.w600,
                                             ),
                                           ),
@@ -630,14 +631,14 @@ class _TyreCarePageState extends State<TyreCarePage> with TickerProviderStateMix
                                           const Icon(
                                             Icons.verified,
                                             size: 16,
-                                            color: Color(0xFF706DC7),
+                                            color: AppColors.burntOrange,
                                           ),
                                           const SizedBox(width: 8),
                                           Text(
                                             'Certified tyre experts',
                                             style: GoogleFonts.outfit(
                                               fontSize: 12,
-                                              color: const Color(0xFF706DC7),
+                                              color: AppColors.burntOrange,
                                               fontWeight: FontWeight.w600,
                                             ),
                                           ),
@@ -665,7 +666,7 @@ class _TyreCarePageState extends State<TyreCarePage> with TickerProviderStateMix
                                         'Booking ${service['title']}...',
                                         style: GoogleFonts.outfit(),
                                       ),
-                                      backgroundColor: const Color(0xFF706DC7),
+                                      backgroundColor: AppColors.burntOrange,
                                       behavior: SnackBarBehavior.floating,
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(10),
@@ -674,7 +675,7 @@ class _TyreCarePageState extends State<TyreCarePage> with TickerProviderStateMix
                                   );
                                 },
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF706DC7),
+                                  backgroundColor: AppColors.burntOrange,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(8),
                                   ),
@@ -682,7 +683,7 @@ class _TyreCarePageState extends State<TyreCarePage> with TickerProviderStateMix
                                 child: Text(
                                   'Book Now',
                                   style: GoogleFonts.outfit(
-                                    color: Colors.white,
+                                    color: AppColors.creamElevated,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -706,7 +707,7 @@ class _TyreCarePageState extends State<TyreCarePage> with TickerProviderStateMix
                   style: GoogleFonts.outfit(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                    color: AppColors.darkChocolate,
                   ),
                 ),
               ),
@@ -717,7 +718,7 @@ class _TyreCarePageState extends State<TyreCarePage> with TickerProviderStateMix
                     child: Padding(
                       padding: const EdgeInsets.all(20.0),
                       child: CircularProgressIndicator(
-                        color: const Color(0xFF706DC7),
+                        color: AppColors.burntOrange,
                       ),
                     ),
                   )
@@ -728,7 +729,7 @@ class _TyreCarePageState extends State<TyreCarePage> with TickerProviderStateMix
                         child: Text(
                           'No tyre care mechanics available',
                           style: GoogleFonts.inter(
-                            color: Colors.grey[600],
+                            color: AppColors.warmBrownMuted,
                           ),
                         ),
                       ),

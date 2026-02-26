@@ -17,11 +17,7 @@ import '../../services/payment/payment_gateway.dart';
 import '../vehicles/add_edit_vehicle_page.dart';
 import '../profile/location_picker_map_page.dart';
 
-// Teal theme - no purple
-const _primary = Color(0xFF0D9488);
-const _primaryLight = Color(0xFF14B8A6);
-const _surface = Color(0xFFF0FDFA);
-const _cardBg = Color(0xFFFFFFFF);
+import '../../core/theme/app_colors.dart';
 
 /// Book Mechanic: vehicle → problem → details (photo compulsory for tyre) → location (map/current) → map + mechanics → send to all → wait → payment when accepted.
 /// If [preselectedMechanicId] is set (from finder "Request mechanic"), flow sends to that mechanic only after location step.
@@ -115,6 +111,15 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
 
   bool get _isTyrePuncture => _selectedProblem?.id == 'tyre_puncture';
   bool get _photoRequired => _isTyrePuncture;
+
+  /// Next button shown only when 2+ vehicles (step 0), or for details/location (steps 2–3).
+  /// Step 1 (problem) auto-advances on tap; step 0 with 1 vehicle auto-advances on tap.
+  bool _shouldShowBottomBar() {
+    if (_step >= 4) return false;
+    if (_step == 0) return _vehicles.isEmpty || _vehicles.length >= 2;
+    if (_step == 1) return false;
+    return true; // step 2 (details), step 3 (location)
+  }
 
   void _nextStep() {
     if (_step == 0 && _selectedVehicle == null) {
@@ -397,9 +402,9 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
       return _buildWaitingScreen();
     }
     return Scaffold(
-      backgroundColor: _surface,
+      backgroundColor: AppColors.cream,
       appBar: AppBar(
-        backgroundColor: _primary,
+        backgroundColor: AppColors.burntOrange,
         elevation: 0,
         leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: () => Navigator.pop(context)),
         title: Text(
@@ -408,7 +413,7 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
         ),
       ),
       body: _buildStepContent(),
-      bottomNavigationBar: _step < 4 ? _buildBottomBar() : null,
+      bottomNavigationBar: _shouldShowBottomBar() ? _buildBottomBar() : null,
     );
   }
 
@@ -416,8 +421,8 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
     final mins = _waitingSecondsRemaining ~/ 60;
     final secs = _waitingSecondsRemaining % 60;
     return Scaffold(
-      backgroundColor: _surface,
-      appBar: AppBar(backgroundColor: _primary, elevation: 0, title: Text('Request sent', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold))),
+      backgroundColor: AppColors.cream,
+      appBar: AppBar(backgroundColor: AppColors.burntOrange, elevation: 0, title: Text('Request sent', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold))),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -428,7 +433,7 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
                 tween: Tween(begin: 0.8, end: 1.1),
                 duration: const Duration(milliseconds: 800),
                 builder: (context, value, child) => Transform.scale(scale: value, child: child),
-                child: Icon(Icons.check_circle, size: 80, color: _primary),
+                child: Icon(Icons.check_circle, size: 80, color: AppColors.burntOrange),
               ),
               const SizedBox(height: 24),
               Text(
@@ -446,13 +451,13 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 decoration: BoxDecoration(
-                  color: _primary.withValues(alpha: 0.12),
+                  color: AppColors.burntOrange.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: _primary.withValues(alpha: 0.3)),
+                  border: Border.all(color: AppColors.burntOrange.withValues(alpha: 0.3)),
                 ),
                 child: Text(
                   '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')} left',
-                  style: GoogleFonts.outfit(fontSize: 28, fontWeight: FontWeight.bold, color: _primary),
+                  style: GoogleFonts.outfit(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.burntOrange),
                 ),
               ),
               const SizedBox(height: 8),
@@ -462,11 +467,11 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
-              const SizedBox(width: 32, height: 32, child: CircularProgressIndicator(strokeWidth: 3, color: _primary)),
+              const SizedBox(width: 32, height: 32, child: CircularProgressIndicator(strokeWidth: 3, color: AppColors.burntOrange)),
               const SizedBox(height: 32),
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: Text('Back to home', style: GoogleFonts.outfit(color: _primary, fontWeight: FontWeight.w600)),
+                child: Text('Back to home', style: GoogleFonts.outfit(color: AppColors.burntOrange, fontWeight: FontWeight.w600)),
               ),
             ],
           ),
@@ -490,7 +495,7 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
             }
           },
           style: ElevatedButton.styleFrom(
-            backgroundColor: _primary,
+            backgroundColor: AppColors.burntOrange,
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 14),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -588,7 +593,7 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: _cardBg,
+        color: AppColors.creamElevated,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 10, offset: const Offset(0, 4))],
       ),
@@ -610,7 +615,7 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
               ],
             ),
           ),
-          Icon(Icons.check_circle, color: _primary, size: 28),
+          Icon(Icons.check_circle, color: AppColors.burntOrange, size: 28),
         ],
       ),
     );
@@ -620,9 +625,23 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
     return Container(
       width: size,
       height: size,
-      color: _primary.withValues(alpha: 0.15),
-      child: Icon(type == 'BIKE' ? Icons.two_wheeler : Icons.directions_car, color: _primary, size: size * 0.5),
+      color: AppColors.burntOrange.withValues(alpha: 0.15),
+      child: Icon(type == 'BIKE' ? Icons.two_wheeler : Icons.directions_car, color: AppColors.burntOrange, size: size * 0.5),
     );
+  }
+
+  void _advanceAfterVehicleSelection() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _nextStep();
+    });
+  }
+
+  void _advanceAfterProblemSelection() {
+    Future.delayed(const Duration(milliseconds: 350), () {
+      if (!mounted) return;
+      _nextStep();
+    });
   }
 
   Widget _buildVehicleTile(Map<String, dynamic> v) {
@@ -633,13 +652,16 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Material(
-        color: isSelected ? _primary.withValues(alpha: 0.08) : _cardBg,
+        color: isSelected ? AppColors.burntOrange.withValues(alpha: 0.08) : AppColors.creamElevated,
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
-          onTap: () => setState(() {
-            _selectedVehicle = v;
-            _vehicleType = type;
-          }),
+          onTap: () {
+            setState(() {
+              _selectedVehicle = v;
+              _vehicleType = type;
+            });
+            if (_vehicles.length == 1) _advanceAfterVehicleSelection();
+          },
           borderRadius: BorderRadius.circular(12),
           child: Padding(
             padding: const EdgeInsets.all(12),
@@ -653,7 +675,7 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
                 ),
                 const SizedBox(width: 12),
                 Expanded(child: Text(label, style: GoogleFonts.outfit(fontWeight: FontWeight.w600))),
-                if (isSelected) Icon(Icons.check_circle, color: _primary, size: 22),
+                if (isSelected) Icon(Icons.check_circle, color: AppColors.burntOrange, size: 22),
               ],
             ),
           ),
@@ -673,10 +695,13 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
         return Padding(
           padding: const EdgeInsets.only(bottom: 10),
           child: Material(
-            color: isSelected ? _primary.withValues(alpha: 0.08) : _cardBg,
+            color: isSelected ? AppColors.burntOrange.withValues(alpha: 0.08) : AppColors.creamElevated,
             borderRadius: BorderRadius.circular(12),
             child: InkWell(
-              onTap: () => setState(() => _selectedProblem = p),
+              onTap: () {
+                setState(() => _selectedProblem = p);
+                _advanceAfterProblemSelection();
+              },
               borderRadius: BorderRadius.circular(12),
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -684,8 +709,8 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
                   children: [
                     Container(
                       padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(color: _primary.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
-                      child: Icon(p.icon, color: _primary, size: 24),
+                      decoration: BoxDecoration(color: AppColors.burntOrange.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
+                      child: Icon(p.icon, color: AppColors.burntOrange, size: 24),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -699,12 +724,12 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
                           ],
                           if (isGeneralCheckup) ...[
                             const SizedBox(height: 6),
-                            Text('Mechanic will call you after you book the service.', style: GoogleFonts.inter(fontSize: 12, color: _primary, fontWeight: FontWeight.w500)),
+                            Text('Mechanic will call you after you book the service.', style: GoogleFonts.inter(fontSize: 12, color: AppColors.burntOrange, fontWeight: FontWeight.w500)),
                           ],
                         ],
                       ),
                     ),
-                    if (isSelected) Icon(Icons.check_circle, color: _primary, size: 24),
+                    if (isSelected) Icon(Icons.check_circle, color: AppColors.burntOrange, size: 24),
                   ],
                 ),
               ),
@@ -744,16 +769,16 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
                       width: 160,
                       height: 140,
                       decoration: BoxDecoration(
-                        color: _primary.withValues(alpha: 0.08),
+                        color: AppColors.burntOrange.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: _primary.withValues(alpha: 0.35), width: 2),
+                        border: Border.all(color: AppColors.burntOrange.withValues(alpha: 0.35), width: 2),
                       ),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.add_photo_alternate, size: 48, color: _primary),
+                          Icon(Icons.add_photo_alternate, size: 48, color: AppColors.burntOrange),
                           const SizedBox(height: 10),
-                          Text('Tap to add photo', style: GoogleFonts.outfit(fontSize: 14, color: _primary, fontWeight: FontWeight.w600)),
+                          Text('Tap to add photo', style: GoogleFonts.outfit(fontSize: 14, color: AppColors.burntOrange, fontWeight: FontWeight.w600)),
                         ],
                       ),
                     ),
@@ -773,11 +798,11 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
                               child: Container(
                                 width: 100,
                                 decoration: BoxDecoration(
-                                  color: _primary.withValues(alpha: 0.1),
+                                  color: AppColors.burntOrange.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: _primary.withValues(alpha: 0.3)),
+                                  border: Border.all(color: AppColors.burntOrange.withValues(alpha: 0.3)),
                                 ),
-                                child: const Icon(Icons.add, size: 36, color: _primary),
+                                child: const Icon(Icons.add, size: 36, color: AppColors.burntOrange),
                               ),
                             ),
                           );
@@ -828,7 +853,7 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
                           label: Text(opt),
                           selected: isSelected,
                           onSelected: (sel) => setState(() => _diagnosticAnswers[q.id] = opt),
-                          selectedColor: _primary.withValues(alpha: 0.25),
+                          selectedColor: AppColors.burntOrange.withValues(alpha: 0.25),
                         );
                       }).toList(),
                     ),
@@ -848,7 +873,7 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
               hintText: 'E.g. Front left tyre puncture, need repair',
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               filled: true,
-              fillColor: _cardBg,
+              fillColor: AppColors.creamElevated,
             ),
           ),
         ],
@@ -871,7 +896,7 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
             icon: const Icon(Icons.my_location, size: 22),
             label: const Text('Use current location'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: _primary,
+              backgroundColor: AppColors.burntOrange,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 14),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -885,18 +910,18 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 14),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              side: BorderSide(color: _primary),
-              foregroundColor: _primary,
+              side: BorderSide(color: AppColors.burntOrange),
+              foregroundColor: AppColors.burntOrange,
             ),
           ),
           if (_locationAddress.isNotEmpty) ...[
             const SizedBox(height: 20),
             Container(
               padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(color: _primary.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(12)),
+              decoration: BoxDecoration(color: AppColors.burntOrange.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(12)),
               child: Row(
                 children: [
-                  Icon(Icons.location_on, color: _primary, size: 22),
+                  Icon(Icons.location_on, color: AppColors.burntOrange, size: 22),
                   const SizedBox(width: 10),
                   Expanded(child: Text(_locationAddress, style: GoogleFonts.inter(fontSize: 14))),
                 ],
@@ -910,7 +935,7 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
 
   Widget _buildMechanicsStep() {
     if (_loadingMechanics) {
-      return const Center(child: CircularProgressIndicator(color: _primary));
+      return const Center(child: CircularProgressIndicator(color: AppColors.burntOrange));
     }
     if (_mechanics.isEmpty) {
       return Center(
@@ -945,7 +970,7 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
           builder: (context, scrollController) {
             return Container(
               decoration: const BoxDecoration(
-                color: _cardBg,
+                color: AppColors.creamElevated,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
                 boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 12, offset: Offset(0, -4))],
               ),
@@ -976,7 +1001,7 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
                               child: ElevatedButton(
                                 onPressed: _sendingRequest ? null : _sendRequestToAll,
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: _primary,
+                                  backgroundColor: AppColors.burntOrange,
                                   padding: const EdgeInsets.symmetric(vertical: 16),
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                 ),
@@ -996,7 +1021,7 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
                           child: Container(
                             padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
-                              color: _surface,
+                              color: AppColors.cream,
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(color: Colors.grey.shade200),
                             ),
@@ -1005,8 +1030,8 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
                                 Container(
                                   width: 44,
                                   height: 44,
-                                  decoration: BoxDecoration(color: _primary.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
-                                  child: Icon(Icons.engineering, color: _primary, size: 24),
+                                  decoration: BoxDecoration(color: AppColors.burntOrange.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
+                                  child: Icon(Icons.engineering, color: AppColors.burntOrange, size: 24),
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
@@ -1015,7 +1040,7 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
                                     children: [
                                       Text(name, style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 15)),
                                       Text(specialty, style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[700])),
-                                      Text(availability, style: GoogleFonts.inter(fontSize: 12, color: _primary)),
+                                      Text(availability, style: GoogleFonts.inter(fontSize: 12, color: AppColors.burntOrange)),
                                     ],
                                   ),
                                 ),
@@ -1059,7 +1084,7 @@ class _RulesAndPaymentSheet extends StatelessWidget {
     return Container(
       padding: EdgeInsets.only(left: 20, right: 20, top: 20, bottom: MediaQuery.of(context).padding.bottom + 20),
       decoration: const BoxDecoration(
-        color: _cardBg,
+        color: AppColors.creamElevated,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: SingleChildScrollView(
@@ -1080,7 +1105,7 @@ class _RulesAndPaymentSheet extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: _primary.withValues(alpha: 0.1),
+                color: AppColors.burntOrange.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
@@ -1100,8 +1125,8 @@ class _RulesAndPaymentSheet extends StatelessWidget {
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      side: const BorderSide(color: _primary),
-                      foregroundColor: _primary,
+                      side: const BorderSide(color: AppColors.burntOrange),
+                      foregroundColor: AppColors.burntOrange,
                     ),
                     child: const Text('Cancel'),
                   ),
@@ -1111,7 +1136,7 @@ class _RulesAndPaymentSheet extends StatelessWidget {
                   child: ElevatedButton(
                     onPressed: onAgreeAndPay,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _primary,
+                      backgroundColor: AppColors.burntOrange,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
