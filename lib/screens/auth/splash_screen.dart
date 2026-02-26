@@ -11,6 +11,8 @@ import '../../homepage.dart';
 import 'user_type_selection_page.dart';
 import '../mechanic/mechanic_login_request_page.dart';
 import '../mechanic/mechanic_service_dashboard.dart';
+import '../mechanic/mechanic_request_detail_page.dart';
+import '../mechanic/mechanic_request_detail_book_flow_page.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});

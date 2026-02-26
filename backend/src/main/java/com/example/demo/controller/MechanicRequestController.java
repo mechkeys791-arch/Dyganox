@@ -6,6 +6,7 @@ import com.example.demo.model.UserVehicle;
 import com.example.demo.repository.MechanicRepo;
 import com.example.demo.repository.MechanicRequestRepo;
 import com.example.demo.repository.UserVehicleRepo;
+import com.example.demo.service.BookMechanicService;
 import com.example.demo.service.FcmService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -20,10 +21,14 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/mechanic-requests")
+@CrossOrigin(origins = "*")
 public class MechanicRequestController {
 
     @Autowired
     private MechanicRequestRepo mechanicRequestRepo;
+
+    @Autowired
+    private UserVehicleRepo userVehicleRepo;
 
     @Autowired
     private MechanicRepo mechanicRepo;
@@ -32,7 +37,7 @@ public class MechanicRequestController {
     private FcmService fcmService;
 
     @Autowired
-    private UserVehicleRepo userVehicleRepo;
+    private BookMechanicService bookMechanicService;
 
     @PostMapping
     public ResponseEntity<MechanicRequest> createRequest(@RequestBody MechanicRequest request) {
@@ -116,6 +121,67 @@ public class MechanicRequestController {
         } catch (NumberFormatException e) {
             return null;
         }
+    }
+
+    /** Book Mechanic: create broadcast request (5/10/20 km), notify nearby mechanics. */
+    @PostMapping("/broadcast")
+    public ResponseEntity<?> createBroadcastRequest(@RequestBody Map<String, Object> body) {
+        try {
+            String customerName = getStr(body, "customerName");
+            String customerEmail = getStr(body, "customerEmail");
+            String customerPhone = getStr(body, "customerPhone");
+            Long userVehicleId = body.get("userVehicleId") != null ? Long.valueOf(body.get("userVehicleId").toString()) : null;
+            String problemCategory = getStr(body, "problemCategory");
+            String description = getStr(body, "description");
+            String diagnosticAnswers = getStr(body, "diagnosticAnswers");
+            String comment = getStr(body, "comment");
+            String photoUrls = getStr(body, "photoUrls");
+            Double lat = body.get("latitude") != null ? Double.valueOf(body.get("latitude").toString()) : null;
+            Double lng = body.get("longitude") != null ? Double.valueOf(body.get("longitude").toString()) : null;
+            if (lat == null || lng == null) {
+                return ResponseEntity.badRequest().body(Map.of("error", "latitude and longitude required"));
+            }
+            Double advanceAmount = body.get("advanceAmount") != null ? Double.valueOf(body.get("advanceAmount").toString()) : 100.0;
+            Double platformFee = body.get("platformFee") != null ? Double.valueOf(body.get("platformFee").toString()) : 9.0;
+            Double comingChargePerKm = body.get("comingChargePerKm") != null ? Double.valueOf(body.get("comingChargePerKm").toString()) : 3.0;
+            Double comingChargeTotal = body.get("comingChargeTotal") != null ? Double.valueOf(body.get("comingChargeTotal").toString()) : 0.0;
+            Integer requestRadiusKm = body.get("requestRadiusKm") != null ? Integer.valueOf(body.get("requestRadiusKm").toString()) : 5;
+            Boolean outOfHoursRequest = body.get("outOfHoursRequest") != null && Boolean.TRUE.equals(body.get("outOfHoursRequest"));
+
+            MechanicRequest saved = bookMechanicService.createBroadcastRequest(
+                    customerName, customerEmail, customerPhone, userVehicleId, problemCategory, description,
+                    diagnosticAnswers, comment, photoUrls, lat, lng, advanceAmount, platformFee,
+                    comingChargePerKm, comingChargeTotal, requestRadiusKm, outOfHoursRequest);
+            return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    private static String getStr(Map<String, Object> m, String key) {
+        Object v = m.get(key);
+        return v != null ? v.toString().trim() : null;
+    }
+
+    /** Book Mechanic: list requests visible to this mechanic (within 5 min window, category + radius). */
+    @GetMapping("/nearby-for-mechanic")
+    public ResponseEntity<List<MechanicRequest>> getNearbyForMechanic(
+            @RequestParam Long mechanicId,
+            @RequestParam double lat,
+            @RequestParam double lng) {
+        List<MechanicRequest> list = bookMechanicService.getNearbyRequestsForMechanic(mechanicId, lat, lng);
+        return ResponseEntity.ok(list);
+    }
+
+    /** Book Mechanic: mechanic accepts request (first accept wins). */
+    @PutMapping("/{requestId}/accept-by/{mechanicId}")
+    public ResponseEntity<Map<String, Object>> acceptByMechanic(@PathVariable Long requestId, @PathVariable Long mechanicId) {
+        Optional<MechanicRequest> opt = bookMechanicService.acceptByMechanic(requestId, mechanicId);
+        if (opt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", "Request already accepted or expired"));
+        }
+        return ResponseEntity.ok(Map.of("message", "Accepted", "request", opt.get()));
     }
 
     @GetMapping("/mechanic/{mechanicId}")
@@ -248,6 +314,141 @@ public class MechanicRequestController {
             response.put("error", "Internal server error");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
+    }
+
+    @PutMapping("/{requestId}/arrived")
+    public ResponseEntity<Map<String, String>> markArrived(@PathVariable Long requestId) {
+        Optional<MechanicRequest> opt = mechanicRequestRepo.findById(requestId);
+        if (opt.isEmpty()) return ResponseEntity.notFound().build();
+        MechanicRequest r = opt.get();
+        r.setStatus("ARRIVED");
+        mechanicRequestRepo.save(r);
+        return ResponseEntity.ok(Map.of("message", "Marked as arrived", "status", "ARRIVED"));
+    }
+
+    @PutMapping("/{requestId}/confirm-arrival-user")
+    public ResponseEntity<Map<String, String>> confirmArrivalUser(@PathVariable Long requestId) {
+        Optional<MechanicRequest> opt = mechanicRequestRepo.findById(requestId);
+        if (opt.isEmpty()) return ResponseEntity.notFound().build();
+        MechanicRequest r = opt.get();
+        r.setUserConfirmedArrival(true);
+        if (Boolean.TRUE.equals(r.getMechanicConfirmedArrival())) r.setStatus("USER_CONFIRMED");
+        mechanicRequestRepo.save(r);
+        return ResponseEntity.ok(Map.of("message", "Confirmed"));
+    }
+
+    @PutMapping("/{requestId}/confirm-arrival-mechanic")
+    public ResponseEntity<Map<String, String>> confirmArrivalMechanic(@PathVariable Long requestId) {
+        Optional<MechanicRequest> opt = mechanicRequestRepo.findById(requestId);
+        if (opt.isEmpty()) return ResponseEntity.notFound().build();
+        MechanicRequest r = opt.get();
+        r.setMechanicConfirmedArrival(true);
+        if (Boolean.TRUE.equals(r.getUserConfirmedArrival())) r.setStatus("USER_CONFIRMED");
+        mechanicRequestRepo.save(r);
+        return ResponseEntity.ok(Map.of("message", "Confirmed"));
+    }
+
+    @PutMapping("/{requestId}/complete-user")
+    public ResponseEntity<Map<String, String>> completeUser(
+            @PathVariable Long requestId,
+            @RequestBody(required = false) Map<String, String> body) {
+        Optional<MechanicRequest> opt = mechanicRequestRepo.findById(requestId);
+        if (opt.isEmpty()) return ResponseEntity.notFound().build();
+        MechanicRequest r = opt.get();
+        r.setUserConfirmedCompleted(true);
+        if (body != null && body.containsKey("remarks")) r.setUserCompletionRemarks(body.get("remarks"));
+        mechanicRequestRepo.save(r);
+        return ResponseEntity.ok(Map.of("message", "Submitted"));
+    }
+
+    @PutMapping("/{requestId}/complete-mechanic")
+    public ResponseEntity<Map<String, String>> completeMechanic(
+            @PathVariable Long requestId,
+            @RequestBody(required = false) Map<String, String> body) {
+        Optional<MechanicRequest> opt = mechanicRequestRepo.findById(requestId);
+        if (opt.isEmpty()) return ResponseEntity.notFound().build();
+        MechanicRequest r = opt.get();
+        r.setMechanicConfirmedCompleted(true);
+        if (body != null && body.containsKey("remarks")) r.setMechanicCompletionRemarks(body.get("remarks"));
+        r.setStatus("COMPLETED");
+        r.setResponseTime(LocalDateTime.now());
+        mechanicRequestRepo.save(r);
+        return ResponseEntity.ok(Map.of("message", "Completed"));
+    }
+
+    @PutMapping("/{requestId}/cancel")
+    public ResponseEntity<Map<String, String>> cancelRequest(@PathVariable Long requestId) {
+        Optional<MechanicRequest> opt = mechanicRequestRepo.findById(requestId);
+        if (opt.isEmpty()) return ResponseEntity.notFound().build();
+        MechanicRequest r = opt.get();
+        if (!"PENDING_BROADCAST".equals(r.getStatus())) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Can only cancel pending requests"));
+        }
+        r.setStatus("CANCELLED");
+        mechanicRequestRepo.save(r);
+        return ResponseEntity.ok(Map.of("message", "Request cancelled", "status", "CANCELLED"));
+    }
+
+    /** Customer rates mechanic after service (request must be COMPLETED and not already rated). */
+    @PutMapping("/{requestId}/rate")
+    public ResponseEntity<Map<String, Object>> rateRequest(
+            @PathVariable Long requestId,
+            @RequestBody Map<String, Object> body) {
+        Optional<MechanicRequest> opt = mechanicRequestRepo.findById(requestId);
+        if (opt.isEmpty()) return ResponseEntity.notFound().build();
+        MechanicRequest r = opt.get();
+        if (!"COMPLETED".equals(r.getStatus())) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", "Can only rate completed requests"));
+        }
+        if (r.getCustomerRating() != null) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", "Already rated"));
+        }
+        Object ratingObj = body != null ? body.get("rating") : null;
+        double rating = 5.0;
+        if (ratingObj instanceof Number) {
+            rating = ((Number) ratingObj).doubleValue();
+        }
+        rating = Math.max(1, Math.min(5, rating));
+        String comment = body != null && body.get("comment") != null ? body.get("comment").toString() : null;
+        if (comment != null && comment.length() > 500) comment = comment.substring(0, 500);
+        r.setCustomerRating(rating);
+        r.setCustomerRatingComment(comment);
+        mechanicRequestRepo.save(r);
+        Long mechanicId = r.getAcceptedMechanicId();
+        if (mechanicId != null) {
+            Optional<Mechanic> mOpt = mechanicRepo.findById(mechanicId);
+            if (mOpt.isPresent()) {
+                Mechanic m = mOpt.get();
+                double current = m.getRating() != null ? m.getRating() : 0;
+                int count = m.getRatingCount() != null ? m.getRatingCount() : 0;
+                double newRating = (current * count + rating) / (count + 1);
+                m.setRating(newRating);
+                m.setRatingCount(count + 1);
+                mechanicRepo.save(m);
+            }
+        }
+        Map<String, Object> resp = new HashMap<>();
+        resp.put("success", true);
+        resp.put("message", "Thank you for your rating");
+        return ResponseEntity.ok(resp);
+    }
+
+    @PutMapping("/{requestId}/refund-status")
+    public ResponseEntity<Map<String, String>> setRefundStatus(
+            @PathVariable Long requestId,
+            @RequestBody Map<String, String> body) {
+        Optional<MechanicRequest> opt = mechanicRequestRepo.findById(requestId);
+        if (opt.isEmpty()) return ResponseEntity.notFound().build();
+        MechanicRequest r = opt.get();
+        if (body.containsKey("refundStatus")) r.setRefundStatus(body.get("refundStatus"));
+        mechanicRequestRepo.save(r);
+        return ResponseEntity.ok(Map.of("refundStatus", r.getRefundStatus() != null ? r.getRefundStatus() : "PENDING"));
+    }
+
+    @GetMapping("/customer/{customerEmail}")
+    public ResponseEntity<List<MechanicRequest>> getRequestsByCustomer(@PathVariable String customerEmail) {
+        List<MechanicRequest> requests = mechanicRequestRepo.findByCustomerEmailOrderByRequestTimeDesc(customerEmail);
+        return ResponseEntity.ok(requests);
     }
 
     @GetMapping

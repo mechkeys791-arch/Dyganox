@@ -18,6 +18,7 @@ import '../../services/cognito_service.dart';
 import '../../services/user_profile_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'user_support_landing_page.dart';
+import '../mechanic/my_requested_services_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -994,6 +995,22 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
 
               const SizedBox(height: 24),
 
+              _buildSectionHeader('Services'),
+              const SizedBox(height: 12),
+              _buildProfileOption(
+                icon: Icons.build_circle_outlined,
+                title: 'My requested services',
+                subtitle: 'Pending, accepted or cancelled mechanic requests',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const MyRequestedServicesPage(),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 24),
               // Support Section
               _buildSectionHeader('Support & Info'),
               const SizedBox(height: 12),

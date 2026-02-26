@@ -96,6 +96,10 @@ class FcmNotificationService {
 
   bool _initialized = false;
 
+  /// When a mechanic request FCM arrives and app is in foreground, call this so UI can show bottom sheet.
+  /// Set from MechanicServiceDashboard; pass requestId (String).
+  static void Function(String requestId)? onMechanicRequestInForeground;
+
   /// Register background message handler. Must be called from main() before [initialize].
   static void registerBackgroundHandler() {
     FirebaseMessaging.onBackgroundMessage(_firebaseBackgroundMessage);
@@ -229,6 +233,7 @@ class FcmNotificationService {
     if (type == 'mechanic_request' && requestId != null) {
       print('FCM: Foreground message received, showing notification requestId=$requestId');
       _startMechanicAlarm();
+      onMechanicRequestInForeground?.call(requestId);
       final payload = jsonEncode({'type': type, 'requestId': requestId});
       _showLocalNotification(
         id: _notificationIdFromRequestId(requestId),
@@ -269,7 +274,7 @@ class FcmNotificationService {
       channelDescription: 'New mechanic service requests',
       importance: Importance.max,
       priority: Priority.max,
-      playSound: false,
+      playSound: true,
       enableVibration: true,
       vibrationPattern: vibrationPattern,
       enableLights: true,
@@ -344,6 +349,14 @@ class FcmNotificationService {
     if (!_platform.kIsAndroid) return;
     try {
       await const MethodChannel(_kAlarmChannel).invokeMethod('clearLaunchRequestId');
+    } catch (_) {}
+  }
+
+  /// Save mechanic ID on device so Accept-from-notification can call accept-by/{mechanicId} and app can open Book flow detail.
+  static Future<void> saveMechanicId(int mechanicId) async {
+    if (!_platform.kIsAndroid) return;
+    try {
+      await const MethodChannel(_kAlarmChannel).invokeMethod('saveMechanicId', mechanicId);
     } catch (_) {}
   }
 

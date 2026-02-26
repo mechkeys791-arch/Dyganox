@@ -17,33 +17,48 @@ class MechanicRequestActionReceiver : BroadcastReceiver() {
         val requestId = intent.getStringExtra(EXTRA_REQUEST_ID) ?: return
         val action = intent.getStringExtra(EXTRA_ACTION) ?: return
 
-        // Stop the alarm service when user taps Accept or Reject
         val stopIntent = Intent(context, MechanicAlarmService::class.java).apply {
             this.action = MechanicAlarmService.ACTION_STOP_ALARM
         }
         context.startService(stopIntent)
 
-        Thread {
-            try {
-                val path = "${ApiConstants.MECHANIC_REQUESTS_PATH}/$requestId/$action"
-                val url = URL(ApiConstants.BASE_URL + path)
-                val conn = url.openConnection() as HttpURLConnection
-                conn.requestMethod = "PUT"
-                conn.setRequestProperty("Content-Type", "application/json")
-                conn.connectTimeout = 10_000
-                conn.readTimeout = 10_000
-                val code = conn.responseCode
-                Log.d(TAG, "API $action requestId=$requestId -> $code")
-                // Always open to request detail when mechanic taps Accept (even if API failed - user intent was to view it)
-                if (action == ACTION_ACCEPT) {
-                    android.os.Handler(android.os.Looper.getMainLooper()).post {
-                        openAppToRequestDetail(context, requestId)
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "API $action failed requestId=$requestId", e)
+        when (action) {
+            ACTION_VIEW -> {
+                openAppToRequestDetail(context, requestId)
+                return
             }
-        }.start()
+            ACTION_ACCEPT, ACTION_REJECT -> {
+                Thread {
+                    try {
+                        val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                        val mechanicId = prefs.getString(KEY_MECHANIC_ID, null)
+                        val path = if (action == ACTION_ACCEPT && !mechanicId.isNullOrBlank()) {
+                            "${ApiConstants.MECHANIC_REQUESTS_PATH}/$requestId/accept-by/$mechanicId"
+                        } else if (action == ACTION_REJECT) {
+                            "${ApiConstants.MECHANIC_REQUESTS_PATH}/$requestId/reject"
+                        } else {
+                            "${ApiConstants.MECHANIC_REQUESTS_PATH}/$requestId/$action"
+                        }
+                        val url = URL(ApiConstants.BASE_URL + path)
+                        val conn = url.openConnection() as HttpURLConnection
+                        conn.requestMethod = "PUT"
+                        conn.setRequestProperty("Content-Type", "application/json")
+                        conn.connectTimeout = 10_000
+                        conn.readTimeout = 10_000
+                        val code = conn.responseCode
+                        Log.d(TAG, "API $action requestId=$requestId -> $code")
+                        if (action == ACTION_ACCEPT && code in 200..299) {
+                            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                                openAppToRequestDetail(context, requestId)
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "API $action failed requestId=$requestId", e)
+                    }
+                }.start()
+            }
+            else -> { }
+        }
     }
 
     private fun openAppToRequestDetail(context: Context, requestId: String) {
@@ -65,9 +80,11 @@ class MechanicRequestActionReceiver : BroadcastReceiver() {
         private const val TAG = "MechanicRequestAction"
         const val EXTRA_REQUEST_ID = "requestId"
         const val EXTRA_ACTION = "action"
+        const val ACTION_VIEW = "view"
         const val ACTION_ACCEPT = "accept"
         const val ACTION_REJECT = "reject"
         private const val PREFS_NAME = "dyganox_launch"
         private const val KEY_PENDING_ACCEPT_REQUEST_ID = "pending_accept_request_id"
+        const val KEY_MECHANIC_ID = "mechanic_id"
     }
 }

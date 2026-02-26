@@ -30,9 +30,41 @@ public class MechanicRequest {
     private String description;
     private String latitude;
     private String longitude;
-    private String status; // PENDING, ACCEPTED, REJECTED, COMPLETED
+    private String status; // PENDING, ACCEPTED, REJECTED, COMPLETED, PENDING_BROADCAST, PENDING_PAYMENT, MECHANIC_EN_ROUTE, ARRIVED, USER_CONFIRMED, MECHANIC_CONFIRMED
     private double amount;
-    
+
+    // Book Mechanic flow: problem category & details
+    private String problemCategory;       // e.g. tyre_puncture, battery_jump, engine_repair, general_checkup
+    @Column(length = 2000)
+    private String diagnosticAnswers;    // JSON: {"q1":"Yes","q2":"No",...}
+    @Column(length = 1000)
+    private String comment;              // User's text description
+    @Column(length = 2000)
+    private String photoUrls;            // JSON array of photo URLs
+    private Integer requestRadiusKm;     // 5, 10, or 20 - radius used to find mechanics
+    private Double advanceAmount;        // 100 INR mandatory advance
+    private Double platformFee;          // 9 INR
+    private Double comingChargePerKm;    // 3 INR per km after 5km
+    private Double comingChargeTotal;    // Total coming charge (0 if within 5km)
+    private Double distanceKmToCustomer;  // Distance from accepted mechanic to customer
+    private Long acceptedMechanicId;     // For broadcast: which mechanic accepted (null until accepted)
+    private Boolean userConfirmedArrival;
+    private Boolean mechanicConfirmedArrival;
+    private Boolean userConfirmedCompleted;
+    private Boolean mechanicConfirmedCompleted;
+    @Column(length = 500)
+    private String userCompletionRemarks;   // Work done or not, why, remarks
+    @Column(length = 500)
+    private String mechanicCompletionRemarks;
+    private String refundStatus;          // PENDING, REFUNDED
+    private LocalDateTime viewExpiryAt;   // 5 min window for mechanics to see request
+    private Boolean outOfHoursRequest;    // true = extra 100 for minor repair when shop closed
+    @Column(length = 500)
+    private String notifiedMechanicIds;    // JSON array of mechanic IDs who received the request (for admin)
+    private Double customerRating;         // 1-5 after service (customer rates mechanic)
+    @Column(length = 500)
+    private String customerRatingComment;
+
     @JsonProperty("createdAt")
     private LocalDateTime requestTime;
     private LocalDateTime responseTime;
@@ -108,6 +140,53 @@ public class MechanicRequest {
 
     public LocalDateTime getResponseTime() { return responseTime; }
     public void setResponseTime(LocalDateTime responseTime) { this.responseTime = responseTime; }
+
+    public String getProblemCategory() { return problemCategory; }
+    public void setProblemCategory(String problemCategory) { this.problemCategory = problemCategory; }
+    public String getDiagnosticAnswers() { return diagnosticAnswers; }
+    public void setDiagnosticAnswers(String diagnosticAnswers) { this.diagnosticAnswers = diagnosticAnswers; }
+    public String getComment() { return comment; }
+    public void setComment(String comment) { this.comment = comment; }
+    public String getPhotoUrls() { return photoUrls; }
+    public void setPhotoUrls(String photoUrls) { this.photoUrls = photoUrls; }
+    public Integer getRequestRadiusKm() { return requestRadiusKm; }
+    public void setRequestRadiusKm(Integer requestRadiusKm) { this.requestRadiusKm = requestRadiusKm; }
+    public Double getAdvanceAmount() { return advanceAmount; }
+    public void setAdvanceAmount(Double advanceAmount) { this.advanceAmount = advanceAmount; }
+    public Double getPlatformFee() { return platformFee; }
+    public void setPlatformFee(Double platformFee) { this.platformFee = platformFee; }
+    public Double getComingChargePerKm() { return comingChargePerKm; }
+    public void setComingChargePerKm(Double comingChargePerKm) { this.comingChargePerKm = comingChargePerKm; }
+    public Double getComingChargeTotal() { return comingChargeTotal; }
+    public void setComingChargeTotal(Double comingChargeTotal) { this.comingChargeTotal = comingChargeTotal; }
+    public Double getDistanceKmToCustomer() { return distanceKmToCustomer; }
+    public void setDistanceKmToCustomer(Double distanceKmToCustomer) { this.distanceKmToCustomer = distanceKmToCustomer; }
+    public Long getAcceptedMechanicId() { return acceptedMechanicId; }
+    public void setAcceptedMechanicId(Long acceptedMechanicId) { this.acceptedMechanicId = acceptedMechanicId; }
+    public Boolean getUserConfirmedArrival() { return userConfirmedArrival; }
+    public void setUserConfirmedArrival(Boolean userConfirmedArrival) { this.userConfirmedArrival = userConfirmedArrival; }
+    public Boolean getMechanicConfirmedArrival() { return mechanicConfirmedArrival; }
+    public void setMechanicConfirmedArrival(Boolean mechanicConfirmedArrival) { this.mechanicConfirmedArrival = mechanicConfirmedArrival; }
+    public Boolean getUserConfirmedCompleted() { return userConfirmedCompleted; }
+    public void setUserConfirmedCompleted(Boolean userConfirmedCompleted) { this.userConfirmedCompleted = userConfirmedCompleted; }
+    public Boolean getMechanicConfirmedCompleted() { return mechanicConfirmedCompleted; }
+    public void setMechanicConfirmedCompleted(Boolean mechanicConfirmedCompleted) { this.mechanicConfirmedCompleted = mechanicConfirmedCompleted; }
+    public String getUserCompletionRemarks() { return userCompletionRemarks; }
+    public void setUserCompletionRemarks(String userCompletionRemarks) { this.userCompletionRemarks = userCompletionRemarks; }
+    public String getMechanicCompletionRemarks() { return mechanicCompletionRemarks; }
+    public void setMechanicCompletionRemarks(String mechanicCompletionRemarks) { this.mechanicCompletionRemarks = mechanicCompletionRemarks; }
+    public String getRefundStatus() { return refundStatus; }
+    public void setRefundStatus(String refundStatus) { this.refundStatus = refundStatus; }
+    public LocalDateTime getViewExpiryAt() { return viewExpiryAt; }
+    public void setViewExpiryAt(LocalDateTime viewExpiryAt) { this.viewExpiryAt = viewExpiryAt; }
+    public Boolean getOutOfHoursRequest() { return outOfHoursRequest; }
+    public void setOutOfHoursRequest(Boolean outOfHoursRequest) { this.outOfHoursRequest = outOfHoursRequest; }
+    public String getNotifiedMechanicIds() { return notifiedMechanicIds; }
+    public void setNotifiedMechanicIds(String notifiedMechanicIds) { this.notifiedMechanicIds = notifiedMechanicIds; }
+    public Double getCustomerRating() { return customerRating; }
+    public void setCustomerRating(Double customerRating) { this.customerRating = customerRating; }
+    public String getCustomerRatingComment() { return customerRatingComment; }
+    public void setCustomerRatingComment(String customerRatingComment) { this.customerRatingComment = customerRatingComment; }
 
     @Override
     public String toString() {

@@ -6,6 +6,7 @@ import com.example.demo.model.MechanicRegistrationRequest;
 import com.example.demo.repository.MechanicHelpMessageRepo;
 import com.example.demo.repository.MechanicRepo;
 import com.example.demo.repository.MechanicRegistrationRequestRepo;
+import com.example.demo.service.BookMechanicService;
 import com.example.demo.service.SupportTypingService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -35,6 +36,9 @@ public class MechanicController {
 
     @Autowired
     private SupportTypingService supportTypingService;
+
+    @Autowired
+    private BookMechanicService bookMechanicService;
 
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
@@ -84,6 +88,16 @@ public class MechanicController {
         Object v = map.get(key);
         if (v == null) return null;
         return v.toString().trim();
+    }
+
+    private static String mapSpecialtyToCategories(String specialty) {
+        if (specialty == null || specialty.isBlank()) return "general_checkup,tyre_puncture,battery_jump,engine_repair";
+        String s = specialty.toLowerCase();
+        if (s.contains("engine")) return "engine_repair,general_checkup,battery_jump";
+        if (s.contains("electrical") || s.contains("battery")) return "battery_jump,electrical,general_checkup";
+        if (s.contains("tyre") || s.contains("wheel")) return "tyre_puncture,general_checkup";
+        if (s.contains("brake")) return "brake_issue,general_checkup";
+        return "general_checkup,tyre_puncture,battery_jump,engine_repair";
     }
 
     // ---------- Registration requests (table: requests) - admin approve/reject ----------
@@ -163,6 +177,9 @@ public class MechanicController {
         m.setNightTimeAvailable(req.isNightTimeAvailable());
         m.setApprovalStatus("APPROVED");
         m.setStatus("Available");
+        m.setMaxServingRadiusKm(20);
+        m.setPerKmCharge(3.0);
+        m.setServiceCategories(mapSpecialtyToCategories(req.getSpecialty()));
         String tempPassword = generateTempPassword();
         m.setPassword(passwordEncoder.encode(tempPassword));
         m.setPasswordSet(true);
@@ -187,6 +204,22 @@ public class MechanicController {
         mechanicRegistrationRequestRepo.save(req);
         System.out.println("❌ Registration request " + id + " rejected. Reason: " + req.getRejectionReason());
         return ResponseEntity.ok(Map.of("message", "Rejected", "requestId", id));
+    }
+
+    /** List mechanics by problem category and location - no phone, no distance (for Book Mechanic list). */
+    @GetMapping("/by-category")
+    public ResponseEntity<?> getMechanicsByCategory(
+            @RequestParam String problemCategory,
+            @RequestParam(required = false) Double lat,
+            @RequestParam(required = false) Double lng,
+            @RequestParam(defaultValue = "20") int radiusKm) {
+        try {
+            List<Map<String, Object>> list = bookMechanicService.findMechanicsByCategoryAndLocation(
+                    problemCategory, lat, lng, radiusKm);
+            return ResponseEntity.ok(list);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", e.getMessage()));
+        }
     }
 
     @GetMapping
@@ -280,7 +313,11 @@ public class MechanicController {
             if (updatedMechanic.getOpeningTime() != null) mechanic.setOpeningTime(updatedMechanic.getOpeningTime());
             if (updatedMechanic.getClosingTime() != null) mechanic.setClosingTime(updatedMechanic.getClosingTime());
             if (updatedMechanic.getWorkingDays() != null) mechanic.setWorkingDays(updatedMechanic.getWorkingDays());
-            
+            if (updatedMechanic.getMaxServingRadiusKm() != null) mechanic.setMaxServingRadiusKm(updatedMechanic.getMaxServingRadiusKm());
+            if (updatedMechanic.getPerKmCharge() != null) mechanic.setPerKmCharge(updatedMechanic.getPerKmCharge());
+            if (updatedMechanic.getServiceCategories() != null) mechanic.setServiceCategories(updatedMechanic.getServiceCategories());
+            if (updatedMechanic.getCategoryIconUrl() != null) mechanic.setCategoryIconUrl(updatedMechanic.getCategoryIconUrl());
+
             Mechanic savedMechanic = mechanicRepo.save(mechanic);
             System.out.println("✅ Mechanic updated successfully");
             return ResponseEntity.ok(savedMechanic);

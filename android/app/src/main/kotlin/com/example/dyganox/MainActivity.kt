@@ -145,7 +145,6 @@ class MainActivity : FlutterActivity() {
                         result.success(null)
                     }
                     "getLaunchRequestId" -> {
-                        // Return id without clearing (so splash can read multiple times). Clear via clearLaunchRequestId.
                         consumeLaunchRequestIdFromPrefs()?.let { id ->
                             pendingLaunchRequestId = id
                         }
@@ -159,6 +158,17 @@ class MainActivity : FlutterActivity() {
                     "clearLaunchRequestId" -> {
                         pendingLaunchRequestId = null
                         clearLaunchRequestIdFromPrefs()
+                        result.success(null)
+                    }
+                    "saveMechanicId" -> {
+                        val id = call.arguments
+                        val prefs = applicationContext.getSharedPreferences("dyganox_launch", MODE_PRIVATE)
+                        when (id) {
+                            is Int -> prefs.edit().putString("mechanic_id", id.toString()).apply()
+                            is String -> prefs.edit().putString("mechanic_id", id).apply()
+                            is Number -> prefs.edit().putString("mechanic_id", id.toString()).apply()
+                            else -> prefs.edit().remove("mechanic_id").apply()
+                        }
                         result.success(null)
                     }
                     else -> result.notImplemented()

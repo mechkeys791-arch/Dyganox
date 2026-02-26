@@ -106,6 +106,7 @@ function switchSection(section) {
         'mechanics-by-city': 'Mechanics by City',
         'pending': 'Pending Approvals',
         'requests': 'Service Requests',
+        'book-mechanic-requests': 'Book Mechanic Requests',
         'tracking': 'Request Tracking',
         'analytics': 'Detailed Analytics',
         'users': 'User Management',
@@ -139,6 +140,9 @@ function switchSection(section) {
             break;
         case 'requests':
             loadRequests();
+            break;
+        case 'book-mechanic-requests':
+            loadBookMechanicRequests();
             break;
         case 'tracking':
             loadTracking();
@@ -786,6 +790,48 @@ function displayRequests(requests) {
     }).join('');
 }
 
+async function loadBookMechanicRequests() {
+    const tbody = document.getElementById('book-mechanic-requests-table-body');
+    try {
+        const [requestsRes, mechanicsRes] = await Promise.all([
+            fetch(getApiUrl(API_CONFIG.endpoints.requests)),
+            fetch(getApiUrl(API_CONFIG.endpoints.mechanics))
+        ]);
+        const requests = await requestsRes.json();
+        const mechanics = await mechanicsRes.json();
+        const mechanicMapById = {};
+        mechanics.forEach(m => { mechanicMapById[m.id] = m; });
+        if (requests.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="9">No requests</td></tr>';
+            return;
+        }
+        tbody.innerHTML = requests.map(r => {
+            const customer = (r.customerName || 'N/A') + (r.customerEmail ? '<br><small>' + escapeAttr(r.customerEmail) + '</small>' : '');
+            const problem = r.problemCategory || r.serviceType || '—';
+            const vehicle = [r.vehicleMakeName, r.vehicleModelName].filter(Boolean).join(' ') || '—';
+            const location = (r.latitude && r.longitude) ? (r.latitude + ', ' + r.longitude) : '—';
+            let sentTo = '—';
+            if (r.notifiedMechanicIds) {
+                try {
+                    const ids = JSON.parse(r.notifiedMechanicIds);
+                    sentTo = Array.isArray(ids) ? ids.join(', ') : r.notifiedMechanicIds;
+                } catch (e) {
+                    sentTo = r.notifiedMechanicIds;
+                }
+            }
+            const acceptedBy = r.acceptedMechanicId != null
+                ? (mechanicMapById[r.acceptedMechanicId] ? mechanicMapById[r.acceptedMechanicId].name + ' (ID ' + r.acceptedMechanicId + ')' : 'ID ' + r.acceptedMechanicId)
+                : '—';
+            const status = r.status || '—';
+            const time = r.requestTime ? new Date(r.requestTime).toLocaleString() : '—';
+            return '<tr><td>' + r.id + '</td><td>' + customer + '</td><td>' + escapeAttr(problem) + '</td><td>' + escapeAttr(vehicle) + '</td><td><small>' + escapeAttr(location) + '</small></td><td><small>' + escapeAttr(sentTo) + '</small></td><td>' + escapeAttr(acceptedBy) + '</td><td><span class="status-badge ' + (status.toLowerCase()) + '">' + escapeAttr(status) + '</span></td><td><small>' + time + '</small></td></tr>';
+        }).join('');
+    } catch (err) {
+        console.error('loadBookMechanicRequests:', err);
+        tbody.innerHTML = '<tr><td colspan="9" class="loading">Failed to load</td></tr>';
+    }
+}
+
 function filterRequests() {
     const filter = document.getElementById('request-filter').value;
     let filtered = allRequests;
@@ -1068,6 +1114,9 @@ function refreshData() {
             break;
         case 'requests-section':
             loadRequests();
+            break;
+        case 'book-mechanic-requests-section':
+            loadBookMechanicRequests();
             break;
         case 'tracking-section':
             loadTracking();

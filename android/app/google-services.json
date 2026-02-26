@@ -13,16 +13,19 @@
         }
       },
       "oauth_client": [],
-      "api_key": [
-        {
-          "current_key": "AIzaSyAewvH2JUmovR2gTwmRD1oFTErvETkFGco"
+      "api_key": [{"current_key": "AIzaSyAewvH2JUmovR2gTwmRD1oFTErvETkFGco"}],
+      "services": {"appinvite_service": {"other_platform_oauth_client": []}}
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:194363075643:android:f59a6c4f519d5309a1801e",
+        "android_client_info": {
+          "package_name": "com.dyganox.app"
         }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": []
-        }
-      }
+      },
+      "oauth_client": [],
+      "api_key": [{"current_key": "AIzaSyAewvH2JUmovR2gTwmRD1oFTErvETkFGco"}],
+      "services": {"appinvite_service": {"other_platform_oauth_client": []}}
     }
   ],
   "configuration_version": "1"

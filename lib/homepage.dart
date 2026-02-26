@@ -18,6 +18,7 @@ import 'screens/ev_charging/ev_charging_page.dart';
 import 'screens/services/fuel_refill_page.dart';
 import 'screens/services/tyre_care_page.dart';
 import 'screens/mechanic/mechanic_finder_page.dart';
+import 'screens/mechanic/book_mechanic_flow_page.dart';
 import 'screens/services/map_service_page.dart';
 import 'screens/services/night_service_page.dart';
 import 'screens/profile/location_selection_page.dart';
@@ -25,6 +26,7 @@ import 'services/user_profile_service.dart';
 import 'services/cognito_service.dart';
 import 'emergency_assistance_page.dart';
 import 'screens/vehicles/vehicles_page.dart';
+import 'screens/vehicles/add_edit_vehicle_page.dart';
 import 'widgets/custom_nav_bar.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -68,7 +70,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   // Show full-screen ad when user opens the app (dismissible); set true when banners load
   bool _showOpenAd = false;
 
-  // Default vehicle (shown beside Emergency / Find Mechanic)
+  // Default vehicle (e.g. for nearest mechanic vehicle filter)
   Map<String, dynamic>? _defaultVehicle;
 
   // Version check (show update dialog when updateAvailable)
@@ -559,11 +561,45 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   void _showFindMechanicDialog() {
-    // Navigate to mechanic finder page with map
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => const MechanicFinderPage(),
+        builder: (context) => const BookMechanicFlowPage(),
+      ),
+    );
+  }
+
+  void _showNearestMechanicVehicleChoice() async {
+    final userData = await CognitoService.getCurrentUser();
+    final email = userData['email']?.toString() ?? '';
+    if (!mounted) return;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetContext) => _NearestMechanicVehicleSheet(
+        userEmail: email,
+        parentContext: context,
+        onSelectVehicle: (vehicleType) {
+          Navigator.pop(sheetContext);
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => MechanicFinderPage(vehicleType: vehicleType),
+            ),
+          );
+        },
+        onAddVehicle: () {
+          Navigator.pop(sheetContext);
+          if (email.isNotEmpty) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => AddEditVehiclePage(userEmail: email),
+              ),
+            );
+          }
+        },
       ),
     );
   }
@@ -1808,209 +1844,93 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ),
                 ),
 
-                // Find Nearest Mechanic - Vibrant Colorful Card
-                Container(
-                  margin: EdgeInsets.symmetric(
-                    horizontal: screenWidth * 0.04,
-                    vertical: 12,
-                  ),
-                  child: Material(
-                    borderRadius: BorderRadius.circular(20),
-                    child: InkWell(
-                      onTap: () {
-                        HapticFeedback.lightImpact();
-                        _showFindMechanicDialog();
-                      },
-                      borderRadius: BorderRadius.circular(20),
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(18),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              const Color(0xFFFF6B35),
-                              const Color(0xFFFF8C42),
-                              const Color(0xFFFFA500),
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            stops: const [0.0, 0.5, 1.0],
+                // Book Mechanic - same size as See nearest mechanic
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.04, vertical: 6),
+                  child: InkWell(
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      _showFindMechanicDialog();
+                    },
+                    borderRadius: BorderRadius.circular(14),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFFE5E7EB)),
+                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 3))],
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFF6B35).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(Icons.build_circle_rounded, color: Color(0xFFFF6B35), size: 24),
                           ),
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFFFF6B35).withOpacity(0.4),
-                              blurRadius: 20,
-                              offset: const Offset(0, 8),
-                              spreadRadius: 3,
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Book Mechanic', style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF1E293B))),
+                                Text('At your location or get to place', style: GoogleFonts.inter(fontSize: 13, color: Colors.grey.shade600)),
+                              ],
                             ),
-                          ],
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.25),
-                                borderRadius: BorderRadius.circular(15),
-                                border: Border.all(
-                                  color: Colors.white.withOpacity(0.4),
-                                  width: 2,
-                                ),
-                              ),
-                              child: const Icon(
-                                Icons.location_searching_rounded,
-                                color: Colors.white,
-                                size: 28,
-                              ),
-                            ),
-                            const SizedBox(width: 18),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Find Nearest Mechanic',
-                                    style: GoogleFonts.outfit(
-                                      color: Colors.white,
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
-                                      letterSpacing: 0.5,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    'Tap to see mechanics near you',
-                                    style: GoogleFonts.inter(
-                                      color: Colors.white.withOpacity(0.95),
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.25),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Icon(
-                                Icons.arrow_forward_ios_rounded,
-                                color: Colors.white,
-                                size: 18,
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                          Icon(Icons.chevron_right, color: Colors.grey[400], size: 22),
+                        ],
                       ),
                     ),
                   ),
                 ),
 
-                // Selected vehicle (square image below Find Mechanic) — tap to show my vehicles, then full details
-                if (_defaultVehicle != null) ...[
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.04, vertical: 6),
-                    child: InkWell(
-                      onTap: () {
-                        HapticFeedback.lightImpact();
-                        _showMyVehiclesSheet();
-                      },
-                      borderRadius: BorderRadius.circular(16),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: const Color(0xFFE5E7EB)),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
+                // See nearest mechanic - vehicle selection (same/different) then finder
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.04, vertical: 6),
+                  child: InkWell(
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      _showNearestMechanicVehicleChoice();
+                    },
+                    borderRadius: BorderRadius.circular(14),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFFE5E7EB)),
+                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 3))],
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFF6B35).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(10),
                             ),
-                          ],
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 56,
-                              height: 56,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFF1F5F9),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: const Color(0xFFE2E8F0)),
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(10),
-                                child: _vehicleImageUrl(_defaultVehicle!).isNotEmpty
-                                    ? Image.network(
-                                        _vehicleImageUrl(_defaultVehicle!),
-                                        fit: BoxFit.contain,
-                                        errorBuilder: (_, __, ___) => _vehiclePlaceholderIcon(),
-                                      )
-                                    : _vehiclePlaceholderIcon(),
-                              ),
+                            child: const Icon(Icons.location_on, color: Color(0xFFFF6B35), size: 24),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('See nearest mechanic', style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF1E293B))),
+                                Text('Find by vehicle • or request one', style: GoogleFonts.inter(fontSize: 13, color: Colors.grey.shade600)),
+                              ],
                             ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Selected vehicle',
-                                    style: GoogleFonts.outfit(fontSize: 12, color: const Color(0xFF64748B), fontWeight: FontWeight.w500),
-                                  ),
-                                  Text(
-                                    '${(_defaultVehicle!['makeName'] ?? '')} ${(_defaultVehicle!['modelName'] ?? '')}'.trim().isEmpty
-                                        ? 'Vehicle'
-                                        : '${(_defaultVehicle!['makeName'] ?? '')} ${(_defaultVehicle!['modelName'] ?? '')}'.trim(),
-                                    style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF1F2937)),
-                                  ),
-                                  if ((_defaultVehicle!['plateNumber'] ?? '').toString().isNotEmpty)
-                                    Text(
-                                      _defaultVehicle!['plateNumber'].toString(),
-                                      style: GoogleFonts.inter(fontSize: 13, color: Color(0xFF64748B)),
-                                    ),
-                                ],
-                              ),
-                            ),
-                            Icon(Icons.chevron_right, color: Colors.grey[400], size: 24),
-                          ],
-                        ),
+                          ),
+                          Icon(Icons.chevron_right, color: Colors.grey[400], size: 22),
+                        ],
                       ),
                     ),
                   ),
-                ] else ...[
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.04, vertical: 6),
-                    child: InkWell(
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const VehiclesPage())),
-                      borderRadius: BorderRadius.circular(14),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade100,
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.add_circle_outline, color: Colors.grey[600], size: 24),
-                            const SizedBox(width: 12),
-                            Text(
-                              'Add your vehicle',
-                              style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.grey[700]),
-                            ),
-                            const Spacer(),
-                            Icon(Icons.chevron_right, color: Colors.grey[400], size: 22),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
 
                 // Quick Services
                 Container(
@@ -2755,6 +2675,170 @@ class _ScrollingLocationTextState extends State<_ScrollingLocationText>
           ),
         );
       },
+    );
+  }
+}
+
+/// Bottom sheet content: list saved vehicles (photo + name) and "Add new vehicle" at bottom.
+class _NearestMechanicVehicleSheet extends StatefulWidget {
+  final String userEmail;
+  final BuildContext parentContext;
+  final void Function(String? vehicleType) onSelectVehicle;
+  final VoidCallback onAddVehicle;
+
+  const _NearestMechanicVehicleSheet({
+    required this.userEmail,
+    required this.parentContext,
+    required this.onSelectVehicle,
+    required this.onAddVehicle,
+  });
+
+  @override
+  State<_NearestMechanicVehicleSheet> createState() => _NearestMechanicVehicleSheetState();
+}
+
+class _NearestMechanicVehicleSheetState extends State<_NearestMechanicVehicleSheet> {
+  List<Map<String, dynamic>> _vehicles = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVehicles();
+  }
+
+  Future<void> _loadVehicles() async {
+    if (widget.userEmail.isEmpty) {
+      setState(() { _vehicles = []; _loading = false; });
+      return;
+    }
+    final list = await VehicleService.getMyVehicles(widget.userEmail);
+    if (mounted) setState(() { _vehicles = list; _loading = false; });
+  }
+
+  String _vehicleImageUrl(Map<String, dynamic> v) {
+    final url = v['photoUrl']?.toString() ?? v['modelImageUrl']?.toString();
+    if (url == null || url.isEmpty) return '';
+    if (url.startsWith('http')) return url;
+    return '${ApiConfig.baseUrl}$url';
+  }
+
+  String _vehicleName(Map<String, dynamic> v) {
+    final make = v['makeName'] ?? '';
+    final model = v['modelName'] ?? '';
+    final plate = v['plateNumber'] ?? '';
+    final name = '$make $model'.trim();
+    if (name.isEmpty) return plate.toString().isNotEmpty ? plate : 'Vehicle';
+    return plate.toString().isNotEmpty ? '$name ($plate)' : name;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.6),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+              child: Text(
+                'Find mechanic for',
+                style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+              ),
+            ),
+            if (_loading)
+              const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator(color: Color(0xFFFF6B35))))
+            else
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  children: [
+                    ..._vehicles.map((v) {
+                      final type = (v['type'] ?? 'CAR').toString().toUpperCase();
+                      final imgUrl = _vehicleImageUrl(v);
+                      return Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () => widget.onSelectVehicle(v['type']?.toString()),
+                          borderRadius: BorderRadius.circular(14),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                            child: Row(
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: imgUrl.isNotEmpty
+                                      ? Image.network(imgUrl, width: 56, height: 56, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _vehiclePlaceholder(type))
+                                      : _vehiclePlaceholder(type),
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Text(
+                                    _vehicleName(v),
+                                    style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)),
+                                  ),
+                                ),
+                                Icon(Icons.chevron_right, color: Colors.grey[400], size: 22),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+              ),
+            const Divider(height: 1),
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: widget.onAddVehicle,
+                borderRadius: BorderRadius.circular(14),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFF6B35).withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.add, color: Color(0xFFFF6B35), size: 24),
+                      ),
+                      const SizedBox(width: 14),
+                      Text(
+                        'Add new vehicle',
+                        style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFFFF6B35)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _vehiclePlaceholder(String type) {
+    return Container(
+      width: 56,
+      height: 56,
+      color: const Color(0xFFF1F5F9),
+      child: Icon(
+        type == 'BIKE' ? Icons.two_wheeler : Icons.directions_car,
+        color: const Color(0xFFFF6B35),
+        size: 28,
+      ),
     );
   }
 }

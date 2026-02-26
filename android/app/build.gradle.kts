@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -24,7 +26,7 @@ android {
 
     defaultConfig {
         // ✅ Application ID (unique package name for your app)
-        applicationId = "com.example.dyganox"
+        applicationId = "com.dyganox.app"
 
         // ✅ Flutter-managed values
         minSdk = flutter.minSdkVersion
@@ -33,11 +35,32 @@ android {
         versionName = flutter.versionName
     }
 
+    // key.properties in android/ folder (app's parent dir). Path from app module: ../key.properties
+    val keystorePropertiesFile = file("${project.projectDir.parentFile}/key.properties")
+    if (keystorePropertiesFile.exists()) {
+        val keystoreProperties = Properties()
+        keystoreProperties.load(keystorePropertiesFile.reader())
+        val storeFilePath = keystoreProperties["storeFile"] as String
+        // storeFile in key.properties is relative to android/ folder
+        val androidDir = project.projectDir.parentFile
+        val storeFileResolved = file("${androidDir.absolutePath}/$storeFilePath")
+        signingConfigs {
+            create("release") {
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+                storeFile = storeFileResolved
+                storePassword = keystoreProperties["storePassword"] as String
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Currently using debug keys so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (keystorePropertiesFile.exists()) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }
