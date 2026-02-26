@@ -132,6 +132,11 @@
 
             <!-- Dashboard Section -->
             <section id="dashboard-section" class="content-section active">
+                <div id="registration-requests-alert" class="alert-banner" style="display:none;">
+                    <i class="fas fa-user-plus"></i>
+                    <span>You have <strong id="registration-requests-alert-count">0</strong> new mechanic application(s) awaiting approval.</span>
+                    <button class="btn-alert" onclick="switchSection('registration-requests')">View & Approve</button>
+                </div>
                 <div class="stats-grid">
                     <div class="stat-card">
                         <div class="stat-icon blue">

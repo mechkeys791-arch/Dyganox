@@ -19,6 +19,7 @@ import com.example.demo.repository.MechanicHelpMessageRepo;
 import com.example.demo.repository.UserHelpMessageRepo;
 import com.example.demo.repository.MechanicRepo;
 import com.example.demo.repository.MechanicRequestRepo;
+import com.example.demo.repository.MechanicRegistrationRequestRepo;
 import com.example.demo.repository.PaymentRepo;
 import com.example.demo.repository.PersonRepo;
 import com.example.demo.repository.UserAddressRepo;
@@ -44,6 +45,9 @@ public class AdminController {
 
     @Autowired
     private MechanicRequestRepo mechanicRequestRepo;
+
+    @Autowired
+    private MechanicRegistrationRequestRepo mechanicRegistrationRequestRepo;
 
     @Autowired
     private PaymentRepo paymentRepo;
@@ -295,6 +299,11 @@ public class AdminController {
             mechanicsMap.put("offline", offlineMechanics);
             analytics.put("mechanics", mechanicsMap);
             analytics.put("mechanicsByCity", mechanicsByCity);
+            // Pending mechanic registration applications (new signups from app - table: requests)
+            long pendingRegistrationRequests = mechanicRegistrationRequestRepo.findAll().stream()
+                    .filter(r -> "PENDING".equalsIgnoreCase(r.getApprovalStatus()))
+                    .count();
+            analytics.put("pendingRegistrationRequests", pendingRegistrationRequests);
             
             analytics.put("requests", Map.of(
                     "total", totalRequests,

@@ -871,14 +871,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         },
         borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                width: 44,
-                height: 44,
+                width: 40,
+                height: 40,
                 decoration: BoxDecoration(
                   color: AppColors.burntOrange.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(12),
@@ -886,20 +886,20 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 child: Center(
                   child: Image.asset(
                     iconPath,
-                    width: 24,
-                    height: 24,
+                    width: 22,
+                    height: 22,
                     fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const Icon(Icons.build, size: 24, color: AppColors.burntOrange),
+                    errorBuilder: (_, __, ___) => Icon(Icons.build, size: 22, color: AppColors.burntOrange),
                   ),
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               Text(
                 title,
                 textAlign: TextAlign.center,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.black87),
+                style: GoogleFonts.outfit(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.black87),
               ),
             ],
           ),
@@ -909,16 +909,18 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   Widget _buildCarServicesGrid() {
+    final crossAxisCount = screenWidth < 400 ? 3 : 4;
+    final childAspectRatio = screenWidth < 400 ? 0.72 : 0.78;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: GridView.builder(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 4,
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: crossAxisCount,
           crossAxisSpacing: 8,
           mainAxisSpacing: 8,
-          childAspectRatio: 0.85,
+          childAspectRatio: childAspectRatio,
         ),
         itemCount: _carServices.length,
         itemBuilder: (context, index) {
@@ -959,16 +961,18 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   Widget _buildBikeServicesGrid() {
+    final crossAxisCount = screenWidth < 400 ? 3 : 4;
+    final childAspectRatio = screenWidth < 400 ? 0.72 : 0.78;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: GridView.builder(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 4,
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: crossAxisCount,
           crossAxisSpacing: 8,
           mainAxisSpacing: 8,
-          childAspectRatio: 0.85,
+          childAspectRatio: childAspectRatio,
         ),
         itemCount: _bikeServices.length,
         itemBuilder: (context, index) {
@@ -2255,15 +2259,18 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             ),
                           ),
                           const SizedBox(width: 12),
-                          Text(
-                            'Our Services',
-                            style: GoogleFonts.outfit(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black87,
+                          Expanded(
+                            child: Text(
+                              'Our Services',
+                              style: GoogleFonts.outfit(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          const Spacer(),
+                          const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(
