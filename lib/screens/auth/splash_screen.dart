@@ -12,8 +12,6 @@ import '../../homepage.dart';
 import 'user_type_selection_page.dart';
 import '../mechanic/mechanic_login_request_page.dart';
 import '../mechanic/mechanic_service_dashboard.dart';
-import '../mechanic/mechanic_request_detail_page.dart';
-import '../mechanic/mechanic_request_detail_book_flow_page.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -199,40 +197,21 @@ class _SplashScreenState extends State<SplashScreen>
 
   Widget _buildLogo() {
     return Image.asset(
-      'assets/icons/dyganox_logo.png',
+      'assets/icons/dyganox_splash_logo.png',
       fit: BoxFit.contain,
       errorBuilder: (context, error, stackTrace) {
-        // Fallback to custom logo if image fails to load
-        return Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [AppColors.burntOrange, AppColors.warmBrown],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Icon(
-                Icons.car_repair,
-                size: 60,
-                color: AppColors.cream,
-              ),
+        return Image.asset(
+          'assets/icons/dyganox_logo.png',
+          fit: BoxFit.contain,
+          errorBuilder: (_, __, ___) => Text(
+            'Dyganox',
+            style: GoogleFonts.outfit(
+              fontSize: 32,
+              fontWeight: FontWeight.bold,
+              color: AppColors.burntOrange,
+              letterSpacing: 2,
             ),
-            const SizedBox(height: 16),
-            Text(
-              'DYGANOX',
-              style: GoogleFonts.outfit(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: AppColors.burntOrange,
-                letterSpacing: 2,
-              ),
-            ),
-          ],
+          ),
         );
       },
     );
@@ -268,22 +247,22 @@ class _SplashScreenState extends State<SplashScreen>
                     child: ScaleTransition(
                       scale: _scaleAnimation,
                       child: Container(
-                        width: 250,
-                        height: 220,
+                        width: 280,
+                        height: 240,
                         decoration: BoxDecoration(
-                          color: AppColors.cream,
-                          borderRadius: BorderRadius.circular(205),
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(24),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.3),
-                              blurRadius: 30,
-                              offset: const Offset(0, 10),
-                              spreadRadius: 5,
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 24,
+                              offset: const Offset(0, 8),
+                              spreadRadius: 2,
                             ),
                           ],
                         ),
                         child: Padding(
-                          padding: const EdgeInsets.all(25.0),
+                          padding: const EdgeInsets.all(20.0),
                           child: _buildLogo(),
                         ),
                       ),
@@ -291,27 +270,43 @@ class _SplashScreenState extends State<SplashScreen>
                   );
                 },
               ),
-              
-              const SizedBox(height: 50),
-              
-              // Tagline
+              const SizedBox(height: 20),
               AnimatedBuilder(
-                animation: _fadeAnimation,
+                animation: _animationController,
                 builder: (context, child) {
                   return FadeTransition(
                     opacity: _fadeAnimation,
                     child: Text(
-                      'Vehicle Service Provider',
-                      style: GoogleFonts.inter(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.cream.withOpacity(0.95),
-                        letterSpacing: 1.5,
+                      'Dyganox',
+                      style: GoogleFonts.outfit(
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.cream,
+                        letterSpacing: 2,
                       ),
                     ),
                   );
                 },
               ),
+              const SizedBox(height: 8),
+              AnimatedBuilder(
+                animation: _animationController,
+                builder: (context, child) {
+                  return FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: Text(
+                      'As Good As It Get\'s',
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.cream.withOpacity(0.95),
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 50),
               
               const SizedBox(height: 50),
               

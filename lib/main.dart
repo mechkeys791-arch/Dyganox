@@ -17,8 +17,6 @@ import 'screens/mechanic/mechanic_registration_page.dart';
 import 'screens/mechanic/mechanic_dashboard_page.dart';
 import 'screens/mechanic/mechanic_request_detail_page.dart';
 import 'screens/mechanic/mechanic_service_dashboard.dart';
-import 'screens/mechanic/mechanic_request_detail_book_flow_page.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'services/api_config.dart';
 import 'services/fcm_notification_service.dart';
 import 'core/theme/app_theme.dart';

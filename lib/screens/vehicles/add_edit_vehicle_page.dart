@@ -195,10 +195,16 @@ class _AddEditVehiclePageState extends State<AddEditVehiclePage> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black87),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            if (!_isEdit && _step > 0) {
+              setState(() => _step--);
+            } else {
+              Navigator.pop(context);
+            }
+          },
         ),
         title: Text(
-          _isEdit ? 'Edit Vehicle' : 'Add Vehicle',
+          _isEdit ? 'Edit Vehicle' : _stepTitle(),
           style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 20, color: Colors.black87),
         ),
         centerTitle: true,
@@ -222,6 +228,13 @@ class _AddEditVehiclePageState extends State<AddEditVehiclePage> {
     return _buildDetailsStep();
   }
 
+  String _stepTitle() {
+    if (_step == 0) return 'Choose vehicle type';
+    if (_step == 1) return _type == 'CAR' ? 'Car brands' : 'Bike brands';
+    if (_step == 2) return 'Select model';
+    return 'Vehicle details';
+  }
+
   Widget _buildTypeStep() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
@@ -240,19 +253,6 @@ class _AddEditVehiclePageState extends State<AddEditVehiclePage> {
             ],
           ),
           const Spacer(),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _makes.isEmpty && _loadingMakes ? null : () => setState(() => _step = 1),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF6366F1),
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                elevation: 0,
-              ),
-              child: Text('Next', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 16)),
-            ),
-          ),
         ],
       ),
     );
@@ -262,21 +262,25 @@ class _AddEditVehiclePageState extends State<AddEditVehiclePage> {
     final selected = _type == type;
     return Expanded(
       child: GestureDetector(
-        onTap: () => _onTypeChange(type),
+        onTap: () {
+          _onTypeChange(type);
+          setState(() => _step = 1);
+        },
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 20),
+          padding: const EdgeInsets.symmetric(vertical: 14),
           decoration: BoxDecoration(
             color: selected ? const Color(0xFF6366F1).withOpacity(0.1) : Colors.white,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: selected ? const Color(0xFF6366F1) : Colors.grey.shade300,
               width: selected ? 2 : 1,
             ),
           ),
           child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 40, color: selected ? const Color(0xFF6366F1) : Colors.grey),
-              const SizedBox(height: 8),
+              Icon(icon, size: 48, color: selected ? const Color(0xFF6366F1) : Colors.grey),
+              const SizedBox(height: 6),
               Text(
                 type,
                 style: GoogleFonts.outfit(
@@ -292,36 +296,23 @@ class _AddEditVehiclePageState extends State<AddEditVehiclePage> {
   }
 
   Widget _buildMakeStep() {
-    final sectionTitle = _type == 'CAR' ? 'Car brands' : 'Bike brands';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
-          child: Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back, color: Color(0xFF1F2937)),
-                onPressed: () => setState(() => _step = 0),
-              ),
-              Text(sectionTitle, style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1F2937))),
-            ],
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
           child: Text('Choose manufacturer', style: GoogleFonts.outfit(fontSize: 14, color: Colors.grey)),
         ),
         Expanded(
           child: _loadingMakes
               ? const Center(child: CircularProgressIndicator(color: Color(0xFF6366F1)))
               : GridView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
-                    childAspectRatio: 0.92,
-                    crossAxisSpacing: 14,
-                    mainAxisSpacing: 14,
+                    childAspectRatio: 1.05,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
                   ),
                   itemCount: _makes.length,
                   itemBuilder: (context, i) {
@@ -331,54 +322,53 @@ class _AddEditVehiclePageState extends State<AddEditVehiclePage> {
                     final imageUrl = _imageUrl(m['imageUrl']);
                     final selected = _selectedMake != null && _selectedMake!['id'] == id;
                     return GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _selectedMake = m;
-                          _loadModels();
-                        });
+                      onTap: () async {
+                        setState(() => _selectedMake = m);
+                        await _loadModels();
+                        if (mounted) setState(() => _step = 2);
                       },
                       child: Container(
                         decoration: BoxDecoration(
                           color: selected ? const Color(0xFF6366F1).withOpacity(0.08) : const Color(0xFFFAFAFA),
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                             color: selected ? const Color(0xFF6366F1) : const Color(0xFFE5E7EB),
                             width: selected ? 2 : 1,
                           ),
-                          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
+                          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2))],
                         ),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Container(
-                              height: 64,
-                              width: 64,
+                              height: 80,
+                              width: 80,
                               decoration: BoxDecoration(
                                 color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(10),
                                 border: Border.all(color: const Color(0xFFE5E7EB)),
                               ),
                               child: imageUrl.isNotEmpty
                                   ? ClipRRect(
-                                      borderRadius: BorderRadius.circular(10),
+                                      borderRadius: BorderRadius.circular(8),
                                       child: Image.network(
                                         imageUrl,
                                         fit: BoxFit.contain,
-                                        errorBuilder: (_, __, ___) => Icon(_type == 'BIKE' ? Icons.two_wheeler : Icons.directions_car, color: Colors.grey[400], size: 32),
+                                        errorBuilder: (_, __, ___) => Icon(_type == 'BIKE' ? Icons.two_wheeler : Icons.directions_car, color: Colors.grey[400], size: 40),
                                       ),
                                     )
-                                  : Icon(_type == 'BIKE' ? Icons.two_wheeler : Icons.directions_car, color: Colors.grey[400], size: 32),
+                                  : Icon(_type == 'BIKE' ? Icons.two_wheeler : Icons.directions_car, color: Colors.grey[400], size: 40),
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 6),
                             Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 6),
+                              padding: const EdgeInsets.symmetric(horizontal: 4),
                               child: Text(
                                 name,
                                 textAlign: TextAlign.center,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                                 style: GoogleFonts.outfit(
-                                  fontSize: 13,
+                                  fontSize: 12,
                                   fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
                                   color: selected ? const Color(0xFF6366F1) : Colors.black87,
                                 ),
@@ -390,23 +380,6 @@ class _AddEditVehiclePageState extends State<AddEditVehiclePage> {
                     );
                   },
                 ),
-        ),
-        Padding(
-          padding: const EdgeInsets.all(20),
-          child: SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _selectedMake != null
-                  ? () => setState(() => _step = 2)
-                  : null,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF6366F1),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              child: Text('Next', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.w600)),
-            ),
-          ),
         ),
       ],
     );
@@ -418,19 +391,7 @@ class _AddEditVehiclePageState extends State<AddEditVehiclePage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
-          child: Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back, color: Color(0xFF1F2937)),
-                onPressed: () => setState(() => _step = 1),
-              ),
-              Text('Select model', style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1F2937))),
-            ],
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
           child: Text(
             makeName.isEmpty ? 'Choose your vehicle model' : 'Models for $makeName — select your exact model',
             style: GoogleFonts.outfit(fontSize: 14, color: Colors.grey),
@@ -440,12 +401,12 @@ class _AddEditVehiclePageState extends State<AddEditVehiclePage> {
           child: _loadingModels
               ? const Center(child: CircularProgressIndicator(color: Color(0xFF6366F1)))
               : GridView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
-                    childAspectRatio: 0.92,
-                    crossAxisSpacing: 14,
-                    mainAxisSpacing: 14,
+                    childAspectRatio: 0.82,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
                   ),
                   itemCount: _models.length,
                   itemBuilder: (context, i) {
@@ -455,49 +416,53 @@ class _AddEditVehiclePageState extends State<AddEditVehiclePage> {
                     final imageUrl = _imageUrl(m['imageUrl']);
                     final selected = _selectedModel != null && _selectedModel!['id'] == id;
                     return GestureDetector(
-                      onTap: () => setState(() => _selectedModel = m),
+                      onTap: () {
+                        setState(() {
+                          _selectedModel = m;
+                          _step = 3;
+                        });
+                      },
                       child: Container(
                         decoration: BoxDecoration(
                           color: selected ? const Color(0xFF6366F1).withOpacity(0.08) : const Color(0xFFFAFAFA),
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                             color: selected ? const Color(0xFF6366F1) : const Color(0xFFE5E7EB),
                             width: selected ? 2 : 1,
                           ),
-                          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
+                          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2))],
                         ),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Container(
-                              height: 64,
-                              width: 64,
+                              height: 112,
+                              width: double.infinity,
+                              margin: const EdgeInsets.symmetric(horizontal: 8),
                               decoration: BoxDecoration(
                                 color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(10),
                                 border: Border.all(color: const Color(0xFFE5E7EB)),
                               ),
+                              clipBehavior: Clip.antiAlias,
                               child: imageUrl.isNotEmpty
-                                  ? ClipRRect(
-                                      borderRadius: BorderRadius.circular(10),
-                                      child: Image.network(
-                                        imageUrl,
-                                        fit: BoxFit.contain,
-                                        errorBuilder: (_, __, ___) => Icon(_type == 'BIKE' ? Icons.two_wheeler : Icons.directions_car, color: Colors.grey[400], size: 32),
-                                      ),
+                                  ? Image.network(
+                                      imageUrl,
+                                      fit: BoxFit.contain,
+                                      errorBuilder: (_, __, ___) => Icon(_type == 'BIKE' ? Icons.two_wheeler : Icons.directions_car, color: Colors.grey[400], size: 48),
                                     )
-                                  : Icon(_type == 'BIKE' ? Icons.two_wheeler : Icons.directions_car, color: Colors.grey[400], size: 32),
+                                  : Icon(_type == 'BIKE' ? Icons.two_wheeler : Icons.directions_car, color: Colors.grey[400], size: 48),
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 6),
                             Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 6),
+                              padding: const EdgeInsets.symmetric(horizontal: 4),
                               child: Text(
                                 name,
                                 textAlign: TextAlign.center,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                                 style: GoogleFonts.outfit(
-                                  fontSize: 13,
+                                  fontSize: 12,
                                   fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
                                   color: selected ? const Color(0xFF6366F1) : Colors.black87,
                                 ),
@@ -509,24 +474,6 @@ class _AddEditVehiclePageState extends State<AddEditVehiclePage> {
                     );
                   },
                 ),
-        ),
-        Padding(
-          padding: const EdgeInsets.all(20),
-          child: SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _selectedModel != null
-                  ? () => setState(() => _step = 3)
-                  : null,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF6366F1),
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                elevation: 0,
-              ),
-              child: Text('Next', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 16)),
-            ),
-          ),
         ),
       ],
     );

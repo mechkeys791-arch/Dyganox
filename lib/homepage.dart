@@ -1454,67 +1454,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 12),
-                            // Profile Picture/Icon
-                            Material(
-                              color: Colors.transparent,
-                              child: InkWell(
-                                onTap: () {
-                                  Navigator.pushNamed(context, '/profile');
-                                },
-                                borderRadius: BorderRadius.circular(20),
-                                child: FutureBuilder<({String? url, Uint8List? bytes})>(
-                                  future: _getProfileImage(),
-                                  builder: (context, snapshot) {
-                                    final data = snapshot.data;
-                                    final hasImage = data != null && (data.url != null || data.bytes != null);
-                                    if (snapshot.hasData && hasImage) {
-                                      return Container(
-                                        width: 40,
-                                        height: 40,
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          border: Border.all(
-                                            color: Colors.white.withOpacity(0.5),
-                                            width: 2,
-                                          ),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: Colors.black.withOpacity(0.2),
-                                              blurRadius: 8,
-                                              offset: const Offset(0, 2),
-                                            ),
-                                          ],
-                                        ),
-                                        child: ClipOval(
-                                          child: data!.url != null
-                                              ? Image.network(data.url!, fit: BoxFit.cover)
-                                              : Image.memory(data.bytes!, fit: BoxFit.cover),
-                                        ),
-                                      );
-                                    }
-                                    return Container(
-                                      width: 40,
-                                      height: 40,
-                                      padding: const EdgeInsets.all(8),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withOpacity(0.25),
-                                        borderRadius: BorderRadius.circular(20),
-                                        border: Border.all(
-                                          color: Colors.white.withOpacity(0.3),
-                                          width: 1.5,
-                                        ),
-                                      ),
-                                      child: const Icon(
-                                        Icons.person_rounded,
-                                        color: Colors.white,
-                                        size: 22,
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                            ),
                           ],
                         ),
                       ),
@@ -1560,57 +1499,57 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 ),
 
                 // Search Bar with Results - Colorful Design
-                Container(
-                  margin: EdgeInsets.only(
-                    left: screenWidth * 0.04,
-                    right: screenWidth * 0.04,
-                    top: screenHeight * 0.02,
-                    bottom: 8,
+                Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    screenWidth * 0.05,
+                    screenHeight * 0.018,
+                    screenWidth * 0.05,
+                    12,
                   ),
                   child: Column(
                     children: [
                       AnimatedContainer(
                         duration: const Duration(milliseconds: 300),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(_isSearchActive ? 20 : 30),
+                          borderRadius: BorderRadius.circular(16),
                           boxShadow: [
                             BoxShadow(
-                              color: _isSearchActive 
-                                  ? AppColors.burntOrange.withOpacity(0.3)
-                                  : Colors.black.withOpacity(0.15),
-                              blurRadius: _isSearchActive ? 25 : 20,
-                              offset: const Offset(0, 8),
-                              spreadRadius: _isSearchActive ? 3 : 2,
+                              color: _isSearchActive
+                                  ? AppColors.burntOrange.withOpacity(0.25)
+                                  : Colors.black.withOpacity(0.08),
+                              blurRadius: _isSearchActive ? 20 : 16,
+                              offset: const Offset(0, 4),
+                              spreadRadius: _isSearchActive ? 2 : 0,
                             ),
                           ],
                           border: Border.all(
-                            color: _isSearchActive 
-                                ? AppColors.burntOrange.withOpacity(0.6)
+                            color: _isSearchActive
+                                ? AppColors.burntOrange.withOpacity(0.5)
                                 : Colors.transparent,
-                            width: 2,
+                            width: 1.5,
                           ),
                         ),
                         child: Row(
                           children: [
                             Container(
-                              padding: const EdgeInsets.all(8),
+                              padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
-                                color: _isSearchActive 
+                                color: _isSearchActive
                                     ? AppColors.burntOrange.withOpacity(0.1)
-                                    : AppColors.burntOrange.withOpacity(0.05),
+                                    : AppColors.burntOrange.withOpacity(0.06),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Icon(
                                 Icons.search_rounded,
-                                color: _isSearchActive 
+                                color: _isSearchActive
                                     ? AppColors.burntOrange
                                     : AppColors.burntOrange.withOpacity(0.7),
                                 size: 22,
                               ),
                             ),
-                            const SizedBox(width: 12),
+                            const SizedBox(width: 16),
                             Expanded(
                               child: TextField(
                                 controller: _searchController,
@@ -1623,7 +1562,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                 },
                                 onSubmitted: (value) {
                                   if (_searchResults.isNotEmpty) {
-                                    // Save the route before clearing
                                     final firstRoute = _searchResults[0]['route'];
                                     HapticFeedback.lightImpact();
                                     setState(() {
@@ -1631,7 +1569,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                       _searchController.clear();
                                       _searchResults.clear();
                                     });
-                                    // Navigate to first result when Enter is pressed
                                     firstRoute();
                                   } else {
                                     setState(() {
@@ -1641,17 +1578,18 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                 },
                                 style: GoogleFonts.inter(
                                   color: Colors.black87,
-                                  fontSize: 15,
+                                  fontSize: 16,
                                   fontWeight: FontWeight.w500,
                                 ),
                                 decoration: InputDecoration(
                                   hintText: 'Search for services...',
                                   hintStyle: GoogleFonts.inter(
                                     color: Colors.grey[500],
-                                    fontSize: 14,
+                                    fontSize: 15,
                                   ),
                                   border: InputBorder.none,
-                                  contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                                  isDense: true,
+                                  contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 0),
                                 ),
                               ),
                             ),
@@ -1664,10 +1602,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                   });
                                 },
                                 child: Container(
-                                  padding: const EdgeInsets.all(6),
+                                  padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
                                     color: Colors.grey[200],
-                                    borderRadius: BorderRadius.circular(8),
+                                    borderRadius: BorderRadius.circular(10),
                                   ),
                                   child: const Icon(
                                     Icons.close_rounded,
@@ -1683,7 +1621,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       // Search Results Dropdown - Colorful
                       if (_isSearchActive && _searchResults.isNotEmpty)
                         Container(
-                          margin: const EdgeInsets.only(top: 12),
+                          margin: const EdgeInsets.only(top: 10),
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(20),
@@ -1778,8 +1716,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       // No Results Found
                       if (_isSearchActive && _searchController.text.isNotEmpty && _searchResults.isEmpty)
                         Container(
-                          margin: const EdgeInsets.only(top: 8),
-                          padding: const EdgeInsets.all(20),
+                          margin: const EdgeInsets.only(top: 10),
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(16),

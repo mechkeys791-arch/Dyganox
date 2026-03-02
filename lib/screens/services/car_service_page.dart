@@ -101,7 +101,7 @@ class _CarServicePageState extends State<CarServicePage> with TickerProviderStat
                           width: 48,
                           height: 48,
                           decoration: BoxDecoration(
-                            color: const AppColors.burntOrange.withOpacity(0.15),
+                            color: AppColors.burntOrange.withOpacity(0.15),
                             shape: BoxShape.circle,
                           ),
                           child: Center(
@@ -159,7 +159,7 @@ class _CarServicePageState extends State<CarServicePage> with TickerProviderStat
     ];
 
     return Scaffold(
-      backgroundColor: const AppColors.cream,
+      backgroundColor: AppColors.cream,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -195,7 +195,7 @@ class _CarServicePageState extends State<CarServicePage> with TickerProviderStat
         opacity: _fadeAnimation,
         child: RefreshIndicator(
           onRefresh: () async { setState(() {}); },
-          color: const AppColors.burntOrange,
+          color: AppColors.burntOrange,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
           child: Column(
@@ -214,7 +214,7 @@ class _CarServicePageState extends State<CarServicePage> with TickerProviderStat
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: const AppColors.burntOrange.withOpacity(0.3),
+                      color: AppColors.burntOrange.withOpacity(0.3),
                       blurRadius: 20,
                       offset: const Offset(0, 10),
                     ),
@@ -380,7 +380,7 @@ class _CarServicePageState extends State<CarServicePage> with TickerProviderStat
                                         Container(
                                           padding: const EdgeInsets.all(12),
                                           decoration: BoxDecoration(
-                                            color: const AppColors.burntOrange.withOpacity(0.1),
+                                            color: AppColors.burntOrange.withOpacity(0.1),
                                             borderRadius: BorderRadius.circular(8),
                                           ),
                                           child: Row(
@@ -395,7 +395,7 @@ class _CarServicePageState extends State<CarServicePage> with TickerProviderStat
                                                 'Service available 24/7',
                                                 style: GoogleFonts.outfit(
                                                   fontSize: 12,
-                                                  color: const AppColors.burntOrange,
+                                                  color: AppColors.burntOrange,
                                                   fontWeight: FontWeight.w600,
                                                 ),
                                               ),
@@ -415,7 +415,7 @@ class _CarServicePageState extends State<CarServicePage> with TickerProviderStat
                                       ElevatedButton(
                                         onPressed: () => Navigator.pop(context),
                                         style: ElevatedButton.styleFrom(
-                                          backgroundColor: const AppColors.burntOrange,
+                                          backgroundColor: AppColors.burntOrange,
                                           shape: RoundedRectangleBorder(
                                             borderRadius: BorderRadius.circular(8),
                                           ),

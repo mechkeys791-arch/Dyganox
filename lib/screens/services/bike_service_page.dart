@@ -99,7 +99,7 @@ class _BikeServicePageState extends State<BikeServicePage> with TickerProviderSt
                           width: 48,
                           height: 48,
                           decoration: BoxDecoration(
-                            color: const AppColors.burntOrange.withOpacity(0.15),
+                            color: AppColors.burntOrange.withOpacity(0.15),
                             shape: BoxShape.circle,
                           ),
                           child: Center(
@@ -154,7 +154,7 @@ class _BikeServicePageState extends State<BikeServicePage> with TickerProviderSt
     ];
 
     return Scaffold(
-      backgroundColor: const AppColors.cream,
+      backgroundColor: AppColors.cream,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -206,7 +206,7 @@ class _BikeServicePageState extends State<BikeServicePage> with TickerProviderSt
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: const AppColors.burntOrange.withOpacity(0.3),
+                      color: AppColors.burntOrange.withOpacity(0.3),
                       blurRadius: 20,
                       offset: const Offset(0, 10),
                     ),
@@ -366,12 +366,12 @@ class _BikeServicePageState extends State<BikeServicePage> with TickerProviderSt
                                         Container(
                                           padding: const EdgeInsets.all(12),
                                           decoration: BoxDecoration(
-                                            color: const AppColors.burntOrange.withOpacity(0.1),
+                                            color: AppColors.burntOrange.withOpacity(0.1),
                                             borderRadius: BorderRadius.circular(8),
                                           ),
                                           child: Row(
                                             children: [
-                                              const Icon(
+                                              Icon(
                                                 Icons.access_time,
                                                 size: 16,
                                                 color: AppColors.burntOrange,
@@ -381,7 +381,7 @@ class _BikeServicePageState extends State<BikeServicePage> with TickerProviderSt
                                                 'Service available 24/7',
                                                 style: GoogleFonts.outfit(
                                                   fontSize: 12,
-                                                  color: const AppColors.burntOrange,
+                                                  color: AppColors.burntOrange,
                                                   fontWeight: FontWeight.w600,
                                                 ),
                                               ),
@@ -401,7 +401,7 @@ class _BikeServicePageState extends State<BikeServicePage> with TickerProviderSt
                                       ElevatedButton(
                                         onPressed: () => Navigator.pop(context),
                                         style: ElevatedButton.styleFrom(
-                                          backgroundColor: const AppColors.burntOrange,
+                                          backgroundColor: AppColors.burntOrange,
                                           shape: RoundedRectangleBorder(
                                             borderRadius: BorderRadius.circular(8),
                                           ),
