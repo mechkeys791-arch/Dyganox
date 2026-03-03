@@ -5,7 +5,6 @@ import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:typed_data';
 import 'dart:convert';
 import 'screens/services/minor_repair_page.dart';
 import 'screens/services/bike_battery_page.dart';
@@ -32,8 +31,6 @@ import 'screens/vehicles/add_edit_vehicle_page.dart';
 import 'widgets/custom_nav_bar.dart';
 import 'widgets/home_hero_overlay.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'dart:ui';
 import 'services/api_config.dart';
 import 'services/vehicle_service.dart';
 import 'services/app_remote_service.dart';
@@ -92,7 +89,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   late double screenWidth;
   late double screenHeight;
   
-  // Get profile image from SharedPreferences (S3 URL or local bytes)
+  // Get profile image from SharedPreferences (S3 URL or local bytes). Used when profile icon is shown.
+  // ignore: unused_element
   Future<({String? url, Uint8List? bytes})> _getProfileImage() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -223,6 +221,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     _loadBanners(_defaultVehicle?['type']?.toString());
   }
 
+  // ignore: unused_element
   Widget _vehiclePlaceholderIcon() {
     return Container(
       width: 56,
@@ -250,6 +249,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     return '${ApiConfig.baseUrl}$s';
   }
 
+  // ignore: unused_element
   Future<void> _showMyVehiclesSheet() async {
     final user = await CognitoService.getCurrentUser();
     final email = user['email']?.toString();
@@ -450,7 +450,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   void _pingActivity() {
     CognitoService.getCurrentUser().then((user) {
-      final email = user['email'] as String?;
+      final email = user['email']?.toString().trim();
       if (email != null && email.isNotEmpty) {
         http.post(
           Uri.parse('${ApiConfig.baseUrl}/api/person/activity'),
@@ -982,6 +982,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
+  // ignore: unused_element
   Widget _buildCarServicesGrid() {
     final crossAxisCount = screenWidth < 400 ? 3 : 4;
     final childAspectRatio = screenWidth < 400 ? 0.72 : 0.78;
@@ -1034,6 +1035,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
+  // ignore: unused_element
   Widget _buildBikeServicesGrid() {
     final crossAxisCount = screenWidth < 400 ? 3 : 4;
     final childAspectRatio = screenWidth < 400 ? 0.72 : 0.78;
@@ -1084,6 +1086,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
+  // ignore: unused_element
   Widget _buildServiceCard({
     required String title,
     required String subtitle,
@@ -1474,13 +1477,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                 color: Colors.transparent,
                                 child: InkWell(
                                   onTap: () async {
-                                    final result = await Navigator.push(
+                                    await Navigator.push(
                                       context,
                                       MaterialPageRoute(
                                         builder: (context) => const LocationSelectionPage(),
                                       ),
                                     );
-                                    // Reload selected address after returning
                                     _loadSelectedAddress();
                                   },
                                   borderRadius: BorderRadius.circular(15),

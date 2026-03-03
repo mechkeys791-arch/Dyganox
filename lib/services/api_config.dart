@@ -39,6 +39,10 @@ class ApiConfig {
   // API Endpoints
   static String get mechanicEndpoint => '$baseUrl/api/mechanic';
   static String get mechanicRequestsEndpoint => '$baseUrl/api/mechanic-requests';
+  /// All bookings for a mechanic (pending, accepted, in-progress, completed, rejected). Backend may implement GET .../mechanic/{id}/bookings.
+  static String mechanicBookingsForMechanic(int mechanicId) => '$mechanicRequestsEndpoint/mechanic/$mechanicId/bookings';
+  /// Mechanic reports "I have reached" – POST with { latitude, longitude }. Backend should record event, notify customer for confirmation, and optionally check proximity.
+  static String mechanicRequestReached(int requestId) => '$mechanicRequestsEndpoint/$requestId/reached';
   static String get mechanicWalletEndpoint => '$baseUrl/api/mechanic-wallet';
   static String get vehicleEndpoint => '$baseUrl/api/vehicle';
   static String get evProviderEndpoint => '$baseUrl/api/evprovider';

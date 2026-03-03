@@ -5,8 +5,11 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'api_config.dart';
 import 'platform_io.dart' if (dart.library.html) 'platform_web.dart' as _platform;
+
+const String _kNotificationsEnabledKey = 'mechanic_notifications_enabled';
 
 // Top-level so background isolate can use them
 const String _kChannelId = 'mechanic_requests';
@@ -85,6 +88,24 @@ Future<void> _executeRejectRequest(int requestId) async {
 /// Note: On Android the default Flutter FCM service is replaced by a custom native handler
 /// (DyganoxFirebaseMessagingService), so foreground/background notifications are shown by native code.
 class FcmNotificationService {
+  /// Whether in-app notifications are enabled (stored in SharedPreferences). Default true.
+  static Future<bool> areNotificationsEnabled() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getBool(_kNotificationsEnabledKey) ?? true;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  /// Enable or disable showing notifications in the app (foreground local notifications).
+  /// Background/native notifications may still appear depending on OS; this controls the in-app local notification.
+  static Future<void> setNotificationsEnabled(bool enabled) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_kNotificationsEnabledKey, enabled);
+    } catch (_) {}
+  }
   static final FcmNotificationService _instance = FcmNotificationService._();
   factory FcmNotificationService() => _instance;
 
@@ -222,7 +243,7 @@ class FcmNotificationService {
     }
   }
 
-  void _handleForegroundMessage(RemoteMessage message) {
+  void _handleForegroundMessage(RemoteMessage message) async {
     final data = message.data;
     final type = data['type'];
     final requestId = data['requestId'];
@@ -232,6 +253,12 @@ class FcmNotificationService {
 
     if (type == 'mechanic_request' && requestId != null) {
       print('FCM: Foreground message received, showing notification requestId=$requestId');
+      final enabled = await areNotificationsEnabled();
+      if (!enabled) {
+        print('FCM: Notifications disabled by user, skipping show');
+        onMechanicRequestInForeground?.call(requestId);
+        return;
+      }
       _startMechanicAlarm();
       onMechanicRequestInForeground?.call(requestId);
       final payload = jsonEncode({'type': type, 'requestId': requestId});

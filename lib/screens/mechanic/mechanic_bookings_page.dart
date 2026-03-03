@@ -4,14 +4,19 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:geolocator/geolocator.dart';
 
 class MechanicBookingsPage extends StatefulWidget {
   final List<Map<String, dynamic>> bookings;
   final Function(Map<String, dynamic>) onAccept;
   final Function(Map<String, dynamic>) onReject;
   final Function(Map<String, dynamic>) onComplete;
+  /// Called when mechanic taps "I have reached" with (booking, latitude, longitude). Optional; if null, button is hidden.
+  final Future<void> Function(Map<String, dynamic> booking, double latitude, double longitude)? onReached;
   /// When set, the matching booking card gets a subtle border highlight
   final String? highlightRequestId;
+  /// Initial filter: 'All', 'Pending', 'Accepted', 'Completed', 'Rejected', 'In progress'
+  final String? initialFilter;
   
   const MechanicBookingsPage({
     super.key,
@@ -19,7 +24,9 @@ class MechanicBookingsPage extends StatefulWidget {
     required this.onAccept,
     required this.onReject,
     required this.onComplete,
+    this.onReached,
     this.highlightRequestId,
+    this.initialFilter,
   });
 
   @override
@@ -27,11 +34,21 @@ class MechanicBookingsPage extends StatefulWidget {
 }
 
 class _MechanicBookingsPageState extends State<MechanicBookingsPage> {
-  String _filterStatus = 'All'; // All, Pending, Accepted, Completed
+  late String _filterStatus; // All, Pending, Accepted, Completed, Rejected
+
+  @override
+  void initState() {
+    super.initState();
+    _filterStatus = widget.initialFilter ?? 'All';
+  }
   
   List<Map<String, dynamic>> get _filteredBookings {
     if (_filterStatus == 'All') {
       return widget.bookings;
+    }
+    // "In progress" and "Accepted" both match accepted-style bookings for display
+    if (_filterStatus == 'In progress') {
+      return widget.bookings.where((b) => (b['status'] ?? '').toString().toLowerCase() == 'in progress' || (b['status'] ?? '').toString().toLowerCase() == 'in-progress').toList();
     }
     return widget.bookings.where((b) => b['status'] == _filterStatus).toList();
   }
@@ -100,6 +117,8 @@ class _MechanicBookingsPageState extends State<MechanicBookingsPage> {
                   const SizedBox(width: 8),
                   _buildFilterChip('Accepted', widget.bookings.where((b) => b['status'] == 'Accepted').length),
                   const SizedBox(width: 8),
+                  _buildFilterChip('Rejected', widget.bookings.where((b) => b['status'] == 'Rejected').length),
+                  const SizedBox(width: 8),
                   _buildFilterChip('Completed', widget.bookings.where((b) => b['status'] == 'Completed').length),
                 ],
               ),
@@ -161,6 +180,9 @@ class _MechanicBookingsPageState extends State<MechanicBookingsPage> {
       case 'Completed':
         chipColor = const Color(0xFFFBBF24);
         break;
+      case 'Rejected':
+        chipColor = const Color(0xFFEF4444);
+        break;
       default:
         chipColor = Colors.grey;
     }
@@ -217,6 +239,7 @@ class _MechanicBookingsPageState extends State<MechanicBookingsPage> {
   Widget _buildBookingCard(Map<String, dynamic> booking) {
     final isPending = booking['status'] == 'Pending';
     final isAccepted = booking['status'] == 'Accepted';
+    final inProgress = _isInProgress(booking);
     final location = (booking['location'] ?? 'Location').toString();
     
     Color statusColor;
@@ -430,8 +453,25 @@ class _MechanicBookingsPageState extends State<MechanicBookingsPage> {
                       ),
                     ],
                   ),
-                ] else if (isAccepted) ...[
-                  const SizedBox(height: 16),
+                ] else if (isAccepted || inProgress) ...[
+                  if (widget.onReached != null && isAccepted) ...[
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () => _onTapReached(booking),
+                        icon: const Icon(Icons.location_on, size: 20),
+                        label: const Text('I have reached'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF10B981),
+                          side: const BorderSide(color: Color(0xFF10B981)),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
@@ -458,6 +498,33 @@ class _MechanicBookingsPageState extends State<MechanicBookingsPage> {
     );
     
     return card;
+  }
+
+  bool _isInProgress(Map<String, dynamic> booking) {
+    final s = (booking['status'] ?? '').toString().toLowerCase().replaceAll('_', ' ');
+    return s == 'in progress' || s == 'in-progress';
+  }
+
+  Future<void> _onTapReached(Map<String, dynamic> booking) async {
+    if (widget.onReached == null) return;
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 15),
+      );
+      await widget.onReached!(booking, position.latitude, position.longitude);
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not get location: $e'),
+            backgroundColor: Colors.orange,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
   }
   
   double? _parseDouble(dynamic v) {

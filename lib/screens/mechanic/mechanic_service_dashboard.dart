@@ -11,6 +11,7 @@ import 'package:geolocator/geolocator.dart';
 import 'mechanic_bookings_page.dart';
 import 'mechanic_services_page.dart';
 import 'mechanic_profile_edit_page.dart';
+import 'mechanic_profile_page.dart';
 import 'mechanic_help_chat_page.dart';
 import 'mechanic_suspended_page.dart';
 import 'mechanic_request_detail_book_flow_page.dart';
@@ -350,9 +351,13 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
         
         setState(() {
           _bookings = data.map((request) {
-            // Convert backend status (PENDING) to title case (Pending) for UI
-            String status = request['status'] ?? 'PENDING';
-            status = status[0].toUpperCase() + status.substring(1).toLowerCase();
+            // Convert backend status to UI title case (Pending, Accepted, In progress, Completed, Rejected)
+            String status = (request['status'] ?? 'PENDING').toString().toUpperCase();
+            if (status == 'IN_PROGRESS' || status == 'INPROGRESS') {
+              status = 'In progress';
+            } else {
+              status = status.isNotEmpty ? status[0] + status.substring(1).toLowerCase() : 'Pending';
+            }
             // Build vehicle string from make, model, plate (same as user provided)
             final make = request['vehicleMakeName']?.toString() ?? '';
             final model = request['vehicleModelName']?.toString() ?? '';
@@ -475,10 +480,10 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
         elevation: 0,
         backgroundColor: AppColors.burntOrange,
         leading: Padding(
-          padding: const EdgeInsets.all(8.0),
+          padding: const EdgeInsets.all(6.0),
           child: AppLogoWidget(
             logoUrl: _appLogoUrl,
-            size: 36,
+            size: 52,
             fallbackIconColor: Colors.white,
           ),
         ),
@@ -491,12 +496,8 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
         ),
         centerTitle: true,
         actions: [
-          // Status dropdown
           _buildStatusDropdown(),
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined, color: Colors.white),
-            onPressed: () {},
-          ),
+          _buildProfileMenu(),
         ],
       ),
       body: Stack(
@@ -596,37 +597,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
   }
   
   Widget _buildProfileCard() {
-    return GestureDetector(
-      onTap: () async {
-        final mid = widget.mechanicData?['id'];
-        final mechanicId = mid is int ? mid : (int.tryParse(mid?.toString() ?? '') ?? 0);
-        if (mechanicId == 0) {
-          _showSnackBar('Unable to load mechanic profile', Colors.orange);
-          return;
-        }
-        await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => MechanicProfileEditPage(
-              mechanicProfile: _mechanicProfile,
-              mechanicId: mechanicId,
-              onSave: (updatedProfile) {
-                setState(() {
-                  _mechanicProfile['name'] = updatedProfile['name'];
-                  _mechanicProfile['phone'] = updatedProfile['phone'];
-                  _mechanicProfile['email'] = updatedProfile['email'];
-                  _mechanicProfile['specialty'] = updatedProfile['specialty'];
-                  _mechanicProfile['experience'] = updatedProfile['experience'];
-                  _mechanicProfile['shopAddress'] = updatedProfile['shopAddress'];
-                  _mechanicProfile['latitude'] = updatedProfile['latitude'];
-                  _mechanicProfile['longitude'] = updatedProfile['longitude'];
-                });
-              },
-            ),
-          ),
-        );
-      },
-      child: Container(
+    return Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -682,42 +653,14 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        (_mechanicProfile['specialty'] ?? 'General Repair').toString(),
-                        style: GoogleFonts.inter(
-                          fontSize: 13,
-                          color: Colors.white.withOpacity(0.9),
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.touch_app, color: Colors.white, size: 10),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Edit',
-                            style: GoogleFonts.inter(
-                              fontSize: 10,
-                              color: Colors.white,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                Text(
+                  (_mechanicProfile['specialty'] ?? 'General Repair').toString(),
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    color: Colors.white.withOpacity(0.9),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 8),
                 Row(
@@ -766,19 +709,219 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
               ],
             ),
           ),
-          // Edit indicator
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(Icons.edit, color: Colors.white, size: 20),
-          ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _openProfileEdit() async {
+    final mid = widget.mechanicData?['id'];
+    final mechanicId = mid is int ? mid : (int.tryParse(mid?.toString() ?? '') ?? 0);
+    if (mechanicId == 0) {
+      _showSnackBar('Unable to load mechanic profile', Colors.orange);
+      return;
+    }
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MechanicProfileEditPage(
+          mechanicProfile: _mechanicProfile,
+          mechanicId: mechanicId,
+          onSave: (updatedProfile) {
+            setState(() {
+              _mechanicProfile['name'] = updatedProfile['name'];
+              _mechanicProfile['phone'] = updatedProfile['phone'];
+              _mechanicProfile['email'] = updatedProfile['email'];
+              _mechanicProfile['specialty'] = updatedProfile['specialty'];
+              _mechanicProfile['experience'] = updatedProfile['experience'];
+              _mechanicProfile['shopAddress'] = updatedProfile['shopAddress'];
+              _mechanicProfile['latitude'] = updatedProfile['latitude'];
+              _mechanicProfile['longitude'] = updatedProfile['longitude'];
+            });
+          },
         ),
       ),
+    );
+  }
+
+  Widget _buildProfileMenu() {
+    return PopupMenuButton<String>(
+      icon: const Icon(Icons.person_outline_rounded, color: Colors.white, size: 26),
+      padding: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      onSelected: (value) async {
+        switch (value) {
+          case 'notifications':
+            // Toggle is handled in the menu item (state in prefs)
+            setState(() {});
+            break;
+          case 'profile':
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => MechanicProfilePage(
+                  mechanicData: widget.mechanicData ?? {},
+                  mechanicProfile: Map<String, dynamic>.from(_mechanicProfile),
+                  initialBookings: _bookings,
+                  onProfileUpdated: () {
+                    if (mounted) setState(() {});
+                  },
+                ),
+              ),
+            );
+            if (mounted) {
+              _fetchBookings();
+              setState(() {});
+            }
+            break;
+          case 'approved':
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => MechanicBookingsPage(
+                  bookings: _bookings,
+                  onAccept: _acceptBooking,
+                  onReject: _rejectBooking,
+                  onComplete: _completeBooking,
+                  onReached: _reachedBooking,
+                  highlightRequestId: null,
+                  initialFilter: 'Accepted',
+                ),
+              ),
+            );
+            if (mounted) _fetchBookings();
+            break;
+          case 'rejected':
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => MechanicBookingsPage(
+                  bookings: _bookings,
+                  onAccept: _acceptBooking,
+                  onReject: _rejectBooking,
+                  onComplete: _completeBooking,
+                  onReached: _reachedBooking,
+                  highlightRequestId: null,
+                  initialFilter: 'Rejected',
+                ),
+              ),
+            );
+            if (mounted) _fetchBookings();
+            break;
+          case 'pending':
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => MechanicBookingsPage(
+                  bookings: _bookings,
+                  onAccept: _acceptBooking,
+                  onReject: _rejectBooking,
+                  onComplete: _completeBooking,
+                  onReached: _reachedBooking,
+                  highlightRequestId: null,
+                  initialFilter: 'Pending',
+                ),
+              ),
+            );
+            if (mounted) _fetchBookings();
+            break;
+          case 'profile_edit':
+            await _openProfileEdit();
+            break;
+        }
+      },
+      itemBuilder: (context) => [
+        PopupMenuItem<String>(
+          value: 'profile',
+          child: Row(
+            children: [
+              const Icon(Icons.person, color: AppColors.burntOrange, size: 22),
+              const SizedBox(width: 12),
+              Text('Profile', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+            ],
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'notifications',
+          enabled: false,
+          child: StatefulBuilder(
+            builder: (context, setMenuState) {
+              return FutureBuilder<bool>(
+                future: FcmNotificationService.areNotificationsEnabled(),
+                builder: (context, snapshot) {
+                  final enabled = snapshot.data ?? true;
+                  return Row(
+                    children: [
+                      Icon(enabled ? Icons.notifications_active : Icons.notifications_off, color: AppColors.burntOrange, size: 22),
+                      const SizedBox(width: 12),
+                      Text('Notifications', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+                      const Spacer(),
+                      Switch(
+                        value: enabled,
+                        onChanged: (v) async {
+                          await FcmNotificationService.setNotificationsEnabled(v);
+                          setMenuState(() {});
+                          setState(() {});
+                          _showSnackBar(v ? 'Notifications on' : 'Notifications off', v ? Colors.green : Colors.grey);
+                        },
+                        activeColor: AppColors.burntOrange,
+                      ),
+                    ],
+                  );
+                },
+              );
+            },
+          ),
+        ),
+        const PopupMenuDivider(),
+        PopupMenuItem<String>(
+          value: 'pending',
+          child: Row(
+            children: [
+              Icon(Icons.pending_actions, color: AppColors.burntOrange, size: 22),
+              const SizedBox(width: 12),
+              Text('Pending bookings', style: GoogleFonts.outfit()),
+              const SizedBox(width: 8),
+              Text('${_bookings.where((b) => (b['status'] ?? '').toString().toLowerCase() == 'pending').length}', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+            ],
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'approved',
+          child: Row(
+            children: [
+              Icon(Icons.check_circle_outline, color: AppColors.burntOrange, size: 22),
+              const SizedBox(width: 12),
+              Text('Approved bookings', style: GoogleFonts.outfit()),
+              const SizedBox(width: 8),
+              Text('${_bookings.where((b) => (b['status'] ?? '').toString().toLowerCase() == 'accepted').length}', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+            ],
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'rejected',
+          child: Row(
+            children: [
+              Icon(Icons.cancel_outlined, color: AppColors.burntOrange, size: 22),
+              const SizedBox(width: 12),
+              Text('Rejected bookings', style: GoogleFonts.outfit()),
+              const SizedBox(width: 8),
+              Text('${_bookings.where((b) => (b['status'] ?? '').toString().toLowerCase() == 'rejected').length}', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(),
+        PopupMenuItem<String>(
+          value: 'profile_edit',
+          child: Row(
+            children: [
+              Icon(Icons.edit, color: AppColors.burntOrange, size: 22),
+              const SizedBox(width: 12),
+              Text('Edit profile', style: GoogleFonts.outfit()),
+            ],
+          ),
+        ),
+      ],
     );
   }
   
@@ -1638,6 +1781,8 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
                         onAccept: _acceptBooking,
                         onReject: _rejectBooking,
                         onComplete: _completeBooking,
+                        onReached: _reachedBooking,
+                        highlightRequestId: null,
                       ),
                     ),
                   );
@@ -2150,6 +2295,31 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
       }
     } catch (e) {
       print("❌ Error completing booking: $e");
+      _showSnackBar('Network error. Please try again.', Colors.red);
+    }
+  }
+
+  /// Mechanic taps "I have reached" – send coordinates to backend; backend should record event, notify customer for confirmation.
+  Future<void> _reachedBooking(Map<String, dynamic> booking, double latitude, double longitude) async {
+    try {
+      final id = booking['id'];
+      print("Reached booking ID: $id at $latitude, $longitude");
+      final response = await http.post(
+        Uri.parse(ApiConfig.mechanicRequestReached(id is int ? id : int.tryParse(id?.toString() ?? '') ?? 0)),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"latitude": latitude, "longitude": longitude}),
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        setState(() {
+          booking['status'] = 'In progress';
+        });
+        _showSnackBar('Location sent. Waiting for customer to confirm.', AppColors.warmAmber);
+        print("✅ Reached reported for booking $id");
+      } else {
+        _showSnackBar('Could not send location. Please try again.', Colors.orange);
+      }
+    } catch (e) {
+      print("Error reporting reached: $e");
       _showSnackBar('Network error. Please try again.', Colors.red);
     }
   }
