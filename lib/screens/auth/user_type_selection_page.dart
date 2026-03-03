@@ -107,7 +107,7 @@ class _UserTypeSelectionPageState extends State<UserTypeSelectionPage>
                             height: 120,
                             decoration: BoxDecoration(
                               color: Colors.white,
-                              borderRadius: BorderRadius.circular(30),
+                              borderRadius: BorderRadius.circular(24),
                               boxShadow: [
                                 BoxShadow(
                                   color: Colors.black.withOpacity(0.2),
@@ -117,10 +117,19 @@ class _UserTypeSelectionPageState extends State<UserTypeSelectionPage>
                                 ),
                               ],
                             ),
-                            child: const Icon(
-                              Icons.car_repair_rounded,
-                              size: 60,
-                              color: AppColors.burntOrange,
+                            padding: const EdgeInsets.all(16),
+                            child: Image.asset(
+                              'assets/icons/dyganox_logo.png',
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, __, ___) => Image.asset(
+                                'assets/icons/dyganox_splash_logo.png',
+                                fit: BoxFit.contain,
+                                errorBuilder: (_, __, ___) => const Icon(
+                                  Icons.build_circle_outlined,
+                                  size: 56,
+                                  color: AppColors.burntOrange,
+                                ),
+                              ),
                             ),
                           ),
                         ),

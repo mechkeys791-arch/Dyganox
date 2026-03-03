@@ -303,14 +303,14 @@ class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateM
                     
                     const SizedBox(height: 20),
                     
-                    // Logo
+                    // Logo - Dyganox
                     Center(
                       child: Container(
                         width: 100,
                         height: 100,
                         decoration: BoxDecoration(
-                          color: AppColors.onBurntOrange,
-                          borderRadius: BorderRadius.circular(25),
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
                           boxShadow: [
                             BoxShadow(
                               color: Colors.black.withOpacity(0.2),
@@ -319,10 +319,19 @@ class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateM
                             ),
                           ],
                         ),
-                        child: const Icon(
-                          Icons.car_repair_rounded,
-                          size: 50,
-                          color: AppColors.onBurntOrange,
+                        padding: const EdgeInsets.all(12),
+                        child: Image.asset(
+                          'assets/icons/dyganox_logo.png',
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) => Image.asset(
+                            'assets/icons/dyganox_splash_logo.png',
+                            fit: BoxFit.contain,
+                            errorBuilder: (_, __, ___) => const Icon(
+                              Icons.build_circle_outlined,
+                              size: 48,
+                              color: AppColors.burntOrange,
+                            ),
+                          ),
                         ),
                       ),
                     ),

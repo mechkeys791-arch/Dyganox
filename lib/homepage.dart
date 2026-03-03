@@ -17,6 +17,8 @@ import 'screens/services/battery_jump_page.dart';
 import 'screens/ev_charging/ev_charging_page.dart';
 import 'screens/services/fuel_refill_page.dart';
 import 'screens/services/tyre_care_page.dart';
+import 'screens/services/car_service_page.dart';
+import 'screens/services/bike_service_page.dart';
 import 'screens/mechanic/mechanic_finder_page.dart';
 import 'screens/mechanic/book_mechanic_flow_page.dart';
 import 'screens/services/map_service_page.dart';
@@ -68,7 +70,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   // Carousel banners from API (null until loaded)
   List<Map<String, dynamic>>? _banners;
 
-  // Show full-screen ad when user opens the app (dismissible); set true when banners load
+  // Show full-screen ad only on first app open (not when navigating back to homepage)
+  static bool _openAdShownThisSession = false;
   bool _showOpenAd = false;
 
   // Default vehicle (e.g. for nearest mechanic vehicle filter)
@@ -451,14 +454,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         setState(() {
           _banners = list.isNotEmpty ? list : null;
           if (_banners != null && _currentAdIndex >= _banners!.length) _currentAdIndex = 0;
-          _showOpenAd = true; // Show full-screen ad when app opens (banners loaded)
+          if (!_openAdShownThisSession) _showOpenAd = true;
         });
       }
     } catch (_) {
       if (mounted) {
         setState(() {
           _banners = null;
-          _showOpenAd = true; // Show ad even when API fails (use fallback)
+          if (!_openAdShownThisSession) _showOpenAd = true;
         });
       }
     }
@@ -900,6 +903,58 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.outfit(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.black87),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildServiceCategoryCard({
+    required String title,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      shadowColor: AppColors.burntOrange.withOpacity(0.2),
+      elevation: 4,
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          onTap();
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.burntOrange.withOpacity(0.2)),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.burntOrange.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, size: 36, color: AppColors.burntOrange),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                title,
+                style: GoogleFonts.outfit(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
@@ -1498,58 +1553,49 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ),
                 ),
 
-                // Search Bar with Results - Colorful Design
+                // Search Bar with Results
                 Padding(
                   padding: EdgeInsets.fromLTRB(
-                    screenWidth * 0.05,
-                    screenHeight * 0.018,
-                    screenWidth * 0.05,
-                    12,
+                    screenWidth * 0.055,
+                    screenHeight * 0.02,
+                    screenWidth * 0.055,
+                    14,
                   ),
                   child: Column(
                     children: [
                       AnimatedContainer(
                         duration: const Duration(milliseconds: 300),
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                        padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(14),
                           boxShadow: [
                             BoxShadow(
                               color: _isSearchActive
-                                  ? AppColors.burntOrange.withOpacity(0.25)
-                                  : Colors.black.withOpacity(0.08),
-                              blurRadius: _isSearchActive ? 20 : 16,
-                              offset: const Offset(0, 4),
-                              spreadRadius: _isSearchActive ? 2 : 0,
+                                  ? AppColors.burntOrange.withOpacity(0.2)
+                                  : Colors.black.withOpacity(0.06),
+                              blurRadius: _isSearchActive ? 18 : 12,
+                              offset: const Offset(0, 3),
+                              spreadRadius: 0,
                             ),
                           ],
                           border: Border.all(
                             color: _isSearchActive
-                                ? AppColors.burntOrange.withOpacity(0.5)
-                                : Colors.transparent,
-                            width: 1.5,
+                                ? AppColors.burntOrange.withOpacity(0.4)
+                                : Colors.grey.shade200,
+                            width: 1,
                           ),
                         ),
                         child: Row(
                           children: [
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: _isSearchActive
-                                    ? AppColors.burntOrange.withOpacity(0.1)
-                                    : AppColors.burntOrange.withOpacity(0.06),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Icon(
-                                Icons.search_rounded,
-                                color: _isSearchActive
-                                    ? AppColors.burntOrange
-                                    : AppColors.burntOrange.withOpacity(0.7),
-                                size: 22,
-                              ),
+                            Icon(
+                              Icons.search_rounded,
+                              color: _isSearchActive
+                                  ? AppColors.burntOrange
+                                  : Colors.grey.shade600,
+                              size: 24,
                             ),
-                            const SizedBox(width: 16),
+                            const SizedBox(width: 14),
                             Expanded(
                               child: TextField(
                                 controller: _searchController,
@@ -1582,14 +1628,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                   fontWeight: FontWeight.w500,
                                 ),
                                 decoration: InputDecoration(
-                                  hintText: 'Search for services...',
+                                  hintText: 'Search for services',
                                   hintStyle: GoogleFonts.inter(
-                                    color: Colors.grey[500],
+                                    color: Colors.grey.shade500,
                                     fontSize: 15,
                                   ),
                                   border: InputBorder.none,
                                   isDense: true,
-                                  contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 0),
+                                  contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
                                 ),
                               ),
                             ),
@@ -1601,16 +1647,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                     _searchResults.clear();
                                   });
                                 },
-                                child: Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey[200],
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: const Icon(
+                                child: Padding(
+                                  padding: const EdgeInsets.only(left: 8),
+                                  child: Icon(
                                     Icons.close_rounded,
-                                    color: Colors.grey,
-                                    size: 18,
+                                    color: Colors.grey.shade600,
+                                    size: 22,
                                   ),
                                 ),
                               ),
@@ -2226,22 +2268,33 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
-                      // Car Services grid (all on home, no separate page)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        child: Text('Car Services', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
-                      ),
-                      const SizedBox(height: 8),
-                      _buildCarServicesGrid(),
                       const SizedBox(height: 16),
-                      // Bike Services grid (all on home, no separate page)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        child: Text('Bike Services', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
+                      // Two icons: Car Services & Bike Services (tap to open full service page)
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildServiceCategoryCard(
+                              title: 'Car Services',
+                              icon: Icons.directions_car_rounded,
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (context) => const CarServicePage()),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: _buildServiceCategoryCard(
+                              title: 'Bike Services',
+                              icon: Icons.two_wheeler_rounded,
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (context) => const BikeServicePage()),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 8),
-                      _buildBikeServicesGrid(),
                     ],
                   ),
                 ),
@@ -2358,6 +2411,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               child: IconButton.filled(
                 onPressed: () {
                   HapticFeedback.lightImpact();
+                  _HomePageState._openAdShownThisSession = true;
                   setState(() => _showOpenAd = false);
                 },
                 icon: const Icon(Icons.close),

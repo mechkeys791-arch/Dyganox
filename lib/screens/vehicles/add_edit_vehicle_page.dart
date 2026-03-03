@@ -188,29 +188,38 @@ class _AddEditVehiclePageState extends State<AddEditVehiclePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
-          onPressed: () {
-            if (!_isEdit && _step > 0) {
-              setState(() => _step--);
-            } else {
-              Navigator.pop(context);
-            }
-          },
+    final bool canPop = _isEdit || _step == 0;
+    return PopScope(
+      canPop: canPop,
+      onPopInvokedWithResult: (bool didPop, dynamic result) {
+        if (!didPop && !_isEdit && _step > 0) {
+          setState(() => _step--);
+        }
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF8FAFC),
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.black87),
+            onPressed: () {
+              if (!_isEdit && _step > 0) {
+                setState(() => _step--);
+              } else {
+                Navigator.pop(context);
+              }
+            },
+          ),
+          title: Text(
+            _isEdit ? 'Edit Vehicle' : _stepTitle(),
+            style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 20, color: Colors.black87),
+          ),
+          centerTitle: true,
         ),
-        title: Text(
-          _isEdit ? 'Edit Vehicle' : _stepTitle(),
-          style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 20, color: Colors.black87),
+        body: SafeArea(
+          child: _isEdit ? _buildDetailsStep() : _buildStepContent(),
         ),
-        centerTitle: true,
-      ),
-      body: SafeArea(
-        child: _isEdit ? _buildDetailsStep() : _buildStepContent(),
       ),
     );
   }
