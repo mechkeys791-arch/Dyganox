@@ -255,6 +255,126 @@ public class UploadController {
     }
 
     /**
+     * Upload home hero graphic (Lottie .json or GIF). Transparent overlay on homepage red header. Returns S3 URL.
+     */
+    @PostMapping("/home-hero-media")
+    public ResponseEntity<Map<String, String>> uploadHomeHeroMedia(@RequestParam("file") MultipartFile file) {
+        try {
+            String url = s3Service.uploadHomeHeroMedia(file);
+            return ResponseEntity.ok(Map.of("url", url));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            System.err.println("❌ Home hero media upload failed: " + e.getMessage());
+            String msg = e.getMessage() != null ? e.getMessage() : "Upload failed";
+            if (msg.contains("S3") || msg.contains("not configured")) {
+                msg = "S3 is not configured. Set aws.s3.bucket, aws.access-key-id, aws.secret-access-key.";
+            }
+            return ResponseEntity.status(500).body(Map.of("error", msg));
+        }
+    }
+
+    /**
+     * Upload auth background video (login/signup). MP4 only. Returns S3 URL. Admin dashboard uses this, then saves URL via PUT /api/admin/auth-video.
+     */
+    @PostMapping("/auth-video")
+    public ResponseEntity<Map<String, String>> uploadAuthVideo(@RequestParam("file") MultipartFile file) {
+        try {
+            String url = s3Service.uploadAuthVideo(file);
+            return ResponseEntity.ok(Map.of("url", url));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            System.err.println("❌ Auth video upload failed: " + e.getMessage());
+            String msg = e.getMessage() != null ? e.getMessage() : "Upload failed";
+            if (msg.contains("S3") || msg.contains("not configured")) {
+                msg = "S3 is not configured. Set aws.s3.bucket, aws.access-key-id, aws.secret-access-key (e.g. in application-ec2.properties on EC2).";
+            }
+            return ResponseEntity.status(500).body(Map.of("error", msg));
+        }
+    }
+
+    /**
+     * Upload app logo (PNG/JPG/WebP, transparent recommended). Returns S3 URL. Admin then saves via PUT /api/admin/app-branding.
+     */
+    @PostMapping("/app-logo")
+    public ResponseEntity<Map<String, String>> uploadAppLogo(@RequestParam("file") MultipartFile file) {
+        try {
+            String url = s3Service.uploadAppLogo(file);
+            return ResponseEntity.ok(Map.of("url", url));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            System.err.println("❌ App logo upload failed: " + e.getMessage());
+            String msg = e.getMessage() != null ? e.getMessage() : "Upload failed";
+            if (msg.contains("S3") || msg.contains("not configured")) {
+                msg = "S3 is not configured.";
+            }
+            return ResponseEntity.status(500).body(Map.of("error", msg));
+        }
+    }
+
+    /**
+     * Upload splash animation (Lottie .json, GIF, or MP4). Returns S3 URL. Admin then saves via PUT /api/admin/app-branding.
+     */
+    @PostMapping("/splash-media")
+    public ResponseEntity<Map<String, String>> uploadSplashMedia(@RequestParam("file") MultipartFile file) {
+        try {
+            String url = s3Service.uploadSplashMedia(file);
+            return ResponseEntity.ok(Map.of("url", url));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            System.err.println("❌ Splash media upload failed: " + e.getMessage());
+            String msg = e.getMessage() != null ? e.getMessage() : "Upload failed";
+            if (msg.contains("S3") || msg.contains("not configured")) {
+                msg = "S3 is not configured.";
+            }
+            return ResponseEntity.status(500).body(Map.of("error", msg));
+        }
+    }
+
+    /**
+     * Upload custom loading animation (Lottie or GIF, e.g. car going). Returns S3 URL.
+     */
+    @PostMapping("/loading-media")
+    public ResponseEntity<Map<String, String>> uploadLoadingMedia(@RequestParam("file") MultipartFile file) {
+        try {
+            String url = s3Service.uploadLoadingMedia(file);
+            return ResponseEntity.ok(Map.of("url", url));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            System.err.println("❌ Loading media upload failed: " + e.getMessage());
+            String msg = e.getMessage() != null ? e.getMessage() : "Upload failed";
+            if (msg.contains("S3") || msg.contains("not configured")) {
+                msg = "S3 is not configured.";
+            }
+            return ResponseEntity.status(500).body(Map.of("error", msg));
+        }
+    }
+
+    /**
+     * Upload welcome page media (GIF or MP4) for the "I'm a User / I'm a Mechanic" screen. Returns S3 URL.
+     */
+    @PostMapping("/welcome-page-media")
+    public ResponseEntity<Map<String, String>> uploadWelcomePageMedia(@RequestParam("file") MultipartFile file) {
+        try {
+            String url = s3Service.uploadWelcomePageMedia(file);
+            return ResponseEntity.ok(Map.of("url", url));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            System.err.println("❌ Welcome page media upload failed: " + e.getMessage());
+            String msg = e.getMessage() != null ? e.getMessage() : "Upload failed";
+            if (msg.contains("S3") || msg.contains("not configured")) {
+                msg = "S3 is not configured.";
+            }
+            return ResponseEntity.status(500).body(Map.of("error", msg));
+        }
+    }
+
+    /**
      * Upload mechanic document (Aadhar, license, etc.) and append to mechanic's documentUrls.
      * Requires mechanic ID in path.
      */

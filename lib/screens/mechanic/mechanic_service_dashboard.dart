@@ -4,7 +4,9 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
 import '../../services/api_config.dart';
+import '../../services/app_remote_service.dart';
 import '../../services/fcm_notification_service.dart';
+import '../../widgets/app_logo_widget.dart';
 import 'package:geolocator/geolocator.dart';
 import 'mechanic_bookings_page.dart';
 import 'mechanic_services_page.dart';
@@ -53,6 +55,8 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
   // ignore: unused_field
   List<Map<String, dynamic>> _transactions = [];
   
+  String? _appLogoUrl;
+
   // Mechanic profile (from API / widget)
   final Map<String, dynamic> _mechanicProfile = {
     'name': 'John Mechanic',
@@ -76,7 +80,8 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
     _pulseAnimation = Tween<double>(begin: 0.8, end: 1.2).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
-    
+    _loadBranding();
+
     if (widget.mechanicData != null) {
       _mechanicProfile['name'] = widget.mechanicData!['name'] ?? 'Mechanic';
       _mechanicProfile['specialty'] = widget.mechanicData!['specialty'] ?? 'General Repair';
@@ -173,6 +178,12 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
     super.dispose();
   }
 
+  Future<void> _loadBranding() async {
+    final config = await AppRemoteService.getAppBrandingConfig();
+    if (!mounted) return;
+    setState(() => _appLogoUrl = config?['appLogoUrl']?.toString());
+  }
+
   void _showRequestBottomSheet(String requestId) {
     if (!mounted) return;
     final mechanicId = widget.mechanicData?['id'];
@@ -214,6 +225,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
                   label: const Text('View problem'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.burntOrange,
+                    foregroundColor: AppColors.cream,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
@@ -462,6 +474,14 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
       appBar: AppBar(
         elevation: 0,
         backgroundColor: AppColors.burntOrange,
+        leading: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: AppLogoWidget(
+            logoUrl: _appLogoUrl,
+            size: 36,
+            fallbackIconColor: Colors.white,
+          ),
+        ),
         title: Text(
           (_mechanicProfile['shopName'] ?? _mechanicProfile['shop_name'] ?? 'Service Provider').toString(),
           style: GoogleFonts.outfit(
@@ -609,7 +629,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
+          gradient: LinearGradient(
             colors: [AppColors.burntOrange, AppColors.warmBrown],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -1014,9 +1034,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: booking['status'] == 'Accepted' 
-            ? AppColors.warmAmber 
-            : AppColors.warmAmber,
+          color: AppColors.warmAmber,
           width: 2,
         ),
       ),
@@ -1061,9 +1079,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: booking['status'] == 'Accepted'
-                  ? AppColors.warmAmber.withOpacity(0.1)
-                  : AppColors.warmAmber.withOpacity(0.1),
+              color: AppColors.warmAmber.withOpacity(0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
@@ -1071,9 +1087,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
               style: GoogleFonts.inter(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: booking['status'] == 'Accepted'
-                    ? AppColors.warmAmber
-                    : AppColors.warmAmber,
+                color: AppColors.warmAmber,
               ),
             ),
           ),
@@ -1092,12 +1106,12 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
       child: Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           colors: [AppColors.warmAmber, AppColors.warmBrown],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-          borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
             color: AppColors.warmAmber.withOpacity(0.4),
@@ -1285,7 +1299,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
                 // Header with gradient
                 Container(
                   padding: const EdgeInsets.all(20),
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [AppColors.warmAmber, AppColors.warmBrown],
                       begin: Alignment.topLeft,

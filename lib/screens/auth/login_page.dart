@@ -13,7 +13,11 @@ import 'signup_page.dart';
 import 'otp_verification_page.dart';
 import 'forgot_password_page.dart';
 import '../../homepage.dart';
+import '../../services/app_remote_service.dart';
+import '../../widgets/auth_background_video.dart';
+import '../../widgets/app_logo_widget.dart';
 import 'complete_profile_page.dart';
+import 'user_type_selection_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -33,10 +37,15 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   bool _isLoading = false;
   bool _isGoogleLoading = false;
   bool _obscurePassword = true;
+  String? _authVideoUrl;
+  bool _authVideoActive = false;
+  String? _appLogoUrl;
 
   @override
   void initState() {
     super.initState();
+    _loadAuthVideoConfig();
+    _loadBranding();
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 1000),
       vsync: this,
@@ -59,6 +68,21 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     ));
 
     _animationController.forward();
+  }
+
+  Future<void> _loadAuthVideoConfig() async {
+    final config = await AppRemoteService.getAuthVideoConfig();
+    if (!mounted) return;
+    setState(() {
+      _authVideoUrl = config?['videoUrl']?.toString();
+      _authVideoActive = config?['active'] == true;
+    });
+  }
+
+  Future<void> _loadBranding() async {
+    final config = await AppRemoteService.getAppBrandingConfig();
+    if (!mounted) return;
+    setState(() => _appLogoUrl = config?['appLogoUrl']?.toString());
   }
 
   @override
@@ -256,21 +280,27 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final logoSize = (size.width * 0.56).clamp(160.0, 260.0);
+    final showVideo = _authVideoUrl != null && _authVideoUrl!.isNotEmpty && _authVideoActive;
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              AppColors.burntOrange,
-              AppColors.warmBrown,
-              AppColors.warmAmber,
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            stops: const [0.0, 0.5, 1.0],
+      body: AuthBackgroundVideo(
+        videoUrl: _authVideoUrl,
+        active: _authVideoActive,
+        child: Container(
+          decoration: showVideo ? null : BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                AppColors.burntOrange,
+                AppColors.warmBrown,
+                AppColors.warmAmber,
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              stops: const [0.0, 0.5, 1.0],
+            ),
           ),
-        ),
-        child: SafeArea(
+          child: SafeArea(
           child: SingleChildScrollView(
             child: SlideTransition(
               position: _slideAnimation,
@@ -281,37 +311,36 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const SizedBox(height: 40),
-                      // Logo
+                      const SizedBox(height: 16),
+                      // Back to Welcome (ProMech) page
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: IconButton(
+                          icon: const Icon(Icons.arrow_back_ios_new, color: AppColors.onBurntOrange),
+                          onPressed: () {
+                            Navigator.of(context).pushReplacement(
+                              PageRouteBuilder(
+                                pageBuilder: (_, __, ___) => const UserTypeSelectionPage(),
+                                transitionsBuilder: (_, animation, __, child) =>
+                                    SlideTransition(
+                                      position: Tween<Offset>(
+                                        begin: const Offset(-1.0, 0.0),
+                                        end: Offset.zero,
+                                      ).animate(animation),
+                                      child: child,
+                                    ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      // Logo – large, transparent, no box
                       Center(
-                        child: Container(
-                          width: 100,
-                          height: 100,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.2),
-                                blurRadius: 20,
-                                offset: const Offset(0, 10),
-                              ),
-                            ],
-                          ),
-                          padding: const EdgeInsets.all(12),
-                          child: Image.asset(
-                            'assets/icons/dyganox_logo.png',
-                            fit: BoxFit.contain,
-                            errorBuilder: (_, __, ___) => Image.asset(
-                              'assets/icons/dyganox_splash_logo.png',
-                              fit: BoxFit.contain,
-                              errorBuilder: (_, __, ___) => const Icon(
-                                Icons.build_circle_outlined,
-                                size: 48,
-                                color: AppColors.burntOrange,
-                              ),
-                            ),
-                          ),
+                        child: AppLogoWidget(
+                          logoUrl: _appLogoUrl,
+                          size: logoSize,
+                          fallbackIconColor: AppColors.onBurntOrange,
                         ),
                       ),
                       const SizedBox(height: 30),
@@ -576,6 +605,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
           ),
         ),
       ),
+    ),
     );
   }
 }

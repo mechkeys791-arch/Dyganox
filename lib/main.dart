@@ -20,6 +20,7 @@ import 'screens/mechanic/mechanic_service_dashboard.dart';
 import 'services/api_config.dart';
 import 'services/fcm_notification_service.dart';
 import 'core/theme/app_theme.dart';
+import 'widgets/custom_loading_widget.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -158,7 +159,7 @@ class _ServiceProviderAppState extends State<ServiceProviderApp> with WidgetsBin
   Widget build(BuildContext context) {
     return MaterialApp(
       navigatorKey: _navigatorKey,
-      title: 'Dyganox - Vehicle Service Provider',
+      title: 'ProMech - Vehicle Service Provider',
       debugShowCheckedModeBanner: false,
       theme: chocolateTruffleTheme,
       // Use initial route from native (Accept tap → /open-accept/123) - set by getInitialRoute()
@@ -257,7 +258,7 @@ class _AcceptLaunchLoaderState extends State<_AcceptLaunchLoader> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(child: CircularProgressIndicator(color: Theme.of(context).colorScheme.primary)),
+      body: CustomLoadingWidget.fullScreenOverlay(barrierColor: Theme.of(context).colorScheme.surface),
     );
   }
 }

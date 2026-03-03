@@ -34,6 +34,8 @@ In the bucket → **Permissions** → **Bucket policy**, add (replace `YOUR-BUCK
             "Principal": "*",
             "Action": "s3:GetObject",
             "Resource": "arn:aws:s3:::YOUR-BUCKET-NAME/*"
+
+            
         }
     ]
 }
@@ -85,3 +87,29 @@ aws.secret-access-key=your-secret-key
 - In the **app**: banners, poster (when active), and vehicle catalog images should load from S3 URLs.
 
 If upload fails with “S3 is not configured”, the backend did not get valid `aws.s3.bucket`, `aws.access-key-id`, and `aws.secret-access-key` (e.g. wrong path for `application-ec2.properties` on EC2 or typo in property names).
+
+---
+
+## Auth background video (Login / Sign up)
+
+A **background video** can be shown on the **Login** and **Sign up** screens. It is uploaded to S3 and configured in the **Admin dashboard** → **Frontend** → **Auth Background Video**.
+
+- **Format:** MP4 only (H.264 recommended for compatibility).
+- **Aspect ratio:** For mobile full-screen background, use **9:16 (portrait)**, e.g. **1080×1920**. The app uses `BoxFit.cover`, so the video fills the screen (sides or top/bottom may be cropped on different devices). 16:9 also works but may crop more on portrait phones.
+- **Size:** Prefer **under 15 MB** for faster load on mobile.
+- **Where to add:** Admin dashboard → **Auth Background Video** → choose MP4 file → **Upload to S3** → check **Show video on Login & Sign up** → **Save**. The app fetches the URL from `GET /api/config/auth-video` and plays it muted and looping behind the form.
+
+**If the video or app logo does not appear in the app:**
+1. **Upload first** – Click "Upload to S3" and wait for the URL to appear in the field. If you see an error (e.g. "S3 is not configured"), set AWS credentials and bucket in `application.properties` (see above).
+2. **Then Save** – Click **Save** so the backend stores the URL.
+3. **Restart the app** – Fully close and reopen the app (or at least reopen the login/splash screen) so it fetches the new config.
+4. **S3 must be readable by the app** – The bucket (or the objects under `auth-video/` and `app-branding/`) must allow public read, or the app will get the URL but the video/image load will fail (you’ll see the gradient/fallback instead).
+
+---
+
+## Home hero graphic (transparent overlay on red header)
+
+A **transparent graphic** (Lottie or GIF) can be shown on the **home screen red header** (the “Hello!” / “What service do you need today?” area). The **red gradient stays as background**; only the graphic is overlaid (no background, fully transparent).
+
+- **Formats:** **Lottie (.json)** or **GIF**. Both support transparency. Standard video (MP4) does not support alpha, so use Lottie or GIF for a “graphic design” look.
+- **Where to add:** Admin dashboard → **Frontend** → **Home Hero Graphic** → upload `.json` (Lottie) or `.gif` → **Upload to S3** → choose type → **Save**. The app fetches from `GET /api/config/home-hero-media` and overlays the graphic on the red header.

@@ -7,9 +7,12 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/api_config.dart';
+import '../../services/app_remote_service.dart';
 import '../../services/cognito_service.dart';
 import '../../services/user_profile_service.dart';
 import '../../homepage.dart';
+import '../../widgets/auth_background_video.dart';
+import '../../widgets/app_logo_widget.dart';
 import 'complete_profile_page.dart';
 import 'otp_verification_page.dart';
 
@@ -33,10 +36,15 @@ class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateM
   bool _isLoading = false;
   bool _isGoogleLoading = false;
   bool _obscurePassword = true;
+  String? _authVideoUrl;
+  bool _authVideoActive = false;
+  String? _appLogoUrl;
 
   @override
   void initState() {
     super.initState();
+    _loadAuthVideoConfig();
+    _loadBranding();
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 1000),
       vsync: this,
@@ -59,6 +67,21 @@ class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateM
     ));
 
     _animationController.forward();
+  }
+
+  Future<void> _loadAuthVideoConfig() async {
+    final config = await AppRemoteService.getAuthVideoConfig();
+    if (!mounted) return;
+    setState(() {
+      _authVideoUrl = config?['videoUrl']?.toString();
+      _authVideoActive = config?['active'] == true;
+    });
+  }
+
+  Future<void> _loadBranding() async {
+    final config = await AppRemoteService.getAppBrandingConfig();
+    if (!mounted) return;
+    setState(() => _appLogoUrl = config?['appLogoUrl']?.toString());
   }
 
   @override
@@ -265,27 +288,33 @@ class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateM
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final logoSize = (size.width * 0.56).clamp(160.0, 260.0);
+    final showVideo = _authVideoUrl != null && _authVideoUrl!.isNotEmpty && _authVideoActive;
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              AppColors.burntOrange,
-              AppColors.warmBrown,
-              AppColors.warmAmber,
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            stops: const [0.0, 0.5, 1.0],
+      body: AuthBackgroundVideo(
+        videoUrl: _authVideoUrl,
+        active: _authVideoActive,
+        child: Container(
+          decoration: showVideo ? null : const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                AppColors.burntOrange,
+                AppColors.warmBrown,
+                AppColors.warmAmber,
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              stops: [0.0, 0.5, 1.0],
+            ),
           ),
-        ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-          child: FadeTransition(
-            opacity: _fadeAnimation,
-            child: SlideTransition(
-              position: _slideAnimation,
-              child: Padding(
+          child: SafeArea(
+            child: SingleChildScrollView(
+              child: FadeTransition(
+                opacity: _fadeAnimation,
+                child: SlideTransition(
+                  position: _slideAnimation,
+                  child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -303,36 +332,12 @@ class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateM
                     
                     const SizedBox(height: 20),
                     
-                    // Logo - Dyganox
+                    // Logo – large, transparent, no box
                     Center(
-                      child: Container(
-                        width: 100,
-                        height: 100,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.2),
-                              blurRadius: 20,
-                              offset: const Offset(0, 10),
-                            ),
-                          ],
-                        ),
-                        padding: const EdgeInsets.all(12),
-                        child: Image.asset(
-                          'assets/icons/dyganox_logo.png',
-                          fit: BoxFit.contain,
-                          errorBuilder: (_, __, ___) => Image.asset(
-                            'assets/icons/dyganox_splash_logo.png',
-                            fit: BoxFit.contain,
-                            errorBuilder: (_, __, ___) => const Icon(
-                              Icons.build_circle_outlined,
-                              size: 48,
-                              color: AppColors.burntOrange,
-                            ),
-                          ),
-                        ),
+                      child: AppLogoWidget(
+                        logoUrl: _appLogoUrl,
+                        size: logoSize,
+                        fallbackIconColor: AppColors.onBurntOrange,
                       ),
                     ),
                     
@@ -650,12 +655,13 @@ class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateM
                     const SizedBox(height: 40),
                   ],
                 ),
+                ),
               ),
             ),
           ),
         ),
-        ),
       ),
+    ),
     );
   }
 }

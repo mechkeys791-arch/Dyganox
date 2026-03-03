@@ -6,13 +6,17 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../../services/api_config.dart';
+import '../../services/app_remote_service.dart';
 import '../../services/cognito_service.dart';
+import '../../widgets/app_logo_widget.dart';
 import '../auth/otp_verification_page.dart';
 import 'mechanic_registration_comprehensive_page.dart';
 import 'mechanic_service_dashboard.dart';
 import 'mechanic_rejected_page.dart';
 import 'mechanic_suspended_page.dart';
 import 'mechanic_application_success_page.dart';
+import '../../widgets/custom_loading_widget.dart';
+import '../auth/user_type_selection_page.dart';
 
 class MechanicLoginRequestPage extends StatefulWidget {
   const MechanicLoginRequestPage({super.key});
@@ -30,11 +34,19 @@ class _MechanicLoginRequestPageState extends State<MechanicLoginRequestPage> {
   bool _obscurePassword = true;
   bool _isLoading = false;
   bool _checkingPending = true; // Check pending registration on load
+  String? _appLogoUrl;
 
   @override
   void initState() {
     super.initState();
     _checkPendingAndRoute();
+    _loadBranding();
+  }
+
+  Future<void> _loadBranding() async {
+    final config = await AppRemoteService.getAppBrandingConfig();
+    if (!mounted) return;
+    setState(() => _appLogoUrl = config?['appLogoUrl']?.toString());
   }
 
   /// If mechanic has a pending application, stay in success state or route to approved/rejected.
@@ -343,67 +355,80 @@ class _MechanicLoginRequestPageState extends State<MechanicLoginRequestPage> {
   @override
   Widget build(BuildContext context) {
     if (_checkingPending) {
-      return const Scaffold(
+      return Scaffold(
         backgroundColor: Colors.white,
-        body: Center(
-          child: CircularProgressIndicator(color: AppColors.warmAmber),
-        ),
+        body: CustomLoadingWidget.fullScreenOverlay(barrierColor: Colors.white),
       );
     }
+    final size = MediaQuery.of(context).size;
+    final logoSize = (size.width * 0.5).clamp(140.0, 220.0);
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 40),
-              
-              // Logo/Icon
-              Container(
-                width: 100,
-                height: 100,
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [AppColors.darkChocolate, AppColors.warmAmber],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+      backgroundColor: Colors.transparent,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [AppColors.burntOrange, AppColors.warmBrown, AppColors.warmAmber],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            stops: [0.0, 0.5, 1.0],
+          ),
+        ),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: 16),
+                // Back to Welcome (ProMech) page
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+                    onPressed: () {
+                      Navigator.of(context).pushReplacement(
+                        PageRouteBuilder(
+                          pageBuilder: (_, __, ___) => const UserTypeSelectionPage(),
+                          transitionsBuilder: (_, animation, __, child) => SlideTransition(
+                            position: Tween<Offset>(begin: const Offset(-1.0, 0.0), end: Offset.zero).animate(animation),
+                            child: child,
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                  shape: BoxShape.circle,
                 ),
-                child: const Icon(
-                  Icons.build_circle,
-                  size: 50,
-                  color: Colors.white,
+                const SizedBox(height: 16),
+                // Logo – large, transparent, no box
+                Center(
+                  child: AppLogoWidget(
+                    logoUrl: _appLogoUrl,
+                    size: logoSize,
+                    fallbackIconColor: Colors.white,
+                  ),
                 ),
-              ),
-              
-              const SizedBox(height: 32),
-              
-              // Title
-              Text(
-                _isLoginMode ? 'Mechanic Login' : 'Join as Mechanic',
-                style: GoogleFonts.outfit(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
+                const SizedBox(height: 32),
+                // Title
+                Text(
+                  _isLoginMode ? 'Mechanic Login' : 'Join as Mechanic',
+                  style: GoogleFonts.outfit(
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-                textAlign: TextAlign.center,
-              ),
-              
-              const SizedBox(height: 12),
-              
-              Text(
-                _isLoginMode 
-                    ? 'Login to access your dashboard'
-                    : 'Add email and password, then fill the form. After admin approves, log in to go to your dashboard.',
-                style: GoogleFonts.inter(
-                  fontSize: 16,
-                  color: AppColors.warmBrownMuted,
+                const SizedBox(height: 12),
+                Text(
+                  _isLoginMode
+                      ? 'Login to access your dashboard'
+                      : 'Add email and password, then fill the form. After admin approves, log in to go to your dashboard.',
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    color: Colors.white70,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-                textAlign: TextAlign.center,
-              ),
               
               const SizedBox(height: 48),
               
@@ -477,6 +502,7 @@ class _MechanicLoginRequestPageState extends State<MechanicLoginRequestPage> {
                   icon: Icons.email,
                   hint: 'Enter your email',
                   keyboardType: TextInputType.emailAddress,
+                  labelColor: Colors.white,
                 ),
                 const SizedBox(height: 20),
                 _buildTextField(
@@ -485,6 +511,7 @@ class _MechanicLoginRequestPageState extends State<MechanicLoginRequestPage> {
                   icon: Icons.lock,
                   hint: 'Enter your password',
                   obscureText: _obscurePassword,
+                  labelColor: Colors.white,
                   suffixIcon: IconButton(
                     icon: Icon(
                       _obscurePassword ? Icons.visibility : Icons.visibility_off,
@@ -531,6 +558,7 @@ class _MechanicLoginRequestPageState extends State<MechanicLoginRequestPage> {
                   label: 'Full Name',
                   icon: Icons.person,
                   hint: 'Enter your full name',
+                  labelColor: Colors.white,
                 ),
                 const SizedBox(height: 20),
                 _buildTextField(
@@ -539,6 +567,7 @@ class _MechanicLoginRequestPageState extends State<MechanicLoginRequestPage> {
                   icon: Icons.phone,
                   hint: 'e.g. 9876543210',
                   keyboardType: TextInputType.phone,
+                  labelColor: Colors.white,
                 ),
                 const SizedBox(height: 20),
                 _buildTextField(
@@ -547,6 +576,7 @@ class _MechanicLoginRequestPageState extends State<MechanicLoginRequestPage> {
                   icon: Icons.email,
                   hint: 'Enter your email',
                   keyboardType: TextInputType.emailAddress,
+                  labelColor: Colors.white,
                 ),
                 const SizedBox(height: 20),
                 _buildTextField(
@@ -555,6 +585,7 @@ class _MechanicLoginRequestPageState extends State<MechanicLoginRequestPage> {
                   icon: Icons.lock,
                   hint: 'Min 6 characters',
                   obscureText: _obscurePassword,
+                  labelColor: Colors.white,
                   suffixIcon: IconButton(
                     icon: Icon(
                       _obscurePassword ? Icons.visibility : Icons.visibility_off,
@@ -597,6 +628,7 @@ class _MechanicLoginRequestPageState extends State<MechanicLoginRequestPage> {
           ),
         ),
       ),
+    ),
     );
   }
 
@@ -608,6 +640,7 @@ class _MechanicLoginRequestPageState extends State<MechanicLoginRequestPage> {
     bool obscureText = false,
     TextInputType? keyboardType,
     Widget? suffixIcon,
+    Color? labelColor,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -617,6 +650,7 @@ class _MechanicLoginRequestPageState extends State<MechanicLoginRequestPage> {
           style: GoogleFonts.outfit(
             fontSize: 16,
             fontWeight: FontWeight.w600,
+            color: labelColor ?? Colors.black87,
           ),
         ),
         const SizedBox(height: 8),

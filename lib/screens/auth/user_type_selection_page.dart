@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:video_player/video_player.dart';
 import '../../services/cognito_service.dart';
+import '../../services/app_remote_service.dart';
 import '../../homepage.dart';
+import '../../widgets/app_logo_widget.dart';
 import 'login_page.dart';
 import '../mechanic/mechanic_login_request_page.dart';
 import '../../core/theme/app_colors.dart';
@@ -18,11 +21,18 @@ class _UserTypeSelectionPageState extends State<UserTypeSelectionPage>
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
+  String _welcomeTitle = 'Welcome to ProMech';
+  String? _appLogoUrl;
+  String? _welcomePageMediaUrl;
+  String? _welcomePageMediaType;
+  String? _welcomePageGifUrl;
+  bool _showGifAfterVideo = false;
+  VideoPlayerController? _welcomeVideoController;
 
   @override
   void initState() {
     super.initState();
-    
+    _loadBranding();
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
@@ -50,7 +60,62 @@ class _UserTypeSelectionPageState extends State<UserTypeSelectionPage>
   @override
   void dispose() {
     _animationController.dispose();
+    _welcomeVideoController?.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadBranding() async {
+    final config = await AppRemoteService.getAppBrandingConfig();
+    if (!mounted) return;
+    final welcomeUrl = config?['welcomePageMediaUrl']?.toString()?.trim();
+    final welcomeType = config?['welcomePageMediaType']?.toString()?.trim().toLowerCase();
+    final gifUrl = config?['welcomePageGifUrl']?.toString()?.trim();
+    setState(() {
+      _appLogoUrl = config?['appLogoUrl']?.toString();
+      final t = config?['welcomeTitle']?.toString();
+      if (t != null && t.isNotEmpty) _welcomeTitle = t;
+      _welcomePageMediaUrl = welcomeUrl;
+      _welcomePageMediaType = welcomeType;
+      _welcomePageGifUrl = (gifUrl != null && gifUrl.isNotEmpty) ? gifUrl : null;
+    });
+    if (welcomeUrl != null && welcomeUrl.isNotEmpty && welcomeType == 'video') {
+      _initWelcomeVideo(welcomeUrl, gifUrl != null && gifUrl.isNotEmpty);
+    }
+  }
+
+  Future<void> _initWelcomeVideo(String url, bool hasGifAfter) async {
+    try {
+      final c = VideoPlayerController.networkUrl(Uri.parse(url));
+      await c.initialize();
+      if (!mounted) {
+        c.dispose();
+        return;
+      }
+      await c.setLooping(!hasGifAfter);
+      await c.setVolume(0);
+      await c.play();
+      if (!mounted) return;
+      setState(() => _welcomeVideoController = c);
+      if (hasGifAfter) {
+        c.addListener(_onVideoPositionChanged);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _welcomeVideoController = null);
+    }
+  }
+
+  void _onVideoPositionChanged() {
+    final c = _welcomeVideoController;
+    if (c == null || !c.value.isInitialized || _welcomePageGifUrl == null) return;
+    final duration = c.value.duration;
+    final position = c.value.position;
+    if (duration.inMilliseconds > 0 && position.inMilliseconds >= duration.inMilliseconds - 100) {
+      c.removeListener(_onVideoPositionChanged);
+      c.pause();
+      if (mounted) {
+        setState(() => _showGifAfterVideo = true);
+      }
+    }
   }
 
   Future<void> _checkLoginStatus() async {
@@ -94,43 +159,79 @@ class _UserTypeSelectionPageState extends State<UserTypeSelectionPage>
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Logo Animation
+                  // Welcome page GIF/video (from admin). GIF auto-plays after video ends if set.
+                  if (_welcomePageMediaUrl != null && _welcomePageMediaUrl!.isNotEmpty ||
+                      _showGifAfterVideo && _welcomePageGifUrl != null) ...[
+                    AnimatedBuilder(
+                      animation: _animationController,
+                      builder: (context, _) {
+                        final w = MediaQuery.of(context).size.width;
+                        final mediaSize = (w * 0.6).clamp(160.0, 240.0);
+                        final gifUrl = _showGifAfterVideo ? _welcomePageGifUrl : null;
+                        if (gifUrl != null && gifUrl.isNotEmpty) {
+                          return FadeTransition(
+                            opacity: _fadeAnimation,
+                            child: Image.network(
+                              gifUrl,
+                              width: mediaSize,
+                              height: mediaSize,
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                            ),
+                          );
+                        }
+                        if (_welcomePageMediaType?.toLowerCase() == 'video' &&
+                            _welcomeVideoController != null &&
+                            _welcomeVideoController!.value.isInitialized) {
+                          return FadeTransition(
+                            opacity: _fadeAnimation,
+                            child: SizedBox(
+                              width: mediaSize,
+                              height: mediaSize,
+                              child: FittedBox(
+                                fit: BoxFit.cover,
+                                child: SizedBox(
+                                  width: _welcomeVideoController!.value.size.width,
+                                  height: _welcomeVideoController!.value.size.height,
+                                  child: VideoPlayer(_welcomeVideoController!),
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+                        if (_welcomePageMediaType?.toLowerCase() == 'gif' &&
+                            _welcomePageMediaUrl != null &&
+                            _welcomePageMediaUrl!.isNotEmpty) {
+                          return FadeTransition(
+                            opacity: _fadeAnimation,
+                            child: Image.network(
+                              _welcomePageMediaUrl!,
+                              width: mediaSize,
+                              height: mediaSize,
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                            ),
+                          );
+                        }
+                        return const SizedBox.shrink();
+                      },
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                  // Logo – large, transparent, no box
                   AnimatedBuilder(
                     animation: _animationController,
                     builder: (context, child) {
+                      final w = MediaQuery.of(context).size.width;
+                      final logoSize = (w * 0.62).clamp(180.0, 280.0);
                       return FadeTransition(
                         opacity: _fadeAnimation,
                         child: ScaleTransition(
                           scale: _scaleAnimation,
-                          child: Container(
-                            width: 120,
-                            height: 120,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(24),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.2),
-                                  blurRadius: 30,
-                                  offset: const Offset(0, 10),
-                                  spreadRadius: 5,
-                                ),
-                              ],
-                            ),
-                            padding: const EdgeInsets.all(16),
-                            child: Image.asset(
-                              'assets/icons/dyganox_logo.png',
-                              fit: BoxFit.contain,
-                              errorBuilder: (_, __, ___) => Image.asset(
-                                'assets/icons/dyganox_splash_logo.png',
-                                fit: BoxFit.contain,
-                                errorBuilder: (_, __, ___) => const Icon(
-                                  Icons.build_circle_outlined,
-                                  size: 56,
-                                  color: AppColors.burntOrange,
-                                ),
-                              ),
-                            ),
+                          child: AppLogoWidget(
+                            logoUrl: _appLogoUrl,
+                            size: logoSize,
+                            fallbackIconColor: Colors.white,
                           ),
                         ),
                       );
@@ -146,7 +247,7 @@ class _UserTypeSelectionPageState extends State<UserTypeSelectionPage>
                       return FadeTransition(
                         opacity: _fadeAnimation,
                         child: Text(
-                          'Welcome to Dyganox',
+                          _welcomeTitle,
                           style: GoogleFonts.outfit(
                             fontSize: 32,
                             fontWeight: FontWeight.bold,

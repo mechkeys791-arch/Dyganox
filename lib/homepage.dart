@@ -30,6 +30,7 @@ import 'emergency_assistance_page.dart';
 import 'screens/vehicles/vehicles_page.dart';
 import 'screens/vehicles/add_edit_vehicle_page.dart';
 import 'widgets/custom_nav_bar.dart';
+import 'widgets/home_hero_overlay.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:ui';
@@ -82,6 +83,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   int _updateLaterCount = 0;
   String? _lastSeenAppVersion;
 
+  // Home hero graphic (transparent Lottie/GIF on red header)
+  String _homeHeroMediaType = '';
+  String _homeHeroMediaUrl = '';
+  bool _homeHeroActive = false;
+
   // Responsive design variables
   late double screenWidth;
   late double screenHeight;
@@ -130,6 +136,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
     // Load default vehicle first, then banners (filtered by vehicle type)
     _loadDefaultVehicle();
+    // Load home hero graphic config (transparent overlay on red header)
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadHomeHeroConfig());
     // After first frame: check app version (show update dialog when needed)
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkPosterAndVersion());
 
@@ -180,8 +188,19 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     await _loadDefaultVehicle();
     await _loadBanners(_defaultVehicle?['type']?.toString());
     await _loadSelectedAddress();
+    await _loadHomeHeroConfig();
     _pingActivity();
     if (mounted) setState(() {});
+  }
+
+  Future<void> _loadHomeHeroConfig() async {
+    final config = await AppRemoteService.getHomeHeroMediaConfig();
+    if (!mounted) return;
+    setState(() {
+      _homeHeroMediaType = config?['mediaType']?.toString() ?? '';
+      _homeHeroMediaUrl = config?['mediaUrl']?.toString() ?? '';
+      _homeHeroActive = config?['active'] == true;
+    });
   }
 
   Future<void> _loadDefaultVehicle() async {
@@ -1432,7 +1451,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       ),
                     ],
                   ),
-                  child: Column(
+                  child: Stack(
+                    children: [
+                      HomeHeroOverlay(
+                        mediaType: _homeHeroMediaType,
+                        mediaUrl: _homeHeroMediaUrl,
+                        active: _homeHeroActive,
+                      ),
+                      Column(
                     children: [
                       // Top Bar with Location and Profile
                       Padding(
@@ -1549,6 +1575,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       ),
                       
                       const SizedBox(height: 20),
+                    ],
+                  ),
                     ],
                   ),
                 ),

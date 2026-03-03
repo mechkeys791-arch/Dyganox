@@ -1,7 +1,10 @@
 package com.example.demo.controller;
 
+import com.example.demo.model.AppBranding;
 import com.example.demo.model.AppVersionConfig;
+import com.example.demo.model.AuthBackgroundVideo;
 import com.example.demo.model.Banner;
+import com.example.demo.model.HomeHeroMedia;
 import com.example.demo.model.MarketingPoster;
 import com.example.demo.model.SectionPoster;
 import com.example.demo.model.Mechanic;
@@ -11,8 +14,11 @@ import com.example.demo.model.UserSupportPhotoPermission;
 import com.example.demo.model.MechanicRequest;
 import com.example.demo.model.Payment;
 import com.example.demo.model.Person;
+import com.example.demo.repository.AppBrandingRepo;
 import com.example.demo.repository.AppVersionConfigRepo;
+import com.example.demo.repository.AuthBackgroundVideoRepo;
 import com.example.demo.repository.BannerRepo;
+import com.example.demo.repository.HomeHeroMediaRepo;
 import com.example.demo.repository.MarketingPosterRepo;
 import com.example.demo.repository.SectionPosterRepo;
 import com.example.demo.repository.MechanicHelpMessageRepo;
@@ -66,6 +72,15 @@ public class AdminController {
 
     @Autowired
     private AppVersionConfigRepo appVersionConfigRepo;
+
+    @Autowired
+    private AuthBackgroundVideoRepo authBackgroundVideoRepo;
+
+    @Autowired
+    private HomeHeroMediaRepo homeHeroMediaRepo;
+
+    @Autowired
+    private AppBrandingRepo appBrandingRepo;
 
     @Autowired
     private UserAddressRepo userAddressRepo;
@@ -1178,6 +1193,128 @@ public class AdminController {
         if (!sectionPosterRepo.existsById(id)) return ResponseEntity.notFound().build();
         sectionPosterRepo.deleteById(id);
         return ResponseEntity.noContent().build();
+    }
+
+    // ========== AUTH BACKGROUND VIDEO (login/signup) ==========
+    @GetMapping("/auth-video")
+    public ResponseEntity<Map<String, Object>> getAuthVideo() {
+        Optional<AuthBackgroundVideo> opt = authBackgroundVideoRepo.findTop1ByOrderByIdDesc();
+        if (opt.isEmpty()) {
+            return ResponseEntity.ok(Map.of("id", (Object) null, "videoUrl", "", "active", false));
+        }
+        AuthBackgroundVideo c = opt.get();
+        Map<String, Object> body = new HashMap<>();
+        body.put("id", c.getId());
+        body.put("videoUrl", c.getVideoUrl() != null ? c.getVideoUrl() : "");
+        body.put("active", c.isActive());
+        return ResponseEntity.ok(body);
+    }
+
+    @PutMapping("/auth-video")
+    public ResponseEntity<AuthBackgroundVideo> updateAuthVideo(@RequestBody Map<String, Object> body) {
+        String videoUrl = body != null && body.get("videoUrl") != null ? body.get("videoUrl").toString().trim() : null;
+        Boolean active = body != null && body.get("active") != null ? Boolean.TRUE.equals(body.get("active")) : true;
+        AuthBackgroundVideo c = authBackgroundVideoRepo.findTop1ByOrderByIdDesc().orElse(new AuthBackgroundVideo());
+        c.setVideoUrl(videoUrl);
+        c.setActive(active != null ? active : true);
+        return ResponseEntity.ok(authBackgroundVideoRepo.save(c));
+    }
+
+    // ========== HOME HERO GRAPHIC (transparent overlay on red header) ==========
+    @GetMapping("/home-hero-media")
+    public ResponseEntity<Map<String, Object>> getHomeHeroMedia() {
+        Optional<HomeHeroMedia> opt = homeHeroMediaRepo.findTop1ByOrderByIdDesc();
+        if (opt.isEmpty()) {
+            return ResponseEntity.ok(Map.of("id", (Object) null, "mediaType", "", "mediaUrl", "", "active", false));
+        }
+        HomeHeroMedia c = opt.get();
+        Map<String, Object> out = new HashMap<>();
+        out.put("id", c.getId());
+        out.put("mediaType", c.getMediaType() != null ? c.getMediaType() : "");
+        out.put("mediaUrl", c.getMediaUrl() != null ? c.getMediaUrl() : "");
+        out.put("active", c.isActive());
+        return ResponseEntity.ok(out);
+    }
+
+    @PutMapping("/home-hero-media")
+    public ResponseEntity<HomeHeroMedia> updateHomeHeroMedia(@RequestBody Map<String, Object> body) {
+        String mediaType = body != null && body.get("mediaType") != null ? body.get("mediaType").toString().trim().toLowerCase() : null;
+        String mediaUrl = body != null && body.get("mediaUrl") != null ? body.get("mediaUrl").toString().trim() : null;
+        Boolean active = body != null && body.get("active") != null ? Boolean.TRUE.equals(body.get("active")) : true;
+        if (mediaType != null && !mediaType.isEmpty() && !"lottie".equals(mediaType) && !"gif".equals(mediaType)) {
+            mediaType = "lottie";
+        }
+        HomeHeroMedia c = homeHeroMediaRepo.findTop1ByOrderByIdDesc().orElse(new HomeHeroMedia());
+        if (mediaType != null) c.setMediaType(mediaType);
+        c.setMediaUrl(mediaUrl);
+        c.setActive(active != null ? active : true);
+        return ResponseEntity.ok(homeHeroMediaRepo.save(c));
+    }
+
+    // ========== APP BRANDING (logo, splash, welcome title) ==========
+    @GetMapping("/app-branding")
+    public ResponseEntity<Map<String, Object>> getAppBranding() {
+        Optional<AppBranding> opt = appBrandingRepo.findTop1ByOrderByIdDesc();
+        if (opt.isEmpty()) {
+            Map<String, Object> out = new HashMap<>();
+            out.put("id", null);
+            out.put("appLogoUrl", "");
+            out.put("splashMediaUrl", "");
+            out.put("splashMediaType", "");
+            out.put("welcomeTitle", "Welcome to ProMech");
+            out.put("welcomePageMediaUrl", "");
+            out.put("welcomePageMediaType", "");
+            out.put("welcomePageGifUrl", "");
+            out.put("loadingMediaUrl", "");
+            out.put("loadingMediaType", "");
+            return ResponseEntity.ok(out);
+        }
+        AppBranding c = opt.get();
+        Map<String, Object> out = new HashMap<>();
+        out.put("id", c.getId());
+        out.put("appLogoUrl", c.getAppLogoUrl() != null ? c.getAppLogoUrl() : "");
+        out.put("splashMediaUrl", c.getSplashMediaUrl() != null ? c.getSplashMediaUrl() : "");
+        out.put("splashMediaType", c.getSplashMediaType() != null ? c.getSplashMediaType() : "");
+        out.put("welcomeTitle", c.getWelcomeTitle() != null && !c.getWelcomeTitle().isEmpty() ? c.getWelcomeTitle() : "Welcome to ProMech");
+        out.put("welcomePageMediaUrl", c.getWelcomePageMediaUrl() != null ? c.getWelcomePageMediaUrl() : "");
+        out.put("welcomePageMediaType", c.getWelcomePageMediaType() != null ? c.getWelcomePageMediaType() : "");
+        out.put("welcomePageGifUrl", c.getWelcomePageGifUrl() != null ? c.getWelcomePageGifUrl() : "");
+        out.put("loadingMediaUrl", c.getLoadingMediaUrl() != null ? c.getLoadingMediaUrl() : "");
+        out.put("loadingMediaType", c.getLoadingMediaType() != null ? c.getLoadingMediaType() : "");
+        return ResponseEntity.ok(out);
+    }
+
+    @PutMapping("/app-branding")
+    public ResponseEntity<AppBranding> updateAppBranding(@RequestBody Map<String, Object> body) {
+        String appLogoUrl = body != null && body.get("appLogoUrl") != null ? body.get("appLogoUrl").toString().trim() : null;
+        String splashMediaUrl = body != null && body.get("splashMediaUrl") != null ? body.get("splashMediaUrl").toString().trim() : null;
+        String splashMediaType = body != null && body.get("splashMediaType") != null ? body.get("splashMediaType").toString().trim().toLowerCase() : null;
+        String welcomeTitle = body != null && body.get("welcomeTitle") != null ? body.get("welcomeTitle").toString().trim() : null;
+        String welcomePageMediaUrl = body != null && body.get("welcomePageMediaUrl") != null ? body.get("welcomePageMediaUrl").toString().trim() : null;
+        String welcomePageMediaType = body != null && body.get("welcomePageMediaType") != null ? body.get("welcomePageMediaType").toString().trim().toLowerCase() : null;
+        String welcomePageGifUrl = body != null && body.get("welcomePageGifUrl") != null ? body.get("welcomePageGifUrl").toString().trim() : null;
+        String loadingMediaUrl = body != null && body.get("loadingMediaUrl") != null ? body.get("loadingMediaUrl").toString().trim() : null;
+        String loadingMediaType = body != null && body.get("loadingMediaType") != null ? body.get("loadingMediaType").toString().trim().toLowerCase() : null;
+        if (splashMediaType != null && !splashMediaType.isEmpty() && !"lottie".equals(splashMediaType) && !"gif".equals(splashMediaType) && !"video".equals(splashMediaType)) {
+            splashMediaType = "lottie";
+        }
+        if (welcomePageMediaType != null && !welcomePageMediaType.isEmpty() && !"gif".equals(welcomePageMediaType) && !"video".equals(welcomePageMediaType)) {
+            welcomePageMediaType = "gif";
+        }
+        if (loadingMediaType != null && !loadingMediaType.isEmpty() && !"lottie".equals(loadingMediaType) && !"gif".equals(loadingMediaType)) {
+            loadingMediaType = "gif";
+        }
+        AppBranding c = appBrandingRepo.findTop1ByOrderByIdDesc().orElse(new AppBranding());
+        if (appLogoUrl != null) c.setAppLogoUrl(appLogoUrl);
+        if (splashMediaUrl != null) c.setSplashMediaUrl(splashMediaUrl);
+        if (splashMediaType != null) c.setSplashMediaType(splashMediaType);
+        if (welcomeTitle != null) c.setWelcomeTitle(welcomeTitle);
+        if (welcomePageMediaUrl != null) c.setWelcomePageMediaUrl(welcomePageMediaUrl);
+        if (welcomePageMediaType != null) c.setWelcomePageMediaType(welcomePageMediaType);
+        if (welcomePageGifUrl != null) c.setWelcomePageGifUrl(welcomePageGifUrl);
+        if (loadingMediaUrl != null) c.setLoadingMediaUrl(loadingMediaUrl);
+        if (loadingMediaType != null) c.setLoadingMediaType(loadingMediaType);
+        return ResponseEntity.ok(appBrandingRepo.save(c));
     }
 
     // ========== APP VERSION (force update) ==========

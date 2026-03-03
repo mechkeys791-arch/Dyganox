@@ -20,7 +20,16 @@ const API_CONFIG = {
         banners: '/api/admin/banners',
         uploadBanner: '/api/upload/banner',
         poster: '/api/admin/poster',
-        appVersion: '/api/admin/app-version'
+        appVersion: '/api/admin/app-version',
+        authVideo: '/api/admin/auth-video',
+        uploadAuthVideo: '/api/upload/auth-video',
+        homeHeroMedia: '/api/admin/home-hero-media',
+        uploadHomeHeroMedia: '/api/upload/home-hero-media',
+        appBranding: '/api/admin/app-branding',
+        uploadAppLogo: '/api/upload/app-logo',
+        uploadSplashMedia: '/api/upload/splash-media',
+        uploadWelcomePageMedia: '/api/upload/welcome-page-media',
+        uploadLoadingMedia: '/api/upload/loading-media'
     }
 };
 

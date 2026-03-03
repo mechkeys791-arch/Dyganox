@@ -1,8 +1,15 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'api_config.dart';
 
 class AppRemoteService {
+  /// Cached loading media URL/type from app branding (used by CustomLoadingWidget).
+  static String? get cachedLoadingUrl => _cachedLoadingUrl;
+  static String? get cachedLoadingType => _cachedLoadingType;
+  static String? _cachedLoadingUrl;
+  static String? _cachedLoadingType;
+
   /// GET active marketing poster for location. Pass city/state and optionally lat/lng (for area circle). Returns null if none or error – app then shows homepage.
   static Future<Map<String, dynamic>?> getActivePoster({String? city, String? state, double? lat, double? lng}) async {
     try {
@@ -30,6 +37,59 @@ class AppRemoteService {
       }
     } catch (_) {}
     return [];
+  }
+
+  /// GET home hero graphic config (transparent Lottie/GIF on red header). Returns { mediaType, mediaUrl, active }.
+  static Future<Map<String, dynamic>?> getHomeHeroMediaConfig() async {
+    try {
+      final r = await http.get(Uri.parse('${ApiConfig.baseUrl}/api/config/home-hero-media')).timeout(const Duration(seconds: 5));
+      if (r.statusCode == 200) {
+        return Map<String, dynamic>.from(jsonDecode(r.body) as Map);
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  /// GET auth background video config for login/signup. Returns { videoUrl: String?, active: bool }.
+  static Future<Map<String, dynamic>?> getAuthVideoConfig() async {
+    try {
+      final r = await http.get(Uri.parse('${ApiConfig.baseUrl}/api/config/auth-video')).timeout(const Duration(seconds: 10));
+      if (r.statusCode == 200) {
+        final map = Map<String, dynamic>.from(jsonDecode(r.body) as Map);
+        final url = map['videoUrl']?.toString()?.trim();
+        if (url != null && url.isEmpty) map['videoUrl'] = null;
+        return map;
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('Auth video config failed: $e');
+    }
+    return null;
+  }
+
+  /// GET app branding: appLogoUrl, splashMediaUrl, splashMediaType, welcomeTitle (e.g. "Welcome to ProMech").
+  static Future<Map<String, dynamic>?> getAppBrandingConfig() async {
+    try {
+      final r = await http.get(Uri.parse('${ApiConfig.baseUrl}/api/config/app-branding')).timeout(const Duration(seconds: 10));
+      if (r.statusCode == 200) {
+        final map = Map<String, dynamic>.from(jsonDecode(r.body) as Map);
+        final logoUrl = map['appLogoUrl']?.toString()?.trim();
+        final splashUrl = map['splashMediaUrl']?.toString()?.trim();
+        final welcomePageUrl = map['welcomePageMediaUrl']?.toString()?.trim();
+        if (logoUrl != null && logoUrl.isEmpty) map['appLogoUrl'] = null;
+        if (splashUrl != null && splashUrl.isEmpty) map['splashMediaUrl'] = null;
+        if (welcomePageUrl != null && welcomePageUrl.isEmpty) map['welcomePageMediaUrl'] = null;
+        final welcomePageGifUrl = map['welcomePageGifUrl']?.toString()?.trim();
+        if (welcomePageGifUrl != null && welcomePageGifUrl.isEmpty) map['welcomePageGifUrl'] = null;
+        final loadingUrl = map['loadingMediaUrl']?.toString()?.trim();
+        if (loadingUrl != null && loadingUrl.isEmpty) map['loadingMediaUrl'] = null;
+        _cachedLoadingUrl = map['loadingMediaUrl']?.toString();
+        _cachedLoadingType = map['loadingMediaType']?.toString();
+        return map;
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('App branding config failed: $e');
+    }
+    return null;
   }
 
   /// Version check. currentVersion e.g. 1.0.0. Returns map with updateAvailable, latestVersion, minRequiredVersion, updateTitle, updateMessage.

@@ -118,7 +118,10 @@ function switchSection(section) {
         'user-support': 'User Support',
         'mechanic-help': 'Mechanic Help Chat',
         'vehicle-catalog': 'Vehicle Catalog',
-        'marketing-poster': 'Marketing Poster'
+        'marketing-poster': 'Marketing Poster',
+        'auth-video': 'Auth Background Video',
+        'home-hero': 'Home Hero Graphic',
+        'app-branding': 'App Branding'
     };
     document.getElementById('page-title').textContent = titles[section] || 'Dashboard';
     
@@ -177,6 +180,15 @@ function switchSection(section) {
             break;
         case 'marketing-poster':
             loadMarketingPoster();
+            break;
+        case 'auth-video':
+            loadAuthVideo();
+            break;
+        case 'home-hero':
+            loadHomeHeroMedia();
+            break;
+        case 'app-branding':
+            loadAppBranding();
             break;
         case 'app-update':
             loadAppVersion();
@@ -2465,6 +2477,389 @@ async function savePoster() {
             if (r.ok) { showSuccess('Poster saved'); document.getElementById('poster-image-input').value = ''; loadMarketingPoster(); } else showError('Save failed');
         }
     } catch (e) { showError('Failed'); }
+}
+
+// ========== AUTH BACKGROUND VIDEO ==========
+async function loadAuthVideo() {
+    const urlEl = document.getElementById('auth-video-url');
+    const activeEl = document.getElementById('auth-video-active');
+    const previewWrap = document.getElementById('auth-video-preview-wrap');
+    const preview = document.getElementById('auth-video-preview');
+    const statusEl = document.getElementById('auth-video-save-status');
+    if (!urlEl) return;
+    try {
+        const r = await fetch(getApiUrl(API_CONFIG.endpoints.authVideo));
+        if (r.ok) {
+            const d = await r.json();
+            urlEl.value = d.videoUrl || '';
+            activeEl.checked = d.active !== false;
+            if (d.videoUrl) {
+                previewWrap.style.display = 'block';
+                preview.src = d.videoUrl;
+            } else {
+                previewWrap.style.display = 'none';
+                preview.removeAttribute('src');
+            }
+            if (statusEl) statusEl.textContent = '';
+        }
+    } catch (e) {
+        if (statusEl) statusEl.textContent = 'Failed to load: ' + (e.message || e);
+    }
+}
+
+async function uploadAuthVideo() {
+    const fileInput = document.getElementById('auth-video-file');
+    const urlEl = document.getElementById('auth-video-url');
+    const statusEl = document.getElementById('auth-video-upload-status');
+    const btn = document.getElementById('auth-video-upload-btn');
+    if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+        if (statusEl) statusEl.textContent = 'Select an MP4 file first.';
+        return;
+    }
+    const file = fileInput.files[0];
+    if (!file.type || !file.type.includes('video') && !file.name.toLowerCase().endsWith('.mp4')) {
+        if (statusEl) statusEl.textContent = 'Only MP4 format is supported.';
+        return;
+    }
+    if (btn) btn.disabled = true;
+    if (statusEl) statusEl.textContent = 'Uploading...';
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+        const r = await fetch(getApiUrl(API_CONFIG.endpoints.uploadAuthVideo), {
+            method: 'POST',
+            body: formData
+        });
+        const data = await r.json().catch(() => ({}));
+        if (r.ok && data.url) {
+            urlEl.value = data.url;
+            statusEl.textContent = 'Uploaded. Click Save to apply.';
+            const previewWrap = document.getElementById('auth-video-preview-wrap');
+            const preview = document.getElementById('auth-video-preview');
+            if (previewWrap && preview) {
+                previewWrap.style.display = 'block';
+                preview.src = data.url;
+            }
+        } else {
+            statusEl.textContent = data.error || 'Upload failed';
+        }
+    } catch (e) {
+        if (statusEl) statusEl.textContent = 'Error: ' + (e.message || e);
+    }
+    if (btn) btn.disabled = false;
+}
+
+// ========== HOME HERO MEDIA ==========
+async function loadHomeHeroMedia() {
+    const urlEl = document.getElementById('home-hero-url');
+    const typeEl = document.getElementById('home-hero-type');
+    const activeEl = document.getElementById('home-hero-active');
+    const statusEl = document.getElementById('home-hero-save-status');
+    if (!urlEl) return;
+    try {
+        const r = await fetch(getApiUrl(API_CONFIG.endpoints.homeHeroMedia));
+        if (r.ok) {
+            const d = await r.json();
+            urlEl.value = d.mediaUrl || '';
+            if (typeEl) typeEl.value = (d.mediaType || 'lottie') === 'gif' ? 'gif' : 'lottie';
+            if (activeEl) activeEl.checked = d.active !== false;
+            if (statusEl) statusEl.textContent = '';
+        }
+    } catch (e) {
+        if (statusEl) statusEl.textContent = 'Failed to load: ' + (e.message || e);
+    }
+}
+
+async function uploadHomeHeroMedia() {
+    const fileInput = document.getElementById('home-hero-file');
+    const urlEl = document.getElementById('home-hero-url');
+    const typeEl = document.getElementById('home-hero-type');
+    const statusEl = document.getElementById('home-hero-upload-status');
+    const btn = document.getElementById('home-hero-upload-btn');
+    if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+        if (statusEl) statusEl.textContent = 'Select a .json (Lottie) or .gif file first.';
+        return;
+    }
+    const file = fileInput.files[0];
+    const name = (file.name || '').toLowerCase();
+    if (!name.endsWith('.json') && !name.endsWith('.gif')) {
+        if (statusEl) statusEl.textContent = 'Only Lottie (.json) or GIF (.gif) are supported.';
+        return;
+    }
+    if (btn) btn.disabled = true;
+    if (statusEl) statusEl.textContent = 'Uploading...';
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+        const r = await fetch(getApiUrl(API_CONFIG.endpoints.uploadHomeHeroMedia), { method: 'POST', body: formData });
+        const data = await r.json().catch(() => ({}));
+        if (r.ok && data.url) {
+            urlEl.value = data.url;
+            if (typeEl) typeEl.value = name.endsWith('.gif') ? 'gif' : 'lottie';
+            statusEl.textContent = 'Uploaded. Click Save to apply.';
+        } else {
+            statusEl.textContent = data.error || 'Upload failed';
+        }
+    } catch (e) {
+        if (statusEl) statusEl.textContent = 'Error: ' + (e.message || e);
+    }
+    if (btn) btn.disabled = false;
+}
+
+async function saveHomeHeroMedia() {
+    const urlEl = document.getElementById('home-hero-url');
+    const typeEl = document.getElementById('home-hero-type');
+    const activeEl = document.getElementById('home-hero-active');
+    const statusEl = document.getElementById('home-hero-save-status');
+    const mediaUrl = urlEl ? urlEl.value.trim() : '';
+    const mediaType = typeEl ? typeEl.value : 'lottie';
+    const active = activeEl ? activeEl.checked : true;
+    try {
+        const r = await fetch(getApiUrl(API_CONFIG.endpoints.homeHeroMedia), {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mediaType, mediaUrl: mediaUrl || null, active })
+        });
+        if (r.ok) {
+            statusEl.textContent = 'Saved. Home red header will show the graphic when active.';
+            setTimeout(() => { statusEl.textContent = ''; }, 4000);
+        } else {
+            const err = await r.json().catch(() => ({}));
+            statusEl.textContent = err.error || err.message || 'Save failed';
+        }
+    } catch (e) {
+        statusEl.textContent = 'Failed: ' + (e.message || e);
+    }
+}
+
+// ========== APP BRANDING ==========
+async function loadAppBranding() {
+    const logoUrlEl = document.getElementById('app-branding-logo-url');
+    const welcomeEl = document.getElementById('app-branding-welcome-title');
+    const splashUrlEl = document.getElementById('app-branding-splash-url');
+    const splashTypeEl = document.getElementById('app-branding-splash-type');
+    const welcomePageUrlEl = document.getElementById('app-branding-welcome-page-url');
+    const welcomePageTypeEl = document.getElementById('app-branding-welcome-page-type');
+    const loadingUrlEl = document.getElementById('app-branding-loading-url');
+    const loadingTypeEl = document.getElementById('app-branding-loading-type');
+    const statusEl = document.getElementById('app-branding-save-status');
+    if (!logoUrlEl) return;
+    try {
+        const r = await fetch(getApiUrl(API_CONFIG.endpoints.appBranding));
+        if (r.ok) {
+            const d = await r.json();
+            logoUrlEl.value = d.appLogoUrl || '';
+            if (welcomeEl) welcomeEl.value = d.welcomeTitle || 'Welcome to ProMech';
+            if (splashUrlEl) splashUrlEl.value = d.splashMediaUrl || '';
+            if (splashTypeEl) splashTypeEl.value = (d.splashMediaType || 'lottie') === 'video' ? 'video' : (d.splashMediaType === 'gif' ? 'gif' : 'lottie');
+            if (welcomePageUrlEl) welcomePageUrlEl.value = d.welcomePageMediaUrl || '';
+            if (welcomePageTypeEl) welcomePageTypeEl.value = (d.welcomePageMediaType || 'gif') === 'video' ? 'video' : 'gif';
+            const welcomePageGifUrlEl = document.getElementById('app-branding-welcome-page-gif-url');
+            if (welcomePageGifUrlEl) welcomePageGifUrlEl.value = d.welcomePageGifUrl || '';
+            if (loadingUrlEl) loadingUrlEl.value = d.loadingMediaUrl || '';
+            if (loadingTypeEl) loadingTypeEl.value = (d.loadingMediaType || 'lottie') === 'gif' ? 'gif' : 'lottie';
+            if (statusEl) statusEl.textContent = '';
+        }
+    } catch (e) {
+        if (statusEl) statusEl.textContent = 'Failed to load: ' + (e.message || e);
+    }
+}
+
+async function uploadAppLogo() {
+    const fileInput = document.getElementById('app-branding-logo-file');
+    const urlEl = document.getElementById('app-branding-logo-url');
+    const statusEl = document.getElementById('app-branding-logo-upload-status');
+    const btn = document.getElementById('app-branding-logo-upload-btn');
+    if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+        if (statusEl) statusEl.textContent = 'Select a PNG/JPG/WebP file first.';
+        return;
+    }
+    if (btn) btn.disabled = true;
+    if (statusEl) statusEl.textContent = 'Uploading...';
+    try {
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+        const r = await fetch(getApiUrl(API_CONFIG.endpoints.uploadAppLogo), { method: 'POST', body: formData });
+        const data = await r.json().catch(() => ({}));
+        if (r.ok && data.url) {
+            urlEl.value = data.url;
+            statusEl.textContent = 'Uploaded. Click Save to apply.';
+        } else {
+            statusEl.textContent = data.error || 'Upload failed';
+        }
+    } catch (e) {
+        if (statusEl) statusEl.textContent = 'Error: ' + (e.message || e);
+    }
+    if (btn) btn.disabled = false;
+}
+
+async function uploadSplashMedia() {
+    const fileInput = document.getElementById('app-branding-splash-file');
+    const urlEl = document.getElementById('app-branding-splash-url');
+    const typeEl = document.getElementById('app-branding-splash-type');
+    const statusEl = document.getElementById('app-branding-splash-upload-status');
+    const btn = document.getElementById('app-branding-splash-upload-btn');
+    if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+        if (statusEl) statusEl.textContent = 'Select .json (Lottie), .gif, or .mp4 first.';
+        return;
+    }
+    const name = (fileInput.files[0].name || '').toLowerCase();
+    if (btn) btn.disabled = true;
+    if (statusEl) statusEl.textContent = 'Uploading...';
+    try {
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+        const r = await fetch(getApiUrl(API_CONFIG.endpoints.uploadSplashMedia), { method: 'POST', body: formData });
+        const data = await r.json().catch(() => ({}));
+        if (r.ok && data.url) {
+            urlEl.value = data.url;
+            if (typeEl) typeEl.value = name.endsWith('.mp4') ? 'video' : (name.endsWith('.gif') ? 'gif' : 'lottie');
+            statusEl.textContent = 'Uploaded. Click Save to apply.';
+        } else {
+            statusEl.textContent = data.error || 'Upload failed';
+        }
+    } catch (e) {
+        if (statusEl) statusEl.textContent = 'Error: ' + (e.message || e);
+    }
+    if (btn) btn.disabled = false;
+}
+
+async function uploadWelcomePageMedia() {
+    const fileInput = document.getElementById('app-branding-welcome-page-file');
+    const urlEl = document.getElementById('app-branding-welcome-page-url');
+    const typeEl = document.getElementById('app-branding-welcome-page-type');
+    const statusEl = document.getElementById('app-branding-welcome-page-upload-status');
+    const btn = document.getElementById('app-branding-welcome-page-upload-btn');
+    if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+        if (statusEl) statusEl.textContent = 'Select a .gif or .mp4 file first.';
+        return;
+    }
+    const name = (fileInput.files[0].name || '').toLowerCase();
+    if (btn) btn.disabled = true;
+    if (statusEl) statusEl.textContent = 'Uploading...';
+    try {
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+        const r = await fetch(getApiUrl(API_CONFIG.endpoints.uploadWelcomePageMedia), { method: 'POST', body: formData });
+        const data = await r.json().catch(() => ({}));
+        if (r.ok && data.url) {
+            urlEl.value = data.url;
+            if (typeEl) typeEl.value = name.endsWith('.mp4') ? 'video' : 'gif';
+            statusEl.textContent = 'Uploaded. Click Save to apply.';
+        } else {
+            statusEl.textContent = data.error || 'Upload failed';
+        }
+    } catch (e) {
+        if (statusEl) statusEl.textContent = 'Error: ' + (e.message || e);
+    }
+    if (btn) btn.disabled = false;
+}
+
+async function uploadLoadingMedia() {
+    const fileInput = document.getElementById('app-branding-loading-file');
+    const urlEl = document.getElementById('app-branding-loading-url');
+    const typeEl = document.getElementById('app-branding-loading-type');
+    const statusEl = document.getElementById('app-branding-loading-upload-status');
+    const btn = document.getElementById('app-branding-loading-upload-btn');
+    if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+        if (statusEl) statusEl.textContent = 'Select a .json (Lottie) or .gif file first.';
+        return;
+    }
+    const name = (fileInput.files[0].name || '').toLowerCase();
+    if (btn) btn.disabled = true;
+    if (statusEl) statusEl.textContent = 'Uploading...';
+    try {
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+        const r = await fetch(getApiUrl(API_CONFIG.endpoints.uploadLoadingMedia), { method: 'POST', body: formData });
+        const data = await r.json().catch(() => ({}));
+        if (r.ok && data.url) {
+            urlEl.value = data.url;
+            if (typeEl) typeEl.value = name.endsWith('.gif') ? 'gif' : 'lottie';
+            statusEl.textContent = 'Uploaded. Click Save to apply.';
+        } else {
+            statusEl.textContent = data.error || 'Upload failed';
+        }
+    } catch (e) {
+        if (statusEl) statusEl.textContent = 'Error: ' + (e.message || e);
+    }
+    if (btn) btn.disabled = false;
+}
+
+async function saveAppBranding() {
+    const logoUrlEl = document.getElementById('app-branding-logo-url');
+    const welcomeEl = document.getElementById('app-branding-welcome-title');
+    const splashUrlEl = document.getElementById('app-branding-splash-url');
+    const splashTypeEl = document.getElementById('app-branding-splash-type');
+    const welcomePageUrlEl = document.getElementById('app-branding-welcome-page-url');
+    const welcomePageTypeEl = document.getElementById('app-branding-welcome-page-type');
+    const welcomePageGifUrlEl = document.getElementById('app-branding-welcome-page-gif-url');
+    const loadingUrlEl = document.getElementById('app-branding-loading-url');
+    const loadingTypeEl = document.getElementById('app-branding-loading-type');
+    const statusEl = document.getElementById('app-branding-save-status');
+    const appLogoUrl = logoUrlEl ? logoUrlEl.value.trim() : '';
+    const welcomeTitle = welcomeEl ? welcomeEl.value.trim() : 'Welcome to ProMech';
+    const splashMediaUrl = splashUrlEl ? splashUrlEl.value.trim() : '';
+    const splashMediaType = splashTypeEl ? splashTypeEl.value : 'lottie';
+    const welcomePageMediaUrl = welcomePageUrlEl ? welcomePageUrlEl.value.trim() : '';
+    const welcomePageMediaType = welcomePageTypeEl ? welcomePageTypeEl.value : 'gif';
+    const welcomePageGifUrl = welcomePageGifUrlEl ? welcomePageGifUrlEl.value.trim() : '';
+    const loadingMediaUrl = loadingUrlEl ? loadingUrlEl.value.trim() : '';
+    const loadingMediaType = loadingTypeEl ? loadingTypeEl.value : 'lottie';
+    try {
+        const r = await fetch(getApiUrl(API_CONFIG.endpoints.appBranding), {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                appLogoUrl: appLogoUrl || null,
+                welcomeTitle: welcomeTitle || 'Welcome to ProMech',
+                splashMediaUrl: splashMediaUrl || null,
+                splashMediaType: splashMediaType || 'lottie',
+                welcomePageMediaUrl: welcomePageMediaUrl || null,
+                welcomePageMediaType: welcomePageMediaType || 'gif',
+                welcomePageGifUrl: welcomePageGifUrl || null,
+                loadingMediaUrl: loadingMediaUrl || null,
+                loadingMediaType: loadingMediaType || 'lottie'
+            })
+        });
+        if (r.ok) {
+            statusEl.textContent = 'Saved. Reloading…';
+            await loadAppBranding();
+            statusEl.textContent = 'Saved. Restart the app (or reopen the screen) to see the logo.';
+            setTimeout(() => { statusEl.textContent = ''; }, 6000);
+        } else {
+            const err = await r.json().catch(() => ({}));
+            statusEl.textContent = err.error || err.message || 'Save failed';
+        }
+    } catch (e) {
+        statusEl.textContent = 'Failed: ' + (e.message || e);
+    }
+}
+
+async function saveAuthVideo() {
+    const urlEl = document.getElementById('auth-video-url');
+    const activeEl = document.getElementById('auth-video-active');
+    const statusEl = document.getElementById('auth-video-save-status');
+    const videoUrl = urlEl ? urlEl.value.trim() : '';
+    const active = activeEl ? activeEl.checked : true;
+    try {
+        const r = await fetch(getApiUrl(API_CONFIG.endpoints.authVideo), {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ videoUrl: videoUrl || null, active })
+        });
+        if (r.ok) {
+            statusEl.textContent = 'Saved. Reloading…';
+            await loadAuthVideo();
+            statusEl.textContent = videoUrl ? 'Saved. Restart the app (or reopen login/signup) to see the video.' : 'Saved. Upload a video first, then Save again to show it in the app.';
+            setTimeout(() => { statusEl.textContent = ''; }, 6000);
+        } else {
+            const err = await r.json().catch(() => ({}));
+            statusEl.textContent = err.error || err.message || 'Save failed';
+        }
+    } catch (e) {
+        statusEl.textContent = 'Failed: ' + (e.message || e);
+    }
 }
 
 // ========== APP VERSION ==========

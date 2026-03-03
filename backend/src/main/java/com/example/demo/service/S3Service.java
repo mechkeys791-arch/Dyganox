@@ -107,6 +107,114 @@ public class S3Service {
         return String.format("https://%s.s3.amazonaws.com/%s", bucket, key);
     }
 
+    /** Upload auth background video (login/signup). MP4 only. Returns public S3 URL. */
+    public String uploadAuthVideo(MultipartFile file) throws IOException {
+        if (s3Client == null) {
+            throw new IllegalStateException("S3 is not configured.");
+        }
+        String ext = getExtension(file.getOriginalFilename(), "mp4");
+        if (!"mp4".equalsIgnoreCase(ext)) {
+            throw new IllegalArgumentException("Only MP4 format is supported for auth background video.");
+        }
+        String key = String.format("auth-video/%s.%s", UUID.randomUUID(), ext);
+        String contentType = file.getContentType() != null ? file.getContentType() : "video/mp4";
+        upload(key, contentType, file.getBytes());
+        return String.format("https://%s.s3.amazonaws.com/%s", bucket, key);
+    }
+
+    /** Upload home hero graphic: Lottie (.json) or GIF. Transparent overlay on red header. Returns public S3 URL. */
+    public String uploadHomeHeroMedia(MultipartFile file) throws IOException {
+        if (s3Client == null) {
+            throw new IllegalStateException("S3 is not configured.");
+        }
+        String ext = getExtension(file.getOriginalFilename(), "json");
+        String contentType;
+        if ("json".equalsIgnoreCase(ext)) {
+            contentType = "application/json";
+        } else if ("gif".equalsIgnoreCase(ext)) {
+            contentType = file.getContentType() != null ? file.getContentType() : "image/gif";
+        } else {
+            throw new IllegalArgumentException("Only Lottie (.json) or GIF (.gif) are supported for home hero graphic.");
+        }
+        String key = String.format("home-hero/%s.%s", UUID.randomUUID(), ext);
+        upload(key, contentType, file.getBytes());
+        return String.format("https://%s.s3.amazonaws.com/%s", bucket, key);
+    }
+
+    /** Upload app logo (transparent PNG). Used in splash, user type, login, signup, mechanic. */
+    public String uploadAppLogo(MultipartFile file) throws IOException {
+        if (s3Client == null) {
+            throw new IllegalStateException("S3 is not configured.");
+        }
+        String ext = getExtension(file.getOriginalFilename(), "png");
+        if (!"png".equalsIgnoreCase(ext) && !"jpg".equalsIgnoreCase(ext) && !"jpeg".equalsIgnoreCase(ext) && !"webp".equalsIgnoreCase(ext)) {
+            throw new IllegalArgumentException("App logo should be PNG, JPG, or WebP (transparent PNG recommended).");
+        }
+        String key = String.format("app-branding/logo/%s.%s", UUID.randomUUID(), ext);
+        String contentType = file.getContentType() != null ? file.getContentType() : "image/png";
+        upload(key, contentType, file.getBytes());
+        return String.format("https://%s.s3.amazonaws.com/%s", bucket, key);
+    }
+
+    /** Upload splash animation: Lottie (.json), GIF, or MP4. */
+    public String uploadSplashMedia(MultipartFile file) throws IOException {
+        if (s3Client == null) {
+            throw new IllegalStateException("S3 is not configured.");
+        }
+        String ext = getExtension(file.getOriginalFilename(), "json");
+        String contentType;
+        if ("json".equalsIgnoreCase(ext)) {
+            contentType = "application/json";
+        } else if ("gif".equalsIgnoreCase(ext)) {
+            contentType = file.getContentType() != null ? file.getContentType() : "image/gif";
+        } else if ("mp4".equalsIgnoreCase(ext)) {
+            contentType = "video/mp4";
+        } else {
+            throw new IllegalArgumentException("Splash media must be Lottie (.json), GIF (.gif), or MP4 (.mp4).");
+        }
+        String key = String.format("app-branding/splash/%s.%s", UUID.randomUUID(), ext);
+        upload(key, contentType, file.getBytes());
+        return String.format("https://%s.s3.amazonaws.com/%s", bucket, key);
+    }
+
+    /** Upload welcome page media (I'm User / I'm Mechanic screen): GIF or MP4. */
+    public String uploadWelcomePageMedia(MultipartFile file) throws IOException {
+        if (s3Client == null) {
+            throw new IllegalStateException("S3 is not configured.");
+        }
+        String ext = getExtension(file.getOriginalFilename(), "gif");
+        String contentType;
+        if ("gif".equalsIgnoreCase(ext)) {
+            contentType = file.getContentType() != null ? file.getContentType() : "image/gif";
+        } else if ("mp4".equalsIgnoreCase(ext)) {
+            contentType = "video/mp4";
+        } else {
+            throw new IllegalArgumentException("Welcome page media must be GIF (.gif) or MP4 (.mp4).");
+        }
+        String key = String.format("app-branding/welcome/%s.%s", UUID.randomUUID(), ext);
+        upload(key, contentType, file.getBytes());
+        return String.format("https://%s.s3.amazonaws.com/%s", bucket, key);
+    }
+
+    /** Upload custom loading animation (e.g. car going): Lottie (.json) or GIF. */
+    public String uploadLoadingMedia(MultipartFile file) throws IOException {
+        if (s3Client == null) {
+            throw new IllegalStateException("S3 is not configured.");
+        }
+        String ext = getExtension(file.getOriginalFilename(), "json");
+        String contentType;
+        if ("json".equalsIgnoreCase(ext)) {
+            contentType = "application/json";
+        } else if ("gif".equalsIgnoreCase(ext)) {
+            contentType = file.getContentType() != null ? file.getContentType() : "image/gif";
+        } else {
+            throw new IllegalArgumentException("Loading media must be Lottie (.json) or GIF (.gif).");
+        }
+        String key = String.format("app-branding/loading/%s.%s", UUID.randomUUID(), ext);
+        upload(key, contentType, file.getBytes());
+        return String.format("https://%s.s3.amazonaws.com/%s", bucket, key);
+    }
+
     private void upload(String key, String contentType, byte[] bytes) {
         PutObjectRequest req = PutObjectRequest.builder()
                 .bucket(bucket)

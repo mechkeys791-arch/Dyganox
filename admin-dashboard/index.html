@@ -57,6 +57,18 @@
                         <i class="fas fa-bullhorn"></i>
                         <span>Marketing Poster</span>
                     </a>
+                    <a href="#" class="nav-item" data-section="auth-video">
+                        <i class="fas fa-video"></i>
+                        <span>Auth Background Video</span>
+                    </a>
+                    <a href="#" class="nav-item" data-section="home-hero">
+                        <i class="fas fa-image"></i>
+                        <span>Home Hero Graphic</span>
+                    </a>
+                    <a href="#" class="nav-item" data-section="app-branding">
+                        <i class="fas fa-palette"></i>
+                        <span>App Branding</span>
+                    </a>
                     <a href="#" class="nav-item" data-section="app-update">
                         <i class="fas fa-mobile-alt"></i>
                         <span>App Update</span>
@@ -834,6 +846,154 @@
                             <button type="button" class="btn-action btn-reject" onclick="cancelPosterEdit()">Cancel</button>
                         </div>
                     </div>
+                </div>
+            </section>
+
+            <!-- Auth background video (login / signup) -->
+            <section id="auth-video-section" class="content-section">
+                <div class="section-header">
+                    <h2>Auth Background Video</h2>
+                    <p class="section-subtitle">Video played as background on <strong>Login</strong> and <strong>Sign up</strong> screens. MP4 only. Recommended: 9:16 aspect ratio (e.g. 1080×1920) for mobile, under 15MB. Video is scaled to cover the screen (BoxFit.cover).</p>
+                    <p class="section-subtitle" style="margin-top:8px;color:#e67e22;"><strong>Steps:</strong> 1) Choose MP4 → <strong>Upload to S3</strong> (if you see an error, S3 may not be configured – see backend S3_SETUP.md). 2) The URL will appear below; then click <strong>Save</strong>. 3) Fully <strong>restart the app</strong> (or reopen login/signup) to see the video.</p>
+                </div>
+                <div class="chart-card">
+                    <div class="form-group">
+                        <label>Upload MP4 video</label>
+                        <input type="file" id="auth-video-file" accept="video/mp4,.mp4" style="margin-bottom:8px;">
+                        <button type="button" class="btn-action btn-approve" id="auth-video-upload-btn" onclick="uploadAuthVideo()">Upload to S3</button>
+                        <span id="auth-video-upload-status" class="muted" style="margin-left:8px;"></span>
+                    </div>
+                    <div class="form-group">
+                        <label>Video URL (set automatically after upload, or paste S3 URL)</label>
+                        <input type="url" id="auth-video-url" class="support-reply-input" placeholder="https://bucket.s3.amazonaws.com/auth-video/xxx.mp4">
+                    </div>
+                    <div class="form-group" id="auth-video-preview-wrap" style="display:none;">
+                        <label>Preview</label>
+                        <video id="auth-video-preview" controls style="max-width:280px;max-height:400px;border-radius:8px;background:#000;" muted loop playsinline></video>
+                    </div>
+                    <div class="form-group">
+                        <label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="auth-video-active" checked> Show video on Login &amp; Sign up screens</label>
+                    </div>
+                    <button type="button" class="btn-action btn-approve" onclick="saveAuthVideo()">Save</button>
+                    <p id="auth-video-save-status" class="muted" style="margin-top:8px;"></p>
+                </div>
+            </section>
+
+            <!-- Home hero graphic (transparent Lottie/GIF on red header) -->
+            <section id="home-hero-section" class="content-section">
+                <div class="section-header">
+                    <h2>Home Hero Graphic</h2>
+                    <p class="section-subtitle">Transparent graphic overlay on the <strong>red header</strong> (Hello! / What service do you need today?). Use <strong>Lottie (.json)</strong> or <strong>GIF</strong> for transparency; the red gradient stays as background. Upload to S3 then Save.</p>
+                </div>
+                <div class="chart-card">
+                    <div class="form-group">
+                        <label>Upload Lottie (.json) or GIF</label>
+                        <input type="file" id="home-hero-file" accept=".json,.gif,application/json,image/gif" style="margin-bottom:8px;">
+                        <button type="button" class="btn-action btn-approve" id="home-hero-upload-btn" onclick="uploadHomeHeroMedia()">Upload to S3</button>
+                        <span id="home-hero-upload-status" class="muted" style="margin-left:8px;"></span>
+                    </div>
+                    <div class="form-group">
+                        <label>Type</label>
+                        <select id="home-hero-type" class="support-reply-input" style="max-width:200px;">
+                            <option value="lottie">Lottie (.json)</option>
+                            <option value="gif">GIF</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Media URL (set after upload or paste S3 URL)</label>
+                        <input type="url" id="home-hero-url" class="support-reply-input" placeholder="https://bucket.s3.amazonaws.com/home-hero/xxx.json">
+                    </div>
+                    <div class="form-group">
+                        <label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="home-hero-active" checked> Show graphic on home red header</label>
+                    </div>
+                    <button type="button" class="btn-action btn-approve" onclick="saveHomeHeroMedia()">Save</button>
+                    <p id="home-hero-save-status" class="muted" style="margin-top:8px;"></p>
+                </div>
+            </section>
+
+            <!-- App Branding (logo, splash, welcome title) -->
+            <section id="app-branding-section" class="content-section">
+                <div class="section-header">
+                    <h2>App Branding</h2>
+                    <p class="section-subtitle">App logo (transparent PNG) and welcome text used on <strong>Splash</strong>, <strong>Welcome to ProMech</strong>, <strong>Login</strong>, <strong>Sign up</strong>, and <strong>Mechanic</strong> screens. Optional splash animation (Lottie/GIF/MP4) plays when the app opens.</p>
+                    <p class="section-subtitle" style="margin-top:8px;color:#e67e22;"><strong>Steps:</strong> 1) Choose logo image → <strong>Upload to S3</strong> (if you see an error, S3 may not be configured). 2) The URL will appear; then click <strong>Save</strong>. 3) Fully <strong>restart the app</strong> to see the logo.</p>
+                </div>
+                <div class="chart-card">
+                    <div class="form-group">
+                        <label>App logo (transparent PNG recommended; no background)</label>
+                        <input type="file" id="app-branding-logo-file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" style="margin-bottom:8px;">
+                        <button type="button" class="btn-action btn-approve" id="app-branding-logo-upload-btn" onclick="uploadAppLogo()">Upload to S3</button>
+                        <span id="app-branding-logo-upload-status" class="muted" style="margin-left:8px;"></span>
+                    </div>
+                    <div class="form-group">
+                        <label>App logo URL (set after upload or paste URL)</label>
+                        <input type="url" id="app-branding-logo-url" class="support-reply-input" placeholder="https://bucket.s3.amazonaws.com/app-branding/logo/xxx.png">
+                    </div>
+                    <div class="form-group">
+                        <label>Welcome title (e.g. "Welcome to ProMech")</label>
+                        <input type="text" id="app-branding-welcome-title" class="support-reply-input" placeholder="Welcome to ProMech">
+                    </div>
+                    <hr style="margin:16px 0;">
+                    <div class="form-group">
+                        <label>Optional: Splash animation (Lottie .json, GIF, or MP4) – plays when app opens</label>
+                        <input type="file" id="app-branding-splash-file" accept=".json,.gif,.mp4,application/json,image/gif,video/mp4" style="margin-bottom:8px;">
+                        <button type="button" class="btn-action btn-approve" id="app-branding-splash-upload-btn" onclick="uploadSplashMedia()">Upload to S3</button>
+                        <span id="app-branding-splash-upload-status" class="muted" style="margin-left:8px;"></span>
+                    </div>
+                    <div class="form-group">
+                        <label>Splash media type</label>
+                        <select id="app-branding-splash-type" class="support-reply-input" style="max-width:200px;">
+                            <option value="lottie">Lottie (.json)</option>
+                            <option value="gif">GIF</option>
+                            <option value="video">Video (MP4)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Splash media URL (set after upload or paste URL)</label>
+                        <input type="url" id="app-branding-splash-url" class="support-reply-input" placeholder="https://bucket.s3.amazonaws.com/app-branding/splash/xxx.json">
+                    </div>
+                    <hr style="margin:16px 0;">
+                    <div class="form-group">
+                        <label><strong>Welcome page (I'm a User / I'm a Mechanic)</strong> – GIF or video on the white screen with two cards</label>
+                        <input type="file" id="app-branding-welcome-page-file" accept=".gif,.mp4,image/gif,video/mp4" style="margin-bottom:8px;">
+                        <button type="button" class="btn-action btn-approve" id="app-branding-welcome-page-upload-btn" onclick="uploadWelcomePageMedia()">Upload to S3</button>
+                        <span id="app-branding-welcome-page-upload-status" class="muted" style="margin-left:8px;"></span>
+                    </div>
+                    <div class="form-group">
+                        <label>Welcome page media type</label>
+                        <select id="app-branding-welcome-page-type" class="support-reply-input" style="max-width:200px;">
+                            <option value="gif">GIF</option>
+                            <option value="video">Video (MP4)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Welcome page media URL (set after upload or paste URL)</label>
+                        <input type="url" id="app-branding-welcome-page-url" class="support-reply-input" placeholder="https://bucket.s3.amazonaws.com/app-branding/welcome/xxx.gif">
+                    </div>
+                    <div class="form-group">
+                        <label>GIF to auto-play after video ends (optional – upload a GIF and paste URL here)</label>
+                        <input type="url" id="app-branding-welcome-page-gif-url" class="support-reply-input" placeholder="https://bucket.s3.amazonaws.com/app-branding/welcome/xxx.gif">
+                    </div>
+                    <hr style="margin:16px 0;">
+                    <div class="form-group">
+                        <label><strong>Custom loading (e.g. car going)</strong> – shown when the app or an image is loading (full screen for whole page, small for single image)</label>
+                        <input type="file" id="app-branding-loading-file" accept=".json,.gif,application/json,image/gif" style="margin-bottom:8px;">
+                        <button type="button" class="btn-action btn-approve" id="app-branding-loading-upload-btn" onclick="uploadLoadingMedia()">Upload to S3</button>
+                        <span id="app-branding-loading-upload-status" class="muted" style="margin-left:8px;"></span>
+                    </div>
+                    <div class="form-group">
+                        <label>Loading media type</label>
+                        <select id="app-branding-loading-type" class="support-reply-input" style="max-width:200px;">
+                            <option value="lottie">Lottie (.json)</option>
+                            <option value="gif">GIF</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Loading media URL (set after upload or paste URL)</label>
+                        <input type="url" id="app-branding-loading-url" class="support-reply-input" placeholder="https://bucket.s3.amazonaws.com/app-branding/loading/xxx.json">
+                    </div>
+                    <button type="button" class="btn-action btn-approve" onclick="saveAppBranding()">Save</button>
+                    <p id="app-branding-save-status" class="muted" style="margin-top:8px;"></p>
                 </div>
             </section>
 
