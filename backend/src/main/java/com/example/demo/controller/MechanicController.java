@@ -179,7 +179,13 @@ public class MechanicController {
         m.setStatus("Available");
         m.setMaxServingRadiusKm(20);
         m.setPerKmCharge(3.0);
-        m.setServiceCategories(mapSpecialtyToCategories(req.getSpecialty()));
+        String baseCategories = mapSpecialtyToCategories(req.getSpecialty());
+        String services = req.getServices() != null ? req.getServices().toLowerCase() : "";
+        if (services.contains("towing")) {
+            baseCategories = baseCategories == null || baseCategories.isBlank()
+                    ? "towing_service" : baseCategories + ",towing_service";
+        }
+        m.setServiceCategories(baseCategories);
         String tempPassword = generateTempPassword();
         m.setPassword(passwordEncoder.encode(tempPassword));
         m.setPasswordSet(true);

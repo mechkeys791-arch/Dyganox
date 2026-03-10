@@ -44,6 +44,7 @@ class _MechanicServicesPageState extends State<MechanicServicesPage> {
     {'name': 'Body Works', 'icon': Icons.directions_car, 'color': Color(0xFF8B5CF6)},
     {'name': 'Tire Service', 'icon': Icons.album_outlined, 'color': Color(0xFFEC4899)},
     {'name': 'Battery Service', 'icon': Icons.battery_charging_full, 'color': Color(0xFF14B8A6)},
+    {'name': 'Towing Service', 'icon': Icons.local_shipping, 'color': Color(0xFFE65100)},
   ];
   
   @override

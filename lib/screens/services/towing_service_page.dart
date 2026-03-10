@@ -1,11 +1,18 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
 import '../../core/theme/app_colors.dart';
 import '../../services/api_config.dart';
+import '../../services/cognito_service.dart';
+import '../../services/vehicle_service.dart';
+import '../profile/location_picker_map_page.dart';
 
+/// Flow: 1) What happened → 2) Location (pickup/drop) → 3) Vehicle (auto) → 4) Towing providers
 class TowingServicePage extends StatefulWidget {
   const TowingServicePage({super.key});
 
@@ -13,236 +20,944 @@ class TowingServicePage extends StatefulWidget {
   State<TowingServicePage> createState() => _TowingServicePageState();
 }
 
-class _TowingServicePageState extends State<TowingServicePage> with TickerProviderStateMixin {
-  late AnimationController _fadeController;
-  late AnimationController _slideController;
-  late Animation<double> _fadeAnimation;
-  late Animation<Offset> _slideAnimation;
+class _TowingServicePageState extends State<TowingServicePage>
+    with TickerProviderStateMixin {
+  int _step = 0;
 
-  String selectedVehicleType = 'car';
-  String selectedDistance = 'local';
+  // Step 1: What happened
+  String? _incidentType;
 
-  List<Map<String, dynamic>> _towingMechanics = [];
-  bool _isLoadingMechanics = true;
+  // Step 2: Location
+  double? _pickupLat;
+  double? _pickupLng;
+  String _pickupAddress = 'Tap to set pickup location';
+  double? _dropLat;
+  double? _dropLng;
+  String _dropAddress = 'Select destination';
+  double _estimatedDistanceKm = 0;
 
-  Future<void> _fetchTowingMechanics() async {
-    setState(() => _isLoadingMechanics = true);
-    try {
-      final response = await http.get(
-        Uri.parse(ApiConfig.mechanicEndpoint),
-        headers: {'Content-Type': 'application/json'},
-      );
-      if (response.statusCode == 200 && mounted) {
-        final List<dynamic> data = jsonDecode(response.body);
-        final towing = data.where((m) {
-          final s = (m['specialty']?.toString() ?? '').toLowerCase();
-          return s.contains('tow') || s.contains('towing') || s.contains('recovery');
-        }).toList();
-        setState(() {
-          _towingMechanics = towing.asMap().entries.map((e) {
-            final m = e.value;
-            final id = m['id'];
-            return {
-              'name': m['name']?.toString() ?? 'Mechanic',
-              'experience': m['experience']?.toString() ?? 'Experience not specified',
-              'rating': (4.0 + (id is int ? id % 10 : 0) * 0.1).toStringAsFixed(1),
-              'distance': '${(1.0 + (id is int ? id % 5 : 0) * 0.5).toStringAsFixed(1)} km',
-              'speciality': m['specialty']?.toString() ?? 'Towing',
-            };
-          }).toList();
-          _isLoadingMechanics = false;
-        });
-      } else {
-        if (mounted) setState(() { _towingMechanics = []; _isLoadingMechanics = false; });
-      }
-    } catch (_) {
-      if (mounted) setState(() { _towingMechanics = []; _isLoadingMechanics = false; });
-    }
-  }
+  // Step 3: Vehicle (from profile)
+  List<Map<String, dynamic>> _userVehicles = [];
+  Map<String, dynamic>? _selectedVehicle;
+  bool _loadingVehicles = false;
+
+  // Step 4: Towing providers
+  List<Map<String, dynamic>> _towingProviders = [];
+  bool _loadingProviders = false;
+
+  static const List<Map<String, String>> _incidentOptions = [
+    {'id': 'breakdown', 'label': 'Breakdown', 'emoji': '🚗'},
+    {'id': 'accident', 'label': 'Accident', 'emoji': '💥'},
+    {'id': 'not_starting', 'label': 'Vehicle not starting', 'emoji': '🛻'},
+    {'id': 'flat_tyre', 'label': 'Flat tyre (needs towing)', 'emoji': '🛞'},
+    {'id': 'other', 'label': 'Other', 'emoji': '📍'},
+  ];
 
   @override
   void initState() {
     super.initState();
-    _fetchTowingMechanics();
-    _fadeController = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this,
+    _getCurrentLocationForPickup();
+  }
+
+  Future<void> _getCurrentLocationForPickup() async {
+    try {
+      if (!await Geolocator.isLocationServiceEnabled()) return;
+      LocationPermission perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
+      }
+      if (perm == LocationPermission.deniedForever ||
+          perm == LocationPermission.denied) return;
+
+      Position pos = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high);
+
+      if (!mounted) return;
+      setState(() {
+        _pickupLat = pos.latitude;
+        _pickupLng = pos.longitude;
+      });
+      await _reverseGeocodePickup();
+    } catch (_) {}
+  }
+
+  Future<void> _reverseGeocodePickup() async {
+    if (_pickupLat == null || _pickupLng == null) return;
+    try {
+      List<Placemark> pm =
+          await placemarkFromCoordinates(_pickupLat!, _pickupLng!);
+      if (pm.isNotEmpty && mounted) {
+        final p = pm.first;
+        final addr = [
+          p.street,
+          p.subLocality,
+          p.locality,
+          p.administrativeArea,
+        ].where((x) => x != null && x.toString().isNotEmpty).join(', ');
+        setState(() {
+          _pickupAddress = addr.isNotEmpty ? addr : 'Current Location';
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _pickupAddress = 'Current Location');
+    }
+  }
+
+  Future<void> _reverseGeocodeDrop() async {
+    if (_dropLat == null || _dropLng == null) return;
+    try {
+      List<Placemark> pm =
+          await placemarkFromCoordinates(_dropLat!, _dropLng!);
+      if (pm.isNotEmpty && mounted) {
+        final p = pm.first;
+        final addr = [
+          p.street,
+          p.subLocality,
+          p.locality,
+          p.administrativeArea,
+        ].where((x) => x != null && x.toString().isNotEmpty).join(', ');
+        setState(() {
+          _dropAddress = addr.isNotEmpty ? addr : 'Selected destination';
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _dropAddress = 'Selected destination');
+    }
+  }
+
+  void _updateEstimatedDistance() {
+    if (_pickupLat != null &&
+        _pickupLng != null &&
+        _dropLat != null &&
+        _dropLng != null) {
+      final d = Geolocator.distanceBetween(
+            _pickupLat!,
+            _pickupLng!,
+            _dropLat!,
+            _dropLng!,
+          ) /
+          1000;
+      setState(() => _estimatedDistanceKm = d);
+    } else {
+      setState(() => _estimatedDistanceKm = 0);
+    }
+  }
+
+  Future<void> _editPickupLocation() async {
+    LatLng? init = _pickupLat != null && _pickupLng != null
+        ? LatLng(_pickupLat!, _pickupLng!)
+        : null;
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => LocationPickerMapPage(
+          initialPosition: init,
+          forMechanicShop: true,
+        ),
+      ),
     );
-    
-    _slideController = AnimationController(
-      duration: const Duration(milliseconds: 1000),
-      vsync: this,
+    if (result != null && mounted) {
+      final lat = result['latitude'] as num?;
+      final lng = result['longitude'] as num?;
+      if (lat != null && lng != null) {
+        setState(() {
+          _pickupLat = lat.toDouble();
+          _pickupLng = lng.toDouble();
+          _pickupAddress = result['fullAddress']?.toString() ?? 'Selected';
+        });
+        _reverseGeocodePickup();
+        _updateEstimatedDistance();
+      }
+    }
+  }
+
+  Future<void> _selectDropLocation() async {
+    LatLng? init = _dropLat != null && _dropLng != null
+        ? LatLng(_dropLat!, _dropLng!)
+        : (_pickupLat != null && _pickupLng != null
+            ? LatLng(_pickupLat!, _pickupLng!)
+            : null);
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => LocationPickerMapPage(
+          initialPosition: init,
+          forMechanicShop: true,
+        ),
+      ),
     );
+    if (result != null && mounted) {
+      final lat = result['latitude'] as num?;
+      final lng = result['longitude'] as num?;
+      if (lat != null && lng != null) {
+        setState(() {
+          _dropLat = lat.toDouble();
+          _dropLng = lng.toDouble();
+          _dropAddress = result['fullAddress']?.toString() ?? 'Selected';
+        });
+        _reverseGeocodeDrop();
+        _updateEstimatedDistance();
+      }
+    }
+  }
 
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _fadeController,
-      curve: Curves.easeInOut,
-    ));
+  Future<void> _loadUserVehicles() async {
+    setState(() => _loadingVehicles = true);
+    try {
+      final user = await CognitoService.getCurrentUser();
+      final email = user['email']?.toString() ?? '';
+      if (email.isEmpty) {
+        if (mounted) setState(() { _userVehicles = []; _loadingVehicles = false; });
+        return;
+      }
+      final list = await VehicleService.getMyVehicles(email);
+      if (!mounted) return;
+      setState(() {
+        _userVehicles = list;
+        _selectedVehicle = list.isNotEmpty ? list.first : null;
+        _loadingVehicles = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() { _userVehicles = []; _loadingVehicles = false; });
+    }
+  }
 
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.3),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _slideController,
-      curve: Curves.easeOutCubic,
-    ));
+  Future<void> _fetchTowingProviders() async {
+    setState(() => _loadingProviders = true);
+    try {
+      final lat = _pickupLat ?? 12.9716;
+      final lng = _pickupLng ?? 77.5946;
+      final uri = Uri.parse(
+          '${ApiConfig.mechanicEndpoint}/by-category')
+          .replace(queryParameters: {
+        'problemCategory': 'towing_service',
+        'lat': lat.toString(),
+        'lng': lng.toString(),
+        'radiusKm': '20',
+      });
+      final r = await http.get(uri, headers: {'Content-Type': 'application/json'});
+      if (r.statusCode == 200 && mounted) {
+        final data = jsonDecode(r.body);
+        final list = data is List ? data : (data is Map && data['content'] != null)
+            ? data['content'] as List
+            : [];
+        setState(() {
+          _towingProviders = list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+          _loadingProviders = false;
+        });
+      } else {
+        if (mounted) setState(() {
+          _towingProviders = [];
+          _loadingProviders = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() {
+        _towingProviders = [];
+        _loadingProviders = false;
+      });
+    }
+  }
 
-    _fadeController.forward();
-    _slideController.forward();
+  void _goNext() {
+    if (_step == 0 && _incidentType != null) {
+      setState(() => _step = 1);
+    } else if (_step == 1) {
+      if (_pickupLat != null && _pickupLng != null) {
+        setState(() => _step = 2);
+        _loadUserVehicles();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Please set pickup location',
+              style: GoogleFonts.outfit(),
+            ),
+            backgroundColor: AppColors.burntOrange,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } else if (_step == 2) {
+      setState(() => _step = 3);
+      _fetchTowingProviders();
+    }
+  }
+
+  void _goBack() {
+    if (_step > 0) setState(() => _step--);
+    else Navigator.pop(context);
   }
 
   @override
-  void dispose() {
-    _fadeController.dispose();
-    _slideController.dispose();
-    super.dispose();
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.cream,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.creamElevated,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: const Icon(Icons.arrow_back, color: Colors.black, size: 20),
+          ),
+          onPressed: _goBack,
+        ),
+        title: Text(
+          _step == 0
+              ? 'Towing Service'
+              : _step == 1
+                  ? 'Location'
+                  : _step == 2
+                      ? 'Vehicle'
+                      : 'Towing Providers',
+          style: GoogleFonts.outfit(
+            color: Colors.black,
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        centerTitle: true,
+      ),
+      body: SafeArea(
+        child: _step == 0
+            ? _buildIncidentStep()
+            : _step == 1
+                ? _buildLocationStep()
+                : _step == 2
+                    ? _buildVehicleStep()
+                    : _buildProvidersStep(),
+      ),
+    );
   }
 
-  Widget _buildTowingServiceCard({
-    required String title,
-    required String description,
-    required String iconPath,
-    required String price,
-    required int index,
-    required VoidCallback onTap,
-  }) {
-    return AnimatedBuilder(
-      animation: Listenable.merge([_fadeAnimation, _slideAnimation]),
-      builder: (context, child) {
-        return Transform.translate(
-          offset: Offset(0, _slideAnimation.value.dy * 50 * (index + 1)),
-          child: Opacity(
-            opacity: _fadeAnimation.value,
-            child: Container(
-              margin: const EdgeInsets.all(8),
+  Widget _buildIncidentStep() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [AppColors.burntOrange, AppColors.warmBrown],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.burntOrange.withOpacity(0.3),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.creamElevated.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Image.asset(
+                    'assets/icons/tow-truck.png',
+                    width: 32,
+                    height: 32,
+                    color: AppColors.creamElevated,
+                    errorBuilder: (_, __, ___) => Icon(
+                      Icons.local_shipping,
+                      color: AppColors.creamElevated,
+                      size: 32,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Professional Towing',
+                        style: GoogleFonts.outfit(
+                          color: AppColors.creamElevated,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '24/7 emergency response • Safe & reliable',
+                        style: GoogleFonts.inter(
+                          color: AppColors.creamElevated.withOpacity(0.9),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 28),
+          Text(
+            'What happened to your vehicle?',
+            style: GoogleFonts.outfit(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 20),
+          ...List.generate(_incidentOptions.length, (i) {
+            final opt = _incidentOptions[i];
+            final selected = _incidentType == opt['id'];
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
               child: Material(
-                elevation: 8,
-                borderRadius: BorderRadius.circular(20),
-                color: AppColors.creamElevated,
-                shadowColor: AppColors.burntOrange.withOpacity(0.2),
+                elevation: selected ? 6 : 2,
+                borderRadius: BorderRadius.circular(16),
+                color: selected
+                    ? AppColors.burntOrange.withOpacity(0.15)
+                    : AppColors.creamElevated,
                 child: InkWell(
                   onTap: () {
                     HapticFeedback.lightImpact();
-                    onTap();
+                    setState(() => _incidentType = opt['id']);
                   },
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(16),
                   child: Container(
-                    padding: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 18),
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      gradient: LinearGradient(
-                        colors: [
-                          AppColors.creamElevated,
-                          AppColors.burntOrange.withOpacity(0.02),
-                        ],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                      ),
+                      borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: AppColors.burntOrange.withOpacity(0.1),
-                        width: 1,
+                        color: selected
+                            ? AppColors.burntOrange
+                            : AppColors.burntOrange.withOpacity(0.15),
+                        width: selected ? 2 : 1,
                       ),
                     ),
                     child: Row(
                       children: [
-                        Container(
-                          width: 60,
-                          height: 60,
-                          decoration: BoxDecoration(
-                            color: AppColors.burntOrange.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: AppColors.burntOrange.withOpacity(0.2),
-                              width: 1,
-                            ),
-                          ),
-                          child: Center(
-                            child: Image.asset(
-                              iconPath,
-                              width: 32,
-                              height: 32,
-                              fit: BoxFit.contain,
-                            ),
-                          ),
+                        Text(
+                          opt['emoji']!,
+                          style: const TextStyle(fontSize: 28),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                title,
-                                style: GoogleFonts.outfit(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                description,
-                                style: GoogleFonts.inter(
-                                  fontSize: 13,
-                                  color: Colors.grey[600],
-                                  height: 1.3,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: AppColors.burntOrange.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  'Starting at $price',
-                                  style: GoogleFonts.outfit(
-                                    fontSize: 12,
-                                    color: AppColors.burntOrange,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ],
+                          child: Text(
+                            opt['label']!,
+                            style: GoogleFonts.outfit(
+                              fontSize: 16,
+                              fontWeight:
+                                  selected ? FontWeight.bold : FontWeight.w600,
+                              color: Colors.black87,
+                            ),
                           ),
                         ),
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: AppColors.burntOrange.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(
-                            Icons.arrow_forward_ios,
-                            color: AppColors.burntOrange,
-                            size: 16,
-                          ),
-                        ),
+                        if (selected)
+                          Icon(Icons.check_circle,
+                              color: AppColors.burntOrange, size: 24),
                       ],
                     ),
                   ),
                 ),
               ),
+            );
+          }),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _incidentType != null ? _goNext : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.burntOrange,
+                disabledBackgroundColor: Colors.grey[300],
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: Text(
+                'Continue',
+                style: GoogleFonts.outfit(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
             ),
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 
-  Widget _buildMechanicCard({
-    required String name,
-    required String experience,
-    required String rating,
-    required String distance,
-    required String speciality,
-    required int index,
-  }) {
+  Widget _buildLocationStep() {
+    final showMap = _pickupLat != null && _pickupLng != null;
+    final center = showMap
+        ? LatLng(_pickupLat!, _pickupLng!)
+        : const LatLng(12.9716, 77.5946);
+    final markers = <Marker>{};
+    if (_pickupLat != null && _pickupLng != null) {
+      markers.add(
+        Marker(
+          markerId: const MarkerId('pickup'),
+          position: LatLng(_pickupLat!, _pickupLng!),
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+        ),
+      );
+    }
+    if (_dropLat != null && _dropLng != null) {
+      markers.add(
+        Marker(
+          markerId: const MarkerId('drop'),
+          position: LatLng(_dropLat!, _dropLng!),
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+        ),
+      );
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (showMap) ...[
+            Container(
+              height: 180,
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: GoogleMap(
+                  initialCameraPosition: CameraPosition(
+                    target: center,
+                    zoom: markers.length == 2 ? 12 : 14,
+                  ),
+                  markers: markers,
+                  myLocationEnabled: true,
+                  myLocationButtonEnabled: false,
+                  zoomControlsEnabled: false,
+                  mapToolbarEnabled: false,
+                  liteModeEnabled: true,
+                ),
+              ),
+            ),
+          ],
+          Text(
+            'Pickup Location',
+            style: GoogleFonts.outfit(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Material(
+            elevation: 2,
+            borderRadius: BorderRadius.circular(12),
+            child: InkWell(
+              onTap: _editPickupLocation,
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.creamElevated,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                      color: AppColors.burntOrange.withOpacity(0.2), width: 1),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.location_on, color: AppColors.burntOrange),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '📍 Current Location',
+                            style: GoogleFonts.outfit(
+                              fontSize: 12,
+                              color: AppColors.burntOrange,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _pickupAddress,
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              color: Colors.black87,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      'Edit Location',
+                      style: GoogleFonts.outfit(
+                        fontSize: 12,
+                        color: AppColors.burntOrange,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'Drop Location (optional)',
+            style: GoogleFonts.outfit(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Material(
+            elevation: 2,
+            borderRadius: BorderRadius.circular(12),
+            child: InkWell(
+              onTap: _selectDropLocation,
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.creamElevated,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                      color: AppColors.burntOrange.withOpacity(0.2), width: 1),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.place, color: AppColors.burntOrange),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        _dropAddress,
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          color: _dropLat != null
+                              ? Colors.black87
+                              : Colors.grey[600],
+                        ),
+                      ),
+                    ),
+                    Icon(Icons.chevron_right, color: Colors.grey[600]),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          if (_estimatedDistanceKm > 0) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: AppColors.burntOrange.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.straighten, color: AppColors.burntOrange, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Estimated distance: ${_estimatedDistanceKm.toStringAsFixed(1)} km',
+                    style: GoogleFonts.outfit(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.burntOrange,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 28),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _pickupLat != null && _pickupLng != null
+                  ? _goNext
+                  : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.burntOrange,
+                disabledBackgroundColor: Colors.grey[300],
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: Text(
+                'Continue →',
+                style: GoogleFonts.outfit(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVehicleStep() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Vehicle details are taken from your profile.',
+            style: GoogleFonts.outfit(
+              fontSize: 14,
+              color: Colors.grey[600],
+            ),
+          ),
+          const SizedBox(height: 20),
+          if (_loadingVehicles)
+            const Center(
+                child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: CircularProgressIndicator(color: AppColors.burntOrange)))
+          else if (_userVehicles.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: AppColors.creamElevated,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.burntOrange.withOpacity(0.2)),
+              ),
+              child: Column(
+                children: [
+                  Icon(Icons.directions_car_outlined,
+                      size: 48, color: Colors.grey[400]),
+                  const SizedBox(height: 12),
+                  Text(
+                    'No vehicle in profile',
+                    style: GoogleFonts.outfit(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Add a vehicle in profile for mechanics to prepare.',
+                    style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[500]),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            )
+          else
+            ..._userVehicles.map((v) {
+              final isSelected = _selectedVehicle?['id'] == v['id'];
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Material(
+                  elevation: isSelected ? 4 : 1,
+                  borderRadius: BorderRadius.circular(12),
+                  color: isSelected
+                      ? AppColors.burntOrange.withOpacity(0.1)
+                      : AppColors.creamElevated,
+                  child: InkWell(
+                    onTap: () => setState(() => _selectedVehicle = v),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isSelected
+                              ? AppColors.burntOrange
+                              : Colors.grey[300]!,
+                          width: isSelected ? 2 : 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            _vehicleIcon(v['type']),
+                            color: AppColors.burntOrange,
+                            size: 32,
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${v['makeName'] ?? ''} ${v['modelName'] ?? ''}'
+                                      .trim(),
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${v['plateNumber'] ?? ''} • ${v['type'] ?? 'Car'}',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (isSelected)
+                            Icon(Icons.check_circle,
+                                color: AppColors.burntOrange, size: 24),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }),
+          const SizedBox(height: 28),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _goNext,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.burntOrange,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: Text(
+                'Find Towing Providers',
+                style: GoogleFonts.outfit(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  IconData _vehicleIcon(dynamic type) {
+    final t = (type ?? 'car').toString().toLowerCase();
+    if (t.contains('bike') || t.contains('motorcycle')) return Icons.two_wheeler;
+    if (t.contains('van')) return Icons.local_shipping;
+    if (t.contains('truck')) return Icons.local_shipping;
+    if (t.contains('suv')) return Icons.directions_car;
+    return Icons.directions_car;
+  }
+
+  Widget _buildProvidersStep() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(20),
+          child: Text(
+            'Towing providers near you (offering towing service)',
+            style: GoogleFonts.outfit(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+            ),
+          ),
+        ),
+        Expanded(
+          child: _loadingProviders
+              ? const Center(
+                  child: CircularProgressIndicator(color: AppColors.burntOrange))
+              : _towingProviders.isEmpty
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.local_shipping_outlined,
+                                size: 64, color: Colors.grey[400]),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No towing providers available at the moment',
+                              style: GoogleFonts.outfit(
+                                fontSize: 16,
+                                color: Colors.grey[600],
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Mechanics who offer towing service will appear here.',
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                color: Colors.grey[500],
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: _fetchTowingProviders,
+                      color: AppColors.burntOrange,
+                      child: ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        itemCount: _towingProviders.length,
+                        itemBuilder: (context, i) {
+                          final m = _towingProviders[i];
+                          return _buildProviderCard(m, i);
+                        },
+                      ),
+                    ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildProviderCard(Map<String, dynamic> m, int index) {
+    final name = m['name']?.toString() ?? 'Towing Provider';
+    final specialty = m['specialty']?.toString() ?? 'Towing';
+    final experience = m['experience']?.toString() ?? '—';
+    final rating = 4.0 + (index % 5) * 0.2;
+
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      margin: const EdgeInsets.only(bottom: 12),
       child: Material(
         elevation: 4,
         borderRadius: BorderRadius.circular(16),
@@ -252,17 +967,15 @@ class _TowingServicePageState extends State<TowingServicePage> with TickerProvid
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: AppColors.burntOrange.withOpacity(0.1),
-              width: 1,
-            ),
+                color: AppColors.burntOrange.withOpacity(0.1), width: 1),
           ),
           child: Row(
             children: [
               CircleAvatar(
-                radius: 30,
-                backgroundColor: AppColors.burntOrange.withOpacity(0.1),
+                radius: 28,
+                backgroundColor: AppColors.burntOrange.withOpacity(0.15),
                 child: Text(
-                  name[0],
+                  name.isNotEmpty ? name[0].toUpperCase() : 'T',
                   style: GoogleFonts.outfit(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -285,7 +998,7 @@ class _TowingServicePageState extends State<TowingServicePage> with TickerProvid
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      speciality,
+                      '$specialty • $experience',
                       style: GoogleFonts.inter(
                         fontSize: 13,
                         color: Colors.grey[600],
@@ -295,7 +1008,8 @@ class _TowingServicePageState extends State<TowingServicePage> with TickerProvid
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
                             color: Colors.green.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(8),
@@ -303,10 +1017,11 @@ class _TowingServicePageState extends State<TowingServicePage> with TickerProvid
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.star, size: 12, color: Colors.green),
+                              const Icon(Icons.star,
+                                  size: 12, color: Colors.green),
                               const SizedBox(width: 4),
                               Text(
-                                rating,
+                                rating.toStringAsFixed(1),
                                 style: GoogleFonts.outfit(
                                   fontSize: 11,
                                   color: Colors.green,
@@ -314,22 +1029,6 @@ class _TowingServicePageState extends State<TowingServicePage> with TickerProvid
                                 ),
                               ),
                             ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: AppColors.burntOrange.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            distance,
-                            style: GoogleFonts.outfit(
-                              fontSize: 11,
-                              color: AppColors.burntOrange,
-                              fontWeight: FontWeight.w600,
-                            ),
                           ),
                         ),
                       ],
@@ -343,7 +1042,7 @@ class _TowingServicePageState extends State<TowingServicePage> with TickerProvid
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
-                        'Calling $name...',
+                        'Request sent to $name',
                         style: GoogleFonts.outfit(),
                       ),
                       backgroundColor: AppColors.burntOrange,
@@ -359,377 +1058,17 @@ class _TowingServicePageState extends State<TowingServicePage> with TickerProvid
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  minimumSize: const Size(60, 36),
+                  minimumSize: const Size(70, 38),
                 ),
                 child: Text(
-                  'Call',
+                  'Request',
                   style: GoogleFonts.outfit(
-                    color: AppColors.creamElevated,
+                    color: Colors.white,
                     fontWeight: FontWeight.w600,
                     fontSize: 12,
                   ),
                 ),
               ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final towingServices = [
-      {
-        'title': 'Emergency Towing',
-        'description': '24/7 emergency vehicle towing service',
-        'icon': 'assets/icons/tow-truck.png',
-        'price': '₹499',
-      },
-      {
-        'title': 'Accident Towing',
-        'description': 'Safe accident vehicle recovery and towing',
-        'icon': 'assets/icons/tow-truck.png',
-        'price': '₹699',
-      },
-      {
-        'title': 'Breakdown Towing',
-        'description': 'Vehicle breakdown assistance and towing',
-        'icon': 'assets/icons/tow-truck.png',
-        'price': '₹449',
-      },
-      {
-        'title': 'Long Distance Towing',
-        'description': 'Interstate and long distance towing service',
-        'icon': 'assets/icons/tow-truck.png',
-        'price': '₹899',
-      },
-      {
-        'title': 'Motorcycle Towing',
-        'description': 'Specialized motorcycle and bike towing',
-        'icon': 'assets/icons/motorcycle.png',
-        'price': '₹299',
-      },
-      {
-        'title': 'Heavy Vehicle Towing',
-        'description': 'Commercial and heavy vehicle towing',
-        'icon': 'assets/icons/tow-truck.png',
-        'price': '₹1299',
-      },
-    ];
-
-    return Scaffold(
-      backgroundColor: AppColors.cream,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppColors.creamElevated,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: const Icon(Icons.arrow_back, color: Colors.black, size: 20),
-          ),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          'Towing Services',
-          style: GoogleFonts.outfit(
-            color: Colors.black,
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        centerTitle: true,
-      ),
-      body: FadeTransition(
-        opacity: _fadeAnimation,
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header Section
-              Container(
-                margin: const EdgeInsets.all(20),
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [AppColors.burntOrange, AppColors.warmBrown],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.burntOrange.withOpacity(0.3),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.creamElevated.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Image.asset(
-                        'assets/icons/tow-truck.png',
-                        width: 30,
-                        height: 30,
-                        color: AppColors.creamElevated,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Professional Towing',
-                            style: GoogleFonts.outfit(
-                              color: AppColors.creamElevated,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '24/7 emergency response • Safe & reliable',
-                            style: GoogleFonts.inter(
-                              color: AppColors.creamElevated.withOpacity(0.9),
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Available Services Section
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                child: Text(
-                  'Available Towing Services',
-                  style: GoogleFonts.outfit(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
-              ),
-
-              // Services List
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                itemCount: towingServices.length,
-                itemBuilder: (context, index) {
-                  final service = towingServices[index];
-                  return _buildTowingServiceCard(
-                    title: service['title']!,
-                    description: service['description']!,
-                    iconPath: service['icon']!,
-                    price: service['price']!,
-                    index: index,
-                    onTap: () {
-                      showDialog(
-                        context: context,
-                        builder: (BuildContext context) {
-                          return AlertDialog(
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            title: Row(
-                              children: [
-                                Image.asset(
-                                  service['icon']!,
-                                  width: 24,
-                                  height: 24,
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    service['title']!,
-                                    style: GoogleFonts.outfit(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            content: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  service['description']!,
-                                  style: GoogleFonts.inter(),
-                                ),
-                                const SizedBox(height: 16),
-                                Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.burntOrange.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      Row(
-                                        children: [
-                                          const Icon(
-                                            Icons.access_time,
-                                            size: 16,
-                                            color: AppColors.burntOrange,
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            'Available 24/7',
-                                            style: GoogleFonts.outfit(
-                                              fontSize: 12,
-                                              color: AppColors.burntOrange,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Row(
-                                        children: [
-                                          const Icon(
-                                            Icons.location_on,
-                                            size: 16,
-                                            color: AppColors.burntOrange,
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            'Nearby mechanics available',
-                                            style: GoogleFonts.outfit(
-                                              fontSize: 12,
-                                              color: AppColors.burntOrange,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(context),
-                                child: Text(
-                                  'Close',
-                                  style: GoogleFonts.outfit(),
-                                ),
-                              ),
-                              ElevatedButton(
-                                onPressed: () {
-                                  Navigator.pop(context);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Booking ${service['title']}...',
-                                        style: GoogleFonts.outfit(),
-                                      ),
-                                      backgroundColor: AppColors.burntOrange,
-                                      behavior: SnackBarBehavior.floating,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                    ),
-                                  );
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.burntOrange,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                ),
-                                child: Text(
-                                  'Book Now',
-                                  style: GoogleFonts.outfit(
-                                    color: AppColors.creamElevated,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          );
-                        },
-                      );
-                    },
-                  );
-                },
-              ),
-
-              const SizedBox(height: 20),
-
-              // Nearby Mechanics Section
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                child: Text(
-                  'Nearby Towing Experts',
-                  style: GoogleFonts.outfit(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
-              ),
-
-              // Mechanics List (from mechanic registration)
-              _isLoadingMechanics
-                  ? const Padding(
-                      padding: EdgeInsets.all(24),
-                      child: Center(child: CircularProgressIndicator(color: AppColors.burntOrange)),
-                    )
-                  : _towingMechanics.isEmpty
-                      ? Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Center(
-                            child: Text(
-                              'No towing mechanics available at the moment',
-                              style: GoogleFonts.outfit(fontSize: 14, color: Colors.grey[600]),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        )
-                      : ListView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: _towingMechanics.length,
-                          itemBuilder: (context, index) {
-                            final mechanic = _towingMechanics[index];
-                            return _buildMechanicCard(
-                              name: mechanic['name'] as String,
-                              experience: mechanic['experience'] as String,
-                              rating: mechanic['rating'] as String,
-                              distance: mechanic['distance'] as String,
-                              speciality: mechanic['speciality'] as String,
-                              index: index,
-                            );
-                          },
-                        ),
-
-              const SizedBox(height: 20),
             ],
           ),
         ),

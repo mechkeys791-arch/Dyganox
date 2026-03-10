@@ -299,6 +299,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
               _myServices = s.split(',').map((e) => e.trim().toString()).where((e) => e.isNotEmpty).toList();
             }
           }
+          _mechanicProfile['serviceCategories'] = m['serviceCategories']?.toString();
         });
       }
     } catch (e) {
@@ -1795,8 +1796,8 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
                 'My Services',
                 Icons.handyman,
                 AppColors.warmBrown,
-                () {
-                  Navigator.push(
+                () async {
+                  await Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) => MechanicServicesPage(
@@ -1806,6 +1807,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
                       ),
                     ),
                   );
+                  _saveMechanicServices();
                 },
               ),
             ),
@@ -2337,6 +2339,41 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
     setState(() {
       _myServices.remove(service);
     });
+  }
+
+  Future<void> _saveMechanicServices() async {
+    final mechanicId = widget.mechanicData?['id'];
+    if (mechanicId == null) return;
+    final id = mechanicId is int ? mechanicId : int.tryParse(mechanicId.toString());
+    if (id == null) return;
+
+    final servicesStr = _myServices.join(',');
+    String? categories = _mechanicProfile['serviceCategories']?.toString();
+    if (categories == null) categories = 'general_checkup';
+
+    if (_myServices.any((s) => s.toLowerCase().contains('towing'))) {
+      if (categories.isEmpty) {
+        categories = 'towing_service';
+      } else if (!categories.toLowerCase().contains('towing_service')) {
+        categories = '$categories,towing_service';
+      }
+    } else {
+      categories = categories.replaceAll(RegExp(r',?towing_service,?'), ',').replaceAll(RegExp(r'^,+|,+$'), '');
+      if (categories.isEmpty) categories = 'general_checkup';
+    }
+
+    try {
+      final r = await http.put(
+        Uri.parse('${ApiConfig.mechanicEndpoint}/$id'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'services': servicesStr, 'serviceCategories': categories}),
+      );
+      if (r.statusCode == 200 && mounted) {
+        _showSnackBar('Services updated', AppColors.warmBrown);
+      }
+    } catch (e) {
+      if (mounted) _showSnackBar('Failed to save services', Colors.red);
+    }
   }
 }
 
