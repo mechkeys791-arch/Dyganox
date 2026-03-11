@@ -45,14 +45,19 @@ public class BookMechanicService {
     /**
      * Find approved mechanics that serve the given problem category and are within radiusKm of (lat, lng).
      * Returns mechanics without exposing phone or distance to client (for public list).
+     * Requires lat/lng – returns empty list if either is null (prevents showing "all mechanics").
      */
     public List<Map<String, Object>> findMechanicsByCategoryAndLocation(
             String problemCategory, Double lat, Double lng, int radiusKm) {
+        if (lat == null || lng == null) {
+            System.out.println("⚠️ [by-category] lat/lng missing – returning empty (cannot filter by distance)");
+            return new ArrayList<>();
+        }
         List<Mechanic> all = mechanicRepo.findAll();
         List<Mechanic> approved = all.stream()
                 .filter(m -> "APPROVED".equalsIgnoreCase(m.getApprovalStatus()) && !Boolean.TRUE.equals(m.isBlocked()))
                 .filter(m -> servesCategory(m, problemCategory))
-                .filter(m -> withinRadius(m, lat, lng, radiusKm))
+                .filter(m -> withinRadiusForList(m, lat, lng, radiusKm))
                 .collect(Collectors.toList());
         List<Map<String, Object>> result = new ArrayList<>();
         for (Mechanic m : approved) {
@@ -75,14 +80,14 @@ public class BookMechanicService {
     }
 
     /**
-     * Find mechanic IDs within radius (5 or 10 km max) that serve the category.
-     * Used for broadcast. Only sends to Available mechanics (excludes Busy and Offline).
+     * Find mechanics within radius that serve the category.
+     * Used for broadcast. Sends to Available and Busy (excludes only Offline).
      */
     public List<Mechanic> findMechanicsForBroadcast(double lat, double lng, String problemCategory, int radiusKm) {
         List<Mechanic> all = mechanicRepo.findAll();
         return all.stream()
                 .filter(m -> "APPROVED".equalsIgnoreCase(m.getApprovalStatus()) && !Boolean.TRUE.equals(m.isBlocked()))
-                .filter(m -> "Available".equalsIgnoreCase(m.getStatus()))
+                .filter(m -> !"Offline".equalsIgnoreCase(m.getStatus()))
                 .filter(m -> servesCategory(m, problemCategory))
                 .filter(m -> withinRadius(m, lat, lng, radiusKm))
                 .collect(Collectors.toList());
@@ -101,17 +106,34 @@ public class BookMechanicService {
         return false;
     }
 
-    private boolean withinRadius(Mechanic m, Double userLat, Double userLng, int radiusKm) {
+    /** For list: show all mechanics within radius (ignore maxServingRadiusKm – user sees who's nearby). */
+    private boolean withinRadiusForList(Mechanic m, Double userLat, Double userLng, int radiusKm) {
         if (userLat == null || userLng == null) return true;
-        String slat = m.getLatitude();
-        String slng = m.getLongitude();
+        String slat = m.getCurrentLatitude() != null && !m.getCurrentLatitude().isBlank()
+                ? m.getCurrentLatitude() : m.getLatitude();
+        String slng = m.getCurrentLongitude() != null && !m.getCurrentLongitude().isBlank()
+                ? m.getCurrentLongitude() : m.getLongitude();
+        if (slat == null || slng == null) return false;
+        double mlat = Double.parseDouble(slat);
+        double mlng = Double.parseDouble(slng);
+        double dist = distanceKm(userLat, userLng, mlat, mlng);
+        return dist <= radiusKm;
+    }
+
+    /** For broadcast: mechanics must be within radius AND willing to travel that far (maxServingRadiusKm). */
+    private boolean withinRadius(Mechanic m, Double userLat, Double userLng, int radiusKm) {
+        if (!withinRadiusForList(m, userLat, userLng, radiusKm)) return false;
+        String slat = m.getCurrentLatitude() != null && !m.getCurrentLatitude().isBlank()
+                ? m.getCurrentLatitude() : m.getLatitude();
+        String slng = m.getCurrentLongitude() != null && !m.getCurrentLongitude().isBlank()
+                ? m.getCurrentLongitude() : m.getLongitude();
         if (slat == null || slng == null) return false;
         double mlat = Double.parseDouble(slat);
         double mlng = Double.parseDouble(slng);
         double dist = distanceKm(userLat, userLng, mlat, mlng);
         Integer max = m.getMaxServingRadiusKm();
         if (max != null && dist > max) return false;
-        return dist <= radiusKm;
+        return true;
     }
 
     /**
@@ -162,25 +184,36 @@ public class BookMechanicService {
         }
 
         MechanicRequest saved = mechanicRequestRepo.save(req);
-        // Determine radius: try 5km, then 10km (max 10km - only specialized mechanics within range)
+        // Only notify mechanics within 5 km (4–5 km range) – all at once
         int radius = 5;
         List<Mechanic> mechanics = findMechanicsForBroadcast(lat, lng, problemCategory, 5);
-        if (mechanics.isEmpty()) {
-            radius = 10;
-            mechanics = findMechanicsForBroadcast(lat, lng, problemCategory, 10);
-        }
         saved.setRequestRadiusKm(radius);
+
         List<Long> notifiedIds = new ArrayList<>();
+        List<java.util.concurrent.CompletableFuture<Void>> futures = new ArrayList<>();
+        final long requestIdForFcm = saved.getId();
+        final double advanceAmt = saved.getAdvanceAmount() != null ? saved.getAdvanceAmount() : 100;
         for (Mechanic m : mechanics) {
             notifiedIds.add(m.getId());
-            double dist = distanceKm(lat, lng,
-                    Double.parseDouble(m.getLatitude()), Double.parseDouble(m.getLongitude()));
             if (m.getFcmToken() != null && !m.getFcmToken().isBlank()) {
-                fcmService.sendMechanicRequestNotification(
-                        m.getFcmToken(), saved.getId(), customerName, problemCategory,
-                        customerPhone, saved.getAdvanceAmount() != null ? saved.getAdvanceAmount() : 100,
-                        dist, description);
+                String mlat = m.getCurrentLatitude() != null && !m.getCurrentLatitude().isBlank() ? m.getCurrentLatitude() : m.getLatitude();
+                String mlng = m.getCurrentLongitude() != null && !m.getCurrentLongitude().isBlank() ? m.getCurrentLongitude() : m.getLongitude();
+                double dist = (mlat != null && mlng != null) ? distanceKm(lat, lng, Double.parseDouble(mlat), Double.parseDouble(mlng)) : 0.0;
+                final String token = m.getFcmToken();
+                final double distVal = dist;
+                futures.add(java.util.concurrent.CompletableFuture.runAsync(() ->
+                        fcmService.sendMechanicRequestNotification(
+                                token, requestIdForFcm, customerName, problemCategory,
+                                customerPhone, advanceAmt, distVal, description)));
+            } else {
+                System.out.println("⚠️ [Request " + saved.getId() + "] Mechanic " + m.getId() + " (" + m.getName() + ") has no FCM token – open Mechanic Dashboard on device to register.");
             }
+        }
+        java.util.concurrent.CompletableFuture.allOf(futures.toArray(new java.util.concurrent.CompletableFuture[0])).join();
+        int sent = (int) mechanics.stream().filter(m -> m.getFcmToken() != null && !m.getFcmToken().isBlank()).count();
+        System.out.println("📢 [Broadcast] requestId=" + saved.getId() + " radius=" + radius + "km: " + mechanics.size() + " mechanics notified at once");
+        if (mechanics.isEmpty()) {
+            System.out.println("⚠️ [Broadcast] NO mechanics within 5km for category=" + problemCategory + " lat=" + lat + " lng=" + lng);
         }
         try {
             saved.setNotifiedMechanicIds(new ObjectMapper().writeValueAsString(notifiedIds));
@@ -219,6 +252,23 @@ public class BookMechanicService {
         req.setDistanceKmToCustomer(dist);
         req.setResponseTime(LocalDateTime.now());
         mechanicRequestRepo.save(req);
+
+        // Notify other mechanics that this request is taken – they should cancel/dismiss it
+        String notifiedJson = req.getNotifiedMechanicIds();
+        if (notifiedJson != null && !notifiedJson.isBlank()) {
+            try {
+                List<?> ids = new ObjectMapper().readValue(notifiedJson, List.class);
+                for (Object o : ids) {
+                    Long mid = o instanceof Number ? ((Number) o).longValue() : Long.parseLong(o.toString());
+                    if (mid.equals(mechanicId)) continue;
+                    mechanicRepo.findById(mid).ifPresent(m -> {
+                        if (m.getFcmToken() != null && !m.getFcmToken().isBlank()) {
+                            fcmService.sendRequestTakenNotification(m.getFcmToken(), requestId);
+                        }
+                    });
+                }
+            } catch (Exception ignored) {}
+        }
         return Optional.of(req);
     }
 

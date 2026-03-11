@@ -36,11 +36,22 @@ class DyganoxFirebaseMessagingService : FirebaseMessagingService() {
             Log.w(TAG, "onMessageReceived: ignored - empty data (backend must send data-only message with type, requestId)")
             return
         }
-        if (data["type"] != "mechanic_request") {
-            Log.w(TAG, "onMessageReceived: ignored - type=${data["type"]} (expected mechanic_request)")
+        val type = data["type"]
+        val requestId = data["requestId"]
+
+        if (type == "request_taken" && requestId != null) {
+            cancelRequestNotification(requestId)
+            val stopIntent = Intent(this, MechanicAlarmService::class.java).apply {
+                action = MechanicAlarmService.ACTION_STOP_ALARM
+            }
+            try { startService(stopIntent) } catch (_: Exception) {}
+            Log.d(TAG, "onMessageReceived: cancelled notification for requestId=$requestId (taken by another mechanic)")
             return
         }
-        val requestId = data["requestId"]
+        if (type != "mechanic_request") {
+            Log.w(TAG, "onMessageReceived: ignored - type=$type (expected mechanic_request)")
+            return
+        }
         if (requestId.isNullOrBlank()) {
             Log.w(TAG, "onMessageReceived: ignored - requestId missing")
             return
@@ -119,7 +130,7 @@ class DyganoxFirebaseMessagingService : FirebaseMessagingService() {
             this, requestId.hashCode() + 2, rejectIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        val notificationId = NOTIFICATION_ID
+        val notificationId = notificationIdForRequest(requestId)
         val notification = NotificationCompat.Builder(this, channelId)
             .setContentTitle(title)
             .setContentText(body)
@@ -136,8 +147,16 @@ class DyganoxFirebaseMessagingService : FirebaseMessagingService() {
         getSystemService(NotificationManager::class.java).notify(notificationId, notification)
     }
 
+    private fun cancelRequestNotification(requestId: String) {
+        val notificationId = notificationIdForRequest(requestId)
+        getSystemService(NotificationManager::class.java).cancel(notificationId)
+    }
+
+    private fun notificationIdForRequest(requestId: String): Int {
+        return (requestId.hashCode() and 0x7FFFFFFF).coerceAtLeast(9001)
+    }
+
     companion object {
         private const val TAG = "DyganoxFCM"
-        private const val NOTIFICATION_ID = 9001
     }
 }

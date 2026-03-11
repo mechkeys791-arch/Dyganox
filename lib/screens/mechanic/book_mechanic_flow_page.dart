@@ -247,7 +247,7 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
           'problemCategory': _selectedProblem!.id,
           'lat': _userLat.toString(),
           'lng': _userLng.toString(),
-          'radiusKm': '10',
+          'radiusKm': '6',
         },
       );
       final r = await http.get(url, headers: {'Content-Type': 'application/json'});
@@ -1131,7 +1131,24 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
             children: [
               Icon(Icons.engineering, size: 64, color: Colors.grey[400]),
               const SizedBox(height: 16),
-              Text('No mechanics found for this problem in your area.', style: GoogleFonts.outfit(fontSize: 16, color: Colors.grey[700]), textAlign: TextAlign.center),
+              Text('No mechanics within 6 km for this problem.', style: GoogleFonts.outfit(fontSize: 16, color: Colors.grey[700]), textAlign: TextAlign.center),
+              const SizedBox(height: 8),
+              Text('You can still send a request – we\'ll notify mechanics within 5 km.', style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[600]), textAlign: TextAlign.center),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _sendingRequest ? null : _sendRequestToAll,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.burntOrange,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: _sendingRequest
+                      ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : Text('Send request to nearby mechanics', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 16)),
+                ),
+              ),
             ],
           ),
         ),

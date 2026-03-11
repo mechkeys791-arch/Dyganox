@@ -95,4 +95,25 @@ public class FcmService {
             e.printStackTrace();
         }
     }
+
+    /**
+     * Notify a mechanic that a request was accepted by another mechanic – so they can dismiss/cancel it from their list.
+     */
+    public void sendRequestTakenNotification(String fcmToken, Long requestId) {
+        if (!initialized) return;
+        if (fcmToken == null || fcmToken.isBlank()) return;
+        try {
+            Message message = Message.builder()
+                    .setToken(fcmToken)
+                    .putData("type", "request_taken")
+                    .putData("requestId", String.valueOf(requestId))
+                    .putData("title", "Request taken")
+                    .putData("body", "Another mechanic accepted this request")
+                    .build();
+            FirebaseMessaging.getInstance().send(message);
+            System.out.println("✅ [FCM] request_taken sent requestId=" + requestId);
+        } catch (Exception e) {
+            System.err.println("❌ [FCM] request_taken FAILED requestId=" + requestId + ": " + e.getMessage());
+        }
+    }
 }

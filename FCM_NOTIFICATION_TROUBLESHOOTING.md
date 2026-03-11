@@ -33,9 +33,11 @@ ssh -i "YOUR_KEY.pem" ec2-user@34.228.113.212 "tail -f ~/backend-app/backend.log
 
 | Log message | Meaning |
 |-------------|--------|
+| `📢 [Broadcast] requestId=X radius=5km: 3 mechanics in range, 2 with FCM token, 2 notifications sent` | Broadcast OK – X mechanics notified. |
+| `⚠️ [Broadcast] NO mechanics within 20km for category=...` | No mechanics in 5/10/20km radius. Check mechanic shop locations (lat/lng) and that they're not Offline. |
 | `✅ [FCM] SENT requestId=12 -> ...` | FCM was sent. If mechanic still gets nothing, check device (Do Not Disturb, app battery, Firebase app config). |
 | `⚠️ [FCM] NOT INITIALIZED` | Backend has no Firebase key. Do **Step 2**. |
-| `⚠️ [Request 12] Notification NOT sent: mechanic X has no FCM token` | Mechanic has not registered a token. Do **Step 3**. |
+| `⚠️ [Request 12] Mechanic X has no FCM token` | Mechanic has not registered a token. Do **Step 3**. |
 | `❌ [FCM] SEND FAILED` | FCM rejected the request (e.g. invalid/expired token or wrong project). Check Firebase project and that mechanic app uses same project. |
 
 ---
