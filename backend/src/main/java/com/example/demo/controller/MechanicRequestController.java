@@ -188,7 +188,7 @@ public class MechanicRequestController {
     public ResponseEntity<List<MechanicRequest>> getRequestsByMechanic(@PathVariable Long mechanicId) {
         System.out.println("📤 GET request received - fetching requests for mechanic: " + mechanicId);
         try {
-            List<MechanicRequest> requests = mechanicRequestRepo.findByMechanicIdOrderByRequestTimeDesc(mechanicId);
+            List<MechanicRequest> requests = mechanicRequestRepo.findByMechanicIdOrAcceptedMechanicIdOrderByRequestTimeDesc(mechanicId);
             System.out.println("📤 Found " + requests.size() + " requests for mechanic");
             return ResponseEntity.ok(requests);
         } catch (Exception e) {

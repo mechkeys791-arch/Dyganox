@@ -247,20 +247,17 @@ class FcmNotificationService {
     final data = message.data;
     final type = data['type'];
     final requestId = data['requestId'];
-    // Data-only FCM: title/body come from data map
     final title = data['title'] ?? message.notification?.title ?? 'New request';
     final body = data['body'] ?? message.notification?.body ?? 'A customer requested your service.';
 
     if (type == 'mechanic_request' && requestId != null) {
-      print('FCM: Foreground message received, showing notification requestId=$requestId');
-      final enabled = await areNotificationsEnabled();
-      if (!enabled) {
-        print('FCM: Notifications disabled by user, skipping show');
-        onMechanicRequestInForeground?.call(requestId);
+      onMechanicRequestInForeground?.call(requestId);
+      if (_platform.kIsAndroid) {
         return;
       }
+      final enabled = await areNotificationsEnabled();
+      if (!enabled) return;
       _startMechanicAlarm();
-      onMechanicRequestInForeground?.call(requestId);
       final payload = jsonEncode({'type': type, 'requestId': requestId});
       _showLocalNotification(
         id: _notificationIdFromRequestId(requestId),

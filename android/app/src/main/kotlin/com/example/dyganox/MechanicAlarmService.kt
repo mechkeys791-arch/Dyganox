@@ -52,45 +52,69 @@ class MechanicAlarmService : Service() {
         val title = intent.getStringExtra(EXTRA_TITLE) ?: "New request"
         val body = intent.getStringExtra(EXTRA_BODY) ?: "A customer requested your service."
 
-        val channelId = "mechanic_alarm_service"
+        val channelId = "mechanic_requests"
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 channelId,
-                "Mechanic request alarm",
+                "Mechanic requests",
                 NotificationManager.IMPORTANCE_HIGH
-            ).apply { setSound(null, null); enableVibration(true) }
+            ).apply {
+                description = "New mechanic service requests"
+                enableVibration(true)
+                setShowBadge(true)
+                setSound(android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_RINGTONE),
+                    android.media.AudioAttributes.Builder().setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION_RINGTONE).build())
+                enableLights(true)
+            }
             getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
         }
 
-        // Content intent: tapping notification body opens app to request detail (same as Accept)
-        val contentIntent = PendingIntent.getActivity(
-            this, 0,
-            Intent(this, MainActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                putExtra("open_request_id", requestId)
-            },
+        val viewIntent = Intent(this, MechanicRequestActionReceiver::class.java).apply {
+            putExtra(MechanicRequestActionReceiver.EXTRA_REQUEST_ID, requestId)
+            putExtra(MechanicRequestActionReceiver.EXTRA_ACTION, MechanicRequestActionReceiver.ACTION_VIEW)
+        }
+        val acceptIntent = Intent(this, MechanicRequestActionReceiver::class.java).apply {
+            putExtra(MechanicRequestActionReceiver.EXTRA_REQUEST_ID, requestId)
+            putExtra(MechanicRequestActionReceiver.EXTRA_ACTION, MechanicRequestActionReceiver.ACTION_ACCEPT)
+        }
+        val rejectIntent = Intent(this, MechanicRequestActionReceiver::class.java).apply {
+            putExtra(MechanicRequestActionReceiver.EXTRA_REQUEST_ID, requestId)
+            putExtra(MechanicRequestActionReceiver.EXTRA_ACTION, MechanicRequestActionReceiver.ACTION_REJECT)
+        }
+        val viewPending = PendingIntent.getBroadcast(
+            this, requestId.hashCode(), viewIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-
-        val notifBuilder = NotificationCompat.Builder(this, channelId)
+        val acceptPending = PendingIntent.getBroadcast(
+            this, requestId.hashCode() + 1, acceptIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val rejectPending = PendingIntent.getBroadcast(
+            this, requestId.hashCode() + 2, rejectIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val notificationId = if (requestId.isNotEmpty()) (requestId.hashCode() and 0x7FFFFFFF).coerceAtLeast(9001) else NOTIFICATION_ID
+        val notification = NotificationCompat.Builder(this, channelId)
             .setContentTitle(title)
             .setContentText(body)
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentIntent(contentIntent)
-            .setOngoing(true)
-            .setSilent(true)
+            .setContentIntent(viewPending)
+            .setSmallIcon(R.mipmap.ic_launcher)
             .setPriority(NotificationCompat.PRIORITY_MAX)
-        if (requestId.isNotEmpty()) {
-            notifBuilder.addAction(android.R.drawable.ic_menu_info_details, "View", contentIntent)
-        }
-        val notification = notifBuilder.build()
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .setCategory(NotificationCompat.CATEGORY_CALL)
+            .addAction(android.R.drawable.ic_menu_info_details, "View", viewPending)
+            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Reject", rejectPending)
+            .addAction(android.R.drawable.ic_menu_call, "Accept", acceptPending)
+            .setOngoing(true)
+            .setSilent(false)
+            .setAutoCancel(true)
+            .build()
         try {
-            startForeground(NOTIFICATION_ID, notification)
-            Log.d(TAG, "Foreground notification shown requestId=$requestId")
+            startForeground(notificationId, notification)
+            Log.d(TAG, "Foreground notification shown requestId=$requestId (single with Accept/Reject)")
         } catch (e: Exception) {
             Log.e(TAG, "startForeground failed", e)
-            // Still post notification to tray so user sees it even if foreground fails
-            getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID, notification)
+            getSystemService(NotificationManager::class.java).notify(notificationId, notification)
         }
 
         stopAlarm()

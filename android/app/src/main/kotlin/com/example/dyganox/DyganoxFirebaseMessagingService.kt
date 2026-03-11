@@ -60,17 +60,9 @@ class DyganoxFirebaseMessagingService : FirebaseMessagingService() {
         val distanceKm = data["distanceKm"] ?: ""
         val title = data["title"] ?: "New request"
         val body = if (distanceKm.isNotEmpty()) "$customerName • $distanceKm" else (data["body"] ?: "A customer requested your service.")
-        Log.d(TAG, "onMessageReceived: showing notification requestId=$requestId (foreground/background)")
+        Log.d(TAG, "onMessageReceived: starting MechanicAlarmService (single notification with Accept/Reject)")
 
-        // Always show notification first so user always sees something (even if service fails on Android 12+ background)
-        try {
-            showFallbackNotification(requestId, title, body)
-            Log.d(TAG, "Notification shown for requestId=$requestId")
-        } catch (e: Exception) {
-            Log.e(TAG, "showFallbackNotification failed", e)
-        }
-
-        // Then start MechanicAlarmService for alarm sound (will update same notification via same ID when possible)
+        // Single notification: MechanicAlarmService shows it with Accept/Reject + plays alarm (no duplicate)
         val alarmIntent = Intent(this, MechanicAlarmService::class.java).apply {
             action = MechanicAlarmService.ACTION_START_ALARM
             putExtra(MechanicAlarmService.EXTRA_REQUEST_ID, requestId)

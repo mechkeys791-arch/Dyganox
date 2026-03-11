@@ -346,7 +346,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
       print("API URL: ${ApiConfig.mechanicRequestsEndpoint}/mechanic/$mechanicId/pending");
       
       final response = await http.get(
-        Uri.parse("${ApiConfig.mechanicRequestsEndpoint}/mechanic/$mechanicId/pending"),
+        Uri.parse("${ApiConfig.mechanicRequestsEndpoint}/mechanic/$mechanicId"),
         headers: {"Content-Type": "application/json"},
       );
 
@@ -607,17 +607,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
             // Stats Cards
             _buildStatsCards(),
             const SizedBox(height: 20),
-            
-            // Today's Schedule
-            _buildTodaySchedule(),
-            const SizedBox(height: 20),
-            _buildShopAndServicesCard(),
-            const SizedBox(height: 20),
             _buildEarningsSummary(),
-            const SizedBox(height: 20),
-            _buildPerformanceMetrics(),
-            const SizedBox(height: 20),
-            _buildRecentActivity(),
             const SizedBox(height: 20),
           ],
         ),
@@ -968,6 +958,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
     );
   }
   
+  // ignore: unused_element
   Widget _buildShopAndServicesCard() {
     final shopName = (_mechanicProfile['shopName'] ?? _mechanicProfile['shop_name'] ?? '').toString();
     final shopAddr = (_mechanicProfile['shopAddress'] ?? _mechanicProfile['shop_address'] ?? '').toString();
@@ -1172,6 +1163,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
     );
   }
   
+  // ignore: unused_element
   Widget _buildTodaySchedule() {
     final todayBookings = _bookings.where((b) => b['date'] == '2024-01-15').toList();
     
@@ -2071,7 +2063,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
     );
   }
   
-  // PERFORMANCE METRICS
+  // ignore: unused_element
   Widget _buildPerformanceMetrics() {
     final completionRate = (_mechanicProfile['completedJobs'] / 150 * 100).clamp(0, 100);
     final responseRate = 95.0; // Mock data
@@ -2175,7 +2167,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
     );
   }
   
-  // RECENT ACTIVITY
+  // ignore: unused_element
   Widget _buildRecentActivity() {
     final activities = [
       {'action': 'Completed job', 'detail': 'Engine Service for Rajesh Kumar', 'time': '2 hours ago', 'icon': Icons.check_circle, 'color': AppColors.warmAmber},
