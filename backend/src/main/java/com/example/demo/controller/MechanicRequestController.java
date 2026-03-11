@@ -316,6 +316,20 @@ public class MechanicRequestController {
         }
     }
 
+    /** Mechanic starts driving to customer (after accept). User app can show live tracking. */
+    @PutMapping("/{requestId}/start-en-route")
+    public ResponseEntity<Map<String, String>> startEnRoute(@PathVariable Long requestId) {
+        Optional<MechanicRequest> opt = mechanicRequestRepo.findById(requestId);
+        if (opt.isEmpty()) return ResponseEntity.notFound().build();
+        MechanicRequest r = opt.get();
+        if (r.getAcceptedMechanicId() == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "No mechanic accepted"));
+        }
+        r.setStatus("MECHANIC_EN_ROUTE");
+        mechanicRequestRepo.save(r);
+        return ResponseEntity.ok(Map.of("message", "En route", "status", "MECHANIC_EN_ROUTE"));
+    }
+
     @PutMapping("/{requestId}/arrived")
     public ResponseEntity<Map<String, String>> markArrived(@PathVariable Long requestId) {
         Optional<MechanicRequest> opt = mechanicRequestRepo.findById(requestId);

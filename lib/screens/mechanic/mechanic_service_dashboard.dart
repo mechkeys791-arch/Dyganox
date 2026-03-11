@@ -15,8 +15,10 @@ import 'mechanic_profile_page.dart';
 import 'mechanic_help_chat_page.dart';
 import 'mechanic_suspended_page.dart';
 import 'mechanic_request_detail_book_flow_page.dart';
+import 'mechanic_login_request_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/theme/app_colors.dart';
+import '../../services/cognito_service.dart';
 
 class MechanicServiceDashboard extends StatefulWidget {
   final Map<String, dynamic>? mechanicData;
@@ -41,8 +43,8 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
   // ignore: unused_field
   bool _isLoadingBookings = false;
   
-  // Auto-refresh timer
   Timer? _refreshTimer;
+  Timer? _bookingsTimer;
   
   // Wallet (from API) - kept for potential future use
   // ignore: unused_field
@@ -145,8 +147,9 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
       });
     }
 
-    // Auto-refresh bookings every 30 seconds
-    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+    // Auto-refresh: nearby requests every 8 sec (for multi-device), bookings every 30 sec
+    _refreshTimer = Timer.periodic(const Duration(seconds: 8), (_) => _fetchNearbyBroadcastRequests());
+    _bookingsTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       _fetchBookings();
       _loadMechanicProfileFromApi();
     });
@@ -175,6 +178,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
     FcmNotificationService.onMechanicRequestInForeground = null;
     WidgetsBinding.instance.removeObserver(this);
     _refreshTimer?.cancel();
+    _bookingsTimer?.cancel();
     _pulseController.dispose();
     super.dispose();
   }
@@ -461,6 +465,30 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
     } catch (e) {
       print('MechanicServiceDashboard: Wallet fetch error: $e');
     }
+  }
+
+  Future<void> _logout() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Logout'),
+        content: const Text('Are you sure you want to logout?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Logout')),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    await CognitoService.signOutMechanic();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('mechanic_id');
+    if (!mounted) return;
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => const MechanicLoginRequestPage()),
+      (route) => false,
+    );
   }
 
   void _showSnackBar(String message, Color color) {
@@ -829,6 +857,9 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
           case 'profile_edit':
             await _openProfileEdit();
             break;
+          case 'logout':
+            _logout();
+            break;
         }
       },
       itemBuilder: (context) => [
@@ -919,6 +950,17 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
               Icon(Icons.edit, color: AppColors.burntOrange, size: 22),
               const SizedBox(width: 12),
               Text('Edit profile', style: GoogleFonts.outfit()),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(),
+        PopupMenuItem<String>(
+          value: 'logout',
+          child: Row(
+            children: [
+              Icon(Icons.logout, color: AppColors.burntOrange, size: 22),
+              const SizedBox(width: 12),
+              Text('Logout', style: GoogleFonts.outfit()),
             ],
           ),
         ),

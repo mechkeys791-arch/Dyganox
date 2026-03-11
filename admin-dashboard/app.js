@@ -121,7 +121,8 @@ function switchSection(section) {
         'marketing-poster': 'Marketing Poster',
         'auth-video': 'Auth Background Video',
         'home-hero': 'Home Hero Graphic',
-        'app-branding': 'App Branding'
+        'app-branding': 'App Branding',
+        'nearest-mechanic': 'Nearest mechanic (map pins)'
     };
     document.getElementById('page-title').textContent = titles[section] || 'Dashboard';
     
@@ -132,6 +133,9 @@ function switchSection(section) {
             break;
         case 'mechanics':
             loadMechanics();
+            break;
+        case 'nearest-mechanic':
+            loadNearestMechanic();
             break;
         case 'registration-requests':
             loadRegistrationRequests();
@@ -189,6 +193,9 @@ function switchSection(section) {
             break;
         case 'app-branding':
             loadAppBranding();
+            break;
+        case 'car-bike-quick-icons':
+            loadCarBikeQuickIcons();
             break;
         case 'app-update':
             loadAppVersion();
@@ -482,6 +489,247 @@ function displayMechanics(mechanics) {
             </td>
         </tr>
     `).join('');
+}
+
+// ========== NEAREST MECHANIC (map pins only – not login mechanics) ==========
+async function loadNearestMechanic() {
+    try {
+        const r = await fetch(getApiUrl(API_CONFIG.endpoints.nearestMechanicLocations));
+        const list = r.ok ? await r.json() : [];
+        const tbody = document.getElementById('nearest-mechanic-table-body');
+        if (!tbody) return;
+        if (list.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="loading">No locations. Add latitude and longitude above.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = list.map(loc => `
+            <tr>
+                <td>${loc.id}</td>
+                <td>${escapeAttr(loc.latitude || '')}</td>
+                <td>${escapeAttr(loc.longitude || '')}</td>
+                <td><button class="btn-action btn-reject" onclick="deleteNearestMechanicLocation(${loc.id})">Delete</button></td>
+            </tr>
+        `).join('');
+        const iconUrlEl = document.getElementById('nearest-mechanic-marker-icon-url');
+        const userLocUrlEl = document.getElementById('user-location-marker-icon-url');
+        const branding = await fetch(getApiUrl(API_CONFIG.endpoints.appBranding)).then(r => r.ok ? r.json() : {});
+        if (iconUrlEl) iconUrlEl.value = branding.nearestMechanicMarkerIconUrl || '';
+        if (userLocUrlEl) userLocUrlEl.value = branding.userLocationMarkerIconUrl || '';
+    } catch (e) {
+        const tbody = document.getElementById('nearest-mechanic-table-body');
+        if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="loading">Failed to load</td></tr>';
+    }
+}
+
+async function addNearestMechanicLocation() {
+    const latEl = document.getElementById('nearest-mechanic-lat');
+    const lngEl = document.getElementById('nearest-mechanic-lng');
+    const statusEl = document.getElementById('nearest-mechanic-add-status');
+    const btn = document.getElementById('nearest-mechanic-add-btn');
+    const lat = latEl ? latEl.value.trim() : '';
+    const lng = lngEl ? lngEl.value.trim() : '';
+    if (!lat || !lng) {
+        if (statusEl) statusEl.textContent = 'Enter latitude and longitude.';
+        return;
+    }
+    if (btn) btn.disabled = true;
+    if (statusEl) statusEl.textContent = 'Adding...';
+    try {
+        const r = await fetch(getApiUrl(API_CONFIG.endpoints.nearestMechanicLocations), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ latitude: lat, longitude: lng })
+        });
+        if (r.ok) {
+            if (statusEl) statusEl.textContent = 'Added.';
+            if (latEl) latEl.value = '';
+            if (lngEl) lngEl.value = '';
+            loadNearestMechanic();
+        } else {
+            if (statusEl) statusEl.textContent = 'Failed to add';
+        }
+    } catch (e) {
+        if (statusEl) statusEl.textContent = 'Error: ' + (e.message || e);
+    }
+    if (btn) btn.disabled = false;
+}
+
+async function uploadUserLocationMarkerIcon() {
+    const fileInput = document.getElementById('user-location-icon-file');
+    const urlEl = document.getElementById('user-location-marker-icon-url');
+    const statusEl = document.getElementById('user-location-icon-status');
+    const btn = document.getElementById('user-location-icon-upload-btn');
+    if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+        if (statusEl) statusEl.textContent = 'Select a PNG/JPG/WebP file first.';
+        return;
+    }
+    if (btn) btn.disabled = true;
+    if (statusEl) statusEl.textContent = 'Uploading...';
+    try {
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+        const r = await fetch(getApiUrl(API_CONFIG.endpoints.uploadUserLocationMarkerIcon), { method: 'POST', body: formData });
+        const data = await r.json().catch(() => ({}));
+        if (r.ok && data.url) {
+            if (urlEl) urlEl.value = data.url;
+            if (statusEl) statusEl.textContent = 'Uploaded. Click Save icon URL to apply.';
+        } else {
+            if (statusEl) statusEl.textContent = data.error || 'Upload failed';
+        }
+    } catch (e) {
+        if (statusEl) statusEl.textContent = 'Error: ' + (e.message || e);
+    }
+    if (btn) btn.disabled = false;
+}
+
+async function saveUserLocationMarkerIconUrl() {
+    const urlEl = document.getElementById('user-location-marker-icon-url');
+    const statusEl = document.getElementById('user-location-icon-status');
+    const url = urlEl ? urlEl.value.trim() : '';
+    try {
+        const brandingRes = await fetch(getApiUrl(API_CONFIG.endpoints.appBranding));
+        const branding = brandingRes.ok ? await brandingRes.json() : {};
+        const body = { ...branding, userLocationMarkerIconUrl: url || null };
+        const r = await fetch(getApiUrl(API_CONFIG.endpoints.appBranding), {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        if (r.ok) {
+            if (statusEl) statusEl.textContent = 'User location icon URL saved.';
+        } else {
+            if (statusEl) statusEl.textContent = 'Save failed';
+        }
+    } catch (e) {
+        if (statusEl) statusEl.textContent = 'Error: ' + (e.message || e);
+    }
+}
+
+async function deleteNearestMechanicLocation(id) {
+    if (!confirm('Remove this location from the See nearest mechanic map?')) return;
+    try {
+        const r = await fetch(getApiUrl(API_CONFIG.endpoints.nearestMechanicLocations) + '/' + id, { method: 'DELETE' });
+        if (r.ok) loadNearestMechanic();
+    } catch (e) {}
+}
+
+async function uploadNearestMechanicMarkerIcon() {
+    const fileInput = document.getElementById('nearest-mechanic-icon-file');
+    const urlEl = document.getElementById('nearest-mechanic-marker-icon-url');
+    const statusEl = document.getElementById('nearest-mechanic-icon-status');
+    const btn = document.getElementById('nearest-mechanic-icon-upload-btn');
+    if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+        if (statusEl) statusEl.textContent = 'Select a PNG/JPG/WebP file first.';
+        return;
+    }
+    if (btn) btn.disabled = true;
+    if (statusEl) statusEl.textContent = 'Uploading...';
+    try {
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+        const r = await fetch(getApiUrl(API_CONFIG.endpoints.uploadNearestMechanicMarkerIcon), { method: 'POST', body: formData });
+        const data = await r.json().catch(() => ({}));
+        if (r.ok && data.url) {
+            if (urlEl) urlEl.value = data.url;
+            if (statusEl) statusEl.textContent = 'Uploaded. Click Save icon URL to apply.';
+        } else {
+            if (statusEl) statusEl.textContent = data.error || 'Upload failed';
+        }
+    } catch (e) {
+        if (statusEl) statusEl.textContent = 'Error: ' + (e.message || e);
+    }
+    if (btn) btn.disabled = false;
+}
+
+async function saveNearestMechanicIconUrl() {
+    const urlEl = document.getElementById('nearest-mechanic-marker-icon-url');
+    const statusEl = document.getElementById('nearest-mechanic-icon-status');
+    const url = urlEl ? urlEl.value.trim() : '';
+    try {
+        const brandingRes = await fetch(getApiUrl(API_CONFIG.endpoints.appBranding));
+        const branding = brandingRes.ok ? await brandingRes.json() : {};
+        const body = { ...branding, nearestMechanicMarkerIconUrl: url || null };
+        const r = await fetch(getApiUrl(API_CONFIG.endpoints.appBranding), {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        if (r.ok) {
+            if (statusEl) statusEl.textContent = 'Icon URL saved.';
+        } else {
+            if (statusEl) statusEl.textContent = 'Save failed';
+        }
+    } catch (e) {
+        if (statusEl) statusEl.textContent = 'Error: ' + (e.message || e);
+    }
+}
+
+async function createMechanicFromAdmin() {
+    const nameEl = document.getElementById('add-mechanic-name');
+    const emailEl = document.getElementById('add-mechanic-email');
+    const phoneEl = document.getElementById('add-mechanic-phone');
+    const specialtyEl = document.getElementById('add-mechanic-specialty');
+    const shopNameEl = document.getElementById('add-mechanic-shop-name');
+    const shopCityEl = document.getElementById('add-mechanic-shop-city');
+    const latEl = document.getElementById('add-mechanic-lat');
+    const lngEl = document.getElementById('add-mechanic-lng');
+    const statusEl = document.getElementById('add-mechanic-status');
+    const btn = document.getElementById('add-mechanic-btn');
+    const name = nameEl ? nameEl.value.trim() : '';
+    const email = emailEl ? emailEl.value.trim() : '';
+    const phone = phoneEl ? phoneEl.value.trim() : '';
+    const lat = latEl ? latEl.value.trim() : '';
+    const lng = lngEl ? lngEl.value.trim() : '';
+    if (!name || !email) {
+        if (statusEl) statusEl.textContent = 'Name and email are required.';
+        return;
+    }
+    if (!lat || !lng || isNaN(parseFloat(lat)) || isNaN(parseFloat(lng))) {
+        if (statusEl) statusEl.textContent = 'Valid latitude and longitude are required for See nearest mechanic.';
+        return;
+    }
+    if (btn) btn.disabled = true;
+    if (statusEl) statusEl.textContent = 'Adding...';
+    try {
+        const body = {
+            name,
+            email,
+            phone: phone || null,
+            specialty: (specialtyEl && specialtyEl.value.trim()) || 'General Repair',
+            shopName: (shopNameEl && shopNameEl.value.trim()) || null,
+            shopCity: (shopCityEl && shopCityEl.value.trim()) || null,
+            latitude: lat,
+            longitude: lng,
+            approvalStatus: 'APPROVED',
+            status: 'Available',
+            nightTimeAvailable: false,
+            experience: 'Not specified'
+        };
+        const r = await fetch(getApiUrl(API_CONFIG.endpoints.createMechanic), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        if (r.ok) {
+            const mechanic = await r.json();
+            if (statusEl) statusEl.textContent = 'Added mechanic ID ' + mechanic.id + '. They will appear in the app for users nearby.';
+            if (nameEl) nameEl.value = '';
+            if (emailEl) emailEl.value = '';
+            if (phoneEl) phoneEl.value = '';
+            if (specialtyEl) specialtyEl.value = '';
+            if (shopNameEl) shopNameEl.value = '';
+            if (shopCityEl) shopCityEl.value = '';
+            if (latEl) latEl.value = '';
+            if (lngEl) lngEl.value = '';
+            loadMechanics();
+        } else {
+            const err = await r.json().catch(() => ({}));
+            if (statusEl) statusEl.textContent = err.message || err.error || 'Failed to add mechanic';
+        }
+    } catch (e) {
+        if (statusEl) statusEl.textContent = 'Error: ' + (e.message || e);
+    }
+    if (btn) btn.disabled = false;
 }
 
 async function loadMechanicsByCity() {
@@ -2640,8 +2888,6 @@ async function loadAppBranding() {
     const splashTypeEl = document.getElementById('app-branding-splash-type');
     const welcomePageUrlEl = document.getElementById('app-branding-welcome-page-url');
     const welcomePageTypeEl = document.getElementById('app-branding-welcome-page-type');
-    const loadingUrlEl = document.getElementById('app-branding-loading-url');
-    const loadingTypeEl = document.getElementById('app-branding-loading-type');
     const statusEl = document.getElementById('app-branding-save-status');
     if (!logoUrlEl) return;
     try {
@@ -2656,8 +2902,8 @@ async function loadAppBranding() {
             if (welcomePageTypeEl) welcomePageTypeEl.value = (d.welcomePageMediaType || 'gif') === 'video' ? 'video' : 'gif';
             const welcomePageGifUrlEl = document.getElementById('app-branding-welcome-page-gif-url');
             if (welcomePageGifUrlEl) welcomePageGifUrlEl.value = d.welcomePageGifUrl || '';
-            if (loadingUrlEl) loadingUrlEl.value = d.loadingMediaUrl || '';
-            if (loadingTypeEl) loadingTypeEl.value = (d.loadingMediaType || 'lottie') === 'gif' ? 'gif' : 'lottie';
+            const problemIconsEl = document.getElementById('app-branding-problem-category-icons-json');
+            if (problemIconsEl) problemIconsEl.value = d.problemCategoryIconsJson || '';
             if (statusEl) statusEl.textContent = '';
         }
     } catch (e) {
@@ -2755,37 +3001,6 @@ async function uploadWelcomePageMedia() {
     if (btn) btn.disabled = false;
 }
 
-async function uploadLoadingMedia() {
-    const fileInput = document.getElementById('app-branding-loading-file');
-    const urlEl = document.getElementById('app-branding-loading-url');
-    const typeEl = document.getElementById('app-branding-loading-type');
-    const statusEl = document.getElementById('app-branding-loading-upload-status');
-    const btn = document.getElementById('app-branding-loading-upload-btn');
-    if (!fileInput || !fileInput.files || !fileInput.files[0]) {
-        if (statusEl) statusEl.textContent = 'Select a .json (Lottie) or .gif file first.';
-        return;
-    }
-    const name = (fileInput.files[0].name || '').toLowerCase();
-    if (btn) btn.disabled = true;
-    if (statusEl) statusEl.textContent = 'Uploading...';
-    try {
-        const formData = new FormData();
-        formData.append('file', fileInput.files[0]);
-        const r = await fetch(getApiUrl(API_CONFIG.endpoints.uploadLoadingMedia), { method: 'POST', body: formData });
-        const data = await r.json().catch(() => ({}));
-        if (r.ok && data.url) {
-            urlEl.value = data.url;
-            if (typeEl) typeEl.value = name.endsWith('.gif') ? 'gif' : 'lottie';
-            statusEl.textContent = 'Uploaded. Click Save to apply.';
-        } else {
-            statusEl.textContent = data.error || 'Upload failed';
-        }
-    } catch (e) {
-        if (statusEl) statusEl.textContent = 'Error: ' + (e.message || e);
-    }
-    if (btn) btn.disabled = false;
-}
-
 async function saveAppBranding() {
     const logoUrlEl = document.getElementById('app-branding-logo-url');
     const welcomeEl = document.getElementById('app-branding-welcome-title');
@@ -2794,8 +3009,6 @@ async function saveAppBranding() {
     const welcomePageUrlEl = document.getElementById('app-branding-welcome-page-url');
     const welcomePageTypeEl = document.getElementById('app-branding-welcome-page-type');
     const welcomePageGifUrlEl = document.getElementById('app-branding-welcome-page-gif-url');
-    const loadingUrlEl = document.getElementById('app-branding-loading-url');
-    const loadingTypeEl = document.getElementById('app-branding-loading-type');
     const statusEl = document.getElementById('app-branding-save-status');
     const appLogoUrl = logoUrlEl ? logoUrlEl.value.trim() : '';
     const welcomeTitle = welcomeEl ? welcomeEl.value.trim() : 'Welcome to ProMech';
@@ -2804,8 +3017,8 @@ async function saveAppBranding() {
     const welcomePageMediaUrl = welcomePageUrlEl ? welcomePageUrlEl.value.trim() : '';
     const welcomePageMediaType = welcomePageTypeEl ? welcomePageTypeEl.value : 'gif';
     const welcomePageGifUrl = welcomePageGifUrlEl ? welcomePageGifUrlEl.value.trim() : '';
-    const loadingMediaUrl = loadingUrlEl ? loadingUrlEl.value.trim() : '';
-    const loadingMediaType = loadingTypeEl ? loadingTypeEl.value : 'lottie';
+    const problemIconsEl = document.getElementById('app-branding-problem-category-icons-json');
+    const problemCategoryIconsJson = problemIconsEl ? problemIconsEl.value.trim() : '';
     try {
         const r = await fetch(getApiUrl(API_CONFIG.endpoints.appBranding), {
             method: 'PUT',
@@ -2818,8 +3031,7 @@ async function saveAppBranding() {
                 welcomePageMediaUrl: welcomePageMediaUrl || null,
                 welcomePageMediaType: welcomePageMediaType || 'gif',
                 welcomePageGifUrl: welcomePageGifUrl || null,
-                loadingMediaUrl: loadingMediaUrl || null,
-                loadingMediaType: loadingMediaType || 'lottie'
+                problemCategoryIconsJson: problemCategoryIconsJson || null
             })
         });
         if (r.ok) {
@@ -2833,6 +3045,140 @@ async function saveAppBranding() {
         }
     } catch (e) {
         statusEl.textContent = 'Failed: ' + (e.message || e);
+    }
+}
+
+// ========== CAR / BIKE & QUICK SERVICE ICONS ==========
+async function loadCarBikeQuickIcons() {
+    try {
+        const r = await fetch(getApiUrl(API_CONFIG.endpoints.appBranding));
+        if (!r.ok) return;
+        const d = await r.json();
+        const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+        set('car-service-image-url', d.carServiceImageUrl);
+        set('bike-service-image-url', d.bikeServiceImageUrl);
+        set('qs-night-service-url', d.quickServiceNightServiceIconUrl);
+        set('qs-towing-url', d.quickServiceTowingIconUrl);
+        set('qs-fuel-refill-url', d.quickServiceFuelRefillIconUrl);
+        set('qs-ev-charging-url', d.quickServiceEvChargingIconUrl);
+        set('qs-tyre-care-url', d.quickServiceTyreCareIconUrl);
+        set('qs-minor-repair-url', d.quickServiceMinorRepairIconUrl);
+        set('qs-battery-jump-url', d.quickServiceBatteryJumpIconUrl);
+    } catch (e) {}
+}
+
+async function uploadCarServiceImage() {
+    const fileInput = document.getElementById('car-service-image-file');
+    const urlEl = document.getElementById('car-service-image-url');
+    const statusEl = document.getElementById('car-service-image-status');
+    const btn = document.getElementById('car-service-image-upload-btn');
+    if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+        if (statusEl) statusEl.textContent = 'Select an image first.';
+        return;
+    }
+    if (btn) btn.disabled = true;
+    if (statusEl) statusEl.textContent = 'Uploading...';
+    try {
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+        const r = await fetch(getApiUrl(API_CONFIG.endpoints.uploadCarServiceImage), { method: 'POST', body: formData });
+        const data = await r.json().catch(() => ({}));
+        if (r.ok && data.url) {
+            urlEl.value = data.url;
+            statusEl.textContent = 'Uploaded. Click Save all URLs to apply.';
+        } else {
+            statusEl.textContent = data.error || 'Upload failed';
+        }
+    } catch (e) {
+        if (statusEl) statusEl.textContent = 'Error: ' + (e.message || e);
+    }
+    if (btn) btn.disabled = false;
+}
+
+async function uploadBikeServiceImage() {
+    const fileInput = document.getElementById('bike-service-image-file');
+    const urlEl = document.getElementById('bike-service-image-url');
+    const statusEl = document.getElementById('bike-service-image-status');
+    const btn = document.getElementById('bike-service-image-upload-btn');
+    if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+        if (statusEl) statusEl.textContent = 'Select an image first.';
+        return;
+    }
+    if (btn) btn.disabled = true;
+    if (statusEl) statusEl.textContent = 'Uploading...';
+    try {
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+        const r = await fetch(getApiUrl(API_CONFIG.endpoints.uploadBikeServiceImage), { method: 'POST', body: formData });
+        const data = await r.json().catch(() => ({}));
+        if (r.ok && data.url) {
+            urlEl.value = data.url;
+            statusEl.textContent = 'Uploaded. Click Save all URLs to apply.';
+        } else {
+            statusEl.textContent = data.error || 'Upload failed';
+        }
+    } catch (e) {
+        if (statusEl) statusEl.textContent = 'Error: ' + (e.message || e);
+    }
+    if (btn) btn.disabled = false;
+}
+
+async function uploadQuickServiceIcon(name) {
+    const suffix = name.replace(/_/g, '-');
+    const fileInput = document.getElementById('qs-' + suffix + '-file');
+    const urlEl = document.getElementById('qs-' + suffix + '-url');
+    const statusEl = document.getElementById('qs-' + suffix + '-status');
+    if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+        if (statusEl) statusEl.textContent = 'Select file first.';
+        return;
+    }
+    if (statusEl) statusEl.textContent = 'Uploading...';
+    try {
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+        const r = await fetch(getApiUrl(API_CONFIG.endpoints.uploadQuickServiceIcon) + '?name=' + encodeURIComponent(name), { method: 'POST', body: formData });
+        const data = await r.json().catch(() => ({}));
+        if (r.ok && data.url) {
+            urlEl.value = data.url;
+            statusEl.textContent = 'Uploaded.';
+        } else {
+            statusEl.textContent = data.error || 'Failed';
+        }
+    } catch (e) {
+        if (statusEl) statusEl.textContent = 'Error';
+    }
+}
+
+async function saveCarBikeQuickIcons() {
+    const statusEl = document.getElementById('car-bike-quick-save-status');
+    try {
+        const brandingRes = await fetch(getApiUrl(API_CONFIG.endpoints.appBranding));
+        const branding = brandingRes.ok ? await brandingRes.json() : {};
+        const get = (id) => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+        const body = { ...branding,
+            carServiceImageUrl: get('car-service-image-url') || null,
+            bikeServiceImageUrl: get('bike-service-image-url') || null,
+            quickServiceNightServiceIconUrl: get('qs-night-service-url') || null,
+            quickServiceTowingIconUrl: get('qs-towing-url') || null,
+            quickServiceFuelRefillIconUrl: get('qs-fuel-refill-url') || null,
+            quickServiceEvChargingIconUrl: get('qs-ev-charging-url') || null,
+            quickServiceTyreCareIconUrl: get('qs-tyre-care-url') || null,
+            quickServiceMinorRepairIconUrl: get('qs-minor-repair-url') || null,
+            quickServiceBatteryJumpIconUrl: get('qs-battery-jump-url') || null
+        };
+        const r = await fetch(getApiUrl(API_CONFIG.endpoints.appBranding), {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        if (r.ok) {
+            statusEl.textContent = 'Saved.';
+            setTimeout(() => { statusEl.textContent = ''; }, 3000);
+        } else {
+            statusEl.textContent = 'Save failed';
+        }
+    } catch (e) {
+        statusEl.textContent = 'Error: ' + (e.message || e);
     }
 }
 

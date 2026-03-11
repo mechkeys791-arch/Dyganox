@@ -16,8 +16,9 @@ import '../../services/payment/payment_config.dart';
 import '../../services/payment/payment_gateway.dart';
 import '../vehicles/add_edit_vehicle_page.dart';
 import '../profile/location_picker_map_page.dart';
-
+import '../../widgets/vehicle_selection_sheet.dart';
 import '../../core/theme/app_colors.dart';
+import 'mechanic_accepted_ready_page.dart';
 
 /// Book Mechanic: vehicle → problem → details (photo compulsory for tyre) → location (map/current) → map + mechanics → send to all → wait → payment when accepted.
 /// If [preselectedMechanicId] is set (from finder "Request mechanic"), flow sends to that mechanic only after location step.
@@ -52,6 +53,7 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
   Timer? _countdownTimer;
   int _waitingSecondsRemaining = 5 * 60; // 5 min
   late PaymentGateway _paymentGateway;
+  Map<String, String> _problemIconUrls = {};
 
   static const double advanceAmount = 100.0;
   static const double platformFee = 9.0;
@@ -63,8 +65,24 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
     super.initState();
     _loadUserAndVehicles();
     _getCurrentLocation();
+    _loadProblemCategoryIcons();
     _paymentGateway = PaymentConfig.getPaymentGateway();
     _paymentGateway.initialize(context);
+  }
+
+  Future<void> _loadProblemCategoryIcons() async {
+    try {
+      final r = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}/api/config/problem-category-icons'),
+        headers: {'Content-Type': 'application/json'},
+      );
+      if (r.statusCode == 200 && mounted) {
+        final map = Map<String, dynamic>.from(jsonDecode(r.body) as Map);
+        setState(() {
+          _problemIconUrls = map.map((k, v) => MapEntry(k, v?.toString() ?? ''));
+        });
+      }
+    } catch (_) {}
   }
 
   @override
@@ -229,7 +247,7 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
           'problemCategory': _selectedProblem!.id,
           'lat': _userLat.toString(),
           'lng': _userLng.toString(),
-          'radiusKm': '20',
+          'radiusKm': '10',
         },
       );
       final r = await http.get(url, headers: {'Content-Type': 'application/json'});
@@ -345,7 +363,13 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
           if (status == 'PENDING_PAYMENT') {
             _pollTimer?.cancel();
             _countdownTimer?.cancel();
-            if (mounted) _showPaymentSheet();
+            if (mounted) {
+              setState(() => _waitingForMechanic = false);
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => MechanicAcceptedReadyPage(request: req)),
+              );
+            }
           }
           if (status == 'CANCELLED' || status == 'REJECTED') {
             _pollTimer?.cancel();
@@ -526,29 +550,72 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
     }
   }
 
+  void _showVehicleSelectionSheet() {
+    if (_userEmail == null) return;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetContext) => VehicleSelectionSheet(
+        title: 'Select vehicle',
+        userEmail: _userEmail!,
+        parentContext: context,
+        initialVehicles: _vehicles.isEmpty ? null : _vehicles,
+        onSelectVehicle: (v) {
+          Navigator.pop(sheetContext);
+          setState(() {
+            _selectedVehicle = v;
+            _vehicleType = (v['type'] ?? 'CAR').toString().toUpperCase();
+          });
+          if (_vehicles.length == 1) _advanceAfterVehicleSelection();
+        },
+        onAddVehicle: () {
+          Navigator.pop(sheetContext);
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => AddEditVehiclePage(userEmail: _userEmail!)),
+          ).then((_) => _loadUserAndVehicles());
+        },
+      ),
+    );
+  }
+
   Widget _buildVehicleStep() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Text('Which vehicle has broken down?', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          Text('Choose the vehicle that needs service.', style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[700])),
+          const SizedBox(height: 20),
           if (_selectedVehicle != null) ...[
             Text('Selected vehicle', style: GoogleFonts.outfit(fontSize: 14, color: Colors.grey[600], fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
             _buildSelectedVehicleCard(),
-            const SizedBox(height: 20),
-          ],
-          Text('Which vehicle has broken down?', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 12),
-          if (_vehicles.isEmpty)
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              onPressed: _showVehicleSelectionSheet,
+              icon: const Icon(Icons.swap_horiz, size: 20),
+              label: const Text('Change vehicle'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.burntOrange,
+                side: BorderSide(color: AppColors.burntOrange),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ] else if (_vehicles.isEmpty)
             Center(
               child: Column(
                 children: [
+                  const SizedBox(height: 24),
                   const Icon(Icons.directions_car_outlined, size: 64, color: Colors.grey),
                   const SizedBox(height: 12),
                   Text('No vehicles added', style: GoogleFonts.inter(color: Colors.grey[700])),
                   const SizedBox(height: 12),
-                  TextButton.icon(
+                  ElevatedButton.icon(
                     onPressed: () {
                       if (_userEmail != null) {
                         Navigator.push(context, MaterialPageRoute(
@@ -556,6 +623,7 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
                         )).then((_) => _loadUserAndVehicles());
                       }
                     },
+                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.burntOrange, foregroundColor: Colors.white),
                     icon: const Icon(Icons.add),
                     label: const Text('Add vehicle'),
                   ),
@@ -563,22 +631,61 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
               ),
             )
           else
-            ..._vehicles.map((v) => _buildVehicleTile(v)),
-          if (_vehicles.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: TextButton.icon(
-                onPressed: () {
-                  if (_userEmail != null) {
-                    Navigator.push(context, MaterialPageRoute(
-                      builder: (context) => AddEditVehiclePage(userEmail: _userEmail!),
-                    )).then((_) => _loadUserAndVehicles());
-                  }
-                },
-                icon: const Icon(Icons.add, size: 20),
-                label: const Text('Add another vehicle'),
+            Material(
+              color: AppColors.creamElevated,
+              borderRadius: BorderRadius.circular(16),
+              elevation: 0,
+              shadowColor: Colors.black.withValues(alpha: 0.06),
+              child: InkWell(
+                onTap: _showVehicleSelectionSheet,
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.burntOrange.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: AppColors.burntOrange.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.directions_car, color: AppColors.burntOrange, size: 32),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Select vehicle', style: GoogleFonts.outfit(fontSize: 17, fontWeight: FontWeight.w600)),
+                            Text('Tap to choose from your vehicles', style: GoogleFonts.inter(fontSize: 13, color: Colors.grey[600])),
+                          ],
+                        ),
+                      ),
+                      Icon(Icons.chevron_right, color: Colors.grey[500], size: 28),
+                    ],
+                  ),
+                ),
               ),
             ),
+          if (_vehicles.isNotEmpty && _selectedVehicle == null) ...[
+            const SizedBox(height: 12),
+            TextButton.icon(
+              onPressed: () {
+                if (_userEmail != null) {
+                  Navigator.push(context, MaterialPageRoute(
+                    builder: (context) => AddEditVehiclePage(userEmail: _userEmail!),
+                  )).then((_) => _loadUserAndVehicles());
+                }
+              },
+              icon: const Icon(Icons.add, size: 20),
+              label: const Text('Add another vehicle'),
+            ),
+          ],
         ],
       ),
     );
@@ -685,58 +792,82 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
   }
 
   Widget _buildProblemStep() {
-    return ListView.builder(
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
-      itemCount: _problems.length,
-      itemBuilder: (context, i) {
-        final p = _problems[i];
-        final isSelected = _selectedProblem?.id == p.id;
-        final isGeneralCheckup = p.id == 'general_checkup';
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: Material(
-            color: isSelected ? AppColors.burntOrange.withValues(alpha: 0.08) : AppColors.creamElevated,
-            borderRadius: BorderRadius.circular(12),
-            child: InkWell(
-              onTap: () {
-                setState(() => _selectedProblem = p);
-                _advanceAfterProblemSelection();
-              },
-              borderRadius: BorderRadius.circular(12),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(color: AppColors.burntOrange.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
-                      child: Icon(p.icon, color: AppColors.burntOrange, size: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('What\'s the problem?', style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.darkChocolate)),
+          const SizedBox(height: 6),
+          Text('Select the issue that best describes your vehicle\'s condition.', style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[700])),
+          const SizedBox(height: 24),
+          ...List.generate(_problems.length, (i) {
+            final p = _problems[i];
+            final isSelected = _selectedProblem?.id == p.id;
+            final isGeneralCheckup = p.id == 'general_checkup';
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Material(
+                color: isSelected ? AppColors.burntOrange.withValues(alpha: 0.1) : AppColors.creamElevated,
+                borderRadius: BorderRadius.circular(16),
+                elevation: isSelected ? 0 : 1,
+                shadowColor: Colors.black.withValues(alpha: 0.06),
+                child: InkWell(
+                  onTap: () {
+                    setState(() => _selectedProblem = p);
+                    _advanceAfterProblemSelection();
+                  },
+                  borderRadius: BorderRadius.circular(16),
+                  child: Padding(
+                    padding: const EdgeInsets.all(18),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppColors.burntOrange.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: _problemIconUrls[p.id] != null && _problemIconUrls[p.id]!.isNotEmpty
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.network(
+                                    _problemIconUrls[p.id]!,
+                                    width: 26,
+                                    height: 26,
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (_, __, ___) => Icon(p.icon, color: AppColors.burntOrange, size: 26),
+                                  ),
+                                )
+                              : Icon(p.icon, color: AppColors.burntOrange, size: 26),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(p.label, style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.darkChocolate)),
+                              if (p.suggestion != null) ...[
+                                const SizedBox(height: 6),
+                                Text(p.suggestion!, style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[700])),
+                              ],
+                              if (isGeneralCheckup) ...[
+                                const SizedBox(height: 6),
+                                Text('Mechanic will call you after you book the service.', style: GoogleFonts.inter(fontSize: 12, color: AppColors.burntOrange, fontWeight: FontWeight.w500)),
+                              ],
+                            ],
+                          ),
+                        ),
+                        if (isSelected) Icon(Icons.check_circle_rounded, color: AppColors.burntOrange, size: 28),
+                      ],
                     ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(p.label, style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600)),
-                          if (p.suggestion != null) ...[
-                            const SizedBox(height: 4),
-                            Text(p.suggestion!, style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[700])),
-                          ],
-                          if (isGeneralCheckup) ...[
-                            const SizedBox(height: 6),
-                            Text('Mechanic will call you after you book the service.', style: GoogleFonts.inter(fontSize: 12, color: AppColors.burntOrange, fontWeight: FontWeight.w500)),
-                          ],
-                        ],
-                      ),
-                    ),
-                    if (isSelected) Icon(Icons.check_circle, color: AppColors.burntOrange, size: 24),
-                  ],
+                  ),
                 ),
               ),
-            ),
-          ),
-        );
-      },
+            );
+          }),
+        ],
+      ),
     );
   }
 
@@ -747,13 +878,26 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. Add photo — up at center (prominent)
-          Center(
+          Text('Add details', style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.darkChocolate)),
+          const SizedBox(height: 6),
+          Text('Photos and answers help the mechanic prepare.', style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[700])),
+          const SizedBox(height: 24),
+          // 1. Add photo — in a card
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppColors.creamElevated,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 2))],
+            ),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
+                    Icon(Icons.add_photo_alternate, size: 22, color: AppColors.burntOrange),
+                    const SizedBox(width: 10),
                     Text(
                       _photoRequired ? 'Add photo (required)' : 'Add photo (optional)',
                       style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600),
@@ -761,7 +905,7 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
                     if (_photoRequired) Text(' *', style: GoogleFonts.outfit(fontSize: 16, color: Colors.red, fontWeight: FontWeight.w600)),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
                 if (_photoUrls.isEmpty)
                   GestureDetector(
                     onTap: _pickImage,
@@ -834,46 +978,87 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
           ),
           // 2. Quick questions
           if (hasDiagnostic) ...[
-            const SizedBox(height: 28),
-            Text('Quick questions', style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 12),
-            ..._selectedProblem!.diagnosticQuestions!.map((q) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            const SizedBox(height: 24),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: AppColors.creamElevated,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 2))],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.help_outline_rounded, size: 22, color: AppColors.burntOrange),
+                      const SizedBox(width: 10),
+                      Text('Quick questions', style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  ..._selectedProblem!.diagnosticQuestions!.map((q) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(q.question, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500)),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: q.options.map((opt) {
+                              final isSelected = _diagnosticAnswers[q.id] == opt;
+                              return ChoiceChip(
+                                label: Text(opt),
+                                selected: isSelected,
+                                onSelected: (sel) => setState(() => _diagnosticAnswers[q.id] = opt),
+                                selectedColor: AppColors.burntOrange.withValues(alpha: 0.25),
+                              );
+                            }).toList(),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+          ],
+          // 3. Description
+          const SizedBox(height: 24),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppColors.creamElevated,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 2))],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
-                    Text(q.question, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500)),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      children: q.options.map((opt) {
-                        final isSelected = _diagnosticAnswers[q.id] == opt;
-                        return ChoiceChip(
-                          label: Text(opt),
-                          selected: isSelected,
-                          onSelected: (sel) => setState(() => _diagnosticAnswers[q.id] = opt),
-                          selectedColor: AppColors.burntOrange.withValues(alpha: 0.25),
-                        );
-                      }).toList(),
-                    ),
+                    Icon(Icons.notes_rounded, size: 22, color: AppColors.burntOrange),
+                    const SizedBox(width: 10),
+                    Text('More details (optional)', style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600)),
                   ],
                 ),
-              );
-            }),
-          ],
-          // 3. Description — down at bottom
-          const SizedBox(height: 24),
-          Text('More details / description (optional)', style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _commentController,
-            maxLines: 3,
-            decoration: InputDecoration(
-              hintText: 'E.g. Front left tyre puncture, need repair',
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              filled: true,
-              fillColor: AppColors.creamElevated,
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _commentController,
+                  maxLines: 3,
+                  decoration: InputDecoration(
+                    hintText: 'E.g. Front left tyre puncture, need repair',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    filled: true,
+                    fillColor: Colors.white,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -1015,36 +1200,41 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
                         final m = _mechanics[i];
                         final name = m['name'] ?? 'Mechanic';
                         final specialty = m['specialty'] ?? 'General';
-                        final availability = m['status'] == 'Available' ? 'Available' : (m['nightTimeAvailable'] == true ? 'Available 24/7' : 'Check availability');
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: Container(
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: AppColors.cream,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.grey.shade200),
-                            ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 44,
-                                  height: 44,
-                                  decoration: BoxDecoration(color: AppColors.burntOrange.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
-                                  child: Icon(Icons.engineering, color: AppColors.burntOrange, size: 24),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(name, style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 15)),
-                                      Text(specialty, style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[700])),
-                                      Text(availability, style: GoogleFonts.inter(fontSize: 12, color: AppColors.burntOrange)),
-                                    ],
+                        final status = m['status']?.toString() ?? 'Available';
+                        final isAvailable = status == 'Available';
+                        final availability = isAvailable ? 'Available' : (status == 'Offline' ? 'Offline' : 'Busy');
+                        return Opacity(
+                          opacity: isAvailable ? 1.0 : 0.5,
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: AppColors.cream,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: isAvailable ? AppColors.burntOrange.withValues(alpha: 0.3) : Colors.grey.shade200),
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 44,
+                                    height: 44,
+                                    decoration: BoxDecoration(color: AppColors.burntOrange.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
+                                    child: Icon(Icons.engineering, color: AppColors.burntOrange, size: 24),
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(name, style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 15)),
+                                        Text(specialty, style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[700])),
+                                        Text(availability, style: GoogleFonts.inter(fontSize: 12, color: isAvailable ? AppColors.burntOrange : Colors.grey)),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         );

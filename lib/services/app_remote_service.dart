@@ -4,12 +4,6 @@ import 'package:http/http.dart' as http;
 import 'api_config.dart';
 
 class AppRemoteService {
-  /// Cached loading media URL/type from app branding (used by CustomLoadingWidget).
-  static String? get cachedLoadingUrl => _cachedLoadingUrl;
-  static String? get cachedLoadingType => _cachedLoadingType;
-  static String? _cachedLoadingUrl;
-  static String? _cachedLoadingType;
-
   /// GET active marketing poster for location. Pass city/state and optionally lat/lng (for area circle). Returns null if none or error – app then shows homepage.
   static Future<Map<String, dynamic>?> getActivePoster({String? city, String? state, double? lat, double? lng}) async {
     try {
@@ -80,14 +74,26 @@ class AppRemoteService {
         if (welcomePageUrl != null && welcomePageUrl.isEmpty) map['welcomePageMediaUrl'] = null;
         final welcomePageGifUrl = map['welcomePageGifUrl']?.toString()?.trim();
         if (welcomePageGifUrl != null && welcomePageGifUrl.isEmpty) map['welcomePageGifUrl'] = null;
-        final loadingUrl = map['loadingMediaUrl']?.toString()?.trim();
-        if (loadingUrl != null && loadingUrl.isEmpty) map['loadingMediaUrl'] = null;
-        _cachedLoadingUrl = map['loadingMediaUrl']?.toString();
-        _cachedLoadingType = map['loadingMediaType']?.toString();
         return map;
       }
     } catch (e) {
       if (kDebugMode) debugPrint('App branding config failed: $e');
+    }
+    return null;
+  }
+
+  /// GET nearest mechanic locations (map pins only – no names). Optional lat, lng, radiusKm to filter. Returns { locations: [{ id, latitude, longitude }], markerIconUrl: string }.
+  static Future<Map<String, dynamic>?> getNearestMechanicLocations({double? lat, double? lng, int radiusKm = 50}) async {
+    try {
+      final query = <String>['radiusKm=$radiusKm'];
+      if (lat != null) query.add('lat=$lat');
+      if (lng != null) query.add('lng=$lng');
+      final r = await http.get(Uri.parse('${ApiConfig.baseUrl}/api/config/nearest-mechanic-locations?${query.join('&')}')).timeout(const Duration(seconds: 10));
+      if (r.statusCode == 200) {
+        return Map<String, dynamic>.from(jsonDecode(r.body) as Map);
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('Nearest mechanic locations failed: $e');
     }
     return null;
   }

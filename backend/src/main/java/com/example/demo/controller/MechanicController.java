@@ -218,7 +218,7 @@ public class MechanicController {
             @RequestParam String problemCategory,
             @RequestParam(required = false) Double lat,
             @RequestParam(required = false) Double lng,
-            @RequestParam(defaultValue = "20") int radiusKm) {
+            @RequestParam(defaultValue = "10") int radiusKm) {
         try {
             List<Map<String, Object>> list = bookMechanicService.findMechanicsByCategoryAndLocation(
                     problemCategory, lat, lng, radiusKm);
@@ -323,6 +323,8 @@ public class MechanicController {
             if (updatedMechanic.getPerKmCharge() != null) mechanic.setPerKmCharge(updatedMechanic.getPerKmCharge());
             if (updatedMechanic.getServiceCategories() != null) mechanic.setServiceCategories(updatedMechanic.getServiceCategories());
             if (updatedMechanic.getCategoryIconUrl() != null) mechanic.setCategoryIconUrl(updatedMechanic.getCategoryIconUrl());
+            if (updatedMechanic.getCurrentLatitude() != null) mechanic.setCurrentLatitude(updatedMechanic.getCurrentLatitude());
+            if (updatedMechanic.getCurrentLongitude() != null) mechanic.setCurrentLongitude(updatedMechanic.getCurrentLongitude());
 
             Mechanic savedMechanic = mechanicRepo.save(mechanic);
             System.out.println("✅ Mechanic updated successfully");

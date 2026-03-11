@@ -8,6 +8,7 @@ import '../ev_charging/ev_charging_page.dart';
 import 'fuel_refill_page.dart';
 import 'tyre_care_page.dart';
 import '../../core/theme/app_colors.dart';
+import '../../services/app_remote_service.dart';
 
 class CarServicePage extends StatefulWidget {
   const CarServicePage({super.key});
@@ -21,10 +22,22 @@ class _CarServicePageState extends State<CarServicePage> with TickerProviderStat
   late AnimationController _slideController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
+  String? _appLogoUrl;
+  String? _carServiceImageUrl;
 
   @override
   void initState() {
     super.initState();
+    AppRemoteService.getAppBrandingConfig().then((m) {
+      if (mounted && m != null) {
+        final logo = m['appLogoUrl']?.toString()?.trim();
+        final carImg = m['carServiceImageUrl']?.toString()?.trim();
+        setState(() {
+          if (logo != null && logo.isNotEmpty) _appLogoUrl = logo;
+          if (carImg != null && carImg.isNotEmpty) _carServiceImageUrl = carImg;
+        });
+      }
+    });
     
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 800),
@@ -143,19 +156,16 @@ class _CarServicePageState extends State<CarServicePage> with TickerProviderStat
     final services = [
       {'title': 'Towing', 'icon': 'assets/icons/tow-truck.png'},
       {'title': 'Minor Repair', 'icon': 'assets/icons/repair-tools.png'},
-      {'title': 'EV Charging', 'icon': 'assets/icons/charging-station.png'},
+      {'title': 'EV Coming Soon', 'icon': 'assets/icons/charging-station.png'},
       {'title': 'Battery Jump', 'icon': 'assets/icons/jump-start.png'},
       {'title': 'Headlight Repair', 'icon': 'assets/icons/headlight.png'},
-      {'title': 'Duplicate Key', 'icon': 'assets/icons/duplicate-key.png'},
       {'title': 'Tyre Care', 'icon': 'assets/icons/punctured-tire.png'},
       {'title': 'Oil Change', 'icon': 'assets/icons/repair-tools.png'},
       {'title': 'Brake Service', 'icon': 'assets/icons/brake-service.png'},
       {'title': 'Windshield', 'icon': 'assets/icons/headlight.png'},
       {'title': 'Body Works', 'icon': 'assets/icons/smart-car.png'},
       {'title': 'Wheel Alignment', 'icon': 'assets/icons/wheel-alignment.png'},
-      {'title': 'Spare Parts', 'icon': 'assets/icons/spare-parts.png'},
       {'title': 'Suspension', 'icon': 'assets/icons/suspension.png'},
-      {'title': 'Electrical Works', 'icon': 'assets/icons/new-electrical-works.png'},
     ];
 
     return Scaffold(
@@ -198,9 +208,9 @@ class _CarServicePageState extends State<CarServicePage> with TickerProviderStat
           color: AppColors.burntOrange,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
               // Header Section
               Container(
                 margin: const EdgeInsets.all(20),
@@ -220,47 +230,31 @@ class _CarServicePageState extends State<CarServicePage> with TickerProviderStat
                     ),
                   ],
                 ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.creamElevated.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Image.asset(
-                        'assets/icons/car.png',
-                        width: 30,
-                        height: 30,
-                        color: AppColors.creamElevated,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Professional Car Care',
-                            style: GoogleFonts.outfit(
-                              color: AppColors.creamElevated,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
+                child: _carServiceImageUrl != null && _carServiceImageUrl!.isNotEmpty
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: Image.network(
+                          _carServiceImageUrl!,
+                          width: double.infinity,
+                          height: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Center(
+                            child: _appLogoUrl != null && _appLogoUrl!.isNotEmpty
+                                ? Image.network(_appLogoUrl!, height: 64, fit: BoxFit.contain, errorBuilder: (_, __, ___) => Icon(Icons.directions_car, size: 48, color: AppColors.creamElevated))
+                                : Icon(Icons.directions_car, size: 48, color: AppColors.creamElevated),
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Expert technicians • Quality parts • Quick service',
-                            style: GoogleFonts.inter(
-                              color: AppColors.creamElevated.withOpacity(0.9),
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
+                        ),
+                      )
+                    : Center(
+                        child: _appLogoUrl != null && _appLogoUrl!.isNotEmpty
+                            ? Image.network(
+                                _appLogoUrl!,
+                                height: 64,
+                                fit: BoxFit.contain,
+                                errorBuilder: (_, __, ___) => Icon(Icons.directions_car, size: 48, color: AppColors.creamElevated),
+                              )
+                            : Icon(Icons.directions_car, size: 48, color: AppColors.creamElevated),
                       ),
-                    ),
-                  ],
-                ),
               ),
 
               // Services Grid
@@ -308,17 +302,10 @@ class _CarServicePageState extends State<CarServicePage> with TickerProviderStat
                               case 'Battery Jump':
                                 targetPage = const BatteryJumpPage();
                                 break;
-                              case 'EV Charging':
-                                targetPage = const EVChargingPage();
-                                break;
-                              case 'Fuel Refill':
-                                targetPage = const FuelRefillPage();
-                                break;
                               case 'Tyre Care':
                                 targetPage = const TyreCarePage();
                                 break;
                             }
-
                             if (targetPage != null) {
                               Navigator.push(
                                 context,
@@ -344,6 +331,18 @@ class _CarServicePageState extends State<CarServicePage> with TickerProviderStat
                                 ),
                               );
                             } else {
+                              if (service['title'] == 'EV Coming Soon') {
+                                showDialog(
+                                  context: context,
+                                  builder: (ctx) => AlertDialog(
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                    title: const Text('Coming soon'),
+                                    content: const Text('EV Charging will be available soon.'),
+                                    actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
+                                  ),
+                                );
+                                return;
+                              }
                               // Show dialog for services without dedicated pages yet
                               showDialog(
                                 context: context,

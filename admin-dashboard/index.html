@@ -69,6 +69,10 @@
                         <i class="fas fa-palette"></i>
                         <span>App Branding</span>
                     </a>
+                    <a href="#" class="nav-item" data-section="car-bike-quick-icons">
+                        <i class="fas fa-car-side"></i>
+                        <span>Car / Bike & Quick Icons</span>
+                    </a>
                     <a href="#" class="nav-item" data-section="app-update">
                         <i class="fas fa-mobile-alt"></i>
                         <span>App Update</span>
@@ -79,6 +83,10 @@
                     <a href="#" class="nav-item" data-section="mechanics">
                         <i class="fas fa-users-cog"></i>
                         <span>Mechanics</span>
+                    </a>
+                    <a href="#" class="nav-item" data-section="nearest-mechanic">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <span>Nearest mechanic (map pins)</span>
                     </a>
                     <a href="#" class="nav-item" data-section="registration-requests">
                         <i class="fas fa-user-plus"></i>
@@ -389,6 +397,10 @@
             <section id="mechanics-section" class="content-section">
                 <div class="section-header">
                     <h2>All Mechanics</h2>
+                    <p class="section-subtitle">Add a mechanic below to make them appear in the app’s “See nearest mechanic” based on user location.</p>
+                </div>
+                <div class="section-header">
+                    <h2>All Mechanics</h2>
                     <div class="filter-controls">
                         <select id="mechanic-filter" onchange="filterMechanics()">
                             <option value="all">All Mechanics</option>
@@ -422,6 +434,64 @@
                             <tr>
                                 <td colspan="9" class="loading">Loading mechanics...</td>
                             </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Nearest mechanic (map pins only – not login mechanics; shown in app See nearest mechanic) -->
+            <section id="nearest-mechanic-section" class="content-section">
+                <div class="section-header">
+                    <h2>Nearest mechanic (map pins)</h2>
+                    <p class="section-subtitle">Pins shown only on the app "See nearest mechanic" map. No names – just locations and a custom icon. Separate from partner mechanics who login.</p>
+                </div>
+                <div class="chart-card" style="margin-bottom:20px;">
+                    <h3 style="margin-top:0;">Custom marker icon (used for all pins on the map)</h3>
+                    <input type="file" id="nearest-mechanic-icon-file" accept=".png,.jpg,.jpeg,.webp" style="margin-bottom:8px;">
+                    <button type="button" class="btn-action btn-approve" id="nearest-mechanic-icon-upload-btn" onclick="uploadNearestMechanicMarkerIcon()">Upload icon</button>
+                    <span id="nearest-mechanic-icon-status" class="muted" style="margin-left:8px;"></span>
+                    <div class="form-group" style="margin-top:8px;">
+                        <label>Marker icon URL (set after upload or paste)</label>
+                        <input type="url" id="nearest-mechanic-marker-icon-url" class="support-reply-input" placeholder="https://...">
+                    </div>
+                    <button type="button" class="btn-action btn-approve" onclick="saveNearestMechanicIconUrl()">Save icon URL</button>
+                </div>
+                <div class="chart-card" style="margin-bottom:20px;">
+                    <h3 style="margin-top:0;">User location marker icon (your position on the map)</h3>
+                    <input type="file" id="user-location-icon-file" accept=".png,.jpg,.jpeg,.webp" style="margin-bottom:8px;">
+                    <button type="button" class="btn-action btn-approve" id="user-location-icon-upload-btn" onclick="uploadUserLocationMarkerIcon()">Upload icon</button>
+                    <span id="user-location-icon-status" class="muted" style="margin-left:8px;"></span>
+                    <div class="form-group" style="margin-top:8px;">
+                        <label>User location marker URL</label>
+                        <input type="url" id="user-location-marker-icon-url" class="support-reply-input" placeholder="https://...">
+                    </div>
+                    <button type="button" class="btn-action btn-approve" onclick="saveUserLocationMarkerIconUrl()">Save icon URL</button>
+                </div>
+                <div class="chart-card">
+                    <h3 style="margin-top:0;">Add location (latitude, longitude only – no name)</h3>
+                    <div class="form-group">
+                        <label>Latitude</label>
+                        <input type="text" id="nearest-mechanic-lat" class="support-reply-input" placeholder="e.g. 12.9141">
+                    </div>
+                    <div class="form-group">
+                        <label>Longitude</label>
+                        <input type="text" id="nearest-mechanic-lng" class="support-reply-input" placeholder="e.g. 74.8560">
+                    </div>
+                    <button type="button" class="btn-action btn-approve" id="nearest-mechanic-add-btn" onclick="addNearestMechanicLocation()">Add location</button>
+                    <span id="nearest-mechanic-add-status" class="muted" style="margin-left:12px;"></span>
+                </div>
+                <div class="table-container" style="margin-top:20px;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Latitude</th>
+                                <th>Longitude</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="nearest-mechanic-table-body">
+                            <tr><td colspan="4" class="loading">Loading...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -976,24 +1046,58 @@
                     </div>
                     <hr style="margin:16px 0;">
                     <div class="form-group">
-                        <label><strong>Custom loading (e.g. car going)</strong> – shown when the app or an image is loading (full screen for whole page, small for single image)</label>
-                        <input type="file" id="app-branding-loading-file" accept=".json,.gif,application/json,image/gif" style="margin-bottom:8px;">
-                        <button type="button" class="btn-action btn-approve" id="app-branding-loading-upload-btn" onclick="uploadLoadingMedia()">Upload to S3</button>
-                        <span id="app-branding-loading-upload-status" class="muted" style="margin-left:8px;"></span>
-                    </div>
-                    <div class="form-group">
-                        <label>Loading media type</label>
-                        <select id="app-branding-loading-type" class="support-reply-input" style="max-width:200px;">
-                            <option value="lottie">Lottie (.json)</option>
-                            <option value="gif">GIF</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Loading media URL (set after upload or paste URL)</label>
-                        <input type="url" id="app-branding-loading-url" class="support-reply-input" placeholder="https://bucket.s3.amazonaws.com/app-branding/loading/xxx.json">
+                        <label><strong>Book Mechanic – Problem category icons (S3 URLs)</strong></label>
+                        <p class="muted" style="margin-top:4px;">JSON map: problem id → icon URL. Keys: tyre_puncture, battery_jump, engine_repair, brake_issue, electrical, ac_issue, general_checkup. Upload icons to S3 then paste URLs here.</p>
+                        <textarea id="app-branding-problem-category-icons-json" class="support-reply-input" rows="4" placeholder='{"tyre_puncture":"https://...","battery_jump":"https://..."}' style="width:100%;font-family:monospace;"></textarea>
                     </div>
                     <button type="button" class="btn-action btn-approve" onclick="saveAppBranding()">Save</button>
                     <p id="app-branding-save-status" class="muted" style="margin-top:8px;"></p>
+                </div>
+            </section>
+
+            <!-- Car / Bike header images & Quick service icons -->
+            <section id="car-bike-quick-icons-section" class="content-section">
+                <div class="section-header">
+                    <h2>Car / Bike & Quick Service Icons</h2>
+                    <p class="section-subtitle">Header images for <strong>Car Services</strong> and <strong>Bike Services</strong> pages, and custom icons for each <strong>Quick Service</strong> on the home screen (Night Service, Towing, Fuel Refill, EV Charging, Tyre Care, Minor Repair, Battery Jump). Upload then click Save.</p>
+                </div>
+                <div class="chart-card" style="margin-bottom:20px;">
+                    <h3 style="margin-top:0;">Car Services page header image</h3>
+                    <input type="file" id="car-service-image-file" accept=".png,.jpg,.jpeg,.webp" style="margin-bottom:8px;">
+                    <button type="button" class="btn-action btn-approve" id="car-service-image-upload-btn" onclick="uploadCarServiceImage()">Upload</button>
+                    <span id="car-service-image-status" class="muted" style="margin-left:8px;"></span>
+                    <div class="form-group" style="margin-top:8px;">
+                        <label>Car service image URL</label>
+                        <input type="url" id="car-service-image-url" class="support-reply-input" placeholder="https://...">
+                    </div>
+                </div>
+                <div class="chart-card" style="margin-bottom:20px;">
+                    <h3 style="margin-top:0;">Bike Services page header image</h3>
+                    <input type="file" id="bike-service-image-file" accept=".png,.jpg,.jpeg,.webp" style="margin-bottom:8px;">
+                    <button type="button" class="btn-action btn-approve" id="bike-service-image-upload-btn" onclick="uploadBikeServiceImage()">Upload</button>
+                    <span id="bike-service-image-status" class="muted" style="margin-left:8px;"></span>
+                    <div class="form-group" style="margin-top:8px;">
+                        <label>Bike service image URL</label>
+                        <input type="url" id="bike-service-image-url" class="support-reply-input" placeholder="https://...">
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h3 style="margin-top:0;">Quick service icons (home screen)</h3>
+                    <p class="muted">Each service can have a custom icon. Upload PNG/JPG/WebP; leave URL empty to use app default.</p>
+                    <table class="data-table" style="margin-top:12px;">
+                        <thead><tr><th>Service</th><th>File</th><th>Upload</th><th>Icon URL</th><th>Status</th></tr></thead>
+                        <tbody>
+                            <tr><td>Night Service</td><td><input type="file" id="qs-night-service-file" accept=".png,.jpg,.jpeg,.webp"></td><td><button type="button" class="btn-action btn-approve" onclick="uploadQuickServiceIcon('night_service')">Upload</button></td><td><input type="url" id="qs-night-service-url" class="support-reply-input" placeholder="https://..." style="width:100%;"></td><td><span id="qs-night-service-status" class="muted"></span></td></tr>
+                            <tr><td>Towing</td><td><input type="file" id="qs-towing-file" accept=".png,.jpg,.jpeg,.webp"></td><td><button type="button" class="btn-action btn-approve" onclick="uploadQuickServiceIcon('towing')">Upload</button></td><td><input type="url" id="qs-towing-url" class="support-reply-input" placeholder="https://..." style="width:100%;"></td><td><span id="qs-towing-status" class="muted"></span></td></tr>
+                            <tr><td>Fuel Refill</td><td><input type="file" id="qs-fuel-refill-file" accept=".png,.jpg,.jpeg,.webp"></td><td><button type="button" class="btn-action btn-approve" onclick="uploadQuickServiceIcon('fuel_refill')">Upload</button></td><td><input type="url" id="qs-fuel-refill-url" class="support-reply-input" placeholder="https://..." style="width:100%;"></td><td><span id="qs-fuel-refill-status" class="muted"></span></td></tr>
+                            <tr><td>EV Charging</td><td><input type="file" id="qs-ev-charging-file" accept=".png,.jpg,.jpeg,.webp"></td><td><button type="button" class="btn-action btn-approve" onclick="uploadQuickServiceIcon('ev_charging')">Upload</button></td><td><input type="url" id="qs-ev-charging-url" class="support-reply-input" placeholder="https://..." style="width:100%;"></td><td><span id="qs-ev-charging-status" class="muted"></span></td></tr>
+                            <tr><td>Tyre Care</td><td><input type="file" id="qs-tyre-care-file" accept=".png,.jpg,.jpeg,.webp"></td><td><button type="button" class="btn-action btn-approve" onclick="uploadQuickServiceIcon('tyre_care')">Upload</button></td><td><input type="url" id="qs-tyre-care-url" class="support-reply-input" placeholder="https://..." style="width:100%;"></td><td><span id="qs-tyre-care-status" class="muted"></span></td></tr>
+                            <tr><td>Minor Repair</td><td><input type="file" id="qs-minor-repair-file" accept=".png,.jpg,.jpeg,.webp"></td><td><button type="button" class="btn-action btn-approve" onclick="uploadQuickServiceIcon('minor_repair')">Upload</button></td><td><input type="url" id="qs-minor-repair-url" class="support-reply-input" placeholder="https://..." style="width:100%;"></td><td><span id="qs-minor-repair-status" class="muted"></span></td></tr>
+                            <tr><td>Battery Jump</td><td><input type="file" id="qs-battery-jump-file" accept=".png,.jpg,.jpeg,.webp"></td><td><button type="button" class="btn-action btn-approve" onclick="uploadQuickServiceIcon('battery_jump')">Upload</button></td><td><input type="url" id="qs-battery-jump-url" class="support-reply-input" placeholder="https://..." style="width:100%;"></td><td><span id="qs-battery-jump-status" class="muted"></span></td></tr>
+                        </tbody>
+                    </table>
+                    <button type="button" class="btn-action btn-approve" style="margin-top:16px;" onclick="saveCarBikeQuickIcons()">Save all URLs</button>
+                    <span id="car-bike-quick-save-status" class="muted" style="margin-left:12px;"></span>
                 </div>
             </section>
 

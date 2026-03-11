@@ -8,8 +8,8 @@ import '../../services/cognito_service.dart';
 import '../../services/payment/payment_config.dart';
 import '../../services/payment/payment_gateway.dart';
 import 'book_mechanic_flow_page.dart';
-
-// Teal theme - no purple
+import 'mechanic_accepted_ready_page.dart';
+import '../services/towing_service_page.dart';
 import '../../core/theme/app_colors.dart';
 
 /// Lists user's mechanic requests: Pending, Accepted, Rejected, Cancelled. Cancel for pending; Pay when accepted.
@@ -150,7 +150,12 @@ class _MyRequestedServicesPageState extends State<MyRequestedServicesPage> {
                         onPay: () => _payNow(r),
                         onTapAccepted: () async {
                           final status = r['status']?.toString() ?? '';
-                          if (status == 'PENDING_PAYMENT' || status == 'COMPLETED') {
+                          if (status == 'PENDING_PAYMENT') {
+                            await Navigator.push(context, MaterialPageRoute(
+                              builder: (_) => MechanicAcceptedReadyPage(request: r),
+                            ));
+                            _loadUserAndRequests();
+                          } else if (status == 'COMPLETED') {
                             await Navigator.push(context, MaterialPageRoute(
                               builder: (_) => _MechanicAcceptedDetailPage(request: r, onRated: _loadUserAndRequests),
                             ));
@@ -189,7 +194,7 @@ class _RequestCard extends StatelessWidget {
     String statusText = 'Pending';
     if (isAccepted) {
       statusColor = AppColors.burntOrange;
-      statusText = 'Mechanic accepted – Pay now';
+      statusText = 'Mechanic accepted';
     } else if (isPending) {
       statusColor = Colors.orange;
       statusText = 'Waiting for mechanic';
@@ -244,24 +249,11 @@ class _RequestCard extends StatelessWidget {
               const SizedBox(height: 8),
               Text(createdAt.length > 19 ? createdAt.substring(0, 19) : createdAt, style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[600])),
             ],
-            if (isPending || isAccepted) ...[
+            if (isPending) ...[
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  if (isPending)
-                    TextButton(
-                      onPressed: onCancel,
-                      child: Text('Cancel request', style: GoogleFonts.outfit(color: Colors.red, fontWeight: FontWeight.w600)),
-                    ),
-                  if (isAccepted) ...[
-                    const SizedBox(width: 8),
-                    ElevatedButton(
-                      onPressed: onPay,
-                      style: ElevatedButton.styleFrom(backgroundColor: AppColors.burntOrange, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-                      child: Text('Pay now', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.w600)),
-                    ),
-                  ],
-                ],
+              TextButton(
+                onPressed: onCancel,
+                child: Text('Cancel request', style: GoogleFonts.outfit(color: Colors.red, fontWeight: FontWeight.w600)),
               ),
             ],
           ],
@@ -522,6 +514,31 @@ class _MechanicAcceptedDetailPageState extends State<_MechanicAcceptedDetailPage
                         myLocationEnabled: true,
                         zoomControlsEnabled: false,
                       ),
+              ),
+            ],
+            if (widget.request['status']?.toString() == 'COMPLETED') ...[
+              const SizedBox(height: 24),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const TowingServicePage()),
+                      );
+                    },
+                    icon: const Icon(Icons.local_shipping, size: 22),
+                    label: const Text('Request towing'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      foregroundColor: AppColors.burntOrange,
+                      side: const BorderSide(color: AppColors.burntOrange),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ),
               ),
             ],
           ],

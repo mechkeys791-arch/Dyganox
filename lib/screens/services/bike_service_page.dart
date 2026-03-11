@@ -6,6 +6,7 @@ import 'bike_tyre_care_page.dart';
 import 'bike_brake_service_page.dart';
 import 'bike_electrical_works_page.dart';
 import '../../core/theme/app_colors.dart';
+import '../../services/app_remote_service.dart';
 
 class BikeServicePage extends StatefulWidget {
   const BikeServicePage({super.key});
@@ -19,10 +20,22 @@ class _BikeServicePageState extends State<BikeServicePage> with TickerProviderSt
   late AnimationController _slideController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
+  String? _appLogoUrl;
+  String? _bikeServiceImageUrl;
 
   @override
   void initState() {
     super.initState();
+    AppRemoteService.getAppBrandingConfig().then((m) {
+      if (mounted && m != null) {
+        final logo = m['appLogoUrl']?.toString()?.trim();
+        final bikeImg = m['bikeServiceImageUrl']?.toString()?.trim();
+        setState(() {
+          if (logo != null && logo.isNotEmpty) _appLogoUrl = logo;
+          if (bikeImg != null && bikeImg.isNotEmpty) _bikeServiceImageUrl = bikeImg;
+        });
+      }
+    });
     
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 800),
@@ -142,15 +155,12 @@ class _BikeServicePageState extends State<BikeServicePage> with TickerProviderSt
       {'title': 'Battery', 'icon': 'assets/icons/bike-battery.png'},
       {'title': 'Tyre Care', 'icon': 'assets/icons/bike-tyre.png'},
       {'title': 'Body Works', 'icon': 'assets/icons/bike-body-works.png'},
-      {'title': 'Duplicate Key', 'icon': 'assets/icons/duplicate-key.png'},
       {'title': 'Brake Service', 'icon': 'assets/icons/brake-service.png'},
       {'title': 'Towing', 'icon': 'assets/icons/tow-truck.png'},
       {'title': 'Windshield', 'icon': 'assets/icons/headlight.png'},
-      {'title': 'EV Charging', 'icon': 'assets/icons/charging-station.png'},
+      {'title': 'EV Coming Soon', 'icon': 'assets/icons/charging-station.png'},
       {'title': 'Wheel Alignment', 'icon': 'assets/icons/bike-tyre.png'},
-      {'title': 'Spare Parts', 'icon': 'assets/icons/spare-parts.png'},
       {'title': 'Suspension', 'icon': 'assets/icons/new-bike-suspension.png'},
-      {'title': 'Electrical Works', 'icon': 'assets/icons/bike-electrical-works.png'},
     ];
 
     return Scaffold(
@@ -212,47 +222,31 @@ class _BikeServicePageState extends State<BikeServicePage> with TickerProviderSt
                     ),
                   ],
                 ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Image.asset(
-                        'assets/icons/motorcycle.png',
-                        width: 30,
-                        height: 30,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Professional Bike Care',
-                            style: GoogleFonts.outfit(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
+                child: _bikeServiceImageUrl != null && _bikeServiceImageUrl!.isNotEmpty
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: Image.network(
+                          _bikeServiceImageUrl!,
+                          width: double.infinity,
+                          height: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Center(
+                            child: _appLogoUrl != null && _appLogoUrl!.isNotEmpty
+                                ? Image.network(_appLogoUrl!, height: 64, fit: BoxFit.contain, errorBuilder: (_, __, ___) => Icon(Icons.two_wheeler, size: 48, color: Colors.white))
+                                : Icon(Icons.two_wheeler, size: 48, color: Colors.white),
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Expert mechanics • Quality parts • Quick service',
-                            style: GoogleFonts.inter(
-                              color: Colors.white.withOpacity(0.9),
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
+                        ),
+                      )
+                    : Center(
+                        child: _appLogoUrl != null && _appLogoUrl!.isNotEmpty
+                            ? Image.network(
+                                _appLogoUrl!,
+                                height: 64,
+                                fit: BoxFit.contain,
+                                errorBuilder: (_, __, ___) => Icon(Icons.two_wheeler, size: 48, color: Colors.white),
+                              )
+                            : Icon(Icons.two_wheeler, size: 48, color: Colors.white),
                       ),
-                    ),
-                  ],
-                ),
               ),
 
               // Services Grid
@@ -300,9 +294,18 @@ class _BikeServicePageState extends State<BikeServicePage> with TickerProviderSt
                               case 'Brake Service':
                                 targetPage = const BikeBrakeServicePage();
                                 break;
-                              case 'Electrical Works':
-                                targetPage = const BikeElectricalWorksPage();
-                                break;
+                            }
+                            if (service['title'] == 'EV Coming Soon') {
+                              showDialog(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                  title: const Text('Coming soon'),
+                                  content: const Text('EV Charging will be available soon.'),
+                                  actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
+                                ),
+                              );
+                              return;
                             }
 
                             if (targetPage != null) {

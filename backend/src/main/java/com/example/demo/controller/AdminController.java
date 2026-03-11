@@ -6,6 +6,7 @@ import com.example.demo.model.AuthBackgroundVideo;
 import com.example.demo.model.Banner;
 import com.example.demo.model.HomeHeroMedia;
 import com.example.demo.model.MarketingPoster;
+import com.example.demo.model.NearestMechanicLocation;
 import com.example.demo.model.SectionPoster;
 import com.example.demo.model.Mechanic;
 import com.example.demo.model.MechanicHelpMessage;
@@ -20,6 +21,7 @@ import com.example.demo.repository.AuthBackgroundVideoRepo;
 import com.example.demo.repository.BannerRepo;
 import com.example.demo.repository.HomeHeroMediaRepo;
 import com.example.demo.repository.MarketingPosterRepo;
+import com.example.demo.repository.NearestMechanicLocationRepo;
 import com.example.demo.repository.SectionPosterRepo;
 import com.example.demo.repository.MechanicHelpMessageRepo;
 import com.example.demo.repository.UserHelpMessageRepo;
@@ -81,6 +83,9 @@ public class AdminController {
 
     @Autowired
     private AppBrandingRepo appBrandingRepo;
+
+    @Autowired
+    private NearestMechanicLocationRepo nearestMechanicLocationRepo;
 
     @Autowired
     private UserAddressRepo userAddressRepo;
@@ -751,7 +756,56 @@ public class AdminController {
         }
     }
 
-    // Manually create mechanic (admin)
+    // ========== NEAREST MECHANIC LOCATIONS (See nearest mechanic map only – not login mechanics) ==========
+    @GetMapping("/nearest-mechanic-locations")
+    public ResponseEntity<List<Map<String, Object>>> getNearestMechanicLocations() {
+        try {
+            List<NearestMechanicLocation> list = nearestMechanicLocationRepo.findAllByOrderByIdAsc();
+            List<Map<String, Object>> out = new ArrayList<>();
+            for (NearestMechanicLocation loc : list) {
+                Map<String, Object> m = new HashMap<>();
+                m.put("id", loc.getId());
+                m.put("latitude", loc.getLatitude() != null ? loc.getLatitude() : "");
+                m.put("longitude", loc.getLongitude() != null ? loc.getLongitude() : "");
+                out.add(m);
+            }
+            return ResponseEntity.ok(out);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @PostMapping("/nearest-mechanic-locations")
+    public ResponseEntity<NearestMechanicLocation> createNearestMechanicLocation(@RequestBody Map<String, String> body) {
+        try {
+            String lat = body != null ? body.get("latitude") : null;
+            String lng = body != null ? body.get("longitude") : null;
+            if (lat == null || lng == null || lat.trim().isEmpty() || lng.trim().isEmpty()) {
+                return ResponseEntity.badRequest().build();
+            }
+            NearestMechanicLocation loc = new NearestMechanicLocation();
+            loc.setLatitude(lat.trim());
+            loc.setLongitude(lng.trim());
+            return ResponseEntity.status(HttpStatus.CREATED).body(nearestMechanicLocationRepo.save(loc));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @DeleteMapping("/nearest-mechanic-locations/{id}")
+    public ResponseEntity<Void> deleteNearestMechanicLocation(@PathVariable Long id) {
+        try {
+            if (nearestMechanicLocationRepo.existsById(id)) {
+                nearestMechanicLocationRepo.deleteById(id);
+                return ResponseEntity.ok().build();
+            }
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    // Manually create mechanic (admin) – for partner mechanics who login; separate from nearest-mechanic pins
     @PostMapping("/mechanics/create")
     public ResponseEntity<Mechanic> createMechanic(@RequestBody Mechanic mechanic) {
         try {
@@ -1267,6 +1321,18 @@ public class AdminController {
             out.put("welcomePageGifUrl", "");
             out.put("loadingMediaUrl", "");
             out.put("loadingMediaType", "");
+            out.put("nearestMechanicMarkerIconUrl", "");
+            out.put("userLocationMarkerIconUrl", "");
+            out.put("carServiceImageUrl", "");
+            out.put("bikeServiceImageUrl", "");
+            out.put("quickServiceNightServiceIconUrl", "");
+            out.put("quickServiceTowingIconUrl", "");
+            out.put("quickServiceFuelRefillIconUrl", "");
+            out.put("quickServiceEvChargingIconUrl", "");
+            out.put("quickServiceTyreCareIconUrl", "");
+            out.put("quickServiceMinorRepairIconUrl", "");
+            out.put("quickServiceBatteryJumpIconUrl", "");
+            out.put("problemCategoryIconsJson", "");
             return ResponseEntity.ok(out);
         }
         AppBranding c = opt.get();
@@ -1281,6 +1347,18 @@ public class AdminController {
         out.put("welcomePageGifUrl", c.getWelcomePageGifUrl() != null ? c.getWelcomePageGifUrl() : "");
         out.put("loadingMediaUrl", c.getLoadingMediaUrl() != null ? c.getLoadingMediaUrl() : "");
         out.put("loadingMediaType", c.getLoadingMediaType() != null ? c.getLoadingMediaType() : "");
+        out.put("nearestMechanicMarkerIconUrl", c.getNearestMechanicMarkerIconUrl() != null ? c.getNearestMechanicMarkerIconUrl() : "");
+        out.put("userLocationMarkerIconUrl", c.getUserLocationMarkerIconUrl() != null ? c.getUserLocationMarkerIconUrl() : "");
+        out.put("carServiceImageUrl", c.getCarServiceImageUrl() != null ? c.getCarServiceImageUrl() : "");
+        out.put("bikeServiceImageUrl", c.getBikeServiceImageUrl() != null ? c.getBikeServiceImageUrl() : "");
+        out.put("quickServiceNightServiceIconUrl", c.getQuickServiceNightServiceIconUrl() != null ? c.getQuickServiceNightServiceIconUrl() : "");
+        out.put("quickServiceTowingIconUrl", c.getQuickServiceTowingIconUrl() != null ? c.getQuickServiceTowingIconUrl() : "");
+        out.put("quickServiceFuelRefillIconUrl", c.getQuickServiceFuelRefillIconUrl() != null ? c.getQuickServiceFuelRefillIconUrl() : "");
+        out.put("quickServiceEvChargingIconUrl", c.getQuickServiceEvChargingIconUrl() != null ? c.getQuickServiceEvChargingIconUrl() : "");
+        out.put("quickServiceTyreCareIconUrl", c.getQuickServiceTyreCareIconUrl() != null ? c.getQuickServiceTyreCareIconUrl() : "");
+        out.put("quickServiceMinorRepairIconUrl", c.getQuickServiceMinorRepairIconUrl() != null ? c.getQuickServiceMinorRepairIconUrl() : "");
+        out.put("quickServiceBatteryJumpIconUrl", c.getQuickServiceBatteryJumpIconUrl() != null ? c.getQuickServiceBatteryJumpIconUrl() : "");
+        out.put("problemCategoryIconsJson", c.getProblemCategoryIconsJson() != null ? c.getProblemCategoryIconsJson() : "");
         return ResponseEntity.ok(out);
     }
 
@@ -1295,6 +1373,18 @@ public class AdminController {
         String welcomePageGifUrl = body != null && body.get("welcomePageGifUrl") != null ? body.get("welcomePageGifUrl").toString().trim() : null;
         String loadingMediaUrl = body != null && body.get("loadingMediaUrl") != null ? body.get("loadingMediaUrl").toString().trim() : null;
         String loadingMediaType = body != null && body.get("loadingMediaType") != null ? body.get("loadingMediaType").toString().trim().toLowerCase() : null;
+        String nearestMechanicMarkerIconUrl = body != null && body.get("nearestMechanicMarkerIconUrl") != null ? body.get("nearestMechanicMarkerIconUrl").toString().trim() : null;
+        String userLocationMarkerIconUrl = body != null && body.get("userLocationMarkerIconUrl") != null ? body.get("userLocationMarkerIconUrl").toString().trim() : null;
+        String carServiceImageUrl = body != null && body.get("carServiceImageUrl") != null ? body.get("carServiceImageUrl").toString().trim() : null;
+        String bikeServiceImageUrl = body != null && body.get("bikeServiceImageUrl") != null ? body.get("bikeServiceImageUrl").toString().trim() : null;
+        String quickServiceNightServiceIconUrl = body != null && body.get("quickServiceNightServiceIconUrl") != null ? body.get("quickServiceNightServiceIconUrl").toString().trim() : null;
+        String quickServiceTowingIconUrl = body != null && body.get("quickServiceTowingIconUrl") != null ? body.get("quickServiceTowingIconUrl").toString().trim() : null;
+        String quickServiceFuelRefillIconUrl = body != null && body.get("quickServiceFuelRefillIconUrl") != null ? body.get("quickServiceFuelRefillIconUrl").toString().trim() : null;
+        String quickServiceEvChargingIconUrl = body != null && body.get("quickServiceEvChargingIconUrl") != null ? body.get("quickServiceEvChargingIconUrl").toString().trim() : null;
+        String quickServiceTyreCareIconUrl = body != null && body.get("quickServiceTyreCareIconUrl") != null ? body.get("quickServiceTyreCareIconUrl").toString().trim() : null;
+        String quickServiceMinorRepairIconUrl = body != null && body.get("quickServiceMinorRepairIconUrl") != null ? body.get("quickServiceMinorRepairIconUrl").toString().trim() : null;
+        String quickServiceBatteryJumpIconUrl = body != null && body.get("quickServiceBatteryJumpIconUrl") != null ? body.get("quickServiceBatteryJumpIconUrl").toString().trim() : null;
+        String problemCategoryIconsJson = body != null && body.get("problemCategoryIconsJson") != null ? body.get("problemCategoryIconsJson").toString().trim() : null;
         if (splashMediaType != null && !splashMediaType.isEmpty() && !"lottie".equals(splashMediaType) && !"gif".equals(splashMediaType) && !"video".equals(splashMediaType)) {
             splashMediaType = "lottie";
         }
@@ -1314,6 +1404,18 @@ public class AdminController {
         if (welcomePageGifUrl != null) c.setWelcomePageGifUrl(welcomePageGifUrl);
         if (loadingMediaUrl != null) c.setLoadingMediaUrl(loadingMediaUrl);
         if (loadingMediaType != null) c.setLoadingMediaType(loadingMediaType);
+        if (nearestMechanicMarkerIconUrl != null) c.setNearestMechanicMarkerIconUrl(nearestMechanicMarkerIconUrl);
+        if (userLocationMarkerIconUrl != null) c.setUserLocationMarkerIconUrl(userLocationMarkerIconUrl);
+        if (carServiceImageUrl != null) c.setCarServiceImageUrl(carServiceImageUrl);
+        if (bikeServiceImageUrl != null) c.setBikeServiceImageUrl(bikeServiceImageUrl);
+        if (quickServiceNightServiceIconUrl != null) c.setQuickServiceNightServiceIconUrl(quickServiceNightServiceIconUrl);
+        if (quickServiceTowingIconUrl != null) c.setQuickServiceTowingIconUrl(quickServiceTowingIconUrl);
+        if (quickServiceFuelRefillIconUrl != null) c.setQuickServiceFuelRefillIconUrl(quickServiceFuelRefillIconUrl);
+        if (quickServiceEvChargingIconUrl != null) c.setQuickServiceEvChargingIconUrl(quickServiceEvChargingIconUrl);
+        if (quickServiceTyreCareIconUrl != null) c.setQuickServiceTyreCareIconUrl(quickServiceTyreCareIconUrl);
+        if (quickServiceMinorRepairIconUrl != null) c.setQuickServiceMinorRepairIconUrl(quickServiceMinorRepairIconUrl);
+        if (quickServiceBatteryJumpIconUrl != null) c.setQuickServiceBatteryJumpIconUrl(quickServiceBatteryJumpIconUrl);
+        if (problemCategoryIconsJson != null) c.setProblemCategoryIconsJson(problemCategoryIconsJson);
         return ResponseEntity.ok(appBrandingRepo.save(c));
     }
 

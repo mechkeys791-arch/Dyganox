@@ -20,6 +20,7 @@ import 'screens/services/car_service_page.dart';
 import 'screens/services/bike_service_page.dart';
 import 'screens/mechanic/mechanic_finder_page.dart';
 import 'screens/mechanic/book_mechanic_flow_page.dart';
+import 'widgets/vehicle_selection_sheet.dart';
 import 'screens/services/map_service_page.dart';
 import 'screens/services/night_service_page.dart';
 import 'screens/profile/location_selection_page.dart';
@@ -84,6 +85,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   String _homeHeroMediaType = '';
   String _homeHeroMediaUrl = '';
   bool _homeHeroActive = false;
+
+  // App branding (quick service icon URLs from admin)
+  Map<String, dynamic>? _branding;
 
   // Responsive design variables
   late double screenWidth;
@@ -187,8 +191,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     await _loadBanners(_defaultVehicle?['type']?.toString());
     await _loadSelectedAddress();
     await _loadHomeHeroConfig();
+    await _loadBranding();
     _pingActivity();
     if (mounted) setState(() {});
+  }
+
+  Future<void> _loadBranding() async {
+    final m = await AppRemoteService.getAppBrandingConfig();
+    if (mounted && m != null) setState(() => _branding = m);
   }
 
   Future<void> _loadHomeHeroConfig() async {
@@ -600,11 +610,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (sheetContext) => _NearestMechanicVehicleSheet(
+      builder: (sheetContext) => VehicleSelectionSheet(
+        title: 'Find mechanic for',
         userEmail: email,
         parentContext: context,
-        onSelectVehicle: (vehicleType) {
+        onSelectVehicle: (vehicle) {
           Navigator.pop(sheetContext);
+          final vehicleType = vehicle['type']?.toString();
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -835,35 +847,28 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   static const List<Map<String, String>> _carServices = [
     {'title': 'Towing', 'icon': 'assets/icons/tow-truck.png'},
     {'title': 'Minor Repair', 'icon': 'assets/icons/repair-tools.png'},
-    {'title': 'EV Charging', 'icon': 'assets/icons/charging-station.png'},
+    {'title': 'EV Coming Soon', 'icon': 'assets/icons/charging-station.png'},
     {'title': 'Battery Jump', 'icon': 'assets/icons/jump-start.png'},
     {'title': 'Headlight Repair', 'icon': 'assets/icons/headlight.png'},
-    {'title': 'Duplicate Key', 'icon': 'assets/icons/duplicate-key.png'},
     {'title': 'Tyre Care', 'icon': 'assets/icons/punctured-tire.png'},
     {'title': 'Oil Change', 'icon': 'assets/icons/repair-tools.png'},
     {'title': 'Brake Service', 'icon': 'assets/icons/brake-service.png'},
     {'title': 'Windshield', 'icon': 'assets/icons/headlight.png'},
     {'title': 'Body Works', 'icon': 'assets/icons/smart-car.png'},
     {'title': 'Wheel Alignment', 'icon': 'assets/icons/wheel-alignment.png'},
-    {'title': 'Spare Parts', 'icon': 'assets/icons/spare-parts.png'},
     {'title': 'Suspension', 'icon': 'assets/icons/suspension.png'},
-    {'title': 'Electrical Works', 'icon': 'assets/icons/new-electrical-works.png'},
-    {'title': 'Fuel Refill', 'icon': 'assets/icons/repair-tools.png'},
   ];
 
   static const List<Map<String, String>> _bikeServices = [
     {'title': 'Battery', 'icon': 'assets/icons/bike-battery.png'},
     {'title': 'Tyre Care', 'icon': 'assets/icons/bike-tyre.png'},
     {'title': 'Body Works', 'icon': 'assets/icons/bike-body-works.png'},
-    {'title': 'Duplicate Key', 'icon': 'assets/icons/duplicate-key.png'},
     {'title': 'Brake Service', 'icon': 'assets/icons/brake-service.png'},
     {'title': 'Towing', 'icon': 'assets/icons/tow-truck.png'},
     {'title': 'Windshield', 'icon': 'assets/icons/headlight.png'},
-    {'title': 'EV Charging', 'icon': 'assets/icons/charging-station.png'},
+    {'title': 'EV Coming Soon', 'icon': 'assets/icons/charging-station.png'},
     {'title': 'Wheel Alignment', 'icon': 'assets/icons/bike-tyre.png'},
-    {'title': 'Spare Parts', 'icon': 'assets/icons/spare-parts.png'},
     {'title': 'Suspension', 'icon': 'assets/icons/new-bike-suspension.png'},
-    {'title': 'Electrical Works', 'icon': 'assets/icons/bike-electrical-works.png'},
   ];
 
   void _pushPage(Widget page) {
@@ -1007,14 +1012,24 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             case 'Minor Repair': targetPage = const MinorRepairPage(); break;
             case 'Towing': targetPage = const TowingServicePage(); break;
             case 'Battery Jump': targetPage = const BatteryJumpPage(); break;
-            case 'EV Charging': targetPage = const EVChargingPage(); break;
-            case 'Fuel Refill': targetPage = const FuelRefillPage(); break;
             case 'Tyre Care': targetPage = const TyreCarePage(); break;
           }
           return _buildServiceGridTile(
             title: title,
             iconPath: iconPath,
             onTap: () {
+              if (title == 'EV Coming Soon') {
+                showDialog(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    title: const Text('Coming soon'),
+                    content: const Text('EV Charging will be available soon.'),
+                    actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
+                  ),
+                );
+                return;
+              }
               if (targetPage != null) {
                 _pushPage(targetPage);
               } else {
@@ -1060,12 +1075,23 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             case 'Battery': targetPage = const BikeBatteryPage(); break;
             case 'Tyre Care': targetPage = const BikeTyreCarePage(); break;
             case 'Brake Service': targetPage = const BikeBrakeServicePage(); break;
-            case 'Electrical Works': targetPage = const BikeElectricalWorksPage(); break;
           }
           return _buildServiceGridTile(
             title: title,
             iconPath: iconPath,
             onTap: () {
+              if (title == 'EV Coming Soon') {
+                showDialog(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    title: const Text('Coming soon'),
+                    content: const Text('EV Charging will be available soon.'),
+                    actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
+                  ),
+                );
+                return;
+              }
               if (targetPage != null) {
                 _pushPage(targetPage);
               } else {
@@ -1251,13 +1277,22 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         shape: BoxShape.circle,
                       ),
                       child: Center(
-                        child: Image.asset(
-                          'assets/icons/24-hour-service.png',
-                          width: screenWidth * 0.06,
-                          height: screenWidth * 0.06,
-                          fit: BoxFit.contain,
-                          color: isNightTime ? Colors.white.withOpacity(0.9) : null,
-                        ),
+                          child: (_branding?['quickServiceNightServiceIconUrl']?.toString()?.trim().isNotEmpty ?? false)
+                          ? Image.network(
+                              _branding!['quickServiceNightServiceIconUrl']!.toString().trim(),
+                              width: screenWidth * 0.06,
+                              height: screenWidth * 0.06,
+                              fit: BoxFit.contain,
+                              color: isNightTime ? Colors.white.withOpacity(0.9) : null,
+                              errorBuilder: (_, __, ___) => Image.asset('assets/icons/24-hour-service.png', width: screenWidth * 0.06, height: screenWidth * 0.06, fit: BoxFit.contain),
+                            )
+                          : Image.asset(
+                              'assets/icons/24-hour-service.png',
+                              width: screenWidth * 0.06,
+                              height: screenWidth * 0.06,
+                              fit: BoxFit.contain,
+                              color: isNightTime ? Colors.white.withOpacity(0.9) : null,
+                            ),
                       ),
                     ),
                     SizedBox(height: screenHeight * 0.008),
@@ -1330,7 +1365,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     required String iconPath,
     required Color color,
     required VoidCallback onTap,
+    String? iconUrl,
   }) {
+    final useNetwork = iconUrl != null && iconUrl.trim().isNotEmpty;
     return Container(
       child: Material(
         color: Colors.transparent,
@@ -1354,12 +1391,20 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     shape: BoxShape.circle,
                   ),
                   child: Center(
-                    child: Image.asset(
-                      iconPath,
-                      width: screenWidth * 0.06,
-                      height: screenWidth * 0.06,
-                      fit: BoxFit.contain,
-                    ),
+                    child: useNetwork
+                        ? Image.network(
+                            iconUrl!,
+                            width: screenWidth * 0.06,
+                            height: screenWidth * 0.06,
+                            fit: BoxFit.contain,
+                            errorBuilder: (_, __, ___) => Image.asset(iconPath, width: screenWidth * 0.06, height: screenWidth * 0.06, fit: BoxFit.contain),
+                          )
+                        : Image.asset(
+                            iconPath,
+                            width: screenWidth * 0.06,
+                            height: screenWidth * 0.06,
+                            fit: BoxFit.contain,
+                          ),
                   ),
                 ),
                 SizedBox(height: screenHeight * 0.008),
@@ -2066,6 +2111,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                               title: 'Towing',
                               iconPath: 'assets/icons/tow-truck.png',
                               color: AppColors.burntOrange,
+                              iconUrl: _branding?['quickServiceTowingIconUrl']?.toString()?.trim(),
                               onTap: () {
                                 Navigator.push(
                                   context,
@@ -2096,28 +2142,15 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                               title: 'Fuel Refill',
                               iconPath: 'assets/icons/fuel-station.png',
                               color: AppColors.burntOrange,
+                              iconUrl: _branding?['quickServiceFuelRefillIconUrl']?.toString()?.trim(),
                               onTap: () {
-                                Navigator.push(
-                                  context,
-                                  PageRouteBuilder(
-                                    pageBuilder: (context, animation, secondaryAnimation) =>
-                                        const FuelRefillPage(),
-                                    transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                                      return SlideTransition(
-                                        position: Tween<Offset>(
-                                          begin: const Offset(1.0, 0.0),
-                                          end: Offset.zero,
-                                        ).animate(CurvedAnimation(
-                                          parent: animation,
-                                          curve: Curves.easeOutCubic,
-                                        )),
-                                        child: FadeTransition(
-                                          opacity: animation,
-                                          child: child,
-                                        ),
-                                      );
-                                    },
-                                    transitionDuration: const Duration(milliseconds: 400),
+                                showDialog(
+                                  context: context,
+                                  builder: (ctx) => AlertDialog(
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                    title: const Text('Coming soon'),
+                                    content: const Text('Fuel Refill will be available soon.'),
+                                    actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
                                   ),
                                 );
                               },
@@ -2126,28 +2159,15 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                               title: 'EV Charging',
                               iconPath: 'assets/icons/charging-station.png',
                               color: AppColors.burntOrange,
+                              iconUrl: _branding?['quickServiceEvChargingIconUrl']?.toString()?.trim(),
                               onTap: () {
-                                Navigator.push(
-                                  context,
-                                  PageRouteBuilder(
-                                    pageBuilder: (context, animation, secondaryAnimation) =>
-                                        const EVChargingPage(),
-                                    transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                                      return SlideTransition(
-                                        position: Tween<Offset>(
-                                          begin: const Offset(1.0, 0.0),
-                                          end: Offset.zero,
-                                        ).animate(CurvedAnimation(
-                                          parent: animation,
-                                          curve: Curves.easeOutCubic,
-                                        )),
-                                        child: FadeTransition(
-                                          opacity: animation,
-                                          child: child,
-                                        ),
-                                      );
-                                    },
-                                    transitionDuration: const Duration(milliseconds: 400),
+                                showDialog(
+                                  context: context,
+                                  builder: (ctx) => AlertDialog(
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                    title: const Text('Coming soon'),
+                                    content: const Text('EV Charging will be available soon.'),
+                                    actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
                                   ),
                                 );
                               },
@@ -2156,6 +2176,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                               title: 'Tyre Care',
                               iconPath: 'assets/icons/tyre.png',
                               color: AppColors.burntOrange,
+                              iconUrl: _branding?['quickServiceTyreCareIconUrl']?.toString()?.trim(),
                               onTap: () {
                                 Navigator.push(
                                   context,
@@ -2186,6 +2207,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                               title: 'Minor Repair',
                               iconPath: 'assets/icons/repair-tools.png',
                               color: AppColors.burntOrange,
+                              iconUrl: _branding?['quickServiceMinorRepairIconUrl']?.toString()?.trim(),
                               onTap: () {
                                 Navigator.push(
                                   context,
@@ -2216,6 +2238,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                              title: 'Battery Jump',
                              iconPath: 'assets/icons/jump-start.png',
                              color: AppColors.burntOrange,
+                             iconUrl: _branding?['quickServiceBatteryJumpIconUrl']?.toString()?.trim(),
                              onTap: () {
                                Navigator.push(
                                  context,
@@ -2729,170 +2752,6 @@ class _ScrollingLocationTextState extends State<_ScrollingLocationText>
           ),
         );
       },
-    );
-  }
-}
-
-/// Bottom sheet content: list saved vehicles (photo + name) and "Add new vehicle" at bottom.
-class _NearestMechanicVehicleSheet extends StatefulWidget {
-  final String userEmail;
-  final BuildContext parentContext;
-  final void Function(String? vehicleType) onSelectVehicle;
-  final VoidCallback onAddVehicle;
-
-  const _NearestMechanicVehicleSheet({
-    required this.userEmail,
-    required this.parentContext,
-    required this.onSelectVehicle,
-    required this.onAddVehicle,
-  });
-
-  @override
-  State<_NearestMechanicVehicleSheet> createState() => _NearestMechanicVehicleSheetState();
-}
-
-class _NearestMechanicVehicleSheetState extends State<_NearestMechanicVehicleSheet> {
-  List<Map<String, dynamic>> _vehicles = [];
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadVehicles();
-  }
-
-  Future<void> _loadVehicles() async {
-    if (widget.userEmail.isEmpty) {
-      setState(() { _vehicles = []; _loading = false; });
-      return;
-    }
-    final list = await VehicleService.getMyVehicles(widget.userEmail);
-    if (mounted) setState(() { _vehicles = list; _loading = false; });
-  }
-
-  String _vehicleImageUrl(Map<String, dynamic> v) {
-    final url = v['photoUrl']?.toString() ?? v['modelImageUrl']?.toString();
-    if (url == null || url.isEmpty) return '';
-    if (url.startsWith('http')) return url;
-    return '${ApiConfig.baseUrl}$url';
-  }
-
-  String _vehicleName(Map<String, dynamic> v) {
-    final make = v['makeName'] ?? '';
-    final model = v['modelName'] ?? '';
-    final plate = v['plateNumber'] ?? '';
-    final name = '$make $model'.trim();
-    if (name.isEmpty) return plate.toString().isNotEmpty ? plate : 'Vehicle';
-    return plate.toString().isNotEmpty ? '$name ($plate)' : name;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.6),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-              child: Text(
-                'Find mechanic for',
-                style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.darkChocolate),
-              ),
-            ),
-            if (_loading)
-              const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator(color: AppColors.burntOrange)))
-            else
-              Flexible(
-                child: ListView(
-                  shrinkWrap: true,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  children: [
-                    ..._vehicles.map((v) {
-                      final type = (v['type'] ?? 'CAR').toString().toUpperCase();
-                      final imgUrl = _vehicleImageUrl(v);
-                      return Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          onTap: () => widget.onSelectVehicle(v['type']?.toString()),
-                          borderRadius: BorderRadius.circular(14),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-                            child: Row(
-                              children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(10),
-                                  child: imgUrl.isNotEmpty
-                                      ? Image.network(imgUrl, width: 56, height: 56, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _vehiclePlaceholder(type))
-                                      : _vehiclePlaceholder(type),
-                                ),
-                                const SizedBox(width: 14),
-                                Expanded(
-                                  child: Text(
-                                    _vehicleName(v),
-                                    style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.darkChocolate),
-                                  ),
-                                ),
-                                Icon(Icons.chevron_right, color: Colors.grey[400], size: 22),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    }),
-                  ],
-                ),
-              ),
-            const Divider(height: 1),
-            Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: widget.onAddVehicle,
-                borderRadius: BorderRadius.circular(14),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: AppColors.burntOrange.withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(Icons.add, color: AppColors.burntOrange, size: 24),
-                      ),
-                      const SizedBox(width: 14),
-                      Text(
-                        'Add new vehicle',
-                        style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.burntOrange),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _vehiclePlaceholder(String type) {
-    return Container(
-      width: 56,
-      height: 56,
-      color: AppColors.creamElevated,
-      child: Icon(
-        type == 'BIKE' ? Icons.two_wheeler : Icons.directions_car,
-        color: AppColors.burntOrange,
-        size: 28,
-      ),
     );
   }
 }

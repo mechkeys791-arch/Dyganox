@@ -5,6 +5,10 @@ const API_CONFIG = {
 
     endpoints: {
         mechanics: '/api/admin/mechanics',
+        createMechanic: '/api/admin/mechanics/create',
+        nearestMechanicLocations: '/api/admin/nearest-mechanic-locations',
+        uploadNearestMechanicMarkerIcon: '/api/upload/nearest-mechanic-marker-icon',
+        uploadUserLocationMarkerIcon: '/api/upload/user-location-marker-icon',
         pendingMechanics: '/api/admin/mechanics/pending',
         approveMechanic: '/api/admin/mechanics',
         rejectMechanic: '/api/admin/mechanics',
@@ -29,7 +33,9 @@ const API_CONFIG = {
         uploadAppLogo: '/api/upload/app-logo',
         uploadSplashMedia: '/api/upload/splash-media',
         uploadWelcomePageMedia: '/api/upload/welcome-page-media',
-        uploadLoadingMedia: '/api/upload/loading-media'
+        uploadCarServiceImage: '/api/upload/car-service-image',
+        uploadBikeServiceImage: '/api/upload/bike-service-image',
+        uploadQuickServiceIcon: '/api/upload/quick-service-icon'
     }
 };
 

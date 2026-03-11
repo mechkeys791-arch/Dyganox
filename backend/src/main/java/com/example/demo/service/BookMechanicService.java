@@ -75,14 +75,14 @@ public class BookMechanicService {
     }
 
     /**
-     * Find mechanic IDs within radius (5, 10, or 20 km) that serve the category.
-     * Used for broadcast. Returns list of mechanics with their distance for picking radius tier.
+     * Find mechanic IDs within radius (5 or 10 km max) that serve the category.
+     * Used for broadcast. Only sends to Available mechanics (excludes Busy and Offline).
      */
     public List<Mechanic> findMechanicsForBroadcast(double lat, double lng, String problemCategory, int radiusKm) {
         List<Mechanic> all = mechanicRepo.findAll();
         return all.stream()
                 .filter(m -> "APPROVED".equalsIgnoreCase(m.getApprovalStatus()) && !Boolean.TRUE.equals(m.isBlocked()))
-                .filter(m -> "Available".equalsIgnoreCase(m.getStatus()) || "Busy".equalsIgnoreCase(m.getStatus()))
+                .filter(m -> "Available".equalsIgnoreCase(m.getStatus()))
                 .filter(m -> servesCategory(m, problemCategory))
                 .filter(m -> withinRadius(m, lat, lng, radiusKm))
                 .collect(Collectors.toList());
@@ -162,16 +162,12 @@ public class BookMechanicService {
         }
 
         MechanicRequest saved = mechanicRequestRepo.save(req);
-        // Determine radius: try 5km, then 10km, then 20km
+        // Determine radius: try 5km, then 10km (max 10km - only specialized mechanics within range)
         int radius = 5;
         List<Mechanic> mechanics = findMechanicsForBroadcast(lat, lng, problemCategory, 5);
         if (mechanics.isEmpty()) {
             radius = 10;
             mechanics = findMechanicsForBroadcast(lat, lng, problemCategory, 10);
-        }
-        if (mechanics.isEmpty()) {
-            radius = 20;
-            mechanics = findMechanicsForBroadcast(lat, lng, problemCategory, 20);
         }
         saved.setRequestRadiusKm(radius);
         List<Long> notifiedIds = new ArrayList<>();

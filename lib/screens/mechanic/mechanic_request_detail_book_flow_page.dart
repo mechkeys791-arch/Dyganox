@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -38,6 +39,7 @@ class _MechanicRequestDetailBookFlowPageState extends State<MechanicRequestDetai
   double? _mechanicLat;
   double? _mechanicLng;
   double? _distanceKm;
+  Timer? _locationUpdateTimer;
 
   @override
   void initState() {
@@ -46,6 +48,32 @@ class _MechanicRequestDetailBookFlowPageState extends State<MechanicRequestDetai
     _mechanicLng = widget.mechanicLng;
     _loadRequest();
     if (_mechanicLat == null || _mechanicLng == null) _getMechanicLocation();
+  }
+
+  @override
+  void dispose() {
+    _locationUpdateTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startLocationUpdatesIfEnRoute() {
+    if ((_request?['status']?.toString() ?? '') != 'MECHANIC_EN_ROUTE') return;
+    _locationUpdateTimer?.cancel();
+    _locationUpdateTimer = Timer.periodic(const Duration(seconds: 10), (_) => _sendCurrentLocation());
+  }
+
+  Future<void> _sendCurrentLocation() async {
+    try {
+      final pos = await Geolocator.getCurrentPosition();
+      await http.put(
+        Uri.parse('${ApiConfig.mechanicEndpoint}/${widget.mechanicId}'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'currentLatitude': pos.latitude.toString(),
+          'currentLongitude': pos.longitude.toString(),
+        }),
+      );
+    } catch (_) {}
   }
 
   Future<void> _getMechanicLocation() async {
@@ -87,6 +115,7 @@ class _MechanicRequestDetailBookFlowPageState extends State<MechanicRequestDetai
           _loading = false;
         });
         if (_mechanicLat != null && _mechanicLng != null) _computeDistance(_mechanicLat!, _mechanicLng!);
+        if ((req['status']?.toString() ?? '') == 'MECHANIC_EN_ROUTE') _startLocationUpdatesIfEnRoute();
       } else {
         setState(() { _error = 'Failed to load request'; _loading = false; });
       }
@@ -123,6 +152,50 @@ class _MechanicRequestDetailBookFlowPageState extends State<MechanicRequestDetai
     } catch (e) {
       if (mounted) setState(() => _accepting = false);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
+  }
+
+  Future<void> _startEnRoute() async {
+    setState(() => _accepting = true);
+    try {
+      final r = await http.put(
+        Uri.parse('${ApiConfig.mechanicRequestsEndpoint}/${widget.requestId}/start-en-route'),
+        headers: {'Content-Type': 'application/json'},
+      );
+      if (mounted) {
+        setState(() => _accepting = false);
+        if (r.statusCode == 200) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('You\'re on the way. Customer can track you.')));
+          _loadRequest().then((_) => _startLocationUpdatesIfEnRoute());
+        } else {
+          final body = jsonDecode(r.body) as Map?;
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(body?['error']?.toString() ?? 'Failed')));
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _accepting = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    }
+  }
+
+  Future<void> _markArrived() async {
+    setState(() => _accepting = true);
+    try {
+      final r = await http.put(
+        Uri.parse('${ApiConfig.mechanicRequestsEndpoint}/${widget.requestId}/arrived'),
+        headers: {'Content-Type': 'application/json'},
+      );
+      if (mounted) {
+        setState(() => _accepting = false);
+        if (r.statusCode == 200) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Marked as arrived. Wait for customer to confirm.')));
+          _loadRequest();
+        }
+      }
+    } catch (e) {
+      if (mounted) setState(() => _accepting = false);
     }
   }
 
@@ -310,31 +383,101 @@ class _MechanicRequestDetailBookFlowPageState extends State<MechanicRequestDetai
                       ],
                     ),
                   ] else if (acceptedByMe) ...[
-                    _sectionCard('Customer phone', r['customerPhone']?.toString() ?? '—', Icons.phone),
-                    if (custLat != null && custLng != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton.icon(
-                            onPressed: () {
-                              final url = 'https://www.google.com/maps/dir/?api=1&destination=$custLat,$custLng';
-                              try { launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication); } catch (_) {}
-                            },
-                            icon: const Icon(Icons.directions),
-                            label: const Text('Get directions to customer'),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              foregroundColor: AppColors.burntOrange,
-                              side: const BorderSide(color: AppColors.burntOrange),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppColors.creamElevated,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 2))],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Customer & vehicle', style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey[700])),
+                          const SizedBox(height: 10),
+                          if (r['vehiclePhotoUrl'] != null && r['vehiclePhotoUrl'].toString().isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 10),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.network(
+                                  r['vehiclePhotoUrl'].toString().startsWith('http') ? r['vehiclePhotoUrl'].toString() : '${ApiConfig.baseUrl}${r['vehiclePhotoUrl']}',
+                                  height: 80,
+                                  width: double.infinity,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                                ),
+                              ),
                             ),
+                          Row(
+                            children: [
+                              Icon(Icons.person, color: AppColors.burntOrange, size: 20),
+                              const SizedBox(width: 8),
+                              Text(r['customerName']?.toString() ?? '—', style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w600)),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Icon(Icons.phone, color: AppColors.burntOrange, size: 20),
+                              const SizedBox(width: 8),
+                              SelectableText(r['customerPhone']?.toString() ?? '—', style: GoogleFonts.inter(fontSize: 14)),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    if (custLat != null && custLng != null)
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            final url = 'https://www.google.com/maps/dir/?api=1&destination=$custLat,$custLng';
+                            try { launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication); } catch (_) {}
+                          },
+                          icon: const Icon(Icons.directions),
+                          label: const Text('Get directions to customer'),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            foregroundColor: AppColors.burntOrange,
+                            side: const BorderSide(color: AppColors.burntOrange),
                           ),
                         ),
                       ),
-                    const SizedBox(height: 8),
-                    Center(
-                      child: Text('Waiting for customer to pay', style: GoogleFonts.outfit(fontSize: 14, color: AppColors.warmBrownMuted)),
-                    ),
+                    const SizedBox(height: 12),
+                    if ((r['status']?.toString() ?? '') == 'PENDING_PAYMENT') ...[
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _accepting ? null : _startEnRoute,
+                          icon: const Icon(Icons.directions_car, size: 22),
+                          label: const Text('Ready to drive'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.burntOrange,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                    ] else if ((r['status']?.toString() ?? '') == 'MECHANIC_EN_ROUTE') ...[
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _accepting ? null : _markArrived,
+                          icon: const Icon(Icons.location_on, size: 22),
+                          label: const Text('I\'ve reached destination'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.warmAmber,
+                            foregroundColor: AppColors.darkChocolate,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ],
               ),

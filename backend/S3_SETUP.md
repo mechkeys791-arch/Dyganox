@@ -77,6 +77,8 @@ aws.access-key-id=AKIA...
 aws.secret-access-key=your-secret-key
 ```
 
+- **Important:** If your bucket is **not** in `us-east-1`, set `aws.s3.region` to the bucket’s region (e.g. `eu-west-1`). The backend uses this to build correct image URLs; wrong or missing region can cause "not found" when the app loads icons or images from S3.
+
 - Restart the Spring Boot backend.
 
 **Locally:** put the same properties in `application.properties` or in a profile-specific file.

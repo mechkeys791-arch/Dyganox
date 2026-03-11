@@ -355,6 +355,76 @@ public class UploadController {
     }
 
     /**
+     * Upload custom marker icon for "See nearest mechanic" map. PNG/JPG/WebP. Returns S3 URL. Admin saves via PUT app-branding (nearestMechanicMarkerIconUrl).
+     */
+    @PostMapping("/nearest-mechanic-marker-icon")
+    public ResponseEntity<Map<String, String>> uploadNearestMechanicMarkerIcon(@RequestParam("file") MultipartFile file) {
+        try {
+            String url = s3Service.uploadNearestMechanicMarkerIcon(file);
+            return ResponseEntity.ok(Map.of("url", url));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            System.err.println("❌ Nearest mechanic marker icon upload failed: " + e.getMessage());
+            String msg = e.getMessage() != null ? e.getMessage() : "Upload failed";
+            if (msg.contains("S3") || msg.contains("not configured")) msg = "S3 is not configured.";
+            if (msg.contains("Not Found") || msg.contains("NoSuchBucket") || msg.contains("404")) {
+                msg = "S3 bucket not found. Check aws.s3.bucket and aws.s3.region in application-ec2.properties (or application.properties). Use region in URL for non–us-east-1 buckets.";
+            }
+            if (msg.contains("Access Denied") || msg.contains("403")) {
+                msg = "S3 access denied. Check IAM has s3:PutObject on the bucket and bucket policy allows public GetObject if you need the image to load from the app.";
+            }
+            return ResponseEntity.status(500).body(Map.of("error", msg));
+        }
+    }
+
+    @PostMapping("/user-location-marker-icon")
+    public ResponseEntity<Map<String, String>> uploadUserLocationMarkerIcon(@RequestParam("file") MultipartFile file) {
+        try {
+            String url = s3Service.uploadUserLocationMarkerIcon(file);
+            return ResponseEntity.ok(Map.of("url", url));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            System.err.println("❌ User location marker icon upload failed: " + e.getMessage());
+            String msg = e.getMessage() != null ? e.getMessage() : "Upload failed";
+            if (msg.contains("S3") || msg.contains("not configured")) msg = "S3 is not configured.";
+            return ResponseEntity.status(500).body(Map.of("error", msg));
+        }
+    }
+
+    @PostMapping("/car-service-image")
+    public ResponseEntity<Map<String, String>> uploadCarServiceImage(@RequestParam("file") MultipartFile file) {
+        try {
+            return ResponseEntity.ok(Map.of("url", s3Service.uploadCarServiceImage(file)));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage() != null ? e.getMessage() : "Upload failed"));
+        }
+    }
+
+    @PostMapping("/bike-service-image")
+    public ResponseEntity<Map<String, String>> uploadBikeServiceImage(@RequestParam("file") MultipartFile file) {
+        try {
+            return ResponseEntity.ok(Map.of("url", s3Service.uploadBikeServiceImage(file)));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage() != null ? e.getMessage() : "Upload failed"));
+        }
+    }
+
+    @PostMapping("/quick-service-icon")
+    public ResponseEntity<Map<String, String>> uploadQuickServiceIcon(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("name") String name) {
+        try {
+            return ResponseEntity.ok(Map.of("url", s3Service.uploadQuickServiceIcon(name, file)));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage() != null ? e.getMessage() : "Upload failed"));
+        }
+    }
+
+    /**
      * Upload welcome page media (GIF or MP4) for the "I'm a User / I'm a Mechanic" screen. Returns S3 URL.
      */
     @PostMapping("/welcome-page-media")
