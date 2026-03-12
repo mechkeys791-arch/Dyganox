@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'dart:async';
 import 'dart:convert';
 import '../../services/api_config.dart';
+import '../mechanic/book_mechanic_flow_page.dart';
 
 class NightServicePage extends StatefulWidget {
   const NightServicePage({super.key});
@@ -50,48 +51,10 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
   List<Map<String, dynamic>> _nightProviders = [];
 
   final List<Map<String, dynamic>> _nightServices = [
-    {
-      'name': 'Emergency Towing',
-      'icon': Icons.local_shipping,
-      'color': AppColors.burntOrange,
-      'surcharge': 30,
-      'available': true,
-    },
-    {
-      'name': 'Battery Jump Start',
-      'icon': Icons.battery_charging_full,
-      'color': AppColors.warmBrown,
-      'surcharge': 25,
-      'available': true,
-    },
-    {
-      'name': 'Puncture Repair',
-      'icon': Icons.build_circle,
-      'color': AppColors.burntOrange,
-      'surcharge': 20,
-      'available': true,
-    },
-    {
-      'name': 'Fuel Refill',
-      'icon': Icons.local_gas_station,
-      'color': AppColors.burntOrange,
-      'surcharge': 35,
-      'available': true,
-    },
-    {
-      'name': 'Minor Repairs',
-      'icon': Icons.handyman,
-      'color': AppColors.warmBrown,
-      'surcharge': 40,
-      'available': true,
-    },
-    {
-      'name': 'Lock Opening',
-      'icon': Icons.lock_open,
-      'color': AppColors.burntOrange,
-      'surcharge': 50,
-      'available': true,
-    },
+    {'name': 'Emergency Towing', 'icon': Icons.local_shipping, 'color': AppColors.burntOrange, 'available': true},
+    {'name': 'Battery Jump Start', 'icon': Icons.battery_charging_full, 'color': AppColors.warmBrown, 'available': true},
+    {'name': 'Puncture Repair', 'icon': Icons.build_circle, 'color': AppColors.burntOrange, 'available': true},
+    {'name': 'General Service', 'icon': Icons.handyman, 'color': AppColors.warmBrown, 'available': true},
   ];
 
   @override
@@ -172,9 +135,11 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
         
-        // Filter mechanics with nightTimeAvailable = true
+        // Filter: nightTimeAvailable AND status = Available (24/7 only if Available)
         final nightMechanics = data.where((mechanic) {
-          return mechanic['nightTimeAvailable'] == true;
+          if (mechanic['nightTimeAvailable'] != true) return false;
+          final status = (mechanic['status'] ?? '').toString().toLowerCase();
+          return status == 'available';
         }).toList();
         
         // Transform to match the expected format
@@ -197,17 +162,19 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
           return {
             'name': mechanic['name']?.toString() ?? 'Unknown',
             'rating': rating,
-            'distance': '${distance.toStringAsFixed(1)} km',
+            'distance': distance,
+            'distanceStr': '${distance.toStringAsFixed(1)} km',
             'available': isAvailable,
             'services': services,
             'contact': mechanic['phone']?.toString() ?? 'N/A',
-            'surcharge': '${20 + ((mechanic['id'] as int) % 20)}%',
             'id': mechanic['id'],
             'email': mechanic['email']?.toString(),
             'latitude': mechanic['latitude']?.toString(),
             'longitude': mechanic['longitude']?.toString(),
           };
         }).toList();
+        // Sort by distance (nearest first)
+        _nightProviders.sort((a, b) => (a['distance'] as double).compareTo(b['distance'] as double));
         
         print("Night Service: Found ${_nightProviders.length} night service providers");
       } else {
@@ -236,12 +203,23 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
     super.dispose();
   }
 
+  String? _nightServiceToProblemId(String? name) {
+    if (name == null) return null;
+    switch (name) {
+      case 'Emergency Towing': return 'towing_service';
+      case 'Battery Jump Start': return 'battery_jump';
+      case 'Puncture Repair': return 'tyre_puncture';
+      case 'General Service': return 'general_checkup';
+      default: return null;
+    }
+  }
+
   void _checkNightTime() {
     final now = DateTime.now();
     final hour = now.hour;
-    // Night time is between 8 PM (20:00) and 6 AM (06:00)
+    // Night time: 7:00 PM to 7:00 AM (19:00 - 07:00)
     setState(() {
-      _isNightTime = hour >= 20 || hour < 6;
+      _isNightTime = hour >= 19 || hour < 7;
     });
   }
 
@@ -677,11 +655,11 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
             ],
           ),
           const SizedBox(height: 16),
-          _buildInfoRow(Icons.schedule, 'Operating Hours', '8:00 PM - 6:00 AM'),
+          _buildInfoRow(Icons.schedule, 'Operating Hours', '7:00 PM - 7:00 AM'),
           const SizedBox(height: 12),
-          _buildInfoRow(Icons.attach_money, 'Night Surcharge', '20% - 50% extra'),
+          _buildInfoRow(Icons.info_outline, 'Pricing', 'Between you and mechanic. ProMech only connects you. Transparent pricing for night service.'),
           const SizedBox(height: 12),
-          _buildInfoRow(Icons.speed, 'Response Time', '15-30 minutes'),
+          _buildInfoRow(Icons.speed, 'Response Time', 'More time given to mechanic (night hours)'),
           const SizedBox(height: 12),
           _buildInfoRow(Icons.verified_user, 'Safety Verified', 'All providers vetted'),
         ],
@@ -747,10 +725,18 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
         
         return GestureDetector(
           onTap: () {
-            setState(() {
-              _selectedService = isSelected ? '' : service['name'];
-            });
-            _showServiceDetails(service);
+            setState(() => _selectedService = isSelected ? '' : service['name']);
+            final problemId = _nightServiceToProblemId(service['name']);
+            if (problemId != null) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => BookMechanicFlowPage(preselectedProblemId: problemId),
+                ),
+              );
+            } else {
+              _showServiceDetails(service);
+            }
           },
           child: Container(
             padding: const EdgeInsets.all(16),
@@ -789,22 +775,6 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
                     color: _isNightTime ? AppColors.creamElevated : AppColors.warmBrown,
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: AppColors.warmAmber.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    '+${service['surcharge']}%',
-                    style: GoogleFonts.inter(
-                      color: AppColors.warmAmber,
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                    ),
                   ),
                 ),
               ],
@@ -903,7 +873,7 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
                             Icon(Icons.location_on, color: AppColors.burntOrange, size: 16),
                             const SizedBox(width: 4),
                             Text(
-                              provider['distance'],
+                              provider['distanceStr'],
                               style: GoogleFonts.inter(
                                 color: AppColors.warmBrownMuted,
                                 fontSize: 13,
@@ -957,59 +927,7 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
                   );
                 }).toList(),
               ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: isAvailable ? () => _requestService(provider) : null,
-                      icon: const Icon(Icons.phone, size: 16),
-                      label: Text(
-                        'Request Service',
-                        style: GoogleFonts.inter(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.burntOrange,
-                        foregroundColor: AppColors.creamElevated,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: AppColors.warmAmber.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Column(
-                      children: [
-                        Text(
-                          '+${provider['surcharge']}',
-                          style: GoogleFonts.inter(
-                            color: AppColors.warmAmber,
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text(
-                          'surcharge',
-                          style: GoogleFonts.inter(
-                            color: AppColors.warmAmber,
-                            fontSize: 9,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+              const SizedBox(height: 8),
             ],
                   ),
                 ),
@@ -1165,8 +1083,6 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
               ],
             ),
             const SizedBox(height: 20),
-            _buildInfoRow(Icons.attach_money, 'Night Surcharge', '+${service['surcharge']}%'),
-            const SizedBox(height: 12),
             _buildInfoRow(Icons.schedule, 'Estimated Time', '15-30 min'),
             const SizedBox(height: 12),
             _buildInfoRow(Icons.verified_user, 'Available Providers', '${_nightProviders.where((p) => p['available']).length}'),
@@ -1300,11 +1216,6 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
               style: GoogleFonts.inter(fontSize: 13),
             ),
             const SizedBox(height: 8),
-            Text(
-              'Night surcharge: ${provider['surcharge']}',
-              style: GoogleFonts.inter(fontSize: 13, color: AppColors.warmAmber),
-            ),
-            const SizedBox(height: 16),
             Text(
               'Your location will be shared with the provider.',
               style: GoogleFonts.inter(fontSize: 12, color: AppColors.warmBrownMuted),

@@ -46,9 +46,10 @@ public class BookMechanicService {
      * Find approved mechanics that serve the given problem category and are within radiusKm of (lat, lng).
      * Returns mechanics without exposing phone or distance to client (for public list).
      * Requires lat/lng – returns empty list if either is null (prevents showing "all mechanics").
+     * If vehicleType is non-null (CAR or BIKE), only returns mechanics who serve that vehicle type.
      */
     public List<Map<String, Object>> findMechanicsByCategoryAndLocation(
-            String problemCategory, Double lat, Double lng, int radiusKm) {
+            String problemCategory, Double lat, Double lng, int radiusKm, String vehicleType) {
         if (lat == null || lng == null) {
             System.out.println("⚠️ [by-category] lat/lng missing – returning empty (cannot filter by distance)");
             return new ArrayList<>();
@@ -57,6 +58,7 @@ public class BookMechanicService {
         List<Mechanic> approved = all.stream()
                 .filter(m -> "APPROVED".equalsIgnoreCase(m.getApprovalStatus()) && !Boolean.TRUE.equals(m.isBlocked()))
                 .filter(m -> servesCategory(m, problemCategory))
+                .filter(m -> servesVehicleType(m, vehicleType))
                 .filter(m -> withinRadiusForList(m, lat, lng, radiusKm))
                 .collect(Collectors.toList());
         List<Map<String, Object>> result = new ArrayList<>();
@@ -70,6 +72,7 @@ public class BookMechanicService {
             map.put("services", m.getServices());
             map.put("status", m.getStatus());
             map.put("categoryIconUrl", m.getCategoryIconUrl());
+            map.put("towingVehiclePhotoUrl", m.getTowingVehiclePhotoUrl());
             map.put("openingTime", m.getOpeningTime());
             map.put("closingTime", m.getClosingTime());
             map.put("workingDays", m.getWorkingDays());
@@ -80,17 +83,29 @@ public class BookMechanicService {
     }
 
     /**
-     * Find mechanics within radius that serve the category.
-     * Used for broadcast. Sends to Available and Busy (excludes only Offline).
+     * Find mechanic IDs within radius that serve the category.
+     * Used for broadcast. Sends to Available AND Busy mechanics (Ola-style: all nearest, first to accept wins).
+     * Excludes only Offline mechanics. If vehicleType is set, only mechanics who serve that vehicle type.
      */
-    public List<Mechanic> findMechanicsForBroadcast(double lat, double lng, String problemCategory, int radiusKm) {
+    public List<Mechanic> findMechanicsForBroadcast(double lat, double lng, String problemCategory, int radiusKm, String vehicleType) {
         List<Mechanic> all = mechanicRepo.findAll();
         return all.stream()
                 .filter(m -> "APPROVED".equalsIgnoreCase(m.getApprovalStatus()) && !Boolean.TRUE.equals(m.isBlocked()))
                 .filter(m -> !"Offline".equalsIgnoreCase(m.getStatus()))
                 .filter(m -> servesCategory(m, problemCategory))
+                .filter(m -> servesVehicleType(m, vehicleType))
                 .filter(m -> withinRadius(m, lat, lng, radiusKm))
                 .collect(Collectors.toList());
+    }
+
+    private boolean servesVehicleType(Mechanic m, String vehicleType) {
+        if (vehicleType == null || vehicleType.isBlank()) return true;
+        String types = m.getVehicleTypes();
+        if (types == null || types.isBlank()) return true; // no filter = serves all
+        String v = vehicleType.toUpperCase().trim();
+        if (types.toUpperCase().contains(v)) return true;
+        if ("CAR".equals(v) || "BIKE".equals(v)) return types.toUpperCase().contains(v);
+        return true;
     }
 
     private boolean servesCategory(Mechanic m, String problemCategory) {
@@ -103,15 +118,21 @@ public class BookMechanicService {
         for (String part : cats.split("[,{\"\\[\\]\s]+")) {
             if (part.trim().equalsIgnoreCase(problemCategory)) return true;
         }
+        // Tyre, battery, brake, electrical etc: general_checkup mechanics can also serve
+        if ("tyre_puncture".equalsIgnoreCase(problemCategory) || "battery_jump".equalsIgnoreCase(problemCategory)
+                || "brake_issue".equalsIgnoreCase(problemCategory) || "electrical".equalsIgnoreCase(problemCategory)
+                || "ac_issue".equalsIgnoreCase(problemCategory) || "general_checkup".equalsIgnoreCase(problemCategory)) {
+            if (cats.toLowerCase().contains("general_checkup")) return true;
+        }
         return false;
     }
 
     /** For list: show all mechanics within radius (ignore maxServingRadiusKm – user sees who's nearby). */
     private boolean withinRadiusForList(Mechanic m, Double userLat, Double userLng, int radiusKm) {
         if (userLat == null || userLng == null) return true;
-        String slat = m.getCurrentLatitude() != null && !m.getCurrentLatitude().isBlank()
+        String slat = (m.getCurrentLatitude() != null && !m.getCurrentLatitude().isBlank())
                 ? m.getCurrentLatitude() : m.getLatitude();
-        String slng = m.getCurrentLongitude() != null && !m.getCurrentLongitude().isBlank()
+        String slng = (m.getCurrentLongitude() != null && !m.getCurrentLongitude().isBlank())
                 ? m.getCurrentLongitude() : m.getLongitude();
         if (slat == null || slng == null) return false;
         double mlat = Double.parseDouble(slat);
@@ -123,9 +144,9 @@ public class BookMechanicService {
     /** For broadcast: mechanics must be within radius AND willing to travel that far (maxServingRadiusKm). */
     private boolean withinRadius(Mechanic m, Double userLat, Double userLng, int radiusKm) {
         if (!withinRadiusForList(m, userLat, userLng, radiusKm)) return false;
-        String slat = m.getCurrentLatitude() != null && !m.getCurrentLatitude().isBlank()
+        String slat = (m.getCurrentLatitude() != null && !m.getCurrentLatitude().isBlank())
                 ? m.getCurrentLatitude() : m.getLatitude();
-        String slng = m.getCurrentLongitude() != null && !m.getCurrentLongitude().isBlank()
+        String slng = (m.getCurrentLongitude() != null && !m.getCurrentLongitude().isBlank())
                 ? m.getCurrentLongitude() : m.getLongitude();
         if (slat == null || slng == null) return false;
         double mlat = Double.parseDouble(slat);
@@ -173,6 +194,7 @@ public class BookMechanicService {
         req.setRefundStatus("PENDING");
         req.setAmount(0);
 
+        String vehicleType = null;
         if (userVehicleId != null) {
             userVehicleRepo.findById(userVehicleId).ifPresent(uv -> {
                 req.setVehicleMakeName(uv.getMakeName());
@@ -181,24 +203,35 @@ public class BookMechanicService {
                 String photo = uv.getPhotoUrl() != null && !uv.getPhotoUrl().isBlank() ? uv.getPhotoUrl() : uv.getModelImageUrl();
                 req.setVehiclePhotoUrl(photo);
             });
+            vehicleType = userVehicleRepo.findById(userVehicleId).map(uv -> uv.getType()).orElse(null);
+            if (vehicleType != null) vehicleType = vehicleType.toUpperCase();
         }
 
         MechanicRequest saved = mechanicRequestRepo.save(req);
-        // Notify mechanics within 6 km – all at once (professional coverage)
-        int radius = 6;
-        List<Mechanic> mechanics = findMechanicsForBroadcast(lat, lng, problemCategory, 6);
+        // Ola-style: try 5km, then 10km, then 20km - send to mechanics who serve this vehicle type (CAR/BIKE)
+        int radius = 5;
+        List<Mechanic> mechanics = findMechanicsForBroadcast(lat, lng, problemCategory, 5, vehicleType);
+        if (mechanics.isEmpty()) {
+            radius = 10;
+            mechanics = findMechanicsForBroadcast(lat, lng, problemCategory, 10, vehicleType);
+        }
+        if (mechanics.isEmpty()) {
+            radius = 20;
+            mechanics = findMechanicsForBroadcast(lat, lng, problemCategory, 20, vehicleType);
+        }
         saved.setRequestRadiusKm(radius);
 
         List<Long> notifiedIds = new ArrayList<>();
         List<java.util.concurrent.CompletableFuture<Void>> futures = new ArrayList<>();
         final long requestIdForFcm = saved.getId();
         final double advanceAmt = saved.getAdvanceAmount() != null ? saved.getAdvanceAmount() : 100;
+        System.out.println("📡 [Broadcast] requestId=" + saved.getId() + " radius=" + radius + "km mechanics=" + mechanics.size() + " category=" + problemCategory);
         for (Mechanic m : mechanics) {
             notifiedIds.add(m.getId());
+            String slat = (m.getCurrentLatitude() != null && !m.getCurrentLatitude().isBlank()) ? m.getCurrentLatitude() : m.getLatitude();
+            String slng = (m.getCurrentLongitude() != null && !m.getCurrentLongitude().isBlank()) ? m.getCurrentLongitude() : m.getLongitude();
+            double dist = (slat != null && slng != null) ? distanceKm(lat, lng, Double.parseDouble(slat), Double.parseDouble(slng)) : 0;
             if (m.getFcmToken() != null && !m.getFcmToken().isBlank()) {
-                String mlat = m.getCurrentLatitude() != null && !m.getCurrentLatitude().isBlank() ? m.getCurrentLatitude() : m.getLatitude();
-                String mlng = m.getCurrentLongitude() != null && !m.getCurrentLongitude().isBlank() ? m.getCurrentLongitude() : m.getLongitude();
-                double dist = (mlat != null && mlng != null) ? distanceKm(lat, lng, Double.parseDouble(mlat), Double.parseDouble(mlng)) : 0.0;
                 final String token = m.getFcmToken();
                 final double distVal = dist;
                 futures.add(java.util.concurrent.CompletableFuture.runAsync(() ->
@@ -206,14 +239,13 @@ public class BookMechanicService {
                                 token, requestIdForFcm, customerName, problemCategory,
                                 customerPhone, advanceAmt, distVal, description)));
             } else {
-                System.out.println("⚠️ [Request " + saved.getId() + "] Mechanic " + m.getId() + " (" + m.getName() + ") has no FCM token – open Mechanic Dashboard on device to register.");
+                System.out.println("  ⚠️ mechanic " + m.getId() + " no FCM token (will see in dashboard)");
             }
         }
         java.util.concurrent.CompletableFuture.allOf(futures.toArray(new java.util.concurrent.CompletableFuture[0])).join();
-        int sent = (int) mechanics.stream().filter(m -> m.getFcmToken() != null && !m.getFcmToken().isBlank()).count();
-        System.out.println("📢 [Broadcast] requestId=" + saved.getId() + " radius=" + radius + "km: " + mechanics.size() + " mechanics notified at once");
+        System.out.println("📢 [Broadcast] requestId=" + saved.getId() + " radius=" + radius + "km: " + mechanics.size() + " mechanics notified");
         if (mechanics.isEmpty()) {
-            System.out.println("⚠️ [Broadcast] NO mechanics within 6km for category=" + problemCategory + " lat=" + lat + " lng=" + lng);
+            System.out.println("⚠️ [Broadcast] NO mechanics within 20km for category=" + problemCategory + " lat=" + lat + " lng=" + lng);
         }
         try {
             saved.setNotifiedMechanicIds(new ObjectMapper().writeValueAsString(notifiedIds));

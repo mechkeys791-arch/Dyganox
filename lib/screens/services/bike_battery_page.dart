@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../mechanic/book_mechanic_flow_page.dart';
 
 class BikeBatteryPage extends StatefulWidget {
   const BikeBatteryPage({super.key});
@@ -539,132 +540,11 @@ class _BikeBatteryPageState extends State<BikeBatteryPage> with TickerProviderSt
                     price: service['price']!,
                     index: index,
                     onTap: () {
-                      showDialog(
-                        context: context,
-                        builder: (BuildContext context) {
-                          return AlertDialog(
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            title: Row(
-                              children: [
-                                Image.asset(
-                                  service['icon']!,
-                                  width: 24,
-                                  height: 24,
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    service['title']!,
-                                    style: GoogleFonts.outfit(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            content: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  service['description']!,
-                                  style: GoogleFonts.inter(),
-                                ),
-                                const SizedBox(height: 16),
-                                Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.burntOrange.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      Row(
-                                        children: [
-                                          const Icon(
-                                            Icons.access_time,
-                                            size: 16,
-                                            color: AppColors.burntOrange,
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            'Available 24/7',
-                                            style: GoogleFonts.outfit(
-                                              fontSize: 12,
-                                              color: AppColors.burntOrange,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Row(
-                                        children: [
-                                          const Icon(
-                                            Icons.motorcycle,
-                                            size: 16,
-                                            color: AppColors.burntOrange,
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            'Specialized bike battery experts',
-                                            style: GoogleFonts.outfit(
-                                              fontSize: 12,
-                                              color: AppColors.burntOrange,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(context),
-                                child: Text(
-                                  'Close',
-                                  style: GoogleFonts.outfit(),
-                                ),
-                              ),
-                              ElevatedButton(
-                                onPressed: () {
-                                  Navigator.pop(context);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Booking ${service['title']}...',
-                                        style: GoogleFonts.outfit(),
-                                      ),
-                                      backgroundColor: AppColors.burntOrange,
-                                      behavior: SnackBarBehavior.floating,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                    ),
-                                  );
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.burntOrange,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                ),
-                                child: Text(
-                                  'Book Now',
-                                  style: GoogleFonts.outfit(
-                                    color: AppColors.creamElevated,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          );
-                        },
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const BookMechanicFlowPage(preselectedProblemId: 'battery_jump'),
+                        ),
                       );
                     },
                   );

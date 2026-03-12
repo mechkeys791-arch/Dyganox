@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'minor_repair_page.dart';
 import 'towing_service_page.dart';
+import '../mechanic/book_mechanic_flow_page.dart';
 import 'battery_jump_page.dart';
 import '../ev_charging/ev_charging_page.dart';
 import 'fuel_refill_page.dart';
@@ -155,7 +155,7 @@ class _CarServicePageState extends State<CarServicePage> with TickerProviderStat
   Widget build(BuildContext context) {
     final services = [
       {'title': 'Towing', 'icon': 'assets/icons/tow-truck.png'},
-      {'title': 'Minor Repair', 'icon': 'assets/icons/repair-tools.png'},
+      {'title': 'General Repair', 'icon': 'assets/icons/repair-tools.png'},
       {'title': 'EV Coming Soon', 'icon': 'assets/icons/charging-station.png'},
       {'title': 'Battery Jump', 'icon': 'assets/icons/jump-start.png'},
       {'title': 'Headlight Repair', 'icon': 'assets/icons/headlight.png'},
@@ -293,14 +293,14 @@ class _CarServicePageState extends State<CarServicePage> with TickerProviderStat
                             Widget? targetPage;
                             
                             switch (service['title']) {
-                              case 'Minor Repair':
-                                targetPage = const MinorRepairPage();
+                              case 'General Repair':
+                                targetPage = const BookMechanicFlowPage(preselectedProblemId: 'general_checkup');
                                 break;
                               case 'Towing':
                                 targetPage = const TowingServicePage();
                                 break;
                               case 'Battery Jump':
-                                targetPage = const BatteryJumpPage();
+                                targetPage = const BookMechanicFlowPage(preselectedProblemId: 'battery_jump');
                                 break;
                               case 'Tyre Care':
                                 targetPage = const TyreCarePage();

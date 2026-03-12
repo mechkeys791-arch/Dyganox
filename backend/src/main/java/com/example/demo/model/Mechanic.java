@@ -63,8 +63,12 @@ public class Mechanic {
     private Double perKmCharge = 3.0;         // INR per km after 5km
     @Column(length = 500)
     private String serviceCategories;         // JSON array e.g. ["tyre_puncture","battery_jump","engine_repair"]
+    @Column(length = 50)
+    private String vehicleTypes;              // CAR, BIKE, or CAR,BIKE - which vehicle types mechanic serves
     @Column(length = 500)
     private String categoryIconUrl;           // Optional icon URL for this mechanic (admin)
+    @Column(length = 500)
+    private String towingVehiclePhotoUrl;     // Towing vehicle photo (when mechanic offers towing)
     private Double rating;                     // Average customer rating (1-5), updated when customer rates
     private Integer ratingCount = 0;          // Number of ratings received
 
@@ -188,8 +192,12 @@ public class Mechanic {
     public void setPerKmCharge(Double perKmCharge) { this.perKmCharge = perKmCharge; }
     public String getServiceCategories() { return serviceCategories; }
     public void setServiceCategories(String serviceCategories) { this.serviceCategories = serviceCategories; }
+    public String getVehicleTypes() { return vehicleTypes; }
+    public void setVehicleTypes(String vehicleTypes) { this.vehicleTypes = vehicleTypes; }
     public String getCategoryIconUrl() { return categoryIconUrl; }
     public void setCategoryIconUrl(String categoryIconUrl) { this.categoryIconUrl = categoryIconUrl; }
+    public String getTowingVehiclePhotoUrl() { return towingVehiclePhotoUrl; }
+    public void setTowingVehiclePhotoUrl(String towingVehiclePhotoUrl) { this.towingVehiclePhotoUrl = towingVehiclePhotoUrl; }
     public Double getRating() { return rating; }
     public void setRating(Double rating) { this.rating = rating; }
     public Integer getRatingCount() { return ratingCount; }

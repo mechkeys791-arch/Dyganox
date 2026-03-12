@@ -71,6 +71,8 @@ public class MechanicController {
             r.setClosingTime(getString(body, "closingTime"));
             r.setWorkingDays(getString(body, "workingDays"));
             r.setNightTimeAvailable(Boolean.TRUE.equals(body.get("nightTimeAvailable")));
+            r.setVehicleTypes(getString(body, "vehicleTypes"));
+            r.setTowingVehiclePhotoUrl(getString(body, "towingVehiclePhotoUrl"));
             String status = getString(body, "approvalStatus");
             r.setApprovalStatus(status != null && !status.isEmpty() ? status : "PENDING");
 
@@ -186,6 +188,17 @@ public class MechanicController {
                     ? "towing_service" : baseCategories + ",towing_service";
         }
         m.setServiceCategories(baseCategories);
+        String vehicleTypes = req.getVehicleTypes();
+        if (vehicleTypes == null || vehicleTypes.isBlank()) {
+            String spec = (req.getSpecialty() != null ? req.getSpecialty() : "").toLowerCase();
+            if (spec.contains("bike") && !spec.contains("car")) vehicleTypes = "BIKE";
+            else if (spec.contains("car") && !spec.contains("bike")) vehicleTypes = "CAR";
+            else vehicleTypes = "CAR,BIKE";
+        }
+        m.setVehicleTypes(vehicleTypes);
+        if (req.getTowingVehiclePhotoUrl() != null && !req.getTowingVehiclePhotoUrl().isBlank()) {
+            m.setTowingVehiclePhotoUrl(req.getTowingVehiclePhotoUrl());
+        }
         String tempPassword = generateTempPassword();
         m.setPassword(passwordEncoder.encode(tempPassword));
         m.setPasswordSet(true);
@@ -212,16 +225,17 @@ public class MechanicController {
         return ResponseEntity.ok(Map.of("message", "Rejected", "requestId", id));
     }
 
-    /** List mechanics by problem category and location - no phone, no distance (for Book Mechanic list). */
+    /** List mechanics by problem category and location. Optional vehicleType (CAR/BIKE) filters to mechanics who serve that vehicle. */
     @GetMapping("/by-category")
     public ResponseEntity<?> getMechanicsByCategory(
             @RequestParam String problemCategory,
             @RequestParam(required = false) Double lat,
             @RequestParam(required = false) Double lng,
-            @RequestParam(defaultValue = "10") int radiusKm) {
+            @RequestParam(defaultValue = "10") int radiusKm,
+            @RequestParam(required = false) String vehicleType) {
         try {
             List<Map<String, Object>> list = bookMechanicService.findMechanicsByCategoryAndLocation(
-                    problemCategory, lat, lng, radiusKm);
+                    problemCategory, lat, lng, radiusKm, vehicleType);
             return ResponseEntity.ok(list);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", e.getMessage()));
@@ -378,6 +392,23 @@ public class MechanicController {
         } else {
             return ResponseEntity.notFound().build();
         }
+    }
+
+    /** Update mechanic's current location (for broadcast - Ola-style). Called when dashboard fetches nearby requests. */
+    @PutMapping("/{id}/location")
+    public ResponseEntity<Mechanic> updateLocation(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        Optional<Mechanic> opt = mechanicRepo.findById(id);
+        if (opt.isEmpty()) return ResponseEntity.notFound().build();
+        Mechanic m = opt.get();
+        Object lat = body != null ? (body.get("currentLatitude") != null ? body.get("currentLatitude") : body.get("latitude")) : null;
+        Object lng = body != null ? (body.get("currentLongitude") != null ? body.get("currentLongitude") : body.get("longitude")) : null;
+        if (lat != null && lng != null) {
+            m.setCurrentLatitude(lat.toString());
+            m.setCurrentLongitude(lng.toString());
+            m.setLastLocationUpdate(java.time.LocalDateTime.now());
+            mechanicRepo.save(m);
+        }
+        return ResponseEntity.ok(m);
     }
 
     // Register FCM token for push notifications (mechanic request accept/reject)
