@@ -121,6 +121,9 @@ class FcmNotificationService {
   /// Set from MechanicServiceDashboard; pass requestId (String).
   static void Function(String requestId)? onMechanicRequestInForeground;
 
+  /// When request_taken FCM arrives (another mechanic accepted), call this to dismiss popup. Pass requestId (String).
+  static void Function(String requestId)? onRequestTaken;
+
   /// Register background message handler. Must be called from main() before [initialize].
   static void registerBackgroundHandler() {
     FirebaseMessaging.onBackgroundMessage(_firebaseBackgroundMessage);
@@ -382,6 +385,17 @@ class FcmNotificationService {
     try {
       await const MethodChannel(_kAlarmChannel).invokeMethod('saveMechanicId', mechanicId);
     } catch (_) {}
+  }
+
+  /// Get stored mechanic ID from device (for launch from notification when request has no mechanicId).
+  static Future<int?> getMechanicId() async {
+    if (!_platform.kIsAndroid) return null;
+    try {
+      final id = await const MethodChannel(_kAlarmChannel).invokeMethod<String>('getMechanicId');
+      return id != null && id.isNotEmpty ? int.tryParse(id) : null;
+    } catch (_) {
+      return null;
+    }
   }
 
   /// Register this device's FCM token for the given mechanic so they receive request notifications.

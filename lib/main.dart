@@ -99,7 +99,7 @@ class _ServiceProviderAppState extends State<ServiceProviderApp> with WidgetsBin
     FcmNotificationService.didOpenRequestDetailFromNotification = true;
 
     try {
-      // Fetch request to get mechanicId for dashboard
+      // Fetch request to get mechanicId for dashboard (broadcast requests have mechanicId=null)
       final url = '${ApiConfig.mechanicRequestsEndpoint}/$requestId';
       final res = await http.get(Uri.parse(url), headers: {'Content-Type': 'application/json'});
       int? mechanicId;
@@ -107,6 +107,9 @@ class _ServiceProviderAppState extends State<ServiceProviderApp> with WidgetsBin
         final data = jsonDecode(res.body) as Map<String, dynamic>?;
         final m = data?['mechanicId'];
         mechanicId = m is int ? m : (m is num ? m.toInt() : int.tryParse(m?.toString() ?? ''));
+      }
+      if (mechanicId == null) {
+        mechanicId = await FcmNotificationService.getMechanicId();
       }
       if (!mounted) return;
       nav.pushAndRemoveUntil(
@@ -243,6 +246,9 @@ class _AcceptLaunchLoaderState extends State<_AcceptLaunchLoader> {
         mechanicId = m is int ? m : (m is num ? m.toInt() : int.tryParse(m?.toString() ?? ''));
       }
     } catch (_) {}
+    if (mechanicId == null) {
+      mechanicId = await FcmNotificationService.getMechanicId();
+    }
     if (!mounted) return;
     FcmNotificationService.didOpenRequestDetailFromNotification = true;
     Navigator.of(context).pushReplacement(

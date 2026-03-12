@@ -49,7 +49,7 @@ class _MechanicAcceptedReadyPageState extends State<MechanicAcceptedReadyPage> {
 
   void _pollRequest() {
     _pollTimer?.cancel();
-    _pollTimer = Timer.periodic(const Duration(seconds: 4), (_) async {
+    _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
       if (!mounted) return;
       try {
         final id = _request['id'];
@@ -188,7 +188,7 @@ class _MechanicAcceptedReadyPageState extends State<MechanicAcceptedReadyPage> {
             ),
             if (showMap) ...[
               SizedBox(
-                height: 220,
+                height: 260,
                 width: double.infinity,
                 child: GoogleMap(
                   initialCameraPosition: CameraPosition(
@@ -209,6 +209,7 @@ class _MechanicAcceptedReadyPageState extends State<MechanicAcceptedReadyPage> {
                     ),
                   },
                   myLocationEnabled: true,
+                  mapToolbarEnabled: false,
                 ),
               ),
               if (_etaMinutes != null || _distanceKm != null)

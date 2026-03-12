@@ -130,11 +130,10 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
   bool get _isTyrePuncture => _selectedProblem?.id == 'tyre_puncture';
   bool get _photoRequired => _isTyrePuncture;
 
-  /// Next button shown only when 2+ vehicles (step 0), or for details/location (steps 2–3).
-  /// Step 1 (problem) auto-advances on tap; step 0 with 1 vehicle auto-advances on tap.
+  /// Next button shown when user can proceed: step 0 (vehicle selected or add/select), steps 2–3.
   bool _shouldShowBottomBar() {
     if (_step >= 4) return false;
-    if (_step == 0) return _vehicles.isEmpty || _vehicles.length >= 2;
+    if (_step == 0) return _vehicles.isEmpty || _selectedVehicle != null || _vehicles.length >= 2;
     if (_step == 1) return false;
     return true; // step 2 (details), step 3 (location)
   }
@@ -595,15 +594,34 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
             const SizedBox(height: 8),
             _buildSelectedVehicleCard(),
             const SizedBox(height: 16),
-            OutlinedButton.icon(
-              onPressed: _showVehicleSelectionSheet,
-              icon: const Icon(Icons.swap_horiz, size: 20),
-              label: const Text('Change vehicle'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.burntOrange,
-                side: BorderSide(color: AppColors.burntOrange),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            SizedBox(
+              width: double.infinity,
+              child: InkWell(
+                onTap: _showVehicleSelectionSheet,
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: AppColors.burntOrange.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.burntOrange.withValues(alpha: 0.4)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.swap_horiz_rounded, size: 22, color: AppColors.burntOrange),
+                      const SizedBox(width: 10),
+                      Text(
+                        'Change vehicle',
+                        style: GoogleFonts.outfit(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.burntOrange,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ] else if (_vehicles.isEmpty)
@@ -1075,35 +1093,15 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
           Text('Where is the vehicle?', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
           Text('Select on map or use current location so we can show nearby mechanics.', style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[700])),
-          const SizedBox(height: 20),
-          ElevatedButton.icon(
-            onPressed: _getCurrentLocation,
-            icon: const Icon(Icons.my_location, size: 22),
-            label: const Text('Use current location'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.burntOrange,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-          ),
-          const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: _pickLocationOnMap,
-            icon: const Icon(Icons.map, size: 22),
-            label: const Text('Pick location on map'),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              side: BorderSide(color: AppColors.burntOrange),
-              foregroundColor: AppColors.burntOrange,
-            ),
-          ),
           if (_locationAddress.isNotEmpty) ...[
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(color: AppColors.burntOrange.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(12)),
+              decoration: BoxDecoration(
+                color: AppColors.burntOrange.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.burntOrange.withValues(alpha: 0.3)),
+              ),
               child: Row(
                 children: [
                   Icon(Icons.location_on, color: AppColors.burntOrange, size: 22),
@@ -1113,6 +1111,38 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
               ),
             ),
           ],
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _getCurrentLocation,
+                  icon: const Icon(Icons.my_location, size: 20),
+                  label: const Text('Use current location'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.burntOrange,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _pickLocationOnMap,
+                  icon: const Icon(Icons.map, size: 20),
+                  label: const Text('Pick on map'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    side: const BorderSide(color: AppColors.burntOrange),
+                    foregroundColor: AppColors.burntOrange,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );

@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:geolocator/geolocator.dart';
+import 'mechanic_request_detail_book_flow_page.dart';
 
 class MechanicBookingsPage extends StatefulWidget {
   final List<Map<String, dynamic>> bookings;
@@ -17,6 +18,8 @@ class MechanicBookingsPage extends StatefulWidget {
   final String? highlightRequestId;
   /// Initial filter: 'All', 'Pending', 'Accepted', 'Completed', 'Rejected', 'In progress'
   final String? initialFilter;
+  /// Mechanic ID for opening request detail (required for View/accept broadcast flow)
+  final int? mechanicId;
   
   const MechanicBookingsPage({
     super.key,
@@ -27,6 +30,7 @@ class MechanicBookingsPage extends StatefulWidget {
     this.onReached,
     this.highlightRequestId,
     this.initialFilter,
+    this.mechanicId,
   });
 
   @override
@@ -255,6 +259,7 @@ class _MechanicBookingsPageState extends State<MechanicBookingsPage> {
     final lng = _parseDouble(booking['longitude']);
     final hasMap = lat != null && lng != null;
     
+    final canOpenDetail = widget.mechanicId != null && (isPending || isAccepted || inProgress);
     Widget card = Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -269,7 +274,27 @@ class _MechanicBookingsPageState extends State<MechanicBookingsPage> {
         ],
       ),
       clipBehavior: Clip.antiAlias,
-      child: Column(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: canOpenDetail
+              ? () {
+                  final reqId = booking['id'];
+                  final mid = widget.mechanicId!;
+                  if (reqId != null && mid > 0) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => MechanicRequestDetailBookFlowPage(
+                          requestId: reqId is int ? reqId : int.tryParse(reqId.toString()) ?? 0,
+                          mechanicId: mid,
+                        ),
+                      ),
+                    );
+                  }
+                }
+              : null,
+          child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // Header: Location as name + status
@@ -494,6 +519,8 @@ class _MechanicBookingsPageState extends State<MechanicBookingsPage> {
             ),
           ),
         ],
+      ),
+        ),
       ),
     );
     

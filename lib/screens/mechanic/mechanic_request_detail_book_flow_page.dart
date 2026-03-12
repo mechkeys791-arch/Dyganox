@@ -59,12 +59,15 @@ class _MechanicRequestDetailBookFlowPageState extends State<MechanicRequestDetai
   void _startLocationUpdatesIfEnRoute() {
     if ((_request?['status']?.toString() ?? '') != 'MECHANIC_EN_ROUTE') return;
     _locationUpdateTimer?.cancel();
-    _locationUpdateTimer = Timer.periodic(const Duration(seconds: 10), (_) => _sendCurrentLocation());
+    _sendCurrentLocation();
+    _locationUpdateTimer = Timer.periodic(const Duration(seconds: 5), (_) => _sendCurrentLocation());
   }
 
   Future<void> _sendCurrentLocation() async {
     try {
-      final pos = await Geolocator.getCurrentPosition();
+      final pos = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
       await http.put(
         Uri.parse('${ApiConfig.mechanicEndpoint}/${widget.mechanicId}'),
         headers: {'Content-Type': 'application/json'},
@@ -447,7 +450,7 @@ class _MechanicRequestDetailBookFlowPageState extends State<MechanicRequestDetai
                         ),
                       ),
                     const SizedBox(height: 12),
-                    if ((r['status']?.toString() ?? '') == 'PENDING_PAYMENT') ...[
+                    if (status == 'PENDING_PAYMENT') ...[
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
@@ -462,7 +465,7 @@ class _MechanicRequestDetailBookFlowPageState extends State<MechanicRequestDetai
                           ),
                         ),
                       ),
-                    ] else if ((r['status']?.toString() ?? '') == 'MECHANIC_EN_ROUTE') ...[
+                    ] else if (status == 'MECHANIC_EN_ROUTE') ...[
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(

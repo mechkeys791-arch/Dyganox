@@ -171,6 +171,10 @@ class MainActivity : FlutterActivity() {
                         }
                         result.success(null)
                     }
+                    "getMechanicId" -> {
+                        val prefs = applicationContext.getSharedPreferences("dyganox_launch", MODE_PRIVATE)
+                        result.success(prefs.getString("mechanic_id", null))
+                    }
                     else -> result.notImplemented()
                 }
             }

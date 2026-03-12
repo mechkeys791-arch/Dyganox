@@ -123,6 +123,9 @@ class _SplashScreenState extends State<SplashScreen>
             mechanicId = m is int ? m : (m is num ? m.toInt() : int.tryParse(m?.toString() ?? ''));
           }
         } catch (_) {}
+        if (mechanicId == null) {
+          mechanicId = await FcmNotificationService.getMechanicId();
+        }
         if (!mounted) return;
         navigator.pushAndRemoveUntil(
           MaterialPageRoute(
@@ -192,6 +195,9 @@ class _SplashScreenState extends State<SplashScreen>
         mechanicId = m is int ? m : (m is num ? m.toInt() : int.tryParse(m?.toString() ?? ''));
       }
     } catch (_) {}
+    if (mechanicId == null) {
+      mechanicId = await FcmNotificationService.getMechanicId();
+    }
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(

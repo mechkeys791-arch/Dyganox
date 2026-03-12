@@ -184,9 +184,9 @@ public class BookMechanicService {
         }
 
         MechanicRequest saved = mechanicRequestRepo.save(req);
-        // Only notify mechanics within 5 km (4–5 km range) – all at once
-        int radius = 5;
-        List<Mechanic> mechanics = findMechanicsForBroadcast(lat, lng, problemCategory, 5);
+        // Notify mechanics within 6 km – all at once (professional coverage)
+        int radius = 6;
+        List<Mechanic> mechanics = findMechanicsForBroadcast(lat, lng, problemCategory, 6);
         saved.setRequestRadiusKm(radius);
 
         List<Long> notifiedIds = new ArrayList<>();
@@ -213,7 +213,7 @@ public class BookMechanicService {
         int sent = (int) mechanics.stream().filter(m -> m.getFcmToken() != null && !m.getFcmToken().isBlank()).count();
         System.out.println("📢 [Broadcast] requestId=" + saved.getId() + " radius=" + radius + "km: " + mechanics.size() + " mechanics notified at once");
         if (mechanics.isEmpty()) {
-            System.out.println("⚠️ [Broadcast] NO mechanics within 5km for category=" + problemCategory + " lat=" + lat + " lng=" + lng);
+            System.out.println("⚠️ [Broadcast] NO mechanics within 6km for category=" + problemCategory + " lat=" + lat + " lng=" + lng);
         }
         try {
             saved.setNotifiedMechanicIds(new ObjectMapper().writeValueAsString(notifiedIds));

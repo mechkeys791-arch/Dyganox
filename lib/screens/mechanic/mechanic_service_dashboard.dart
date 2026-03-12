@@ -134,7 +134,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
     // When request FCM arrives in foreground, show bottom sheet (pop up from bottom)
     FcmNotificationService.onMechanicRequestInForeground = _showRequestBottomSheet;
 
-    // When launched from notification tap: show same popup as foreground FCM (then View opens detail)
+    // When launched from notification tap (View or Accept): show "new booking" popup from bottom
     final openId = widget.openRequestIdAfterMount;
     if (openId != null && openId.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -153,24 +153,6 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
       _fetchBookings();
       _loadMechanicProfileFromApi();
     });
-
-    // If launched from FCM with a request id, open that request after first frame
-    final requestIdToOpen = widget.openRequestIdAfterMount;
-    if (requestIdToOpen != null && requestIdToOpen.isNotEmpty) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        final mid = widget.mechanicData?['id'];
-        final id = mid is int ? mid : int.tryParse(mid?.toString() ?? '');
-        if (id != null && id > 0) {
-          final reqId = int.tryParse(requestIdToOpen) ?? 0;
-          if (reqId > 0) {
-            Navigator.push(context, MaterialPageRoute(
-              builder: (_) => MechanicRequestDetailBookFlowPage(requestId: reqId, mechanicId: id),
-            ));
-          }
-        }
-      });
-    }
   } 
 
   @override
@@ -336,67 +318,76 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
     }
   }
   
+  Map<String, dynamic> _requestToBooking(dynamic request) {
+    final rawStatus = (request['status'] ?? 'PENDING').toString().toUpperCase();
+    String status;
+    if (rawStatus == 'PENDING_BROADCAST') status = 'Pending';
+    else if (rawStatus == 'IN_PROGRESS' || rawStatus == 'INPROGRESS') status = 'In progress';
+    else status = rawStatus.isNotEmpty ? rawStatus[0] + rawStatus.substring(1).toLowerCase() : 'Pending';
+    final make = request['vehicleMakeName']?.toString() ?? '';
+    final model = request['vehicleModelName']?.toString() ?? '';
+    final plate = request['vehiclePlateNumber']?.toString() ?? '';
+    final vehicleStr = '${make} ${model}'.trim();
+    final vehicle = vehicleStr.isNotEmpty ? '$vehicleStr${plate.isNotEmpty ? ' ($plate)' : ''}' : (plate.isNotEmpty ? plate : 'Customer Vehicle');
+    final lat = request['latitude']?.toString() ?? '';
+    final lng = request['longitude']?.toString() ?? '';
+    final reqTime = (request['requestTime'] ?? request['createdAt'])?.toString() ?? '';
+    return {
+      'id': request['id'],
+      'customerName': request['customerName'] ?? 'Unknown',
+      'customerPhone': request['customerPhone'] ?? 'Not provided',
+      'customerEmail': request['customerEmail'] ?? '',
+      'service': request['serviceType'] ?? request['problemCategory'] ?? 'General Service',
+      'problemCategory': request['problemCategory'],
+      'vehicle': vehicle,
+      'vehicleMakeName': make,
+      'vehicleModelName': model,
+      'vehiclePlateNumber': plate,
+      'latitude': request['latitude'],
+      'longitude': request['longitude'],
+      'location': lat.isNotEmpty && lng.isNotEmpty ? '$lat, $lng' : 'Location',
+      'date': reqTime.length >= 10 ? reqTime.substring(0, 10) : 'Today',
+      'time': reqTime.length >= 16 ? reqTime.substring(11, 16) : 'Now',
+      'status': status,
+      'amount': '₹${request['amount'] ?? 50}',
+      'description': request['description'] ?? '',
+      'comment': request['comment'] ?? '',
+      'diagnosticAnswers': request['diagnosticAnswers'],
+      'photoUrls': request['photoUrls'],
+      'email': request['customerEmail'] ?? '',
+      'isBroadcast': rawStatus == 'PENDING_BROADCAST',
+    };
+  }
+
   Future<void> _fetchBookings() async {
     setState(() => _isLoadingBookings = true);
-    
+    final mechanicId = widget.mechanicData?['id'] ?? 1;
+    final id = mechanicId is int ? mechanicId : int.tryParse(mechanicId.toString());
+    if (id == null) {
+      setState(() { _bookings = []; _isLoadingBookings = false; });
+      return;
+    }
     try {
-      // Get mechanic ID from profile data
-      final mechanicId = widget.mechanicData?['id'] ?? 1;
-      print("Mechanic Dashboard: Fetching requests for mechanic ID: $mechanicId");
-      print("API URL: ${ApiConfig.mechanicRequestsEndpoint}/mechanic/$mechanicId/pending");
-      
+      await _fetchNearbyBroadcastRequests();
       final response = await http.get(
-        Uri.parse("${ApiConfig.mechanicRequestsEndpoint}/mechanic/$mechanicId"),
+        Uri.parse("${ApiConfig.mechanicRequestsEndpoint}/mechanic/$id"),
         headers: {"Content-Type": "application/json"},
       );
 
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
-        print("Mechanic Dashboard: Received ${data.length} pending requests");
-        
+        List<Map<String, dynamic>> apiBookings = List.from(data.map((r) => Map<String, dynamic>.from(_requestToBooking(r))));
+        final apiIds = apiBookings.map((b) => b['id'].toString()).toSet();
+        for (final req in _nearbyBroadcastRequests) {
+          final r = req as Map<String, dynamic>;
+          final rid = r['id']?.toString();
+          if (rid != null && !apiIds.contains(rid)) {
+            apiBookings.insert(0, Map<String, dynamic>.from(_requestToBooking(r)));
+          }
+        }
         setState(() {
-          _bookings = data.map((request) {
-            // Convert backend status to UI title case (Pending, Accepted, In progress, Completed, Rejected)
-            String status = (request['status'] ?? 'PENDING').toString().toUpperCase();
-            if (status == 'IN_PROGRESS' || status == 'INPROGRESS') {
-              status = 'In progress';
-            } else {
-              status = status.isNotEmpty ? status[0] + status.substring(1).toLowerCase() : 'Pending';
-            }
-            // Build vehicle string from make, model, plate (same as user provided)
-            final make = request['vehicleMakeName']?.toString() ?? '';
-            final model = request['vehicleModelName']?.toString() ?? '';
-            final plate = request['vehiclePlateNumber']?.toString() ?? '';
-            final vehicleStr = '${make} ${model}'.trim();
-            final vehicle = vehicleStr.isNotEmpty ? '$vehicleStr${plate.isNotEmpty ? ' ($plate)' : ''}' : (plate.isNotEmpty ? plate : 'Customer Vehicle');
-            return {
-              'id': request['id'],
-              'customerName': request['customerName'] ?? 'Unknown',
-              'customerPhone': request['customerPhone'] ?? 'Not provided',
-              'customerEmail': request['customerEmail'] ?? '',
-              'service': request['serviceType'] ?? request['problemCategory'] ?? 'General Service',
-              'problemCategory': request['problemCategory'],
-              'vehicle': vehicle,
-              'vehicleMakeName': make,
-              'vehicleModelName': model,
-              'vehiclePlateNumber': plate,
-              'latitude': request['latitude'],
-              'longitude': request['longitude'],
-              'location': '${request['latitude']}, ${request['longitude']}',
-              'date': request['createdAt']?.substring(0, 10) ?? 'Today',
-              'time': request['createdAt']?.substring(11, 16) ?? 'Now',
-              'status': status,
-              'amount': '₹${request['amount'] ?? 50}',
-              'description': request['description'] ?? '',
-              'comment': request['comment'] ?? '',
-              'diagnosticAnswers': request['diagnosticAnswers'],
-              'photoUrls': request['photoUrls'],
-              'email': request['customerEmail'] ?? '',
-            };
-          }).toList();
+          _bookings = apiBookings;
         });
-        
-        print("Mechanic Dashboard: Loaded ${_bookings.length} bookings successfully");
       } else {
         print("Mechanic Dashboard: Failed to fetch requests - Status ${response.statusCode}");
         // Fallback to empty list if API fails
@@ -608,7 +599,6 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
             _buildStatsCards(),
             const SizedBox(height: 20),
             _buildEarningsSummary(),
-            const SizedBox(height: 20),
           ],
         ),
       ),
@@ -796,51 +786,54 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
           case 'approved':
             await Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (context) => MechanicBookingsPage(
-                  bookings: _bookings,
-                  onAccept: _acceptBooking,
-                  onReject: _rejectBooking,
-                  onComplete: _completeBooking,
-                  onReached: _reachedBooking,
-                  highlightRequestId: null,
-                  initialFilter: 'Accepted',
+                MaterialPageRoute(
+                  builder: (context) => MechanicBookingsPage(
+                    bookings: _bookings,
+                    onAccept: _acceptBooking,
+                    onReject: _rejectBooking,
+                    onComplete: _completeBooking,
+                    onReached: _reachedBooking,
+                    highlightRequestId: null,
+                    initialFilter: 'Accepted',
+                    mechanicId: (widget.mechanicData?['id'] is int ? widget.mechanicData!['id'] : int.tryParse(widget.mechanicData?['id']?.toString() ?? '')),
+                  ),
                 ),
-              ),
             );
             if (mounted) _fetchBookings();
             break;
           case 'rejected':
             await Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (context) => MechanicBookingsPage(
-                  bookings: _bookings,
-                  onAccept: _acceptBooking,
-                  onReject: _rejectBooking,
-                  onComplete: _completeBooking,
-                  onReached: _reachedBooking,
-                  highlightRequestId: null,
-                  initialFilter: 'Rejected',
+                MaterialPageRoute(
+                  builder: (context) => MechanicBookingsPage(
+                    bookings: _bookings,
+                    onAccept: _acceptBooking,
+                    onReject: _rejectBooking,
+                    onComplete: _completeBooking,
+                    onReached: _reachedBooking,
+                    highlightRequestId: null,
+                    initialFilter: 'Rejected',
+                    mechanicId: (widget.mechanicData?['id'] is int ? widget.mechanicData!['id'] : int.tryParse(widget.mechanicData?['id']?.toString() ?? '')),
+                  ),
                 ),
-              ),
             );
             if (mounted) _fetchBookings();
             break;
           case 'pending':
             await Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (context) => MechanicBookingsPage(
-                  bookings: _bookings,
-                  onAccept: _acceptBooking,
-                  onReject: _rejectBooking,
-                  onComplete: _completeBooking,
-                  onReached: _reachedBooking,
-                  highlightRequestId: null,
-                  initialFilter: 'Pending',
+                MaterialPageRoute(
+                  builder: (context) => MechanicBookingsPage(
+                    bookings: _bookings,
+                    onAccept: _acceptBooking,
+                    onReject: _rejectBooking,
+                    onComplete: _completeBooking,
+                    onReached: _reachedBooking,
+                    highlightRequestId: null,
+                    initialFilter: 'Pending',
+                    mechanicId: (widget.mechanicData?['id'] is int ? widget.mechanicData!['id'] : int.tryParse(widget.mechanicData?['id']?.toString() ?? '')),
+                  ),
                 ),
-              ),
             );
             if (mounted) _fetchBookings();
             break;
@@ -1275,185 +1268,83 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
   }
   
   Widget _buildEarningsSummary() {
-    final progress = _minWithdraw > 0 ? (_walletBalance / _minWithdraw).clamp(0.0, 1.0) : 0.0;
-    final avgPerJob = _completedJobs > 0 ? _walletTotalEarned / _completedJobs : 0.0;
-    final avgLabel = avgPerJob > 0 ? '₹${avgPerJob.toStringAsFixed(0)} avg/job' : '—';
-    
-    return GestureDetector(
-      onTap: _showEarningsDetailsDialog,
-      child: Container(
-      padding: const EdgeInsets.all(20),
+    return Container(
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [AppColors.warmAmber, AppColors.warmBrown],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: AppColors.warmAmber.withOpacity(0.4),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
+            color: AppColors.warmAmber.withOpacity(0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'This Month\'s Earnings',
-                    style: GoogleFonts.outfit(
-                      color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      const Icon(Icons.trending_up, color: Colors.white, size: 16),
-                      const SizedBox(width: 4),
-                      Text(
-                        '+25% from last month',
-                        style: GoogleFonts.inter(
-                            color: Colors.white.withOpacity(0.95),
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    avgLabel,
-                    style: GoogleFonts.inter(
-                      color: Colors.white.withOpacity(0.9),
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.account_balance_wallet, color: Colors.white, size: 28),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                      '₹${_walletBalance.toStringAsFixed(0)}',
-                    style: GoogleFonts.outfit(
-                      color: Colors.white,
-                        fontSize: 42,
-                      fontWeight: FontWeight.bold,
-                        height: 1,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                      '$_completedJobs jobs completed',
-                    style: GoogleFonts.inter(
-                      color: Colors.white.withOpacity(0.9),
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-              Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                        'Total earned: ₹${_walletTotalEarned.toStringAsFixed(0)}',
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                      'Min ₹$_minWithdraw to withdraw',
-                    style: GoogleFonts.inter(
-                        color: Colors.white.withOpacity(0.9),
-                        fontSize: 13,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-            Column(
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: LinearProgressIndicator(
-                    value: progress,
-              backgroundColor: Colors.white.withOpacity(0.3),
-              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-                    minHeight: 8,
+                Text(
+                  'Earnings',
+                  style: GoogleFonts.outfit(
+                    color: Colors.white.withOpacity(0.9),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Min ₹$_minWithdraw to withdraw',
-                      style: GoogleFonts.inter(
-                        color: Colors.white.withOpacity(0.85),
-                        fontSize: 11,
-                      ),
-                    ),
-                    Row(
-                      children: [
-                        Text(
-                          'View Details',
-                          style: GoogleFonts.inter(
-                            color: Colors.white.withOpacity(0.85),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Icon(
-                          Icons.arrow_forward_ios,
-                          size: 10,
-                          color: Colors.white.withOpacity(0.85),
-                        ),
-                      ],
-                    ),
-                  ],
+                const SizedBox(height: 4),
+                Text(
+                  '₹${_walletBalance.toStringAsFixed(0)}',
+                  style: GoogleFonts.outfit(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ],
             ),
-          ],
+          ),
+          TextButton.icon(
+            onPressed: _showEarningsDetailsDialog,
+            icon: const Icon(Icons.info_outline, color: Colors.white, size: 18),
+            label: Text('Details', style: GoogleFonts.inter(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+          ),
+          const SizedBox(width: 4),
+          ElevatedButton(
+            onPressed: _walletBalance >= _minWithdraw ? _showWithdrawDialog : null,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: AppColors.warmBrown,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: Text('Withdraw', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showWithdrawDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Withdraw', style: GoogleFonts.outfit()),
+        content: Text(
+          'Balance: ₹${_walletBalance.toStringAsFixed(0)}. Min ₹$_minWithdraw to withdraw. Withdraw feature will be available soon.',
+          style: GoogleFonts.inter(),
         ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK')),
+        ],
       ),
     );
   }
@@ -1811,13 +1702,14 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => MechanicBookingsPage(
+                      builder: (context) =>                   MechanicBookingsPage(
                         bookings: _bookings,
                         onAccept: _acceptBooking,
                         onReject: _rejectBooking,
                         onComplete: _completeBooking,
                         onReached: _reachedBooking,
                         highlightRequestId: null,
+                        mechanicId: (widget.mechanicData?['id'] is int ? widget.mechanicData!['id'] : int.tryParse(widget.mechanicData?['id']?.toString() ?? '')),
                       ),
                     ),
                   );
@@ -2263,10 +2155,20 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
   
   // BOOKING ACTIONS
   Future<void> _acceptBooking(Map<String, dynamic> booking) async {
+    final mechanicId = widget.mechanicData?['id'];
+    final id = mechanicId is int ? mechanicId : int.tryParse(mechanicId?.toString() ?? '');
+    if (id == null) {
+      _showSnackBar('Unable to accept: mechanic not loaded.', Colors.red);
+      return;
+    }
+    final isBroadcast = booking['isBroadcast'] == true;
+    final endpoint = isBroadcast
+        ? "${ApiConfig.mechanicRequestsEndpoint}/${booking['id']}/accept-by/$id"
+        : "${ApiConfig.mechanicRequestsEndpoint}/${booking['id']}/accept";
     try {
-      print("Accepting booking ID: ${booking['id']}");
+      print("Accepting booking ID: ${booking['id']} (broadcast=$isBroadcast)");
       final response = await http.put(
-        Uri.parse("${ApiConfig.mechanicRequestsEndpoint}/${booking['id']}/accept"),
+        Uri.parse(endpoint),
         headers: {"Content-Type": "application/json"},
       );
 
@@ -2275,10 +2177,12 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
           booking['status'] = 'Accepted';
         });
         _showSnackBar('Booking accepted! Customer has been notified.', AppColors.warmAmber);
+        _fetchBookings();
+        _fetchNearbyBroadcastRequests();
         print("✅ Booking ${booking['id']} accepted successfully");
       } else {
-        print("❌ Failed to accept booking: ${response.statusCode}");
-        _showSnackBar('Failed to accept booking. Please try again.', Colors.red);
+        final body = jsonDecode(response.body) as Map?;
+        _showSnackBar(body?['error']?.toString() ?? 'Failed to accept. Request may already be taken.', Colors.red);
       }
     } catch (e) {
       print("❌ Error accepting booking: $e");
