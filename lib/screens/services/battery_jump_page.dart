@@ -5,6 +5,7 @@ import 'dart:convert';
 import '../../core/theme/app_colors.dart';
 import '../../services/api_config.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../mechanic/book_mechanic_flow_page.dart';
 
 class BatteryJumpPage extends StatefulWidget {
   const BatteryJumpPage({super.key});
@@ -637,16 +638,11 @@ class _BatteryJumpPageState extends State<BatteryJumpPage> with TickerProviderSt
                               ElevatedButton(
                                 onPressed: () {
                                   Navigator.pop(context);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Booking ${service['title']}...',
-                                        style: GoogleFonts.outfit(),
-                                      ),
-                                      backgroundColor: AppColors.burntOrange,
-                                      behavior: SnackBarBehavior.floating,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => const BookMechanicFlowPage(
+                                        preselectedProblemId: 'battery_jump',
                                       ),
                                     ),
                                   );

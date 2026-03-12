@@ -1629,13 +1629,16 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 ),
 
                 // Search Bar with Results
-                Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    screenWidth * 0.055,
-                    screenHeight * 0.02,
-                    screenWidth * 0.055,
-                    14,
-                  ),
+                Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: screenWidth * 0.82),
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        screenWidth * 0.04,
+                        screenHeight * 0.02,
+                        screenWidth * 0.04,
+                        14,
+                      ),
                   child: Column(
                     children: [
                       AnimatedContainer(
@@ -1876,6 +1879,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         ),
                     ],
                   ),
+                ),
+                ),
                 ),
 
                 // Sliding Advertisement Section - Colorful

@@ -22,10 +22,12 @@ import 'mechanic_accepted_ready_page.dart';
 
 /// Book Mechanic: vehicle → problem → details (photo compulsory for tyre) → location (map/current) → map + mechanics → send to all → wait → payment when accepted.
 /// If [preselectedMechanicId] is set (from finder "Request mechanic"), flow sends to that mechanic only after location step.
+/// If [preselectedProblemId] is set (e.g. from Battery Jump quick service), problem is pre-selected.
 class BookMechanicFlowPage extends StatefulWidget {
   final int? preselectedMechanicId;
+  final String? preselectedProblemId;
 
-  const BookMechanicFlowPage({super.key, this.preselectedMechanicId});
+  const BookMechanicFlowPage({super.key, this.preselectedMechanicId, this.preselectedProblemId});
 
   @override
   State<BookMechanicFlowPage> createState() => _BookMechanicFlowPageState();
@@ -105,6 +107,14 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
       _vehicles = list;
       _selectedVehicle = list.isNotEmpty ? (list.firstWhere((v) => v['isDefault'] == true, orElse: () => list.first)) : null;
       if (_selectedVehicle != null) _vehicleType = (_selectedVehicle!['type'] ?? 'CAR').toString().toUpperCase();
+      if (widget.preselectedProblemId != null) {
+        final problems = getProblemsForVehicle(_vehicleType);
+        try {
+          _selectedProblem = problems.firstWhere((p) => p.id == widget.preselectedProblemId);
+        } catch (_) {
+          _selectedProblem = null;
+        }
+      }
     });
   }
 
@@ -164,7 +174,12 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
       }
       _fetchMechanicsByCategory();
     }
-    setState(() => _step++);
+    setState(() {
+      _step++;
+      if (_step == 1 && widget.preselectedProblemId != null && _selectedProblem != null) {
+        _step = 2;
+      }
+    });
   }
 
   Future<void> _sendRequestToPreselectedMechanic() async {
