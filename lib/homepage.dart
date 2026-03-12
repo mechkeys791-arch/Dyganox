@@ -1629,21 +1629,18 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 ),
 
                 // Search Bar with Results
-                Center(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(maxWidth: screenWidth * 0.82),
-                    child: Padding(
-                      padding: EdgeInsets.fromLTRB(
-                        screenWidth * 0.04,
-                        screenHeight * 0.02,
-                        screenWidth * 0.04,
-                        14,
-                      ),
+                Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    screenWidth * 0.055,
+                    screenHeight * 0.02,
+                    screenWidth * 0.055,
+                    14,
+                  ),
                   child: Column(
                     children: [
                       AnimatedContainer(
                         duration: const Duration(milliseconds: 300),
-                        padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
+                        padding: const EdgeInsets.fromLTRB(18, 10, 18, 10),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(14),
@@ -1713,7 +1710,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                   ),
                                   border: InputBorder.none,
                                   isDense: true,
-                                  contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                                  contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
                                 ),
                               ),
                             ),
@@ -1879,8 +1876,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         ),
                     ],
                   ),
-                ),
-                ),
                 ),
 
                 // Sliding Advertisement Section - Colorful
