@@ -418,6 +418,14 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
       } catch (_) {}
       final lat = pos?.latitude ?? 0.0;
       final lng = pos?.longitude ?? 0.0;
+      // Update mechanic's current location so broadcast can reach them (Ola-style)
+      if (pos != null) {
+        http.put(
+          Uri.parse('${ApiConfig.mechanicEndpoint}/$id/location'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'currentLatitude': lat.toString(), 'currentLongitude': lng.toString()}),
+        ).ignore();
+      }
       final url = Uri.parse('${ApiConfig.mechanicRequestsEndpoint}/nearby-for-mechanic').replace(
         queryParameters: {'mechanicId': id.toString(), 'lat': lat.toString(), 'lng': lng.toString()},
       );

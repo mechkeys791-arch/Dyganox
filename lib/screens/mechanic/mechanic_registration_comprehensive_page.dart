@@ -55,7 +55,10 @@ class _MechanicRegistrationComprehensivePageState extends State<MechanicRegistra
   double? _shopLatitude;
   double? _shopLongitude;
 
-  // Step 3: Services
+  // Step 3: Services & Vehicle types
+  String _vehicleTypes = 'CAR,BIKE'; // CAR, BIKE, or CAR,BIKE
+  File? _towingVehiclePhoto;
+  String? _towingVehiclePhotoUrl; // Set after upload (when Towing is offered)
   final List<String> _availableServices = [
     'Car Service',
     'Bike Service',
@@ -201,6 +204,24 @@ class _MechanicRegistrationComprehensivePageState extends State<MechanicRegistra
     }
   }
 
+  Future<String?> _uploadTowingVehiclePhoto(File imageFile) async {
+    try {
+      final uri = Uri.parse('${ApiConfig.baseUrl}/api/upload/towing-vehicle-photo');
+      final request = http.MultipartRequest('POST', uri);
+      request.files.add(await http.MultipartFile.fromPath('file', imageFile.path));
+      final streamed = await request.send().timeout(const Duration(seconds: 30));
+      final response = await http.Response.fromStream(streamed);
+      if (response.statusCode == 200) {
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        return json['url'] as String?;
+      }
+      return null;
+    } catch (e) {
+      print('Error uploading towing vehicle photo: $e');
+      return null;
+    }
+  }
+
   Future<void> _submitRegistration() async {
     // Validate all steps
     if (_nameController.text.isEmpty ||
@@ -252,6 +273,12 @@ class _MechanicRegistrationComprehensivePageState extends State<MechanicRegistra
         return;
       }
 
+      // Upload towing vehicle photo if provided
+      if (_towingVehiclePhoto != null) {
+        final url = await _uploadTowingVehiclePhoto(_towingVehiclePhoto!);
+        if (url != null && mounted) setState(() => _towingVehiclePhotoUrl = url);
+      }
+
       // Prepare mechanic data - all fields saved in DB (aadhar, shop, lat/long, all services, specialty, 24hr, times, working days)
       final mechanicData = {
         'name': _nameController.text.trim(),
@@ -274,6 +301,8 @@ class _MechanicRegistrationComprehensivePageState extends State<MechanicRegistra
         'openingTime': _openingTime ?? '',
         'closingTime': _closingTime ?? '',
         'workingDays': _workingDays.join(','),
+        'vehicleTypes': _vehicleTypes,
+        if (_towingVehiclePhotoUrl != null && _towingVehiclePhotoUrl!.isNotEmpty) 'towingVehiclePhotoUrl': _towingVehiclePhotoUrl,
         'approvalStatus': 'PENDING',
       };
 
@@ -337,6 +366,28 @@ class _MechanicRegistrationComprehensivePageState extends State<MechanicRegistra
     } else {
       _submitRegistration();
     }
+  }
+
+  Widget _vehicleTypeChip(String label, String value) {
+    final isSelected = _vehicleTypes == value;
+    return GestureDetector(
+      onTap: () => setState(() => _vehicleTypes = value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF6366F1) : Colors.grey[200],
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.outfit(
+            color: isSelected ? Colors.white : Colors.black87,
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+          ),
+        ),
+      ),
+    );
   }
 
   void _previousStep() {
@@ -739,6 +790,21 @@ class _MechanicRegistrationComprehensivePageState extends State<MechanicRegistra
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
+            'Vehicle types you serve',
+            style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              _vehicleTypeChip('Car only', 'CAR'),
+              const SizedBox(width: 8),
+              _vehicleTypeChip('Bike only', 'BIKE'),
+              const SizedBox(width: 8),
+              _vehicleTypeChip('Both', 'CAR,BIKE'),
+            ],
+          ),
+          const SizedBox(height: 28),
+          Text(
             'Select Services',
             style: GoogleFonts.outfit(
               fontSize: 24,
@@ -770,35 +836,41 @@ class _MechanicRegistrationComprehensivePageState extends State<MechanicRegistra
             itemBuilder: (context, index) {
               final service = _availableServices[index];
               final isSelected = _selectedServices.contains(service);
-              
+              final isTowingOnly = _selectedServices.length == 1 && _selectedServices.contains('Towing');
+              final isDisabled = isTowingOnly && service != 'Towing';
               return GestureDetector(
-                onTap: () {
-                  setState(() {
-                    if (isSelected) {
-                      _selectedServices.remove(service);
-                    } else {
-                      _selectedServices.add(service);
-                    }
-                  });
-                },
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: isSelected ? const Color(0xFF6366F1) : Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: isSelected ? const Color(0xFF6366F1) : Colors.grey[300]!,
-                      width: 2,
-                    ),
-                  ),
-                  child: Center(
-                    child: Text(
-                      service,
-                      style: GoogleFonts.outfit(
-                        color: isSelected ? Colors.white : Colors.black,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
+                onTap: isDisabled
+                    ? null
+                    : () {
+                        setState(() {
+                          if (isSelected) {
+                            _selectedServices.remove(service);
+                          } else {
+                            _selectedServices.add(service);
+                          }
+                        });
+                      },
+                child: Opacity(
+                  opacity: isDisabled ? 0.5 : 1,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: isSelected ? const Color(0xFF6366F1) : Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isSelected ? const Color(0xFF6366F1) : Colors.grey[300]!,
+                        width: 2,
                       ),
-                      textAlign: TextAlign.center,
+                    ),
+                    child: Center(
+                      child: Text(
+                        service,
+                        style: GoogleFonts.outfit(
+                          color: isSelected ? Colors.white : Colors.black,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
                     ),
                   ),
                 ),
@@ -843,6 +915,46 @@ class _MechanicRegistrationComprehensivePageState extends State<MechanicRegistra
                   ),
                 ],
               ),
+            ),
+          ],
+          if (_selectedServices.contains('Towing')) ...[
+            const SizedBox(height: 20),
+            Text(
+              'Towing vehicle photo (optional)',
+              style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                if (_towingVehiclePhoto != null || _towingVehiclePhotoUrl != null)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: SizedBox(
+                      width: 80,
+                      height: 80,
+                      child: _towingVehiclePhoto != null
+                          ? Image.file(_towingVehiclePhoto!, fit: BoxFit.cover)
+                          : _towingVehiclePhotoUrl != null
+                              ? Image.network(_towingVehiclePhotoUrl!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.directions_car, size: 40))
+                              : const SizedBox(),
+                    ),
+                  ),
+                if (_towingVehiclePhoto != null || _towingVehiclePhotoUrl != null) const SizedBox(width: 12),
+                TextButton.icon(
+                  onPressed: () async {
+                    final XFile? image = await _imagePicker.pickImage(source: ImageSource.gallery, maxWidth: 800, maxHeight: 800, imageQuality: 85);
+                    if (image != null) setState(() { _towingVehiclePhoto = File(image.path); _towingVehiclePhotoUrl = null; });
+                  },
+                  icon: const Icon(Icons.add_photo_alternate),
+                  label: const Text('Add photo'),
+                ),
+                if (_towingVehiclePhoto != null || _towingVehiclePhotoUrl != null)
+                  TextButton.icon(
+                    onPressed: () => setState(() { _towingVehiclePhoto = null; _towingVehiclePhotoUrl = null; }),
+                    icon: const Icon(Icons.clear, size: 18),
+                    label: const Text('Remove'),
+                  ),
+              ],
             ),
           ],
           const SizedBox(height: 40),

@@ -287,6 +287,31 @@ public class S3Service {
         return publicUrl(key);
     }
 
+    /** Upload towing vehicle photo (mechanic registration). Returns S3 URL. */
+    public String uploadTowingVehiclePhoto(MultipartFile file) throws IOException {
+        if (s3Client == null) throw new IllegalStateException("S3 is not configured.");
+        String ext = getExtension(file.getOriginalFilename(), "jpg");
+        if (!"png".equalsIgnoreCase(ext) && !"jpg".equalsIgnoreCase(ext) && !"jpeg".equalsIgnoreCase(ext) && !"webp".equalsIgnoreCase(ext)) {
+            throw new IllegalArgumentException("Image should be PNG, JPG, or WebP.");
+        }
+        String key = String.format("towing-vehicle/%s.%s", UUID.randomUUID(), ext);
+        upload(key, file.getContentType() != null ? file.getContentType() : "image/jpeg", file.getBytes());
+        return publicUrl(key);
+    }
+
+    /** Upload problem category icon for Book Mechanic (e.g. tyre_puncture, battery_jump). Returns S3 URL; admin saves in app-branding problemCategoryIconsJson. */
+    public String uploadProblemCategoryIcon(String problemId, MultipartFile file) throws IOException {
+        if (s3Client == null) throw new IllegalStateException("S3 is not configured.");
+        String ext = getExtension(file.getOriginalFilename(), "png");
+        if (!"png".equalsIgnoreCase(ext) && !"jpg".equalsIgnoreCase(ext) && !"jpeg".equalsIgnoreCase(ext) && !"webp".equalsIgnoreCase(ext)) {
+            throw new IllegalArgumentException("Icon should be PNG, JPG, or WebP.");
+        }
+        String safe = problemId != null ? problemId.replaceAll("[^a-zA-Z0-9_-]", "_") : "problem";
+        String key = String.format("app-branding/problem-category/%s/%s.%s", safe, UUID.randomUUID(), ext);
+        upload(key, file.getContentType() != null ? file.getContentType() : "image/png", file.getBytes());
+        return publicUrl(key);
+    }
+
     private void upload(String key, String contentType, byte[] bytes) {
         PutObjectRequest req = PutObjectRequest.builder()
                 .bucket(bucket)

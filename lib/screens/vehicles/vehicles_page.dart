@@ -6,6 +6,7 @@ import '../../services/vehicle_service.dart';
 import '../../services/api_config.dart';
 import '../../services/cognito_service.dart';
 import '../../widgets/custom_nav_bar.dart';
+import '../../homepage.dart';
 import 'add_edit_vehicle_page.dart';
 
 class VehiclesPage extends StatefulWidget {
@@ -148,9 +149,18 @@ class _VehiclesPageState extends State<VehiclesPage> {
     return Icons.directions_car;
   }
 
+  void _goToHome() {
+    Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const HomePage()));
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _goToHome();
+      },
+      child: Scaffold(
       backgroundColor: AppColors.cream,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
@@ -171,7 +181,7 @@ class _VehiclesPageState extends State<VehiclesPage> {
             ),
             child: const Icon(Icons.arrow_back, color: Colors.black, size: 20),
           ),
-          onPressed: () => Navigator.pop(context),
+          onPressed: _goToHome,
         ),
         title: Text(
           'My Vehicles',
@@ -331,6 +341,7 @@ class _VehiclesPageState extends State<VehiclesPage> {
           style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.w600),
         ),
       ),
+    ),
     );
   }
 

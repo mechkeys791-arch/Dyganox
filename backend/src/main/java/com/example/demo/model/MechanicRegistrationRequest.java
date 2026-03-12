@@ -40,6 +40,10 @@ public class MechanicRegistrationRequest {
     @Column(length = 100)
     private String workingDays;
     private String approvalStatus = "PENDING"; // PENDING, APPROVED, REJECTED
+    @Column(length = 50)
+    private String vehicleTypes; // CAR, BIKE, or CAR,BIKE - which vehicle types mechanic serves
+    @Column(length = 500)
+    private String towingVehiclePhotoUrl; // Optional towing vehicle photo when mechanic offers towing
     @Column(length = 500)
     private String rejectionReason; // Set by admin when rejecting (for WhatsApp/UI later)
 
@@ -113,6 +117,12 @@ public class MechanicRegistrationRequest {
 
     public String getApprovalStatus() { return approvalStatus; }
     public void setApprovalStatus(String approvalStatus) { this.approvalStatus = approvalStatus; }
+
+    public String getVehicleTypes() { return vehicleTypes; }
+    public void setVehicleTypes(String vehicleTypes) { this.vehicleTypes = vehicleTypes; }
+
+    public String getTowingVehiclePhotoUrl() { return towingVehiclePhotoUrl; }
+    public void setTowingVehiclePhotoUrl(String towingVehiclePhotoUrl) { this.towingVehiclePhotoUrl = towingVehiclePhotoUrl; }
 
     public String getRejectionReason() { return rejectionReason; }
     public void setRejectionReason(String rejectionReason) { this.rejectionReason = rejectionReason; }

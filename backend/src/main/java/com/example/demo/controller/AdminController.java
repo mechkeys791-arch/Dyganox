@@ -560,6 +560,40 @@ public class AdminController {
         }
     }
 
+    // Update user (admin edit)
+    @PutMapping("/users/{id}")
+    public ResponseEntity<Person> updateUser(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        try {
+            Optional<Person> opt = personRepo.findById(id);
+            if (opt.isEmpty()) return ResponseEntity.notFound().build();
+            Person p = opt.get();
+            if (body.get("name") != null) p.setName(body.get("name").toString());
+            if (body.get("email") != null) p.setEmail(body.get("email").toString());
+            if (body.get("phone") != null) p.setPhone(body.get("phone").toString());
+            if (body.get("address") != null) p.setAddress(body.get("address").toString());
+            if (body.get("dateOfBirth") != null) p.setDateOfBirth(body.get("dateOfBirth").toString());
+            if (body.get("gender") != null) p.setGender(body.get("gender").toString());
+            if (body.get("profilePhotoUrl") != null) p.setProfilePhotoUrl(body.get("profilePhotoUrl").toString());
+            return ResponseEntity.ok(personRepo.save(p));
+        } catch (Exception e) {
+            System.err.println("❌ Error updating user: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    // Delete user (admin)
+    @DeleteMapping("/users/{id}")
+    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
+        try {
+            if (!personRepo.existsById(id)) return ResponseEntity.notFound().build();
+            personRepo.deleteById(id);
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            System.err.println("❌ Error deleting user: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
     // ========== MECHANIC MANAGEMENT ENHANCEMENTS ==========
     
     // Get mechanic profile details
@@ -611,6 +645,63 @@ public class AdminController {
             return ResponseEntity.ok(updated);
         } catch (Exception e) {
             System.err.println("❌ Error updating mechanic documents: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    // Update mechanic (admin edit – all fields optional)
+    @PutMapping("/mechanics/{id}")
+    public ResponseEntity<Mechanic> updateMechanic(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        try {
+            Optional<Mechanic> opt = mechanicRepo.findById(id);
+            if (opt.isEmpty()) return ResponseEntity.notFound().build();
+            Mechanic m = opt.get();
+            if (body.get("name") != null) m.setName(body.get("name").toString());
+            if (body.get("email") != null) m.setEmail(body.get("email").toString());
+            if (body.get("phone") != null) m.setPhone(body.get("phone").toString());
+            if (body.get("specialty") != null) m.setSpecialty(body.get("specialty").toString());
+            if (body.get("experience") != null) m.setExperience(body.get("experience").toString());
+            if (body.containsKey("nightTimeAvailable")) m.setNightTimeAvailable(Boolean.TRUE.equals(body.get("nightTimeAvailable")));
+            if (body.get("latitude") != null) m.setLatitude(body.get("latitude").toString());
+            if (body.get("longitude") != null) m.setLongitude(body.get("longitude").toString());
+            if (body.get("status") != null) m.setStatus(body.get("status").toString());
+            if (body.get("approvalStatus") != null) m.setApprovalStatus(body.get("approvalStatus").toString());
+            if (body.get("profilePhotoUrl") != null) m.setProfilePhotoUrl(body.get("profilePhotoUrl").toString());
+            if (body.get("categoryIconUrl") != null) m.setCategoryIconUrl(body.get("categoryIconUrl").toString());
+            if (body.get("shopName") != null) m.setShopName(body.get("shopName").toString());
+            if (body.get("shopAddress") != null) m.setShopAddress(body.get("shopAddress").toString());
+            if (body.get("shopCity") != null) m.setShopCity(body.get("shopCity").toString());
+            if (body.get("shopState") != null) m.setShopState(body.get("shopState").toString());
+            if (body.get("shopPincode") != null) m.setShopPincode(body.get("shopPincode").toString());
+            if (body.get("shopCountry") != null) m.setShopCountry(body.get("shopCountry").toString());
+            if (body.get("services") != null) m.setServices(body.get("services").toString());
+            if (body.get("openingTime") != null) m.setOpeningTime(body.get("openingTime").toString());
+            if (body.get("closingTime") != null) m.setClosingTime(body.get("closingTime").toString());
+            if (body.get("workingDays") != null) m.setWorkingDays(body.get("workingDays").toString());
+            if (body.get("serviceCategories") != null) m.setServiceCategories(body.get("serviceCategories").toString());
+            if (body.get("vehicleTypes") != null) m.setVehicleTypes(body.get("vehicleTypes").toString());
+            if (body.get("documentUrls") != null) m.setDocumentUrls(body.get("documentUrls").toString());
+            if (body.get("towingVehiclePhotoUrl") != null) m.setTowingVehiclePhotoUrl(body.get("towingVehiclePhotoUrl").toString());
+            if (body.containsKey("maxServingRadiusKm") && body.get("maxServingRadiusKm") != null)
+                m.setMaxServingRadiusKm(((Number) body.get("maxServingRadiusKm")).intValue());
+            if (body.containsKey("perKmCharge") && body.get("perKmCharge") != null)
+                m.setPerKmCharge(((Number) body.get("perKmCharge")).doubleValue());
+            return ResponseEntity.ok(mechanicRepo.save(m));
+        } catch (Exception e) {
+            System.err.println("❌ Error updating mechanic: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    // Delete mechanic (admin)
+    @DeleteMapping("/mechanics/{id}")
+    public ResponseEntity<Void> deleteMechanic(@PathVariable Long id) {
+        try {
+            if (!mechanicRepo.existsById(id)) return ResponseEntity.notFound().build();
+            mechanicRepo.deleteById(id);
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            System.err.println("❌ Error deleting mechanic: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }

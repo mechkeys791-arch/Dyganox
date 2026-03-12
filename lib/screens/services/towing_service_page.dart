@@ -11,8 +11,10 @@ import '../../services/api_config.dart';
 import '../../services/cognito_service.dart';
 import '../../services/vehicle_service.dart';
 import '../profile/location_picker_map_page.dart';
+import '../vehicles/add_edit_vehicle_page.dart';
+import '../../widgets/vehicle_selection_sheet.dart';
 
-/// Flow: 1) What happened → 2) Location (pickup/drop) → 3) Vehicle (auto) → 4) Towing providers
+/// Flow: 1) Vehicle (from profile, bottom sheet) → 2) Location (pickup/drop) → 3) What happened → 4) Towing providers (map half + list)
 class TowingServicePage extends StatefulWidget {
   const TowingServicePage({super.key});
 
@@ -56,6 +58,7 @@ class _TowingServicePageState extends State<TowingServicePage>
   @override
   void initState() {
     super.initState();
+    _loadUserVehicles();
     _getCurrentLocationForPickup();
   }
 
@@ -201,11 +204,14 @@ class _TowingServicePageState extends State<TowingServicePage>
     }
   }
 
+  String _userEmail = '';
+
   Future<void> _loadUserVehicles() async {
     setState(() => _loadingVehicles = true);
     try {
       final user = await CognitoService.getCurrentUser();
       final email = user['email']?.toString() ?? '';
+      _userEmail = email;
       if (email.isEmpty) {
         if (mounted) setState(() { _userVehicles = []; _loadingVehicles = false; });
         return;
@@ -214,7 +220,9 @@ class _TowingServicePageState extends State<TowingServicePage>
       if (!mounted) return;
       setState(() {
         _userVehicles = list;
-        _selectedVehicle = list.isNotEmpty ? list.first : null;
+        _selectedVehicle = list.isEmpty ? null : (_selectedVehicle != null
+            ? list.cast<Map<String, dynamic>>().firstWhere((v) => v['id'] == _selectedVehicle!['id'], orElse: () => list.first)
+            : list.first);
         _loadingVehicles = false;
       });
     } catch (_) {
@@ -260,28 +268,58 @@ class _TowingServicePageState extends State<TowingServicePage>
   }
 
   void _goNext() {
-    if (_step == 0 && _incidentType != null) {
-      setState(() => _step = 1);
+    if (_step == 0) {
+      if (_selectedVehicle != null || _userVehicles.isEmpty) {
+        setState(() => _step = 1);
+      } else {
+        _showVehicleSheet();
+      }
     } else if (_step == 1) {
       if (_pickupLat != null && _pickupLng != null) {
         setState(() => _step = 2);
-        _loadUserVehicles();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'Please set pickup location',
-              style: GoogleFonts.outfit(),
-            ),
+            content: Text('Please set pickup location', style: GoogleFonts.outfit()),
             backgroundColor: AppColors.burntOrange,
             behavior: SnackBarBehavior.floating,
           ),
         );
       }
-    } else if (_step == 2) {
+    } else if (_step == 2 && _incidentType != null) {
       setState(() => _step = 3);
       _fetchTowingProviders();
     }
+  }
+
+  void _showVehicleSheet() {
+    if (_userEmail.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please sign in', style: GoogleFonts.outfit()), backgroundColor: Colors.orange),
+      );
+      return;
+    }
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => VehicleSelectionSheet(
+        title: 'Select vehicle',
+        userEmail: _userEmail,
+        parentContext: context,
+        initialVehicles: _userVehicles.isEmpty ? null : _userVehicles,
+        onSelectVehicle: (v) {
+          Navigator.pop(ctx);
+          setState(() => _selectedVehicle = v);
+        },
+        onAddVehicle: () {
+          Navigator.pop(ctx);
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (c) => AddEditVehiclePage(userEmail: _userEmail)),
+          ).then((_) => _loadUserVehicles());
+        },
+      ),
+    );
   }
 
   void _goBack() {
@@ -315,13 +353,7 @@ class _TowingServicePageState extends State<TowingServicePage>
           onPressed: _goBack,
         ),
         title: Text(
-          _step == 0
-              ? 'Towing Service'
-              : _step == 1
-                  ? 'Location'
-                  : _step == 2
-                      ? 'Vehicle'
-                      : 'Towing Providers',
+          _step == 0 ? 'Vehicle' : _step == 1 ? 'Location' : _step == 2 ? 'What happened' : 'Towing Providers',
           style: GoogleFonts.outfit(
             color: Colors.black,
             fontSize: 22,
@@ -331,13 +363,7 @@ class _TowingServicePageState extends State<TowingServicePage>
         centerTitle: true,
       ),
       body: SafeArea(
-        child: _step == 0
-            ? _buildIncidentStep()
-            : _step == 1
-                ? _buildLocationStep()
-                : _step == 2
-                    ? _buildVehicleStep()
-                    : _buildProvidersStep(),
+        child: _step == 0 ? _buildVehicleStep() : _step == 1 ? _buildLocationStep() : _step == 2 ? _buildIncidentStep() : _buildProvidersStep(),
       ),
     );
   }
@@ -732,6 +758,13 @@ class _TowingServicePageState extends State<TowingServicePage>
     );
   }
 
+  String _vehicleImageUrl(Map<String, dynamic> v) {
+    final url = v['photoUrl']?.toString() ?? v['modelImageUrl']?.toString();
+    if (url == null || url.isEmpty) return '';
+    if (url.startsWith('http')) return url;
+    return '${ApiConfig.baseUrl}$url';
+  }
+
   Widget _buildVehicleStep() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -739,18 +772,12 @@ class _TowingServicePageState extends State<TowingServicePage>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Vehicle details are taken from your profile.',
-            style: GoogleFonts.outfit(
-              fontSize: 14,
-              color: Colors.grey[600],
-            ),
+            'Select your vehicle (from profile)',
+            style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
           ),
           const SizedBox(height: 20),
           if (_loadingVehicles)
-            const Center(
-                child: Padding(
-                    padding: EdgeInsets.all(24),
-                    child: CircularProgressIndicator(color: AppColors.burntOrange)))
+            const Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator(color: AppColors.burntOrange)))
           else if (_userVehicles.isEmpty)
             Container(
               padding: const EdgeInsets.all(24),
@@ -761,116 +788,92 @@ class _TowingServicePageState extends State<TowingServicePage>
               ),
               child: Column(
                 children: [
-                  Icon(Icons.directions_car_outlined,
-                      size: 48, color: Colors.grey[400]),
+                  Icon(Icons.directions_car_outlined, size: 48, color: Colors.grey[400]),
                   const SizedBox(height: 12),
-                  Text(
-                    'No vehicle in profile',
-                    style: GoogleFonts.outfit(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey[600],
-                    ),
-                  ),
+                  Text('No vehicle in profile', style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.grey[600])),
                   const SizedBox(height: 8),
-                  Text(
-                    'Add a vehicle in profile for mechanics to prepare.',
-                    style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[500]),
-                    textAlign: TextAlign.center,
+                  Text('Add a vehicle to continue.', style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[500]), textAlign: TextAlign.center),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (c) => AddEditVehiclePage(userEmail: _userEmail))).then((_) => _loadUserVehicles()),
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('Add vehicle'),
+                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.burntOrange, foregroundColor: Colors.white),
                   ),
                 ],
               ),
             )
           else
-            ..._userVehicles.map((v) {
-              final isSelected = _selectedVehicle?['id'] == v['id'];
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Material(
-                  elevation: isSelected ? 4 : 1,
-                  borderRadius: BorderRadius.circular(12),
-                  color: isSelected
-                      ? AppColors.burntOrange.withOpacity(0.1)
-                      : AppColors.creamElevated,
-                  child: InkWell(
-                    onTap: () => setState(() => _selectedVehicle = v),
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
+            Material(
+              elevation: 2,
+              borderRadius: BorderRadius.circular(16),
+              child: InkWell(
+                onTap: _showVehicleSheet,
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.burntOrange.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      ClipRRect(
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: isSelected
-                              ? AppColors.burntOrange
-                              : Colors.grey[300]!,
-                          width: isSelected ? 2 : 1,
+                        child: _vehicleImageUrl(_selectedVehicle!).isNotEmpty
+                            ? Image.network(_vehicleImageUrl(_selectedVehicle!), width: 72, height: 72, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _vehicleIconWidget(_selectedVehicle!['type']))
+                            : _vehicleIconWidget(_selectedVehicle!['type']),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('${_selectedVehicle!['makeName'] ?? ''} ${_selectedVehicle!['modelName'] ?? ''}'.trim(), style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold)),
+                            Text('${_selectedVehicle!['plateNumber'] ?? ''} • ${_selectedVehicle!['type'] ?? 'Car'}', style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[600])),
+                          ],
                         ),
                       ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            _vehicleIcon(v['type']),
-                            color: AppColors.burntOrange,
-                            size: 32,
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '${v['makeName'] ?? ''} ${v['modelName'] ?? ''}'
-                                      .trim(),
-                                  style: GoogleFonts.outfit(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  '${v['plateNumber'] ?? ''} • ${v['type'] ?? 'Car'}',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 12,
-                                    color: Colors.grey[600],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          if (isSelected)
-                            Icon(Icons.check_circle,
-                                color: AppColors.burntOrange, size: 24),
-                        ],
-                      ),
-                    ),
+                      Icon(Icons.chevron_right, color: Colors.grey[600]),
+                    ],
                   ),
                 ),
-              );
-            }),
+              ),
+            ),
+          if (_userVehicles.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            TextButton.icon(
+              onPressed: _showVehicleSheet,
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Change or add vehicle'),
+              style: TextButton.styleFrom(foregroundColor: AppColors.burntOrange),
+            ),
+          ],
           const SizedBox(height: 28),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: _goNext,
+              onPressed: _selectedVehicle != null ? _goNext : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.burntOrange,
+                disabledBackgroundColor: Colors.grey[300],
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              child: Text(
-                'Find Towing Providers',
-                style: GoogleFonts.outfit(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
+              child: Text('Continue', style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _vehicleIconWidget(dynamic type) {
+    return Container(
+      width: 72,
+      height: 72,
+      color: AppColors.creamElevated,
+      child: Icon(_vehicleIcon(type), color: AppColors.burntOrange, size: 36),
     );
   }
 
@@ -884,20 +887,47 @@ class _TowingServicePageState extends State<TowingServicePage>
   }
 
   Widget _buildProvidersStep() {
+    final center = _pickupLat != null && _pickupLng != null
+        ? LatLng(_pickupLat!, _pickupLng!)
+        : const LatLng(12.9716, 77.5946);
+    final markers = <Marker>{};
+    if (_pickupLat != null && _pickupLng != null) {
+      markers.add(Marker(
+        markerId: const MarkerId('pickup'),
+        position: LatLng(_pickupLat!, _pickupLng!),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+      ));
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.all(20),
-          child: Text(
-            'Towing providers near you (offering towing service)',
-            style: GoogleFonts.outfit(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Colors.black87,
+        Container(
+          height: MediaQuery.of(context).size.height * 0.35,
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 2))],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: GoogleMap(
+              initialCameraPosition: CameraPosition(target: center, zoom: 14),
+              markers: markers,
+              myLocationEnabled: true,
+              zoomControlsEnabled: false,
+              mapToolbarEnabled: false,
+              liteModeEnabled: true,
             ),
           ),
         ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Text(
+            'Nearest towing providers',
+            style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87),
+          ),
+        ),
+        const SizedBox(height: 8),
         Expanded(
           child: _loadingProviders
               ? const Center(
@@ -950,11 +980,27 @@ class _TowingServicePageState extends State<TowingServicePage>
     );
   }
 
+  Widget _avatarFallback(String name) {
+    return CircleAvatar(
+      radius: 28,
+      backgroundColor: AppColors.burntOrange.withOpacity(0.15),
+      child: Text(
+        name.isNotEmpty ? name[0].toUpperCase() : 'T',
+        style: GoogleFonts.outfit(
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+          color: AppColors.burntOrange,
+        ),
+      ),
+    );
+  }
+
   Widget _buildProviderCard(Map<String, dynamic> m, int index) {
     final name = m['name']?.toString() ?? 'Towing Provider';
     final specialty = m['specialty']?.toString() ?? 'Towing';
     final experience = m['experience']?.toString() ?? '—';
     final rating = 4.0 + (index % 5) * 0.2;
+    final towingPhotoUrl = m['towingVehiclePhotoUrl']?.toString();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -971,17 +1017,17 @@ class _TowingServicePageState extends State<TowingServicePage>
           ),
           child: Row(
             children: [
-              CircleAvatar(
-                radius: 28,
-                backgroundColor: AppColors.burntOrange.withOpacity(0.15),
-                child: Text(
-                  name.isNotEmpty ? name[0].toUpperCase() : 'T',
-                  style: GoogleFonts.outfit(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.burntOrange,
-                  ),
-                ),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(28),
+                child: towingPhotoUrl != null && towingPhotoUrl.isNotEmpty
+                    ? Image.network(
+                        towingPhotoUrl,
+                        width: 56,
+                        height: 56,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _avatarFallback(name),
+                      )
+                    : _avatarFallback(name),
               ),
               const SizedBox(width: 16),
               Expanded(

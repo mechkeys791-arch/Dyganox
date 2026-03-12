@@ -425,6 +425,34 @@ public class UploadController {
     }
 
     /**
+     * Upload problem category icon (Book Mechanic "What's the problem?"). problemId e.g. tyre_puncture, battery_jump.
+     * Returns S3 URL; admin then sets app-branding problemCategoryIconsJson with this URL for the problemId.
+     */
+    @PostMapping("/towing-vehicle-photo")
+    public ResponseEntity<Map<String, String>> uploadTowingVehiclePhoto(@RequestParam("file") MultipartFile file) {
+        try {
+            return ResponseEntity.ok(Map.of("url", s3Service.uploadTowingVehiclePhoto(file)));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage() != null ? e.getMessage() : "Upload failed"));
+        }
+    }
+
+    @PostMapping("/problem-category-icon")
+    public ResponseEntity<Map<String, String>> uploadProblemCategoryIcon(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("problemId") String problemId) {
+        try {
+            return ResponseEntity.ok(Map.of("url", s3Service.uploadProblemCategoryIcon(problemId, file)));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage() != null ? e.getMessage() : "Upload failed"));
+        }
+    }
+
+    /**
      * Upload welcome page media (GIF or MP4) for the "I'm a User / I'm a Mechanic" screen. Returns S3 URL.
      */
     @PostMapping("/welcome-page-media")
