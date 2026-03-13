@@ -135,16 +135,12 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
     // When request FCM arrives in foreground, show bottom sheet (pop up from bottom)
     FcmNotificationService.onMechanicRequestInForeground = _showRequestBottomSheet;
 
-    // When launched from notification tap (View or Accept): show "new booking" popup from bottom
+    // When launched from notification tap (View or Accept): show "new booking" popup only if request is still PENDING (not already solved)
     final openId = widget.openRequestIdAfterMount;
     if (openId != null && openId.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        final mid = widget.mechanicData?['id'];
-        final id = mid is int ? mid : int.tryParse(mid?.toString() ?? '0');
-        if (id != null && id > 0) {
-          _showRequestBottomSheet(openId);
-        }
+        _showRequestBottomSheetIfPending(openId);
       });
     }
 
@@ -170,6 +166,31 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
     final config = await AppRemoteService.getAppBrandingConfig();
     if (!mounted) return;
     setState(() => _appLogoUrl = config?['appLogoUrl']?.toString());
+  }
+
+  /// Show "New request" bottom sheet only if the request is still PENDING (not accepted/completed/rejected).
+  Future<void> _showRequestBottomSheetIfPending(String requestId) async {
+    if (!mounted || requestId.isEmpty) return;
+    final mechanicId = widget.mechanicData?['id'];
+    final id = mechanicId is int ? mechanicId : int.tryParse(mechanicId?.toString() ?? '');
+    if (id == null || id == 0) return;
+    try {
+      final res = await http.get(
+        Uri.parse('${ApiConfig.mechanicRequestsEndpoint}/$requestId'),
+        headers: {'Content-Type': 'application/json'},
+      );
+      if (!mounted) return;
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body) as Map<String, dynamic>?;
+        final status = (data?['status'] ?? data?['requestStatus'] ?? '').toString().toUpperCase();
+        // Only show "New request" for requests still waiting for mechanic response
+        if (status != 'PENDING' && status != 'PENDING_BROADCAST' && status.isNotEmpty) {
+          return; // Already accepted, completed, rejected, etc. — don't show sheet
+        }
+      }
+    } catch (_) {}
+    if (!mounted) return;
+    _showRequestBottomSheet(requestId);
   }
 
   void _showRequestBottomSheet(String requestId) {

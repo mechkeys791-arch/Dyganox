@@ -362,10 +362,10 @@ class _OTPVerificationPageState extends State<OTPVerificationPage>
                         ),
                         textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 12),
                       Container(
                         margin: const EdgeInsets.symmetric(horizontal: 20),
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.2),
                           borderRadius: BorderRadius.circular(12),
@@ -381,12 +381,12 @@ class _OTPVerificationPageState extends State<OTPVerificationPage>
                               color: Colors.white,
                               size: 20,
                             ),
-                            const SizedBox(width: 8),
+                            const SizedBox(width: 10),
                             Expanded(
                               child: Text(
-                                'Use the "CONFIRMATION CODE" sent to your email (not authentication code)',
+                                'Enter the 6-digit code from your email. You will see each digit as you type.',
                                 style: GoogleFonts.inter(
-                                  fontSize: 12,
+                                  fontSize: 13,
                                   color: Colors.white,
                                   fontWeight: FontWeight.w500,
                                 ),
@@ -395,40 +395,7 @@ class _OTPVerificationPageState extends State<OTPVerificationPage>
                           ],
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 20),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.3),
-                            width: 1,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.info_outline_rounded,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'Use the "CONFIRMATION CODE" (not authentication code)',
-                                style: GoogleFonts.inter(
-                                  fontSize: 12,
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 50),
+                      const SizedBox(height: 32),
                       // OTP Input Card
                       Container(
                         decoration: BoxDecoration(
@@ -446,44 +413,47 @@ class _OTPVerificationPageState extends State<OTPVerificationPage>
                           padding: const EdgeInsets.all(24.0),
                           child: Column(
                             children: [
-                              // OTP Input Fields
+                              // OTP Input Fields - digits visible as you type (no dots/underscores)
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                                 children: List.generate(6, (index) {
                                   return SizedBox(
-                                    width: 45,
-                                    height: 55,
+                                    width: 48,
+                                    height: 58,
                                     child: TextFormField(
                                       controller: _otpControllers[index],
                                       focusNode: _focusNodes[index],
                                       textAlign: TextAlign.center,
                                       keyboardType: TextInputType.number,
                                       maxLength: 1,
+                                      obscureText: false,
+                                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                                       style: GoogleFonts.outfit(
-                                        fontSize: 24,
+                                        fontSize: 26,
                                         fontWeight: FontWeight.bold,
+                                        color: const Color(0xFF1a1a2e),
                                       ),
                                       decoration: InputDecoration(
                                         counterText: '',
                                         border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(12),
+                                          borderRadius: BorderRadius.circular(14),
                                           borderSide: BorderSide(
                                             color: Colors.grey[300]!,
                                             width: 2,
                                           ),
                                         ),
                                         enabledBorder: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(12),
+                                          borderRadius: BorderRadius.circular(14),
                                           borderSide: BorderSide(
                                             color: Colors.grey[300]!,
                                             width: 2,
                                           ),
                                         ),
                                         focusedBorder: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(12),
+                                          borderRadius: BorderRadius.circular(14),
                                           borderSide: const BorderSide(
                                             color: Color(0xFFFF6B35),
-                                            width: 2,
+                                            width: 2.5,
                                           ),
                                         ),
                                         filled: true,

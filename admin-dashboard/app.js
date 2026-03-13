@@ -3140,7 +3140,10 @@ async function uploadQuickServiceIcon(name) {
         const data = await r.json().catch(() => ({}));
         if (r.ok && data.url) {
             urlEl.value = data.url;
-            statusEl.textContent = 'Uploaded.';
+            statusEl.textContent = 'Uploaded. Saving...';
+            // Auto-save so icons show in app without requiring "Save all URLs"
+            await saveCarBikeQuickIcons();
+            if (statusEl) statusEl.textContent = 'Uploaded and saved.';
         } else {
             statusEl.textContent = data.error || 'Failed';
         }

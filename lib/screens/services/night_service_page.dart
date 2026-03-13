@@ -278,7 +278,7 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
             slivers: [
               // Custom App Bar
               SliverAppBar(
-                expandedHeight: 200,
+                expandedHeight: 232,
                 floating: false,
                 pinned: true,
                 backgroundColor: _isNightTime ? AppColors.warmBrown : AppColors.burntOrange,
@@ -354,10 +354,11 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
                       if (_isNightTime) ..._buildStars(),
                       // Time and status overlay
                       Positioned(
-                        bottom: 60,
-                        left: 20,
-                        right: 20,
+                        bottom: 24,
+                        left: 16,
+                        right: 16,
                         child: Column(
+                          mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Row(
@@ -365,25 +366,29 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
                                 Icon(
                                   Icons.access_time,
                                   color: AppColors.creamElevated.withOpacity(0.9),
-                                  size: 16,
+                                  size: 14,
                                 ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  _currentTime,
-                                  style: GoogleFonts.inter(
-                                    color: AppColors.creamElevated.withOpacity(0.9),
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
+                                const SizedBox(width: 6),
+                                Flexible(
+                                  child: Text(
+                                    _currentTime,
+                                    style: GoogleFonts.inter(
+                                      color: AppColors.creamElevated.withOpacity(0.9),
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
                                 const Spacer(),
-                                AnimatedBuilder(
-                                  animation: _bounceAnimation,
-                                  builder: (context, child) {
-                                    return Transform.scale(
-                                      scale: _isNightTime ? _bounceAnimation.value : 1.0,
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                Flexible(
+                                  child: AnimatedBuilder(
+                                    animation: _bounceAnimation,
+                                    builder: (context, child) {
+                                      return Transform.scale(
+                                        scale: _isNightTime ? _bounceAnimation.value : 1.0,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                         decoration: BoxDecoration(
                                           color: _isNightTime 
                                             ? AppColors.burntOrange.withOpacity(0.2 * _glowAnimation.value)
@@ -410,12 +415,15 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
                                               size: 14,
                                             ),
                                             const SizedBox(width: 6),
-                                            Text(
-                                              _isNightTime ? 'Night Mode Active' : 'Day Time',
-                                              style: GoogleFonts.inter(
-                                                color: _isNightTime ? AppColors.burntOrange : AppColors.warmAmber,
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w600,
+                                            Flexible(
+                                              child: Text(
+                                                _isNightTime ? 'Night Mode Active' : 'Day Time',
+                                                style: GoogleFonts.inter(
+                                                  color: _isNightTime ? AppColors.burntOrange : AppColors.warmAmber,
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                                overflow: TextOverflow.ellipsis,
                                               ),
                                             ),
                                           ],
@@ -423,6 +431,7 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
                                       ),
                                     );
                                   },
+                                ),
                                 ),
                               ],
                             ),

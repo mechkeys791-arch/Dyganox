@@ -35,8 +35,8 @@ class MainActivity : FlutterActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         createFcmNotificationChannelIfNeeded()
+        // Only set from Intent so we only show "new request" when actually launched from View/Accept tap (not on every app open)
         captureLaunchRequestId(intent)
-        captureLaunchRequestIdFromPrefs()
         // Cold start from Accept: notify Flutter so request detail opens (backup if splash first-frame missed it)
         pendingLaunchRequestId?.let { requestId ->
             Handler(Looper.getMainLooper()).postDelayed({
@@ -48,9 +48,8 @@ class MainActivity : FlutterActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        // Only set from the new intent (user tapped another View/Accept). Do NOT re-read from prefs so we don't show old request when just resuming app.
         captureLaunchRequestId(intent)
-        captureLaunchRequestIdFromPrefs()
-        // Notify Flutter to open request detail (lifecycle may not fire when app brought from background)
         pendingLaunchRequestId?.let { requestId ->
             notifyFlutterOpenRequestDetail(requestId)
         }
@@ -58,22 +57,19 @@ class MainActivity : FlutterActivity() {
 
     private fun captureLaunchRequestId(intent: Intent?) {
         intent?.getStringExtra("open_request_id")?.let { id ->
-            pendingLaunchRequestId = id
+            if (!id.isNullOrBlank()) pendingLaunchRequestId = id
         }
     }
 
-    /** Read request id saved by MechanicRequestActionReceiver when user tapped Accept (survives even if Intent is lost). */
-    private fun captureLaunchRequestIdFromPrefs() {
-        if (pendingLaunchRequestId != null) return
-        val prefs = applicationContext.getSharedPreferences("dyganox_launch", MODE_PRIVATE)
-        prefs.getString("pending_accept_request_id", null)?.let { id ->
-            pendingLaunchRequestId = id
-        }
-    }
-
+    /** Read and consume request id (one-time use). Used when Flutter asks for launch id; after returning we clear so it's not shown again. */
     private fun consumeLaunchRequestIdFromPrefs(): String? {
         val prefs = applicationContext.getSharedPreferences("dyganox_launch", MODE_PRIVATE)
-        return prefs.getString("pending_accept_request_id", null)
+        val id = prefs.getString("pending_accept_request_id", null)
+        if (!id.isNullOrBlank()) {
+            prefs.edit().remove("pending_accept_request_id").apply()
+            pendingLaunchRequestId = id
+        }
+        return pendingLaunchRequestId ?: id
     }
 
     private fun clearLaunchRequestIdFromPrefs() {
@@ -145,15 +141,20 @@ class MainActivity : FlutterActivity() {
                         result.success(null)
                     }
                     "getLaunchRequestId" -> {
-                        consumeLaunchRequestIdFromPrefs()?.let { id ->
-                            pendingLaunchRequestId = id
-                        }
+                        // Return prefs value if we don't already have one from intent (e.g. app was killed after receiver wrote prefs)
                         if (pendingLaunchRequestId == null) {
-                            intent?.getStringExtra("open_request_id")?.let { id ->
-                                pendingLaunchRequestId = id
+                            val prefs = applicationContext.getSharedPreferences("dyganox_launch", MODE_PRIVATE)
+                            prefs.getString("pending_accept_request_id", null)?.let { id ->
+                                if (id.isNotBlank()) pendingLaunchRequestId = id
                             }
                         }
-                        result.success(pendingLaunchRequestId)
+                        val idToReturn = pendingLaunchRequestId
+                        // Consume: clear so we don't return the same id on next app open
+                        result.success(idToReturn)
+                        if (idToReturn != null) {
+                            pendingLaunchRequestId = null
+                            clearLaunchRequestIdFromPrefs()
+                        }
                     }
                     "clearLaunchRequestId" -> {
                         pendingLaunchRequestId = null

@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:geolocator/geolocator.dart';
@@ -10,6 +11,7 @@ import '../../core/theme/app_colors.dart';
 import '../../services/api_config.dart';
 
 /// When mechanic has accepted: video placeholder, then when en route = map + ETA, then "Has mechanic reached?" confirm.
+/// Mechanic marker animates smoothly between location updates (Swiggy/Zomato style) instead of jumping.
 class MechanicAcceptedReadyPage extends StatefulWidget {
   final Map<String, dynamic> request;
 
@@ -19,7 +21,7 @@ class MechanicAcceptedReadyPage extends StatefulWidget {
   State<MechanicAcceptedReadyPage> createState() => _MechanicAcceptedReadyPageState();
 }
 
-class _MechanicAcceptedReadyPageState extends State<MechanicAcceptedReadyPage> {
+class _MechanicAcceptedReadyPageState extends State<MechanicAcceptedReadyPage> with SingleTickerProviderStateMixin {
   String? _mechanicName;
   Map<String, dynamic> _request = {};
   Timer? _pollTimer;
@@ -34,9 +36,24 @@ class _MechanicAcceptedReadyPageState extends State<MechanicAcceptedReadyPage> {
   GoogleMapController? _mapController;
   BitmapDescriptor? _vehicleMarkerIcon;
 
+  /// Smoothed position for the mechanic marker (interpolated between API updates so it doesn't jump).
+  double? _displayMechanicLat;
+  double? _displayMechanicLng;
+  double _animStartLat = 0, _animStartLng = 0, _animEndLat = 0, _animEndLng = 0;
+  late AnimationController _markerAnimController;
+  late Animation<double> _markerAnimCurve;
+  static const Duration _markerAnimDuration = Duration(seconds: 8);
+  static const double _minMoveMetersToAnimate = 15;
+
+  final Set<Polyline> _polylines = {};
+  bool _polylineFetched = false;
+
   @override
   void initState() {
     super.initState();
+    _markerAnimController = AnimationController(vsync: this, duration: _markerAnimDuration);
+    _markerAnimCurve = CurvedAnimation(parent: _markerAnimController, curve: Curves.easeInOut);
+    _markerAnimController.addListener(_onMarkerAnimTick);
     _request = Map.from(widget.request);
     _customerLat = double.tryParse(_request['latitude']?.toString() ?? '');
     _customerLng = double.tryParse(_request['longitude']?.toString() ?? '');
@@ -50,8 +67,19 @@ class _MechanicAcceptedReadyPageState extends State<MechanicAcceptedReadyPage> {
     _pollRequest();
   }
 
+  void _onMarkerAnimTick() {
+    if (!mounted) return;
+    final t = _markerAnimCurve.value;
+    setState(() {
+      _displayMechanicLat = _animStartLat + (_animEndLat - _animStartLat) * t;
+      _displayMechanicLng = _animStartLng + (_animEndLng - _animStartLng) * t;
+    });
+  }
+
   @override
   void dispose() {
+    _markerAnimController.removeListener(_onMarkerAnimTick);
+    _markerAnimController.dispose();
     _pollTimer?.cancel();
     _mechanicLocationTimer?.cancel();
     super.dispose();
@@ -177,6 +205,25 @@ class _MechanicAcceptedReadyPageState extends State<MechanicAcceptedReadyPage> {
         if (lat != null && lng != null) {
           final prevLat = _mechanicLat;
           final prevLng = _mechanicLng;
+          if (_mechanicLat != null && _mechanicLng != null) {
+            final startLat = _displayMechanicLat ?? _mechanicLat!;
+            final startLng = _displayMechanicLng ?? _mechanicLng!;
+            final distMeters = Geolocator.distanceBetween(startLat, startLng, lat, lng);
+            if (distMeters >= _minMoveMetersToAnimate) {
+              _animStartLat = startLat;
+              _animStartLng = startLng;
+              _animEndLat = lat;
+              _animEndLng = lng;
+              _markerAnimController.reset();
+              _markerAnimController.forward();
+            } else {
+              _displayMechanicLat = lat;
+              _displayMechanicLng = lng;
+            }
+          } else {
+            _displayMechanicLat = lat;
+            _displayMechanicLng = lng;
+          }
           setState(() {
             _mechanicLat = lat;
             _mechanicLng = lng;
@@ -184,8 +231,10 @@ class _MechanicAcceptedReadyPageState extends State<MechanicAcceptedReadyPage> {
           if (_customerLat != null && _customerLng != null) {
             final dist = Geolocator.distanceBetween(lat, lng, _customerLat!, _customerLng!) / 1000;
             setState(() => _distanceKm = dist);
+            if (!_polylineFetched) {
+              _fetchRoutePolyline();
+            }
           }
-          // Animate camera to show both user and mechanic when mechanic moves (Swiggy-style)
           if (_mapController != null && (prevLat != lat || prevLng != lng)) {
             final bounds = LatLngBounds(
               southwest: LatLng(
@@ -202,6 +251,56 @@ class _MechanicAcceptedReadyPageState extends State<MechanicAcceptedReadyPage> {
         }
       }
     } catch (_) {}
+  }
+
+  Future<void> _fetchRoutePolyline() async {
+    if (_mechanicLat == null || _mechanicLng == null || _customerLat == null || _customerLng == null) return;
+    _polylineFetched = true;
+    try {
+      final polylinePoints = PolylinePoints();
+      final result = await polylinePoints.getRouteBetweenCoordinates(
+        request: PolylineRequest(
+          mode: TravelMode.driving,
+          origin: PointLatLng(_mechanicLat!, _mechanicLng!),
+          destination: PointLatLng(_customerLat!, _customerLng!),
+        ),
+      );
+      if (result.points.isNotEmpty && mounted) {
+        final points = result.points.map((p) => LatLng(p.latitude, p.longitude)).toList();
+        setState(() {
+          _polylines.clear();
+          _polylines.add(Polyline(
+            polylineId: const PolylineId('route'),
+            points: points,
+            color: AppColors.burntOrange,
+            width: 5,
+            patterns: [],
+          ));
+        });
+      } else {
+        _addFallbackPolyline();
+      }
+    } catch (_) {
+      _addFallbackPolyline();
+    }
+  }
+
+  void _addFallbackPolyline() {
+    if (_mechanicLat == null || _mechanicLng == null || _customerLat == null || _customerLng == null) return;
+    if (!mounted) return;
+    setState(() {
+      _polylines.clear();
+      _polylines.add(Polyline(
+        polylineId: const PolylineId('route'),
+        points: [
+          LatLng(_mechanicLat!, _mechanicLng!),
+          LatLng(_customerLat!, _customerLng!),
+        ],
+        color: AppColors.burntOrange,
+        width: 5,
+        patterns: [],
+      ));
+    });
   }
 
   void _updateEta() {
@@ -238,7 +337,9 @@ class _MechanicAcceptedReadyPageState extends State<MechanicAcceptedReadyPage> {
     final status = _request['status']?.toString() ?? 'PENDING_PAYMENT';
     final isEnRoute = status == 'MECHANIC_EN_ROUTE';
     final isArrived = status == 'ARRIVED';
-    final showMap = isEnRoute && _mechanicLat != null && _customerLat != null;
+    final mechanicMarkerLat = _displayMechanicLat ?? _mechanicLat;
+    final mechanicMarkerLng = _displayMechanicLng ?? _mechanicLng;
+    final showMap = isEnRoute && mechanicMarkerLat != null && mechanicMarkerLng != null && _customerLat != null;
 
     return Scaffold(
       backgroundColor: AppColors.cream,
@@ -294,11 +395,12 @@ class _MechanicAcceptedReadyPageState extends State<MechanicAcceptedReadyPage> {
                     ),
                     Marker(
                       markerId: const MarkerId('mechanic'),
-                      position: LatLng(_mechanicLat!, _mechanicLng!),
+                      position: LatLng(mechanicMarkerLat!, mechanicMarkerLng!),
                       icon: _vehicleMarkerIcon ?? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
                       infoWindow: const InfoWindow(title: 'Mechanic'),
                     ),
                   },
+                  polylines: _polylines,
                   myLocationEnabled: true,
                   mapToolbarEnabled: false,
                 ),

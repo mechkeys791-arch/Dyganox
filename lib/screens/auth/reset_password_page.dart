@@ -246,7 +246,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage>
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Enter the code sent to your phone and your new password',
+                        'Enter the 6-digit code sent to your email and your new password',
                         style: GoogleFonts.inter(
                           fontSize: 16,
                           color: Colors.white.withOpacity(0.9),
@@ -298,42 +298,44 @@ class _ResetPasswordPageState extends State<ResetPasswordPage>
                                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                                   children: List.generate(6, (index) {
                                     return SizedBox(
-                                      width: 45,
-                                      height: 55,
+                                      width: 48,
+                                      height: 58,
                                       child: TextFormField(
                                         controller: _codeControllers[index],
                                         focusNode: _codeFocusNodes[index],
                                         textAlign: TextAlign.center,
                                         keyboardType: TextInputType.number,
                                         maxLength: 1,
+                                        obscureText: false,
                                         inputFormatters: [
                                           FilteringTextInputFormatter.digitsOnly,
                                         ],
                                         style: GoogleFonts.outfit(
-                                          fontSize: 24,
+                                          fontSize: 26,
                                           fontWeight: FontWeight.bold,
+                                          color: const Color(0xFF1a1a2e),
                                         ),
                                         decoration: InputDecoration(
                                           counterText: '',
                                           border: OutlineInputBorder(
-                                            borderRadius: BorderRadius.circular(12),
+                                            borderRadius: BorderRadius.circular(14),
                                             borderSide: BorderSide(
                                               color: Colors.grey[300]!,
                                               width: 2,
                                             ),
                                           ),
                                           enabledBorder: OutlineInputBorder(
-                                            borderRadius: BorderRadius.circular(12),
+                                            borderRadius: BorderRadius.circular(14),
                                             borderSide: BorderSide(
                                               color: Colors.grey[300]!,
                                               width: 2,
                                             ),
                                           ),
                                           focusedBorder: OutlineInputBorder(
-                                            borderRadius: BorderRadius.circular(12),
+                                            borderRadius: BorderRadius.circular(14),
                                             borderSide: const BorderSide(
                                               color: Color(0xFFFF6B35),
-                                              width: 2,
+                                              width: 2.5,
                                             ),
                                           ),
                                           filled: true,

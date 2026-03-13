@@ -16,6 +16,7 @@ import 'screens/services/battery_jump_page.dart';
 import 'screens/ev_charging/ev_charging_page.dart';
 import 'screens/services/fuel_refill_page.dart';
 import 'screens/services/tyre_care_page.dart';
+import 'screens/services/minor_repair_page.dart';
 import 'screens/services/car_service_page.dart';
 import 'screens/services/bike_service_page.dart';
 import 'screens/mechanic/mechanic_finder_page.dart';
@@ -88,6 +89,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   // App branding (quick service icon URLs from admin)
   Map<String, dynamic>? _branding;
+  bool _brandingLoaded = false;
 
   // Responsive design variables
   late double screenWidth;
@@ -136,6 +138,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     // Auto-scroll ads
     _startAdAutoScroll();
 
+    // Load branding first so quick service icons (S3) show without needing refresh
+    _loadBranding();
     // Load default vehicle first, then banners (filtered by vehicle type)
     _loadDefaultVehicle();
     // Load home hero graphic config (transparent overlay on red header)
@@ -187,18 +191,21 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
   
   Future<void> _refreshHomePage() async {
+    await _loadBranding();
     await _loadDefaultVehicle();
     await _loadBanners(_defaultVehicle?['type']?.toString());
     await _loadSelectedAddress();
     await _loadHomeHeroConfig();
-    await _loadBranding();
     _pingActivity();
     if (mounted) setState(() {});
   }
 
   Future<void> _loadBranding() async {
     final m = await AppRemoteService.getAppBrandingConfig();
-    if (mounted && m != null) setState(() => _branding = m);
+    if (mounted) setState(() {
+      _branding = m;
+      _brandingLoaded = true;
+    });
   }
 
   Future<void> _loadHomeHeroConfig() async {
@@ -593,11 +600,38 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  void _showFindMechanicDialog() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const BookMechanicFlowPage(),
+  void _showFindMechanicDialog() async {
+    final userData = await CognitoService.getCurrentUser();
+    final email = userData['email']?.toString() ?? '';
+    if (!mounted) return;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetContext) => VehicleSelectionSheet(
+        title: 'Book mechanic for',
+        userEmail: email,
+        parentContext: context,
+        onSelectVehicle: (vehicle) {
+          Navigator.pop(sheetContext);
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const BookMechanicFlowPage(),
+            ),
+          );
+        },
+        onAddVehicle: () {
+          Navigator.pop(sheetContext);
+          if (email.isNotEmpty) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => AddEditVehiclePage(userEmail: email),
+              ),
+            );
+          }
+        },
       ),
     );
   }
@@ -1008,6 +1042,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           final iconPath = s['icon']!;
           Widget? targetPage;
           switch (title) {
+            case 'Minor Repair': targetPage = MinorRepairPage(); break;
             case 'Towing': targetPage = const TowingServicePage(); break;
             case 'Battery Jump': targetPage = const BatteryJumpPage(); break;
             case 'Tyre Care': targetPage = const TyreCarePage(); break;
@@ -1221,9 +1256,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     final hour = now.hour;
     final isNightTime = hour >= 20 || hour < 6; // 8 PM to 6 AM
     
+    const double iconSize = 0.14; // same as other quick service icons
     return Container(
       child: Material(
-        color: isNightTime ? AppColors.darkChocolate : AppColors.creamElevated,
+        color: Colors.white,
         child: InkWell(
           onTap: () {
             HapticFeedback.lightImpact();
@@ -1242,56 +1278,37 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           borderRadius: BorderRadius.circular(16),
           child: Stack(
             children: [
-              // Background gradient
               Container(
-                padding: EdgeInsets.all(screenWidth * 0.025),
+                padding: EdgeInsets.all(screenWidth * 0.02),
                 decoration: BoxDecoration(
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
-                  gradient: LinearGradient(
-                    colors: isNightTime
-                        ? [
-                            AppColors.burntOrange.withOpacity(0.3),
-                            AppColors.burntOrange.withOpacity(0.2),
-                          ]
-                        : [
-                            AppColors.burntOrange.withOpacity(0.1),
-                            AppColors.burntOrange.withOpacity(0.05),
-                          ],
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                  ),
                 ),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(
-                      width: screenWidth * 0.12,
-                      height: screenWidth * 0.12,
-                      decoration: BoxDecoration(
-                        color: isNightTime
-                            ? AppColors.burntOrange.withOpacity(0.2)
-                            : AppColors.burntOrange.withOpacity(0.15),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Center(
-                          child: (_branding?['quickServiceNightServiceIconUrl']?.toString()?.trim().isNotEmpty ?? false)
-                          ? Image.network(
-                              _branding!['quickServiceNightServiceIconUrl']!.toString().trim(),
-                              width: screenWidth * 0.06,
-                              height: screenWidth * 0.06,
-                              fit: BoxFit.contain,
-                              color: isNightTime ? Colors.white.withOpacity(0.9) : null,
-                              errorBuilder: (_, __, ___) => Image.asset('assets/icons/24-hour-service.png', width: screenWidth * 0.06, height: screenWidth * 0.06, fit: BoxFit.contain),
-                            )
-                          : Image.asset(
-                              'assets/icons/24-hour-service.png',
-                              width: screenWidth * 0.06,
-                              height: screenWidth * 0.06,
-                              fit: BoxFit.contain,
-                              color: isNightTime ? Colors.white.withOpacity(0.9) : null,
-                            ),
-                      ),
+                    Center(
+                        child: (_branding?['quickServiceNightServiceIconUrl']?.toString()?.trim().isNotEmpty ?? false)
+                        ? Image.network(
+                            _branding!['quickServiceNightServiceIconUrl']!.toString().trim(),
+                            width: screenWidth * iconSize,
+                            height: screenWidth * iconSize,
+                            fit: BoxFit.contain,
+                            color: isNightTime ? AppColors.burntOrange : null,
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return Image.asset('assets/icons/24-hour-service.png', width: screenWidth * iconSize, height: screenWidth * iconSize, fit: BoxFit.contain, color: isNightTime ? AppColors.burntOrange : null);
+                            },
+                            errorBuilder: (_, __, ___) => Image.asset('assets/icons/24-hour-service.png', width: screenWidth * iconSize, height: screenWidth * iconSize, fit: BoxFit.contain, color: isNightTime ? AppColors.burntOrange : null),
+                          )
+                        : Image.asset(
+                            'assets/icons/24-hour-service.png',
+                            width: screenWidth * iconSize,
+                            height: screenWidth * iconSize,
+                            fit: BoxFit.contain,
+                            color: isNightTime ? AppColors.burntOrange : null,
+                          ),
                     ),
                     SizedBox(height: screenHeight * 0.008),
                     Flexible(
@@ -1300,7 +1317,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         style: GoogleFonts.outfit(
                           fontSize: screenWidth * 0.028,
                           fontWeight: FontWeight.w600,
-                          color: isNightTime ? AppColors.cream : AppColors.darkChocolate,
+                          color: AppColors.darkChocolate,
                           height: 1.2,
                         ),
                         textAlign: TextAlign.center,
@@ -1366,6 +1383,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     String? iconUrl,
   }) {
     final useNetwork = iconUrl != null && iconUrl.trim().isNotEmpty;
+    const double iconSize = 0.14; // bigger icons (was 0.06 inside 0.12 circle)
     return Container(
       child: Material(
         color: Colors.transparent,
@@ -1376,34 +1394,30 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           },
           borderRadius: BorderRadius.circular(16),
           child: Container(
-            padding: EdgeInsets.all(screenWidth * 0.025),
+            padding: EdgeInsets.all(screenWidth * 0.02),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  width: screenWidth * 0.12,
-                  height: screenWidth * 0.12,
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.15),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: useNetwork
-                        ? Image.network(
-                            iconUrl!,
-                            width: screenWidth * 0.06,
-                            height: screenWidth * 0.06,
-                            fit: BoxFit.contain,
-                            errorBuilder: (_, __, ___) => Image.asset(iconPath, width: screenWidth * 0.06, height: screenWidth * 0.06, fit: BoxFit.contain),
-                          )
-                        : Image.asset(
-                            iconPath,
-                            width: screenWidth * 0.06,
-                            height: screenWidth * 0.06,
-                            fit: BoxFit.contain,
-                          ),
-                  ),
+                Center(
+                  child: useNetwork
+                      ? Image.network(
+                          iconUrl!,
+                          width: screenWidth * iconSize,
+                          height: screenWidth * iconSize,
+                          fit: BoxFit.contain,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Image.asset(iconPath, width: screenWidth * iconSize, height: screenWidth * iconSize, fit: BoxFit.contain);
+                          },
+                          errorBuilder: (_, __, ___) => Image.asset(iconPath, width: screenWidth * iconSize, height: screenWidth * iconSize, fit: BoxFit.contain),
+                        )
+                      : Image.asset(
+                          iconPath,
+                          width: screenWidth * iconSize,
+                          height: screenWidth * iconSize,
+                          fit: BoxFit.contain,
+                        ),
                 ),
                 SizedBox(height: screenHeight * 0.008),
                 Flexible(
@@ -1627,36 +1641,40 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 ),
 
                 // Search Bar with Results
-                Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    screenWidth * 0.055,
-                    screenHeight * 0.02,
-                    screenWidth * 0.055,
-                    14,
-                  ),
+                Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: screenWidth * 0.94),
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        screenWidth * 0.03,
+                        screenHeight * 0.02,
+                        screenWidth * 0.03,
+                        14,
+                      ),
                   child: Column(
                     children: [
                       AnimatedContainer(
                         duration: const Duration(milliseconds: 300),
-                        padding: const EdgeInsets.fromLTRB(18, 10, 18, 10),
+                        constraints: BoxConstraints(minHeight: 46),
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(24),
                           boxShadow: [
                             BoxShadow(
                               color: _isSearchActive
                                   ? AppColors.burntOrange.withOpacity(0.2)
                                   : Colors.black.withOpacity(0.06),
                               blurRadius: _isSearchActive ? 18 : 12,
-                              offset: const Offset(0, 3),
+                              offset: const Offset(0, 2),
                               spreadRadius: 0,
                             ),
                           ],
                           border: Border.all(
                             color: _isSearchActive
-                                ? AppColors.burntOrange.withOpacity(0.4)
+                                ? AppColors.burntOrange.withOpacity(0.5)
                                 : Colors.grey.shade200,
-                            width: 1,
+                            width: 1.5,
                           ),
                         ),
                         child: Row(
@@ -1668,7 +1686,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                   : Colors.grey.shade600,
                               size: 24,
                             ),
-                            const SizedBox(width: 14),
+                            const SizedBox(width: 12),
                             Expanded(
                               child: TextField(
                                 controller: _searchController,
@@ -1708,7 +1726,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                   ),
                                   border: InputBorder.none,
                                   isDense: true,
-                                  contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                                  contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
                                 ),
                               ),
                             ),
@@ -2096,7 +2114,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             ),
                           ],
                         ),
-                        child: GridView.count(
+                        child: _brandingLoaded
+                            ? GridView.count(
                           crossAxisCount: 4,
                           crossAxisSpacing: screenWidth * 0.015,
                           mainAxisSpacing: screenHeight * 0.008,
@@ -2201,6 +2220,37 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                 );
                               },
                             ),
+                            _buildQuickServiceCard(
+                              title: 'Minor Repair',
+                              iconPath: 'assets/icons/repair-tools.png',
+                              color: AppColors.burntOrange,
+                              iconUrl: _branding?['quickServiceMinorRepairIconUrl']?.toString()?.trim(),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  PageRouteBuilder(
+                                    pageBuilder: (context, animation, secondaryAnimation) =>
+                                        MinorRepairPage(),
+                                    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                                      return SlideTransition(
+                                        position: Tween<Offset>(
+                                          begin: const Offset(1.0, 0.0),
+                                          end: Offset.zero,
+                                        ).animate(CurvedAnimation(
+                                          parent: animation,
+                                          curve: Curves.easeOutCubic,
+                                        )),
+                                        child: FadeTransition(
+                                          opacity: animation,
+                                          child: child,
+                                        ),
+                                      );
+                                    },
+                                    transitionDuration: const Duration(milliseconds: 400),
+                                  ),
+                                );
+                              },
+                            ),
                            _buildQuickServiceCard(
                              title: 'Battery Jump',
                              iconPath: 'assets/icons/jump-start.png',
@@ -2233,7 +2283,33 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                              },
                            ),
                           ],
-                        ),
+                        )
+                            : SizedBox(
+                                height: 200,
+                                child: Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      SizedBox(
+                                        width: 36,
+                                        height: 36,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2.5,
+                                          color: AppColors.burntOrange,
+                                        ),
+                                      ),
+                                      SizedBox(height: screenHeight * 0.015),
+                                      Text(
+                                        'Loading services...',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 14,
+                                          color: Colors.grey.shade600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
                       ),
                     ],
                   ),
