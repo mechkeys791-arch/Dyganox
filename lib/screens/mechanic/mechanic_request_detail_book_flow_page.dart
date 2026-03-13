@@ -60,7 +60,8 @@ class _MechanicRequestDetailBookFlowPageState extends State<MechanicRequestDetai
     if ((_request?['status']?.toString() ?? '') != 'MECHANIC_EN_ROUTE') return;
     _locationUpdateTimer?.cancel();
     _sendCurrentLocation();
-    _locationUpdateTimer = Timer.periodic(const Duration(seconds: 5), (_) => _sendCurrentLocation());
+    // Real-time: update every 2 seconds (Swiggy-style live tracking)
+    _locationUpdateTimer = Timer.periodic(const Duration(seconds: 2), (_) => _sendCurrentLocation());
   }
 
   Future<void> _sendCurrentLocation() async {
@@ -69,7 +70,7 @@ class _MechanicRequestDetailBookFlowPageState extends State<MechanicRequestDetai
         desiredAccuracy: LocationAccuracy.high,
       );
       await http.put(
-        Uri.parse('${ApiConfig.mechanicEndpoint}/${widget.mechanicId}'),
+        Uri.parse(ApiConfig.mechanicLocation(widget.mechanicId)),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'currentLatitude': pos.latitude.toString(),

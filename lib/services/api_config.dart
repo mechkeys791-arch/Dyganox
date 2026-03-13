@@ -38,6 +38,7 @@ class ApiConfig {
   
   // API Endpoints
   static String get mechanicEndpoint => '$baseUrl/api/mechanic';
+  static String mechanicLocation(int mechanicId) => '$mechanicEndpoint/$mechanicId/location';
   static String get mechanicRequestsEndpoint => '$baseUrl/api/mechanic-requests';
   /// All bookings for a mechanic (pending, accepted, in-progress, completed, rejected). Backend may implement GET .../mechanic/{id}/bookings.
   static String mechanicBookingsForMechanic(int mechanicId) => '$mechanicRequestsEndpoint/mechanic/$mechanicId/bookings';

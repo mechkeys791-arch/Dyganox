@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../../services/api_config.dart';
 import '../../core/theme/app_colors.dart';
 import '../mechanic/book_mechanic_flow_page.dart';
+import 'mechanic_location_map_page.dart';
 
 class TyreCarePage extends StatefulWidget {
   const TyreCarePage({super.key});
@@ -16,9 +18,7 @@ class TyreCarePage extends StatefulWidget {
 
 class _TyreCarePageState extends State<TyreCarePage> with TickerProviderStateMixin {
   late AnimationController _fadeController;
-  late AnimationController _slideController;
   late Animation<double> _fadeAnimation;
-  late Animation<Offset> _slideAnimation;
 
   String selectedVehicleType = 'car';
   String selectedTyreSize = '155/65R14';
@@ -33,11 +33,6 @@ class _TyreCarePageState extends State<TyreCarePage> with TickerProviderStateMix
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
-    
-    _slideController = AnimationController(
-      duration: const Duration(milliseconds: 1000),
-      vsync: this,
-    );
 
     _fadeAnimation = Tween<double>(
       begin: 0.0,
@@ -47,16 +42,7 @@ class _TyreCarePageState extends State<TyreCarePage> with TickerProviderStateMix
       curve: Curves.easeInOut,
     ));
 
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.3),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _slideController,
-      curve: Curves.easeOutCubic,
-    ));
-
     _fadeController.forward();
-    _slideController.forward();
     _fetchTyreMechanics();
   }
   
@@ -64,192 +50,252 @@ class _TyreCarePageState extends State<TyreCarePage> with TickerProviderStateMix
     setState(() {
       _isLoadingMechanics = true;
     });
-    
+
     try {
-      print("Tyre Care: Fetching tyre mechanics...");
-      final response = await http.get(
-        Uri.parse(ApiConfig.mechanicEndpoint),
-        headers: {"Content-Type": "application/json"},
+      // Use by-category API so backend filters by serviceCategories (tyre_puncture, general_checkup)
+      double lat = 12.9716;
+      double lng = 77.5946;
+      try {
+        final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.medium);
+        lat = pos.latitude;
+        lng = pos.longitude;
+      } catch (_) {
+        // Fallback to default (Bangalore) if location unavailable
+      }
+
+      final uri = Uri.parse('${ApiConfig.mechanicEndpoint}/by-category').replace(
+        queryParameters: {
+          'problemCategory': 'tyre_puncture',
+          'lat': lat.toString(),
+          'lng': lng.toString(),
+          'radiusKm': '20',
+        },
       );
-      
-      if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        
-        // Filter mechanics with specialty containing "tyre" (case-insensitive)
-        final tyreMechanics = data.where((mechanic) {
-          String specialty = (mechanic['specialty']?.toString() ?? '').toLowerCase();
-          return specialty.contains('tyre') || specialty.contains('tire');
-        }).toList();
-        
-        // Transform to match the expected format
-        _tyreMechanics = tyreMechanics.map((mechanic) {
-          // Calculate rating
-          double rating = 4.0 + ((mechanic['id'] as int) % 10) * 0.1;
-          
-          // Calculate distance (placeholder)
-          double distance = 1.0 + ((mechanic['id'] as int) % 5) * 0.5;
-          
+
+      final response = await http.get(uri, headers: {'Content-Type': 'application/json'});
+
+      if (response.statusCode == 200 && mounted) {
+        final data = jsonDecode(response.body);
+        final list = data is List ? data : (data is Map && data['content'] != null) ? data['content'] as List : [];
+        _tyreMechanics = list.map<Map<String, dynamic>>((m) {
+          final mechanic = Map<String, dynamic>.from(m as Map);
+          final id = mechanic['id'];
           return {
             'name': mechanic['name']?.toString() ?? 'Unknown',
             'experience': mechanic['experience']?.toString() ?? 'Not specified',
-            'rating': rating.toStringAsFixed(1),
-            'distance': '${distance.toStringAsFixed(1)} km',
+            'rating': mechanic['rating']?.toString() ?? (4.0 + ((id is int ? id : 0) % 10) * 0.1).toStringAsFixed(1),
+            'distance': 'Nearby',
             'speciality': mechanic['specialty']?.toString() ?? 'Tyre Expert',
-            'id': mechanic['id'],
+            'id': id,
             'phone': mechanic['phone']?.toString(),
             'email': mechanic['email']?.toString(),
           };
         }).toList();
-        
-        print("Tyre Care: Found ${_tyreMechanics.length} tyre mechanics");
-      } else {
-        print("Tyre Care: Failed to fetch mechanics. Status: ${response.statusCode}");
+      } else if (mounted) {
+        _tyreMechanics = [];
       }
     } catch (e) {
-      print("Tyre Care: Error fetching mechanics: $e");
+      if (mounted) _tyreMechanics = [];
     } finally {
-      setState(() {
-        _isLoadingMechanics = false;
-      });
+      if (mounted) {
+        setState(() => _isLoadingMechanics = false);
+      }
     }
   }
 
   @override
   void dispose() {
     _fadeController.dispose();
-    _slideController.dispose();
     super.dispose();
   }
 
-  Widget _buildTyreServiceCard({
-    required String title,
-    required String description,
-    required String iconPath,
-    required String price,
-    required int index,
-    required VoidCallback onTap,
-  }) {
-    return AnimatedBuilder(
-      animation: Listenable.merge([_fadeAnimation, _slideAnimation]),
-      builder: (context, child) {
-        return Transform.translate(
-          offset: Offset(0, _slideAnimation.value.dy * 50 * (index + 1)),
-          child: Opacity(
-            opacity: _fadeAnimation.value,
-            child: Container(
-              margin: const EdgeInsets.all(8),
-              child: Material(
-                elevation: 8,
-                borderRadius: BorderRadius.circular(20),
-                color: AppColors.creamElevated,
-                shadowColor: AppColors.burntOrange.withOpacity(0.2),
-                child: InkWell(
-                  onTap: () {
-                    HapticFeedback.lightImpact();
-                    onTap();
-                  },
-                  borderRadius: BorderRadius.circular(20),
-                  child: Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      gradient: LinearGradient(
-                        colors: [
-                          AppColors.creamElevated,
-                          AppColors.burntOrange.withOpacity(0.02),
-                        ],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                      ),
-                      border: Border.all(
-                        color: AppColors.burntOrange.withOpacity(0.1),
-                        width: 1,
+  void _openMechanicDirections(Map<String, dynamic> mechanic) {
+    final id = mechanic['id'];
+    final mechanicId = id is int ? id : int.tryParse(id?.toString() ?? '');
+    final name = mechanic['name']?.toString() ?? 'Mechanic';
+    if (mechanicId == null || mechanicId <= 0) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => MechanicLocationMapPage(
+          mechanicId: mechanicId,
+          mechanicName: name,
+        ),
+      ),
+    );
+  }
+
+  static const _tyreProblemTypes = [
+    {'id': 'tyre_puncture', 'title': 'Puncture Repair', 'desc': 'Quick on-spot puncture repair'},
+    {'id': 'tyre_puncture', 'title': 'Tyre Replacement', 'desc': 'New tyre installation'},
+    {'id': 'tyre_puncture', 'title': 'Wheel Balancing', 'desc': 'Professional wheel balancing'},
+    {'id': 'tyre_puncture', 'title': 'Pressure Check', 'desc': 'Tyre pressure check & inflation'},
+  ];
+
+  void _showTyreProblemSheet(Map<String, dynamic> mechanic) {
+    String selectedTitle = _tyreProblemTypes.first['title']!;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) => Container(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewPadding.bottom),
+          decoration: const BoxDecoration(
+            color: AppColors.creamElevated,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
                       ),
                     ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 60,
-                          height: 60,
-                          decoration: BoxDecoration(
-                            color: AppColors.burntOrange.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: AppColors.burntOrange.withOpacity(0.2),
-                              width: 1,
-                            ),
-                          ),
-                          child: Center(
-                            child: Image.asset(
-                              iconPath,
-                              width: 32,
-                              height: 32,
-                              fit: BoxFit.contain,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    mechanic['name'] ?? 'Mechanic',
+                    style: GoogleFonts.outfit(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.darkChocolate,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    mechanic['speciality'] ?? 'Tyre Expert',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      color: AppColors.warmBrownMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Select tyre problem',
+                    style: GoogleFonts.outfit(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.darkChocolate,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ..._tyreProblemTypes.map((p) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Material(
+                      color: (selectedTitle == p['title'])
+                          ? AppColors.burntOrange.withOpacity(0.15)
+                          : AppColors.cream,
+                      borderRadius: BorderRadius.circular(12),
+                      child: InkWell(
+                        onTap: () => setModalState(() => selectedTitle = p['title']!),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          child: Row(
                             children: [
-                              Text(
-                                title,
-                                style: GoogleFonts.outfit(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.darkChocolate,
+                              Icon(
+                                Icons.tire_repair,
+                                color: AppColors.burntOrange,
+                                size: 22,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      p['title']!,
+                                      style: GoogleFonts.outfit(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.darkChocolate,
+                                      ),
+                                    ),
+                                    Text(
+                                      p['desc']!,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 12,
+                                        color: AppColors.warmBrownMuted,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                description,
-                                style: GoogleFonts.inter(
-                                  fontSize: 13,
-                                  color: AppColors.warmBrownMuted,
-                                  height: 1.3,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: AppColors.burntOrange.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  'Starting at $price',
-                                  style: GoogleFonts.outfit(
-                                    fontSize: 12,
-                                    color: AppColors.burntOrange,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
+                              if (selectedTitle == p['title'])
+                                Icon(Icons.check_circle, color: AppColors.burntOrange, size: 22),
                             ],
                           ),
                         ),
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: AppColors.burntOrange.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(
-                            Icons.arrow_forward_ios,
-                            color: AppColors.burntOrange,
-                            size: 16,
+                      ),
+                    ),
+                  )),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            _openMechanicDirections(mechanic);
+                          },
+                          icon: const Icon(Icons.location_on, size: 20),
+                          label: const Text('Show location'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.burntOrange,
+                            side: const BorderSide(color: AppColors.burntOrange),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            final mechanicId = mechanic['id'];
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => BookMechanicFlowPage(
+                                  preselectedProblemId: 'tyre_puncture',
+                                  preselectedMechanicId: mechanicId is int ? mechanicId : null,
+                                ),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.book_online, size: 20),
+                          label: const Text('Book mechanic'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.burntOrange,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
+                ],
               ),
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
@@ -259,6 +305,7 @@ class _TyreCarePageState extends State<TyreCarePage> with TickerProviderStateMix
     required String rating,
     required String distance,
     required String speciality,
+    required Map<String, dynamic> mechanic,
     required int index,
   }) {
     return Container(
@@ -267,137 +314,109 @@ class _TyreCarePageState extends State<TyreCarePage> with TickerProviderStateMix
         elevation: 4,
         borderRadius: BorderRadius.circular(16),
         color: AppColors.creamElevated,
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: AppColors.burntOrange.withOpacity(0.1),
-              width: 1,
+        child: InkWell(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            _showTyreProblemSheet(mechanic);
+          },
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: AppColors.burntOrange.withOpacity(0.1),
+                width: 1,
+              ),
             ),
-          ),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 30,
-                backgroundColor: AppColors.burntOrange.withOpacity(0.1),
-                child: Text(
-                  name[0],
-                  style: GoogleFonts.outfit(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.burntOrange,
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 30,
+                  backgroundColor: AppColors.burntOrange.withOpacity(0.1),
+                  child: Text(
+                    name[0],
+                    style: GoogleFonts.outfit(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.burntOrange,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      name,
-                      style: GoogleFonts.outfit(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.darkChocolate,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      speciality,
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        color: AppColors.warmBrownMuted,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.green.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.star, size: 12, color: Colors.green),
-                              const SizedBox(width: 4),
-                              Text(
-                                rating,
-                                style: GoogleFonts.outfit(
-                                  fontSize: 11,
-                                  color: Colors.green,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        style: GoogleFonts.outfit(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.darkChocolate,
                         ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: AppColors.burntOrange.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            distance,
-                            style: GoogleFonts.outfit(
-                              fontSize: 11,
-                              color: AppColors.burntOrange,
-                              fontWeight: FontWeight.w600,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        speciality,
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          color: AppColors.warmBrownMuted,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.green.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.star, size: 12, color: Colors.green),
+                                const SizedBox(width: 4),
+                                Text(
+                                  rating,
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 11,
+                                    color: Colors.green,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  HapticFeedback.lightImpact();
-                  // Find the mechanic in the list to get phone number
-                  final mechanic = _tyreMechanics.firstWhere(
-                    (m) => m['name'] == name,
-                    orElse: () => {'phone': 'N/A'},
-                  );
-                  final phone = mechanic['phone'] ?? 'N/A';
-                  
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        phone != 'N/A' ? 'Calling $name at $phone...' : 'Phone number not available',
-                        style: GoogleFonts.outfit(),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppColors.burntOrange.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              distance,
+                              style: GoogleFonts.outfit(
+                                fontSize: 11,
+                                color: AppColors.burntOrange,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      backgroundColor: AppColors.burntOrange,
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.burntOrange,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  minimumSize: const Size(60, 36),
-                ),
-                child: Text(
-                  'Call',
-                  style: GoogleFonts.outfit(
-                    color: AppColors.creamElevated,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
+                    ],
                   ),
                 ),
-              ),
-            ],
+                Icon(
+                  Icons.arrow_forward_ios,
+                  size: 16,
+                  color: AppColors.burntOrange,
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -406,34 +425,6 @@ class _TyreCarePageState extends State<TyreCarePage> with TickerProviderStateMix
 
   @override
   Widget build(BuildContext context) {
-    final tyreServices = [
-      {
-        'title': 'Puncture Repair',
-        'description': 'Quick on-spot puncture repair and tube fixing',
-        'icon': 'assets/icons/pun.png',
-        'price': '₹149',
-      },
-      {
-        'title': 'Tyre Replacement',
-        'description': 'New tyre installation with balancing and alignment',
-        'icon': 'assets/icons/tc.png',
-        'price': '₹2999',
-      },
-      {
-        'title': 'Wheel Balancing',
-        'description': 'Professional wheel balancing for smooth ride',
-        'icon': 'assets/icons/wa.png',
-        'price': '₹299',
-      },
-      {
-        'title': 'Pressure Check',
-        'description': 'Free tyre pressure check and inflation service',
-        'icon': 'assets/icons/tp.png',
-        'price': 'Free',
-      },
-    ];
-
-    // Use live data from API instead of dummy data
     final nearbyMechanics = _tyreMechanics.isEmpty ? [] : _tyreMechanics;
 
     return Scaffold(
@@ -538,47 +529,6 @@ class _TyreCarePageState extends State<TyreCarePage> with TickerProviderStateMix
                 ),
               ),
 
-              // Available Services Section
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                child: Text(
-                  'Available Tyre Services',
-                  style: GoogleFonts.outfit(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.darkChocolate,
-                  ),
-                ),
-              ),
-
-              // Services List
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                itemCount: tyreServices.length,
-                itemBuilder: (context, index) {
-                  final service = tyreServices[index];
-                  return _buildTyreServiceCard(
-                    title: service['title']!,
-                    description: service['description']!,
-                    iconPath: service['icon']!,
-                    price: service['price']!,
-                    index: index,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const BookMechanicFlowPage(preselectedProblemId: 'tyre_puncture'),
-                        ),
-                      );
-                    },
-                  );
-                },
-              ),
-
-              const SizedBox(height: 20),
-
               // Nearby Mechanics Section
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -626,6 +576,7 @@ class _TyreCarePageState extends State<TyreCarePage> with TickerProviderStateMix
                           rating: mechanic['rating'] ?? '4.0',
                           distance: mechanic['distance'] ?? 'N/A',
                           speciality: mechanic['speciality'] ?? 'Tyre Expert',
+                          mechanic: mechanic,
                           index: index,
                         );
                       },

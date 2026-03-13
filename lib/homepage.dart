@@ -9,7 +9,7 @@ import 'dart:convert';
 import 'screens/mechanic/book_mechanic_flow_page.dart';
 import 'screens/services/bike_battery_page.dart';
 import 'screens/services/bike_tyre_care_page.dart';
-import 'screens/services/bike_brake_service_page.dart';
+import 'screens/services/mechanics_by_service_page.dart';
 import 'screens/services/bike_electrical_works_page.dart';
 import 'screens/services/towing_service_page.dart';
 import 'screens/services/battery_jump_page.dart';
@@ -846,7 +846,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   static const List<Map<String, String>> _carServices = [
     {'title': 'Towing', 'icon': 'assets/icons/tow-truck.png'},
-    {'title': 'Minor Repair', 'icon': 'assets/icons/repair-tools.png'},
     {'title': 'EV Coming Soon', 'icon': 'assets/icons/charging-station.png'},
     {'title': 'Battery Jump', 'icon': 'assets/icons/jump-start.png'},
     {'title': 'Headlight Repair', 'icon': 'assets/icons/headlight.png'},
@@ -1009,7 +1008,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           final iconPath = s['icon']!;
           Widget? targetPage;
           switch (title) {
-            case 'Minor Repair': targetPage = const MinorRepairPage(); break;
             case 'Towing': targetPage = const TowingServicePage(); break;
             case 'Battery Jump': targetPage = const BatteryJumpPage(); break;
             case 'Tyre Care': targetPage = const TyreCarePage(); break;
@@ -1074,7 +1072,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           switch (title) {
             case 'Battery': targetPage = const BikeBatteryPage(); break;
             case 'Tyre Care': targetPage = const BikeTyreCarePage(); break;
-            case 'Brake Service': targetPage = const BikeBrakeServicePage(); break;
+            case 'Brake Service': targetPage = MechanicsByServicePage(serviceTitle: title); break;
           }
           return _buildServiceGridTile(
             title: title,
@@ -2183,37 +2181,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                   PageRouteBuilder(
                                     pageBuilder: (context, animation, secondaryAnimation) =>
                                         const TyreCarePage(),
-                                    transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                                      return SlideTransition(
-                                        position: Tween<Offset>(
-                                          begin: const Offset(1.0, 0.0),
-                                          end: Offset.zero,
-                                        ).animate(CurvedAnimation(
-                                          parent: animation,
-                                          curve: Curves.easeOutCubic,
-                                        )),
-                                        child: FadeTransition(
-                                          opacity: animation,
-                                          child: child,
-                                        ),
-                                      );
-                                    },
-                                    transitionDuration: const Duration(milliseconds: 400),
-                                  ),
-                                );
-                              },
-                            ),
-                            _buildQuickServiceCard(
-                              title: 'Minor Repair',
-                              iconPath: 'assets/icons/repair-tools.png',
-                              color: AppColors.burntOrange,
-                              iconUrl: _branding?['quickServiceMinorRepairIconUrl']?.toString()?.trim(),
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  PageRouteBuilder(
-                                    pageBuilder: (context, animation, secondaryAnimation) =>
-                                        const MinorRepairPage(),
                                     transitionsBuilder: (context, animation, secondaryAnimation, child) {
                                       return SlideTransition(
                                         position: Tween<Offset>(

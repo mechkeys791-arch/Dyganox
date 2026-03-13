@@ -2,13 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'towing_service_page.dart';
-import '../mechanic/book_mechanic_flow_page.dart';
 import 'battery_jump_page.dart';
-import '../ev_charging/ev_charging_page.dart';
-import 'fuel_refill_page.dart';
 import 'tyre_care_page.dart';
+import 'mechanics_by_service_page.dart';
+import '../vehicles/add_edit_vehicle_page.dart';
 import '../../core/theme/app_colors.dart';
 import '../../services/app_remote_service.dart';
+import '../../services/vehicle_service.dart';
+import '../../services/cognito_service.dart';
+import '../../services/api_config.dart';
 
 class CarServicePage extends StatefulWidget {
   const CarServicePage({super.key});
@@ -19,60 +21,124 @@ class CarServicePage extends StatefulWidget {
 
 class _CarServicePageState extends State<CarServicePage> with TickerProviderStateMixin {
   late AnimationController _fadeController;
-  late AnimationController _slideController;
   late Animation<double> _fadeAnimation;
-  late Animation<Offset> _slideAnimation;
   String? _appLogoUrl;
   String? _carServiceImageUrl;
+  List<Map<String, dynamic>> _userCars = [];
+  bool _loadingCars = true;
+  String _userEmail = '';
+
+  static const _carServices = [
+    {'title': 'Towing', 'icon': 'assets/icons/tow-truck.png'},
+    {'title': 'EV Coming Soon', 'icon': 'assets/icons/charging-station.png'},
+    {'title': 'Battery Jump', 'icon': 'assets/icons/jump-start.png'},
+    {'title': 'Headlight Repair', 'icon': 'assets/icons/headlight.png'},
+    {'title': 'Tyre Care', 'icon': 'assets/icons/punctured-tire.png'},
+    {'title': 'Oil Change', 'icon': 'assets/icons/repair-tools.png'},
+    {'title': 'Brake Service', 'icon': 'assets/icons/brake-service.png'},
+    {'title': 'Windshield', 'icon': 'assets/icons/headlight.png'},
+    {'title': 'Body Works', 'icon': 'assets/icons/smart-car.png'},
+    {'title': 'Wheel Alignment', 'icon': 'assets/icons/wa.png'},
+    {'title': 'Suspension', 'icon': 'assets/icons/new-bike-suspension.png'},
+  ];
 
   @override
   void initState() {
     super.initState();
     AppRemoteService.getAppBrandingConfig().then((m) {
       if (mounted && m != null) {
-        final logo = m['appLogoUrl']?.toString()?.trim();
-        final carImg = m['carServiceImageUrl']?.toString()?.trim();
+        final logo = (m['appLogoUrl']?.toString() ?? '').trim();
+        final carImg = (m['carServiceImageUrl']?.toString() ?? '').trim();
         setState(() {
-          if (logo != null && logo.isNotEmpty) _appLogoUrl = logo;
-          if (carImg != null && carImg.isNotEmpty) _carServiceImageUrl = carImg;
+          if (logo.isNotEmpty) _appLogoUrl = logo;
+          if (carImg.isNotEmpty) _carServiceImageUrl = carImg;
         });
       }
     });
     
     _fadeController = AnimationController(
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 400),
       vsync: this,
     );
-    
-    _slideController = AnimationController(
-      duration: const Duration(milliseconds: 1000),
-      vsync: this,
+    _fadeAnimation = Tween<double>(begin: 0.3, end: 1.0).animate(
+      CurvedAnimation(parent: _fadeController, curve: Curves.easeOut),
     );
-
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _fadeController,
-      curve: Curves.easeInOut,
-    ));
-
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.3),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _slideController,
-      curve: Curves.easeOutCubic,
-    ));
-
     _fadeController.forward();
-    _slideController.forward();
+    _loadUserCars();
   }
+
+  Future<void> _loadUserCars() async {
+    setState(() => _loadingCars = true);
+    try {
+      final user = await CognitoService.getCurrentUser();
+      final email = user['email']?.toString() ?? '';
+      _userEmail = email;
+      if (email.isEmpty) {
+        if (mounted) setState(() { _userCars = []; _loadingCars = false; });
+        return;
+      }
+      final list = await VehicleService.getMyVehicles(email);
+      final cars = list.where((v) => (v['type'] ?? 'CAR').toString().toUpperCase() == 'CAR').toList();
+      if (mounted) setState(() { _userCars = cars; _loadingCars = false; });
+    } catch (_) {
+      if (mounted) setState(() { _userCars = []; _loadingCars = false; });
+    }
+  }
+
+  String _vehicleImageUrl(Map<String, dynamic> v) {
+    final url = v['photoUrl']?.toString() ?? v['modelImageUrl']?.toString();
+    if (url == null || url.isEmpty) return '';
+    if (url.startsWith('http')) return url;
+    return '${ApiConfig.baseUrl}$url';
+  }
+
+  Widget _buildVehicleCard(Map<String, dynamic> v) {
+    final make = v['makeName']?.toString() ?? '';
+    final model = v['modelName']?.toString() ?? '';
+    final plate = v['plateNumber']?.toString() ?? '';
+    final name = '$make $model'.trim();
+    final display = name.isEmpty ? (plate.isNotEmpty ? plate : 'Your car') : (plate.isNotEmpty ? '$name ($plate)' : name);
+    final imgUrl = _vehicleImageUrl(v);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.creamElevated,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.burntOrange.withOpacity(0.2)),
+      ),
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: imgUrl.isNotEmpty
+                ? Image.network(imgUrl, width: 64, height: 64, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _vehicleIconPlaceholder())
+                : _vehicleIconPlaceholder(),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Your car', style: GoogleFonts.outfit(fontSize: 12, color: AppColors.warmBrownMuted)),
+                Text(display, style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.darkChocolate)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _vehicleIconPlaceholder() => Container(
+    width: 64,
+    height: 64,
+    color: AppColors.burntOrange.withOpacity(0.1),
+    child: Icon(Icons.directions_car, color: AppColors.burntOrange, size: 32),
+  );
 
   @override
   void dispose() {
     _fadeController.dispose();
-    _slideController.dispose();
     super.dispose();
   }
 
@@ -82,14 +148,7 @@ class _CarServicePageState extends State<CarServicePage> with TickerProviderStat
     required int index,
     required VoidCallback onTap,
   }) {
-    return AnimatedBuilder(
-      animation: Listenable.merge([_fadeAnimation, _slideAnimation]),
-      builder: (context, child) {
-        return Transform.translate(
-          offset: Offset(0, _slideAnimation.value.dy * 50 * (index + 1)),
-          child: Opacity(
-            opacity: _fadeAnimation.value,
-            child: Container(
+    return Container(
               margin: const EdgeInsets.all(8),
               child: Material(
                 color: AppColors.creamElevated,
@@ -123,6 +182,12 @@ class _CarServicePageState extends State<CarServicePage> with TickerProviderStat
                               width: 28,
                               height: 28,
                               fit: BoxFit.contain,
+                              gaplessPlayback: true,
+                              errorBuilder: (_, __, ___) => Icon(
+                                Icons.build_circle_outlined,
+                                size: 28,
+                                color: AppColors.burntOrange,
+                              ),
                             ),
                           ),
                         ),
@@ -144,30 +209,11 @@ class _CarServicePageState extends State<CarServicePage> with TickerProviderStat
                   ),
                 ),
               ),
-            ),
-          ),
-        );
-      },
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final services = [
-      {'title': 'Towing', 'icon': 'assets/icons/tow-truck.png'},
-      {'title': 'General Repair', 'icon': 'assets/icons/repair-tools.png'},
-      {'title': 'EV Coming Soon', 'icon': 'assets/icons/charging-station.png'},
-      {'title': 'Battery Jump', 'icon': 'assets/icons/jump-start.png'},
-      {'title': 'Headlight Repair', 'icon': 'assets/icons/headlight.png'},
-      {'title': 'Tyre Care', 'icon': 'assets/icons/punctured-tire.png'},
-      {'title': 'Oil Change', 'icon': 'assets/icons/repair-tools.png'},
-      {'title': 'Brake Service', 'icon': 'assets/icons/brake-service.png'},
-      {'title': 'Windshield', 'icon': 'assets/icons/headlight.png'},
-      {'title': 'Body Works', 'icon': 'assets/icons/smart-car.png'},
-      {'title': 'Wheel Alignment', 'icon': 'assets/icons/wheel-alignment.png'},
-      {'title': 'Suspension', 'icon': 'assets/icons/suspension.png'},
-    ];
-
     return Scaffold(
       backgroundColor: AppColors.cream,
       appBar: AppBar(
@@ -204,13 +250,82 @@ class _CarServicePageState extends State<CarServicePage> with TickerProviderStat
       body: FadeTransition(
         opacity: _fadeAnimation,
         child: RefreshIndicator(
-          onRefresh: () async { setState(() {}); },
+          onRefresh: () async { _loadUserCars(); },
           color: AppColors.burntOrange,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+              // User's Car at top
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                child: _loadingCars
+                    ? Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: AppColors.creamElevated,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppColors.burntOrange.withOpacity(0.2)),
+                        ),
+                        child: const Center(child: SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: AppColors.burntOrange, strokeWidth: 2))),
+                      )
+                    : _userCars.isEmpty
+                        ? Material(
+                            color: AppColors.creamElevated,
+                            borderRadius: BorderRadius.circular(16),
+                            child: InkWell(
+                              onTap: () async {
+                                if (_userEmail.isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Please sign in to add vehicle'), backgroundColor: AppColors.burntOrange),
+                                  );
+                                  return;
+                                }
+                                await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => AddEditVehiclePage(userEmail: _userEmail, initialVehicleType: 'CAR'),
+                                  ),
+                                );
+                                _loadUserCars();
+                              },
+                              borderRadius: BorderRadius.circular(16),
+                              child: Container(
+                                padding: const EdgeInsets.all(20),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: AppColors.burntOrange.withOpacity(0.3)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.burntOrange.withOpacity(0.12),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Icon(Icons.directions_car, color: AppColors.burntOrange, size: 28),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text('Add car details', style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.darkChocolate)),
+                                          Text('Add your car to book services', style: GoogleFonts.inter(fontSize: 13, color: AppColors.warmBrownMuted)),
+                                        ],
+                                      ),
+                                    ),
+                                    Icon(Icons.arrow_forward_ios, size: 16, color: AppColors.burntOrange),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          )
+                        : _buildVehicleCard(_userCars.first),
+              ),
+              const SizedBox(height: 16),
               // Header Section
               Container(
                 margin: const EdgeInsets.all(20),
@@ -281,155 +396,66 @@ class _CarServicePageState extends State<CarServicePage> with TickerProviderStat
                         mainAxisSpacing: 4,
                         childAspectRatio: 0.77,
                       ),
-                      itemCount: services.length,
+                      itemCount: _carServices.length,
                       itemBuilder: (context, index) {
-                        final service = services[index];
+                        final service = _carServices[index];
+                        final title = service['title']!;
                         return _buildServiceCard(
-                          title: service['title']!,
+                          title: title,
                           iconPath: service['icon']!,
                           index: index,
                           onTap: () {
-                            // Handle service selection - Navigate to specific service pages
                             Widget? targetPage;
-                            
-                            switch (service['title']) {
-                              case 'General Repair':
-                                targetPage = const BookMechanicFlowPage(preselectedProblemId: 'general_checkup');
+                            switch (title) {
+                              case 'Towing': targetPage = const TowingServicePage(); break;
+                              case 'Battery Jump': targetPage = const BatteryJumpPage(); break;
+                              case 'Tyre Care': targetPage = const TyreCarePage(); break;
+                              case 'Headlight Repair':
+                              case 'Oil Change':
+                              case 'Brake Service':
+                              case 'Windshield':
+                              case 'Body Works':
+                              case 'Wheel Alignment':
+                              case 'Suspension':
+                                targetPage = MechanicsByServicePage(serviceTitle: title);
                                 break;
-                              case 'Towing':
-                                targetPage = const TowingServicePage();
-                                break;
-                              case 'Battery Jump':
-                                targetPage = const BookMechanicFlowPage(preselectedProblemId: 'battery_jump');
-                                break;
-                              case 'Tyre Care':
-                                targetPage = const TyreCarePage();
-                                break;
+                            }
+                            if (title == 'EV Coming Soon') {
+                              showDialog(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                  title: const Text('Coming soon'),
+                                  content: const Text('EV Charging will be available soon.'),
+                                  actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
+                                ),
+                              );
+                              return;
                             }
                             if (targetPage != null) {
                               Navigator.push(
                                 context,
                                 PageRouteBuilder(
-                                  pageBuilder: (context, animation, secondaryAnimation) =>
-                                      targetPage!,
+                                  pageBuilder: (context, animation, secondaryAnimation) => targetPage!,
                                   transitionsBuilder: (context, animation, secondaryAnimation, child) {
                                     return SlideTransition(
-                                      position: Tween<Offset>(
-                                        begin: const Offset(1.0, 0.0),
-                                        end: Offset.zero,
-                                      ).animate(CurvedAnimation(
-                                        parent: animation,
-                                        curve: Curves.easeOutCubic,
-                                      )),
-                                      child: FadeTransition(
-                                        opacity: animation,
-                                        child: child,
-                                      ),
+                                      position: Tween<Offset>(begin: const Offset(1.0, 0.0), end: Offset.zero)
+                                          .animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
+                                      child: FadeTransition(opacity: animation, child: child),
                                     );
                                   },
                                   transitionDuration: const Duration(milliseconds: 400),
                                 ),
                               );
                             } else {
-                              if (service['title'] == 'EV Coming Soon') {
-                                showDialog(
-                                  context: context,
-                                  builder: (ctx) => AlertDialog(
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                    title: const Text('Coming soon'),
-                                    content: const Text('EV Charging will be available soon.'),
-                                    actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
-                                  ),
-                                );
-                                return;
-                              }
-                              // Show dialog for services without dedicated pages yet
                               showDialog(
                                 context: context,
-                                builder: (BuildContext context) {
-                                  return AlertDialog(
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                    title: Row(
-                                      children: [
-                                        Image.asset(
-                                          service['icon']!,
-                                          width: 24,
-                                          height: 24,
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Text(
-                                          service['title']!,
-                                          style: GoogleFonts.outfit(
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    content: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Professional ${service['title']!.toLowerCase()} service for your car.',
-                                          style: GoogleFonts.inter(),
-                                        ),
-                                        const SizedBox(height: 16),
-                                        Container(
-                                          padding: const EdgeInsets.all(12),
-                                          decoration: BoxDecoration(
-                                            color: AppColors.burntOrange.withOpacity(0.1),
-                                            borderRadius: BorderRadius.circular(8),
-                                          ),
-                                          child: Row(
-                                            children: [
-                                              const Icon(
-                                                Icons.access_time,
-                                                size: 16,
-                                                color: AppColors.burntOrange,
-                                              ),
-                                              const SizedBox(width: 8),
-                                              Text(
-                                                'Service available 24/7',
-                                                style: GoogleFonts.outfit(
-                                                  fontSize: 12,
-                                                  color: AppColors.burntOrange,
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () => Navigator.pop(context),
-                                        child: Text(
-                                          'Close',
-                                          style: GoogleFonts.outfit(),
-                                        ),
-                                      ),
-                                      ElevatedButton(
-                                        onPressed: () => Navigator.pop(context),
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: AppColors.burntOrange,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(8),
-                                          ),
-                                        ),
-                                        child: Text(
-                                          'Book Now',
-                                          style: GoogleFonts.outfit(
-                                            color: AppColors.creamElevated,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  );
-                                },
+                                builder: (ctx) => AlertDialog(
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                  title: Text(title, style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+                                  content: Text('Professional ${title.toLowerCase()} service. Connect with mechanics from the Find Mechanic section.', style: GoogleFonts.inter()),
+                                  actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
+                                ),
                               );
                             }
                           },
@@ -439,13 +465,12 @@ class _CarServicePageState extends State<CarServicePage> with TickerProviderStat
                   ],
                 ),
               ),
-
               const SizedBox(height: 20),
             ],
           ),
         ),
-        ),
       ),
+    ),
     );
   }
 }

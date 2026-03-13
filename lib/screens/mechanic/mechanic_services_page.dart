@@ -34,7 +34,7 @@ class _MechanicServicesPageState extends State<MechanicServicesPage> {
     }
   }
 
-  // Available services list
+  // Available services list (aligned with home page & registration)
   final List<Map<String, dynamic>> _availableServices = [
     {'name': 'General Repair', 'icon': Icons.handyman, 'color': Color(0xFFFBBF24)},
     {'name': 'Engine Service', 'icon': Icons.settings_suggest, 'color': Color(0xFFEF4444)},
@@ -42,9 +42,17 @@ class _MechanicServicesPageState extends State<MechanicServicesPage> {
     {'name': 'Brake Service', 'icon': Icons.speed, 'color': Color(0xFF10B981)},
     {'name': 'AC Repair', 'icon': Icons.ac_unit, 'color': Color(0xFF3B82F6)},
     {'name': 'Body Works', 'icon': Icons.directions_car, 'color': Color(0xFF8B5CF6)},
+    {'name': 'Tyre Care', 'icon': Icons.album_outlined, 'color': Color(0xFFEC4899)},
     {'name': 'Tire Service', 'icon': Icons.album_outlined, 'color': Color(0xFFEC4899)},
     {'name': 'Battery Service', 'icon': Icons.battery_charging_full, 'color': Color(0xFF14B8A6)},
+    {'name': 'Battery Jump', 'icon': Icons.battery_charging_full, 'color': Color(0xFF14B8A6)},
+    {'name': 'Towing', 'icon': Icons.local_shipping, 'color': Color(0xFFE65100)},
     {'name': 'Towing Service', 'icon': Icons.local_shipping, 'color': Color(0xFFE65100)},
+    {'name': 'Headlight Repair', 'icon': Icons.lightbulb_outline, 'color': Color(0xFFF59E0B)},
+    {'name': 'Oil Change', 'icon': Icons.oil_barrel, 'color': Color(0xFF78350F)},
+    {'name': 'Windshield', 'icon': Icons.car_crash, 'color': Color(0xFF3B82F6)},
+    {'name': 'Wheel Alignment', 'icon': Icons.settings_suggest, 'color': Color(0xFF64748B)},
+    {'name': 'Suspension', 'icon': Icons.settings_input_antenna, 'color': Color(0xFF475569)},
   ];
   
   @override

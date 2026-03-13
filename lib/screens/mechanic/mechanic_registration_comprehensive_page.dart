@@ -77,8 +77,23 @@ class _MechanicRegistrationComprehensivePageState extends State<MechanicRegistra
     'Body Works',
     'Tire Service',
     'Battery Service',
+    'Headlight Repair',
+    'Oil Change',
+    'Windshield',
+    'Wheel Alignment',
+    'Suspension',
   ];
   final List<String> _selectedServices = [];
+  static const _carSubServices = [
+    'Towing', 'Battery Jump', 'Headlight Repair', 'Tyre Care', 'Oil Change',
+    'Brake Service', 'Windshield', 'Body Works', 'Wheel Alignment', 'Suspension',
+  ];
+  static const _bikeSubServices = [
+    'Battery', 'Tyre Care', 'Body Works', 'Brake Service', 'Towing',
+    'Windshield', 'Wheel Alignment', 'Suspension',
+  ];
+  final List<String> _selectedCarSubServices = [];
+  final List<String> _selectedBikeSubServices = [];
 
   // Step 4: Additional Info & Timing
   bool _nightTimeAvailable = false;
@@ -295,7 +310,7 @@ class _MechanicRegistrationComprehensivePageState extends State<MechanicRegistra
         'shopCountry': _shopCountry ?? '',
         'latitude': _shopLatitude?.toString() ?? '',
         'longitude': _shopLongitude?.toString() ?? '',
-        'services': _selectedServices.join(','),
+        'services': _buildServicesString(),
         'specialty': _specialty ?? 'General',
         'nightTimeAvailable': _nightTimeAvailable,
         'openingTime': _openingTime ?? '',
@@ -337,6 +352,17 @@ class _MechanicRegistrationComprehensivePageState extends State<MechanicRegistra
       Navigator.pop(context); // Close loading
       _showError('Error submitting registration: $e');
     }
+  }
+
+  String _buildServicesString() {
+    final parts = <String>{..._selectedServices};
+    if (_selectedServices.contains('Car Service') && _selectedCarSubServices.isNotEmpty) {
+      parts.addAll(_selectedCarSubServices);
+    }
+    if (_selectedServices.contains('Bike Service') && _selectedBikeSubServices.isNotEmpty) {
+      parts.addAll(_selectedBikeSubServices);
+    }
+    return parts.join(',');
   }
 
   void _showError(String message) {
@@ -879,6 +905,60 @@ class _MechanicRegistrationComprehensivePageState extends State<MechanicRegistra
           ),
           const SizedBox(height: 20),
 
+          // Car sub-services (when Car Service is selected)
+          if (_selectedServices.contains('Car Service')) ...[
+            Text(
+              'Car sub-services – select which you provide',
+              style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _carSubServices.map((s) {
+                final sel = _selectedCarSubServices.contains(s);
+                return FilterChip(
+                  selected: sel,
+                  label: Text(s),
+                  onSelected: (v) {
+                    setState(() {
+                      if (v) _selectedCarSubServices.add(s);
+                      else _selectedCarSubServices.remove(s);
+                    });
+                  },
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 20),
+          ],
+
+          // Bike sub-services (when Bike Service is selected)
+          if (_selectedServices.contains('Bike Service')) ...[
+            Text(
+              'Bike sub-services – select which you provide',
+              style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _bikeSubServices.map((s) {
+                final sel = _selectedBikeSubServices.contains(s);
+                return FilterChip(
+                  selected: sel,
+                  label: Text(s),
+                  onSelected: (v) {
+                    setState(() {
+                      if (v) _selectedBikeSubServices.add(s);
+                      else _selectedBikeSubServices.remove(s);
+                    });
+                  },
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 20),
+          ],
+
           if (_selectedServices.isNotEmpty) ...[
             Container(
               padding: const EdgeInsets.all(16),
@@ -890,7 +970,7 @@ class _MechanicRegistrationComprehensivePageState extends State<MechanicRegistra
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Selected Services (${_selectedServices.length})',
+                    'Selected Services (${_buildServicesString().split(',').where((s) => s.isNotEmpty).length})',
                     style: GoogleFonts.outfit(
                       fontWeight: FontWeight.bold,
                       color: Colors.blue[900],
@@ -900,9 +980,9 @@ class _MechanicRegistrationComprehensivePageState extends State<MechanicRegistra
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
-                    children: _selectedServices.map((service) {
+                    children: _buildServicesString().split(',').where((s) => s.isNotEmpty).map((service) {
                       return Chip(
-                        label: Text(service),
+                        label: Text(service.trim()),
                         backgroundColor: Colors.blue[100],
                         deleteIcon: const Icon(Icons.close, size: 18),
                         onDeleted: () {

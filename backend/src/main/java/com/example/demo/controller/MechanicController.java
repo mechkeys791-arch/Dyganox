@@ -183,11 +183,23 @@ public class MechanicController {
         m.setPerKmCharge(3.0);
         String baseCategories = mapSpecialtyToCategories(req.getSpecialty());
         String services = req.getServices() != null ? req.getServices().toLowerCase() : "";
-        if (services.contains("towing")) {
-            baseCategories = baseCategories == null || baseCategories.isBlank()
-                    ? "towing_service" : baseCategories + ",towing_service";
-        }
-        m.setServiceCategories(baseCategories);
+        // Map registration services to category IDs (matches home page services)
+        java.util.Set<String> cats = new java.util.LinkedHashSet<>(java.util.Arrays.asList(baseCategories.split(",")));
+        if (services.contains("towing")) cats.add("towing_service");
+        if (services.contains("battery")) cats.add("battery_jump");
+        if (services.contains("tyre") || services.contains("tire")) cats.add("tyre_puncture");
+        if (services.contains("brake")) cats.add("brake_issue");
+        if (services.contains("headlight")) cats.add("headlight_repair");
+        if (services.contains("oil")) cats.add("oil_change");
+        if (services.contains("windshield")) cats.add("windshield");
+        if (services.contains("body")) cats.add("body_works");
+        if (services.contains("wheel") && services.contains("alignment")) cats.add("wheel_alignment");
+        if (services.contains("suspension")) cats.add("suspension");
+        if (services.contains("engine")) cats.add("engine_repair");
+        if (services.contains("electrical")) cats.add("electrical");
+        if (services.contains("ac") || services.contains("a/c")) cats.add("ac_issue");
+        if (cats.isEmpty()) cats.add("general_checkup");
+        m.setServiceCategories(String.join(",", cats));
         String vehicleTypes = req.getVehicleTypes();
         if (vehicleTypes == null || vehicleTypes.isBlank()) {
             String spec = (req.getSpecialty() != null ? req.getSpecialty() : "").toLowerCase();

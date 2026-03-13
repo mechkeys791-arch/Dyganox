@@ -109,16 +109,17 @@ public class BookMechanicService {
     }
 
     private boolean servesCategory(Mechanic m, String problemCategory) {
-        if (problemCategory == null || problemCategory.isBlank()) return true;
+        if (problemCategory == null || problemCategory.isBlank()) return false;
         String cats = m.getServiceCategories();
-        if (cats == null || cats.isBlank()) return true;
-        String lower = problemCategory.toLowerCase();
-        if (cats.contains(lower)) return true;
-        if (cats.contains("\"" + lower + "\"")) return true;
-        for (String part : cats.split("[,{\"\\[\\]\s]+")) {
-            if (part.trim().equalsIgnoreCase(problemCategory)) return true;
+        if (cats == null || cats.isBlank()) return false;
+        String lower = problemCategory.toLowerCase().trim();
+        for (String part : cats.split("[,;\\s]+")) {
+            String p = part.trim().toLowerCase();
+            if (p.isEmpty()) continue;
+            if (p.equals(lower)) return true;
         }
-        // Tyre, battery, brake, electrical etc: general_checkup mechanics can also serve
+        // Tyre, battery, brake, electrical, ac, general_checkup: mechanics with general_checkup can also serve.
+        // Windshield, oil_change, headlight_repair, body_works, wheel_alignment, suspension require explicit category.
         if ("tyre_puncture".equalsIgnoreCase(problemCategory) || "battery_jump".equalsIgnoreCase(problemCategory)
                 || "brake_issue".equalsIgnoreCase(problemCategory) || "electrical".equalsIgnoreCase(problemCategory)
                 || "ac_issue".equalsIgnoreCase(problemCategory) || "general_checkup".equalsIgnoreCase(problemCategory)) {

@@ -3,6 +3,7 @@ package com.example.demo.service;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
+import com.google.firebase.messaging.AndroidConfig;
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.Message;
 import org.springframework.core.io.ClassPathResource;
@@ -76,8 +77,13 @@ public class FcmService {
                 : "A customer requested your service.";
 
         try {
+            // High priority so notification arrives even when app is backgrounded/dozing
+            AndroidConfig androidConfig = AndroidConfig.builder()
+                    .setPriority(AndroidConfig.Priority.HIGH)
+                    .build();
             var builder = Message.builder()
                     .setToken(fcmToken)
+                    .setAndroidConfig(androidConfig)
                     .putData("type", "mechanic_request")
                     .putData("requestId", String.valueOf(requestId))
                     .putData("title", title)
@@ -103,8 +109,12 @@ public class FcmService {
         if (!initialized) return;
         if (fcmToken == null || fcmToken.isBlank()) return;
         try {
+            AndroidConfig androidConfig = AndroidConfig.builder()
+                    .setPriority(AndroidConfig.Priority.HIGH)
+                    .build();
             Message message = Message.builder()
                     .setToken(fcmToken)
+                    .setAndroidConfig(androidConfig)
                     .putData("type", "request_taken")
                     .putData("requestId", String.valueOf(requestId))
                     .putData("title", "Request taken")

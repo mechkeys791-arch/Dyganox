@@ -6,11 +6,14 @@ import '../../services/api_config.dart';
 class AddEditVehiclePage extends StatefulWidget {
   final String userEmail;
   final Map<String, dynamic>? existingVehicle; // when editing
+  /// When adding new vehicle, preselect CAR or BIKE
+  final String? initialVehicleType;
 
   const AddEditVehiclePage({
     super.key,
     required this.userEmail,
     this.existingVehicle,
+    this.initialVehicleType,
   });
 
   @override
@@ -62,6 +65,10 @@ class _AddEditVehiclePageState extends State<AddEditVehiclePage> {
           : null;
       _step = 2; // jump to details step when editing (make/model already set)
     } else {
+      if (widget.initialVehicleType != null) {
+        _type = widget.initialVehicleType!.toUpperCase();
+        if (_type != 'CAR' && _type != 'BIKE') _type = 'CAR';
+      }
       _loadMakes();
     }
   }

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -22,6 +23,7 @@ class _MechanicAcceptedReadyPageState extends State<MechanicAcceptedReadyPage> {
   String? _mechanicName;
   Map<String, dynamic> _request = {};
   Timer? _pollTimer;
+  Timer? _mechanicLocationTimer;
   double? _mechanicLat;
   double? _mechanicLng;
   double? _customerLat;
@@ -29,6 +31,8 @@ class _MechanicAcceptedReadyPageState extends State<MechanicAcceptedReadyPage> {
   double? _distanceKm;
   int? _etaMinutes;
   bool _confirmingArrival = false;
+  GoogleMapController? _mapController;
+  BitmapDescriptor? _vehicleMarkerIcon;
 
   @override
   void initState() {
@@ -38,18 +42,85 @@ class _MechanicAcceptedReadyPageState extends State<MechanicAcceptedReadyPage> {
     _customerLng = double.tryParse(_request['longitude']?.toString() ?? '');
     _mechanicName = _request['acceptedMechanicName']?.toString();
     if (_mechanicName == null || _mechanicName!.isEmpty) _fetchMechanicName();
+    _createVehicleMarkerIcon();
+    if ((_request['status']?.toString() ?? '') == 'MECHANIC_EN_ROUTE') {
+      _fetchMechanicLocation();
+      _startMechanicLocationPolling();
+    }
     _pollRequest();
   }
 
   @override
   void dispose() {
     _pollTimer?.cancel();
+    _mechanicLocationTimer?.cancel();
     super.dispose();
+  }
+
+  Future<void> _createVehicleMarkerIcon() async {
+    try {
+      final icon = await _createVehicleBitmapDescriptor();
+      if (mounted) setState(() => _vehicleMarkerIcon = icon);
+    } catch (_) {}
+  }
+
+  Future<BitmapDescriptor> _createVehicleBitmapDescriptor() async {
+    const size = 96.0;
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    final center = size / 2;
+
+    // Orange circle background (vehicle marker)
+    final bgPaint = Paint()
+      ..color = AppColors.burntOrange
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(Offset(center, center), 42, bgPaint);
+
+    // White border
+    final borderPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4;
+    canvas.drawCircle(Offset(center, center), 42, borderPaint);
+
+    // Simple car body (white rounded rect)
+    final carPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+    final carRect = RRect.fromRectAndRadius(
+      Rect.fromCenter(center: Offset(center, center - 2), width: 44, height: 22),
+      const Radius.circular(5),
+    );
+    canvas.drawRRect(carRect, carPaint);
+
+    // Windshield
+    final winshieldPaint = Paint()
+      ..color = AppColors.burntOrange.withValues(alpha: 0.3)
+      ..style = PaintingStyle.fill;
+    canvas.drawRect(Rect.fromLTWH(center - 10, center - 12, 20, 8), winshieldPaint);
+
+    // Wheels (dark circles)
+    final wheelPaint = Paint()
+      ..color = const Color(0xFF2D2D2D)
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(Offset(center - 14, center + 12), 7, wheelPaint);
+    canvas.drawCircle(Offset(center + 14, center + 12), 7, wheelPaint);
+
+    final picture = recorder.endRecording();
+    final image = await picture.toImage(size.toInt(), size.toInt());
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    return BitmapDescriptor.fromBytes(byteData!.buffer.asUint8List());
+  }
+
+  void _startMechanicLocationPolling() {
+    _mechanicLocationTimer?.cancel();
+    _fetchMechanicLocation();
+    _mechanicLocationTimer = Timer.periodic(const Duration(seconds: 2), (_) => _fetchMechanicLocation());
   }
 
   void _pollRequest() {
     _pollTimer?.cancel();
-    _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
+    _pollTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
       if (!mounted) return;
       try {
         final id = _request['id'];
@@ -64,8 +135,11 @@ class _MechanicAcceptedReadyPageState extends State<MechanicAcceptedReadyPage> {
           final status = req['status']?.toString() ?? '';
           if (status == 'MECHANIC_EN_ROUTE' || status == 'ARRIVED') {
             _fetchMechanicLocation();
-            if (status == 'MECHANIC_EN_ROUTE' && _mechanicLat != null && _customerLat != null) {
-              _updateEta();
+            if (status == 'MECHANIC_EN_ROUTE') {
+              if (_mechanicLocationTimer == null) _startMechanicLocationPolling();
+              if (_mechanicLat != null && _customerLat != null) _updateEta();
+            } else {
+              _mechanicLocationTimer?.cancel();
             }
           }
         }
@@ -101,6 +175,8 @@ class _MechanicAcceptedReadyPageState extends State<MechanicAcceptedReadyPage> {
         final lat = double.tryParse(m['currentLatitude']?.toString() ?? m['latitude']?.toString() ?? '');
         final lng = double.tryParse(m['currentLongitude']?.toString() ?? m['longitude']?.toString() ?? '');
         if (lat != null && lng != null) {
+          final prevLat = _mechanicLat;
+          final prevLng = _mechanicLng;
           setState(() {
             _mechanicLat = lat;
             _mechanicLng = lng;
@@ -108,6 +184,20 @@ class _MechanicAcceptedReadyPageState extends State<MechanicAcceptedReadyPage> {
           if (_customerLat != null && _customerLng != null) {
             final dist = Geolocator.distanceBetween(lat, lng, _customerLat!, _customerLng!) / 1000;
             setState(() => _distanceKm = dist);
+          }
+          // Animate camera to show both user and mechanic when mechanic moves (Swiggy-style)
+          if (_mapController != null && (prevLat != lat || prevLng != lng)) {
+            final bounds = LatLngBounds(
+              southwest: LatLng(
+                _customerLat! < lat ? _customerLat! : lat,
+                _customerLng! < lng ? _customerLng! : lng,
+              ),
+              northeast: LatLng(
+                _customerLat! > lat ? _customerLat! : lat,
+                _customerLng! > lng ? _customerLng! : lng,
+              ),
+            );
+            _mapController!.animateCamera(CameraUpdate.newLatLngBounds(bounds, 56));
           }
         }
       }
@@ -195,6 +285,7 @@ class _MechanicAcceptedReadyPageState extends State<MechanicAcceptedReadyPage> {
                     target: LatLng(_customerLat!, _customerLng!),
                     zoom: 14,
                   ),
+                  onMapCreated: (c) => _mapController = c,
                   markers: {
                     Marker(
                       markerId: const MarkerId('you'),
@@ -204,7 +295,7 @@ class _MechanicAcceptedReadyPageState extends State<MechanicAcceptedReadyPage> {
                     Marker(
                       markerId: const MarkerId('mechanic'),
                       position: LatLng(_mechanicLat!, _mechanicLng!),
-                      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+                      icon: _vehicleMarkerIcon ?? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
                       infoWindow: const InfoWindow(title: 'Mechanic'),
                     ),
                   },

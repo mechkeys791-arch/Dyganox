@@ -18,6 +18,7 @@ import 'mechanic_request_detail_book_flow_page.dart';
 import 'mechanic_login_request_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/theme/app_colors.dart';
+import '../../data/service_category_mapping.dart';
 import '../../services/cognito_service.dart';
 
 class MechanicServiceDashboard extends StatefulWidget {
@@ -2294,19 +2295,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
     if (id == null) return;
 
     final servicesStr = _myServices.join(',');
-    String? categories = _mechanicProfile['serviceCategories']?.toString();
-    if (categories == null) categories = 'general_checkup';
-
-    if (_myServices.any((s) => s.toLowerCase().contains('towing'))) {
-      if (categories.isEmpty) {
-        categories = 'towing_service';
-      } else if (!categories.toLowerCase().contains('towing_service')) {
-        categories = '$categories,towing_service';
-      }
-    } else {
-      categories = categories.replaceAll(RegExp(r',?towing_service,?'), ',').replaceAll(RegExp(r'^,+|,+$'), '');
-      if (categories.isEmpty) categories = 'general_checkup';
-    }
+    final categories = ServiceCategoryMapping.toServiceCategories(_myServices);
 
     try {
       final r = await http.put(
@@ -2315,6 +2304,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
         body: jsonEncode({'services': servicesStr, 'serviceCategories': categories}),
       );
       if (r.statusCode == 200 && mounted) {
+        _mechanicProfile['serviceCategories'] = categories;
         _showSnackBar('Services updated', AppColors.warmBrown);
       }
     } catch (e) {
