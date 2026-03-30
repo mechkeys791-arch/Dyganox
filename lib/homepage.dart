@@ -5,12 +5,12 @@ import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:async';
 import 'dart:convert';
 import 'screens/mechanic/book_mechanic_flow_page.dart';
 import 'screens/services/bike_battery_page.dart';
 import 'screens/services/bike_tyre_care_page.dart';
 import 'screens/services/mechanics_by_service_page.dart';
-import 'screens/services/bike_electrical_works_page.dart';
 import 'screens/services/towing_service_page.dart';
 import 'screens/services/battery_jump_page.dart';
 import 'screens/ev_charging/ev_charging_page.dart';
@@ -20,7 +20,6 @@ import 'screens/services/minor_repair_page.dart';
 import 'screens/services/car_service_page.dart';
 import 'screens/services/bike_service_page.dart';
 import 'screens/mechanic/mechanic_finder_page.dart';
-import 'screens/mechanic/book_mechanic_flow_page.dart';
 import 'widgets/vehicle_selection_sheet.dart';
 import 'screens/services/map_service_page.dart';
 import 'screens/services/night_service_page.dart';
@@ -53,9 +52,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   late Animation<double> _fadeAnimation;
   
   final TextEditingController _searchController = TextEditingController();
+  Timer? _searchDebounce;
   bool _isSearchActive = false;
   late PageController _adPageController;
-  int _currentAdIndex = 0;
+  /// Ad carousel page index — use [ValueNotifier] so auto-scroll does not rebuild the whole home screen.
+  final ValueNotifier<int> _adPageIndex = ValueNotifier<int>(0);
   
   // Location variables
   String _currentLocation = 'Getting location...';
@@ -91,9 +92,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   Map<String, dynamic>? _branding;
   bool _brandingLoaded = false;
 
+  /// After intro fade completes, drop [FadeTransition] so the scroll tree is not tied to an animation ticker.
+  bool _homeIntroFadeDone = false;
+
   // Responsive design variables
   late double screenWidth;
   late double screenHeight;
+  double _devicePixelRatio = 1.0;
   
   // Get profile image from SharedPreferences (S3 URL or local bytes). Used when profile icon is shown.
   // ignore: unused_element
@@ -119,7 +124,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     super.initState();
     
     _fadeController = AnimationController(
-      duration: const Duration(milliseconds: 1000),
+      duration: const Duration(milliseconds: 450),
       vsync: this,
     );
 
@@ -130,9 +135,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       end: 1.0,
     ).animate(CurvedAnimation(
       parent: _fadeController,
-      curve: Curves.easeInOut,
+      curve: Curves.easeOut,
     ));
 
+    _fadeController.addStatusListener((status) {
+      if (status == AnimationStatus.completed && mounted) {
+        setState(() => _homeIntroFadeDone = true);
+      }
+    });
     _fadeController.forward();
     
     // Auto-scroll ads
@@ -178,16 +188,37 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
   
   void _onSearchChanged() {
-    setState(() {
-      if (_searchController.text.isEmpty) {
-        _searchResults.clear();
+    if (_searchController.text.isEmpty) {
+      _searchDebounce?.cancel();
+      if (_searchResults.isNotEmpty) {
+        setState(() => _searchResults = []);
+      }
+      return;
+    }
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 280), () {
+      if (!mounted) return;
+      final query = _searchController.text;
+      final List<Map<String, dynamic>> next;
+      if (query.isEmpty) {
+        next = <Map<String, dynamic>>[];
       } else {
-        _searchResults = _allServices
-            .where((service) =>
-                service['name'].toString().toLowerCase().contains(_searchController.text.toLowerCase()))
+        final q = query.toLowerCase();
+        next = _allServices
+            .where((service) => service['name'].toString().toLowerCase().contains(q))
             .toList();
       }
+      if (_searchResultsListEqual(next)) return;
+      setState(() => _searchResults = next);
     });
+  }
+
+  bool _searchResultsListEqual(List<Map<String, dynamic>> next) {
+    if (next.length != _searchResults.length) return false;
+    for (var i = 0; i < next.length; i++) {
+      if (next[i]['name'] != _searchResults[i]['name']) return false;
+    }
+    return true;
   }
   
   Future<void> _refreshHomePage() async {
@@ -489,7 +520,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         final list = (jsonDecode(resp.body) as List).cast<Map<String, dynamic>>();
         setState(() {
           _banners = list.isNotEmpty ? list : null;
-          if (_banners != null && _currentAdIndex >= _banners!.length) _currentAdIndex = 0;
+          if (_banners != null && _adPageIndex.value >= _banners!.length) {
+            _adPageIndex.value = 0;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              if (_adPageController.hasClients) _adPageController.jumpToPage(0);
+            });
+          }
           if (!_openAdShownThisSession) _showOpenAd = true;
         });
       }
@@ -571,31 +608,23 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     final count = _adCount;
     if (count == 0) return;
     Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) {
-        setState(() {
-          _currentAdIndex = (_currentAdIndex + 1) % count;
-        });
-        _adPageController.animateToPage(
-          _currentAdIndex,
-          duration: const Duration(milliseconds: 500),
-          curve: Curves.easeInOut,
-        );
-        _startAdAutoScroll();
-      }
+      if (!mounted) return;
+      final next = (_adPageIndex.value + 1) % count;
+      _adPageController.animateToPage(
+        next,
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeOutCubic,
+      );
+      _startAdAutoScroll();
     });
   }
   
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    screenWidth = MediaQuery.of(context).size.width;
-    screenHeight = MediaQuery.of(context).size.height;
-  }
-
-  @override
   void dispose() {
+    _searchDebounce?.cancel();
     _fadeController.dispose();
     _searchController.dispose();
+    _adPageIndex.dispose();
     _adPageController.dispose();
     super.dispose();
   }
@@ -1257,6 +1286,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     final isNightTime = hour >= 20 || hour < 6; // 8 PM to 6 AM
     
     const double iconSize = 0.14; // same as other quick service icons
+    final nightLogical = screenWidth * iconSize;
+    final nightCachePx = (nightLogical * _devicePixelRatio).round().clamp(48, 256);
     return Container(
       child: Material(
         color: Colors.white,
@@ -1292,20 +1323,23 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         child: (_branding?['quickServiceNightServiceIconUrl']?.toString()?.trim().isNotEmpty ?? false)
                         ? Image.network(
                             _branding!['quickServiceNightServiceIconUrl']!.toString().trim(),
-                            width: screenWidth * iconSize,
-                            height: screenWidth * iconSize,
+                            width: nightLogical,
+                            height: nightLogical,
                             fit: BoxFit.contain,
+                            filterQuality: FilterQuality.low,
+                            cacheWidth: nightCachePx,
+                            cacheHeight: nightCachePx,
                             color: isNightTime ? AppColors.burntOrange : null,
                             loadingBuilder: (context, child, loadingProgress) {
                               if (loadingProgress == null) return child;
-                              return Image.asset('assets/icons/24-hour-service.png', width: screenWidth * iconSize, height: screenWidth * iconSize, fit: BoxFit.contain, color: isNightTime ? AppColors.burntOrange : null);
+                              return Image.asset('assets/icons/24-hour-service.png', width: nightLogical, height: nightLogical, fit: BoxFit.contain, color: isNightTime ? AppColors.burntOrange : null);
                             },
-                            errorBuilder: (_, __, ___) => Image.asset('assets/icons/24-hour-service.png', width: screenWidth * iconSize, height: screenWidth * iconSize, fit: BoxFit.contain, color: isNightTime ? AppColors.burntOrange : null),
+                            errorBuilder: (_, __, ___) => Image.asset('assets/icons/24-hour-service.png', width: nightLogical, height: nightLogical, fit: BoxFit.contain, color: isNightTime ? AppColors.burntOrange : null),
                           )
                         : Image.asset(
                             'assets/icons/24-hour-service.png',
-                            width: screenWidth * iconSize,
-                            height: screenWidth * iconSize,
+                            width: nightLogical,
+                            height: nightLogical,
                             fit: BoxFit.contain,
                             color: isNightTime ? AppColors.burntOrange : null,
                           ),
@@ -1375,6 +1409,65 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
+  Widget _searchResultTile(int index) {
+    final service = _searchResults[index];
+    final isFirstItem = index == 0;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          setState(() {
+            _isSearchActive = false;
+            _searchController.clear();
+            _searchResults.clear();
+          });
+          service['route']();
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+          decoration: BoxDecoration(
+            color: isFirstItem ? AppColors.burntOrange.withOpacity(0.1) : Colors.transparent,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: isFirstItem ? AppColors.burntOrange.withOpacity(0.15) : Colors.grey[100],
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  Icons.search_rounded,
+                  color: isFirstItem ? AppColors.burntOrange : Colors.grey[600],
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  service['name'],
+                  style: GoogleFonts.outfit(
+                    fontSize: 16,
+                    fontWeight: isFirstItem ? FontWeight.bold : FontWeight.w600,
+                    color: isFirstItem ? AppColors.burntOrange : Colors.black87,
+                  ),
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 16,
+                color: isFirstItem ? AppColors.burntOrange : Colors.grey[400],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildQuickServiceCard({
     required String title,
     required String iconPath,
@@ -1384,6 +1477,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }) {
     final useNetwork = iconUrl != null && iconUrl.trim().isNotEmpty;
     const double iconSize = 0.14; // bigger icons (was 0.06 inside 0.12 circle)
+    final iconLogicalPx = screenWidth * iconSize;
+    final iconCachePx = (iconLogicalPx * _devicePixelRatio).round().clamp(48, 256);
     return Container(
       child: Material(
         color: Colors.transparent,
@@ -1403,19 +1498,22 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   child: useNetwork
                       ? Image.network(
                           iconUrl!,
-                          width: screenWidth * iconSize,
-                          height: screenWidth * iconSize,
+                          width: iconLogicalPx,
+                          height: iconLogicalPx,
                           fit: BoxFit.contain,
+                          filterQuality: FilterQuality.low,
+                          cacheWidth: iconCachePx,
+                          cacheHeight: iconCachePx,
                           loadingBuilder: (context, child, loadingProgress) {
                             if (loadingProgress == null) return child;
-                            return Image.asset(iconPath, width: screenWidth * iconSize, height: screenWidth * iconSize, fit: BoxFit.contain);
+                            return Image.asset(iconPath, width: iconLogicalPx, height: iconLogicalPx, fit: BoxFit.contain);
                           },
-                          errorBuilder: (_, __, ___) => Image.asset(iconPath, width: screenWidth * iconSize, height: screenWidth * iconSize, fit: BoxFit.contain),
+                          errorBuilder: (_, __, ___) => Image.asset(iconPath, width: iconLogicalPx, height: iconLogicalPx, fit: BoxFit.contain),
                         )
                       : Image.asset(
                           iconPath,
-                          width: screenWidth * iconSize,
-                          height: screenWidth * iconSize,
+                          width: iconLogicalPx,
+                          height: iconLogicalPx,
                           fit: BoxFit.contain,
                         ),
                 ),
@@ -1462,6 +1560,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    final mq = MediaQuery.sizeOf(context);
+    screenWidth = mq.width;
+    screenHeight = mq.height;
+    _devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
+
     return Scaffold(
       backgroundColor: AppColors.cream,
       body: Stack(
@@ -1478,9 +1581,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               color: AppColors.burntOrange,
               child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-            child: FadeTransition(
-            opacity: _fadeAnimation,
-            child: Column(
+            child: AnimatedBuilder(
+              animation: _fadeController,
+              builder: (context, child) {
+                if (_homeIntroFadeDone) return child!;
+                return FadeTransition(opacity: _fadeAnimation, child: child!);
+              },
+              child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Rounded, smooth header gradient — aligns with full-page gradient
@@ -1771,78 +1878,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                               width: 1.5,
                             ),
                           ),
-                          child: ListView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: _searchResults.length > 5 ? 5 : _searchResults.length,
-                            itemBuilder: (context, index) {
-                              final service = _searchResults[index];
-                              final isFirstItem = index == 0;
-                              return Material(
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  onTap: () {
-                                    HapticFeedback.lightImpact();
-                                    setState(() {
-                                      _isSearchActive = false;
-                                      _searchController.clear();
-                                      _searchResults.clear();
-                                    });
-                                    service['route']();
-                                  },
-                                  borderRadius: BorderRadius.circular(16),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-                                    decoration: BoxDecoration(
-                                      color: isFirstItem 
-                                          ? AppColors.burntOrange.withOpacity(0.1)
-                                          : Colors.transparent,
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.all(8),
-                                          decoration: BoxDecoration(
-                                            color: isFirstItem 
-                                                ? AppColors.burntOrange.withOpacity(0.15)
-                                                : Colors.grey[100],
-                                            borderRadius: BorderRadius.circular(10),
-                                          ),
-                                          child: Icon(
-                                            Icons.search_rounded,
-                                            color: isFirstItem 
-                                                ? AppColors.burntOrange
-                                                : Colors.grey[600],
-                                            size: 18,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: Text(
-                                            service['name'],
-                                            style: GoogleFonts.outfit(
-                                              fontSize: 16,
-                                              fontWeight: isFirstItem ? FontWeight.bold : FontWeight.w600,
-                                              color: isFirstItem 
-                                                  ? AppColors.burntOrange
-                                                  : Colors.black87,
-                                            ),
-                                          ),
-                                        ),
-                                        Icon(
-                                          Icons.arrow_forward_ios_rounded,
-                                          size: 16,
-                                          color: isFirstItem 
-                                              ? AppColors.burntOrange
-                                              : Colors.grey[400],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              for (int i = 0; i < (_searchResults.length > 5 ? 5 : _searchResults.length); i++)
+                                _searchResultTile(i),
+                            ],
                           ),
                         ),
                       
@@ -1893,55 +1934,62 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     ],
                   ),
                 ),
+                ),
+                ),
 
-                // Sliding Advertisement Section - Colorful
-                Container(
-                  margin: EdgeInsets.symmetric(
-                    horizontal: screenWidth * 0.04,
-                    vertical: 8,
-                  ),
-                  height: 200,
-                  child: PageView.builder(
-                    controller: _adPageController,
-                    onPageChanged: (index) {
-                      setState(() {
-                        _currentAdIndex = index;
-                      });
-                    },
-                    itemCount: _adCount,
-                    itemBuilder: (context, index) {
-                      return _buildAdCard(index);
-                    },
+                // Sliding Advertisement Section - Colorful (RepaintBoundary: isolates layer work from rest of scroll view)
+                RepaintBoundary(
+                  child: Container(
+                    margin: EdgeInsets.symmetric(
+                      horizontal: screenWidth * 0.04,
+                      vertical: 8,
+                    ),
+                    height: 200,
+                    child: PageView.builder(
+                      controller: _adPageController,
+                      onPageChanged: (index) {
+                        _adPageIndex.value = index;
+                      },
+                      itemCount: _adCount,
+                      itemBuilder: (context, index) {
+                        return _buildAdCard(index);
+                      },
+                    ),
                   ),
                 ),
-                
-                // Page Indicators - Orange Theme
-                Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(_adCount, (index) {
-                      return AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        width: _currentAdIndex == index ? 24 : 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: _currentAdIndex == index 
-                              ? AppColors.burntOrange 
-                              : Colors.grey[300],
-                          borderRadius: BorderRadius.circular(4),
-                          boxShadow: _currentAdIndex == index ? [
-                            BoxShadow(
-                              color: AppColors.burntOrange.withOpacity(0.5),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
+
+                // Page Indicators — only this subtree rebuilds when the ad page changes
+                ValueListenableBuilder<int>(
+                  valueListenable: _adPageIndex,
+                  builder: (context, current, _) {
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(_adCount, (index) {
+                          return AnimatedContainer(
+                            duration: const Duration(milliseconds: 300),
+                            margin: const EdgeInsets.symmetric(horizontal: 4),
+                            width: current == index ? 24 : 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: current == index ? AppColors.burntOrange : Colors.grey[300],
+                              borderRadius: BorderRadius.circular(4),
+                              boxShadow: current == index
+                                  ? [
+                                      BoxShadow(
+                                        color: AppColors.burntOrange.withOpacity(0.5),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ]
+                                  : null,
                             ),
-                          ] : null,
-                        ),
-                      );
-                    }),
-                  ),
+                          );
+                        }),
+                      ),
+                    );
+                  },
                 ),
 
                 // Book Mechanic - same size as See nearest mechanic
@@ -2032,13 +2080,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ),
                 ),
 
-                // Quick Services
-                Container(
-                  margin: EdgeInsets.symmetric(
-                    horizontal: screenWidth * 0.03, 
-                    vertical: screenHeight * 0.01
-                  ),
-                  child: Column(
+                // Quick Services (isolated repaint for grid + icon decoding)
+                RepaintBoundary(
+                  child: Container(
+                    margin: EdgeInsets.symmetric(
+                      horizontal: screenWidth * 0.03,
+                      vertical: screenHeight * 0.01,
+                    ),
+                    child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
@@ -2115,16 +2164,21 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           ],
                         ),
                         child: _brandingLoaded
-                            ? GridView.count(
-                          crossAxisCount: 4,
-                          crossAxisSpacing: screenWidth * 0.015,
-                          mainAxisSpacing: screenHeight * 0.008,
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          childAspectRatio: 0.8,
-                          children: [
-                            _buildDynamicNightServiceCard(),
-                            _buildQuickServiceCard(
+                            ? LayoutBuilder(
+                                builder: (context, constraints) {
+                                  const crossAxisCount = 4;
+                                  final spacingW = screenWidth * 0.015;
+                                  final spacingH = screenHeight * 0.008;
+                                  final maxW = constraints.maxWidth;
+                                  final cellW = (maxW - spacingW * (crossAxisCount - 1)) / crossAxisCount;
+                                  final cellH = cellW / 0.8;
+                                  Widget cell(Widget w) => SizedBox(width: cellW, height: cellH, child: w);
+                                  return Wrap(
+                                    spacing: spacingW,
+                                    runSpacing: spacingH,
+                                    children: [
+                                      cell(_buildDynamicNightServiceCard()),
+                                      cell(_buildQuickServiceCard(
                               title: 'Towing',
                               iconPath: 'assets/icons/tow-truck.png',
                               color: AppColors.burntOrange,
@@ -2154,8 +2208,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                   ),
                                 );
                               },
-                            ),
-                            _buildQuickServiceCard(
+                            )),
+                            cell(_buildQuickServiceCard(
                               title: 'Fuel Refill',
                               iconPath: 'assets/icons/fuel-station.png',
                               color: AppColors.burntOrange,
@@ -2171,8 +2225,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                   ),
                                 );
                               },
-                            ),
-                            _buildQuickServiceCard(
+                            )),
+                            cell(_buildQuickServiceCard(
                               title: 'EV Charging',
                               iconPath: 'assets/icons/charging-station.png',
                               color: AppColors.burntOrange,
@@ -2188,8 +2242,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                   ),
                                 );
                               },
-                            ),
-                            _buildQuickServiceCard(
+                            )),
+                            cell(_buildQuickServiceCard(
                               title: 'Tyre Care',
                               iconPath: 'assets/icons/tyre.png',
                               color: AppColors.burntOrange,
@@ -2219,8 +2273,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                   ),
                                 );
                               },
-                            ),
-                            _buildQuickServiceCard(
+                            )),
+                            cell(_buildQuickServiceCard(
                               title: 'Minor Repair',
                               iconPath: 'assets/icons/repair-tools.png',
                               color: AppColors.burntOrange,
@@ -2250,8 +2304,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                   ),
                                 );
                               },
-                            ),
-                           _buildQuickServiceCard(
+                            )),
+                            cell(_buildQuickServiceCard(
                              title: 'Battery Jump',
                              iconPath: 'assets/icons/jump-start.png',
                              color: AppColors.burntOrange,
@@ -2281,9 +2335,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                  ),
                                );
                              },
-                           ),
-                          ],
-                        )
+                            )),
+                                    ],
+                                  );
+                                },
+                              )
                             : SizedBox(
                                 height: 200,
                                 child: Center(
@@ -2313,6 +2369,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       ),
                     ],
                   ),
+                ),
                 ),
                 // Main Services
                 Container(

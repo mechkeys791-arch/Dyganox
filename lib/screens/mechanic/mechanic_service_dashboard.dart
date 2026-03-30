@@ -427,6 +427,18 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
     }
   }
   
+  bool _nearbyListSameAs(List<dynamic> next) {
+    if (next.length != _nearbyBroadcastRequests.length) return false;
+    for (var i = 0; i < next.length; i++) {
+      final a = _nearbyBroadcastRequests[i];
+      final b = next[i];
+      final idA = a is Map ? a['id']?.toString() : null;
+      final idB = b is Map ? b['id']?.toString() : null;
+      if (idA != idB) return false;
+    }
+    return true;
+  }
+
   Future<void> _fetchNearbyBroadcastRequests() async {
     final mechanicId = widget.mechanicData?['id'];
     if (mechanicId == null) return;
@@ -454,10 +466,15 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
       final r = await http.get(url, headers: {'Content-Type': 'application/json'});
       if (r.statusCode == 200 && mounted) {
         final list = jsonDecode(r.body) as List;
-        setState(() {
-          _nearbyBroadcastRequests = list;
-          _isLoadingNearby = false;
-        });
+        final same = _nearbyListSameAs(list);
+        if (same) {
+          setState(() => _isLoadingNearby = false);
+        } else {
+          setState(() {
+            _nearbyBroadcastRequests = list;
+            _isLoadingNearby = false;
+          });
+        }
       } else {
         setState(() { _nearbyBroadcastRequests = []; _isLoadingNearby = false; });
       }
