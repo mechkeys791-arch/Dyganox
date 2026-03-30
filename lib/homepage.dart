@@ -5,8 +5,8 @@ import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'screens/mechanic/book_mechanic_flow_page.dart';
 import 'screens/services/bike_battery_page.dart';
 import 'screens/services/bike_tyre_care_page.dart';
@@ -203,8 +203,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
   
-  final TextEditingController _searchController = TextEditingController();
-  bool _isSearchActive = false;
   late PageController _adPageController;
   /// Ad carousel page index — use [ValueNotifier] so auto-scroll does not rebuild the whole home screen.
   final ValueNotifier<int> _adPageIndex = ValueNotifier<int>(0);
@@ -317,6 +315,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     // Initialize searchable services
     _initializeServices();
   }
+
+  void _openServiceSearch() {
+    showSearch<void>(
+      context: context,
+      delegate: _HomeServiceSearchDelegate(List<Map<String, dynamic>>.from(_allServices)),
+    );
+  }
   
   void _initializeServices() {
     _allServices.addAll([
@@ -333,19 +338,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     ]);
   }
   
-  void _onSearchChanged() {
-    setState(() {
-      if (_searchController.text.isEmpty) {
-        _searchResults.clear();
-      } else {
-        _searchResults = _allServices
-            .where((service) =>
-                service['name'].toString().toLowerCase().contains(_searchController.text.toLowerCase()))
-            .toList();
-      }
-    });
-  }
-
   Future<void> _refreshHomePage() async {
     await _loadBranding();
     await _loadDefaultVehicle();
@@ -746,9 +738,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   
   @override
   void dispose() {
-    _searchDebounce?.cancel();
     _fadeController.dispose();
-    _searchController.dispose();
+    _adPageIndex.dispose();
     _adPageController.dispose();
     super.dispose();
   }
@@ -1533,65 +1524,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
-  Widget _searchResultTile(int index) {
-    final service = _searchResults[index];
-    final isFirstItem = index == 0;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () {
-          HapticFeedback.lightImpact();
-          setState(() {
-            _isSearchActive = false;
-            _searchController.clear();
-            _searchResults.clear();
-          });
-          service['route']();
-        },
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-          decoration: BoxDecoration(
-            color: isFirstItem ? AppColors.burntOrange.withOpacity(0.1) : Colors.transparent,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: isFirstItem ? AppColors.burntOrange.withOpacity(0.15) : Colors.grey[100],
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  Icons.search_rounded,
-                  color: isFirstItem ? AppColors.burntOrange : Colors.grey[600],
-                  size: 18,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  service['name'],
-                  style: GoogleFonts.outfit(
-                    fontSize: 16,
-                    fontWeight: isFirstItem ? FontWeight.bold : FontWeight.w600,
-                    color: isFirstItem ? AppColors.burntOrange : Colors.black87,
-                  ),
-                ),
-              ),
-              Icon(
-                Icons.arrow_forward_ios_rounded,
-                size: 16,
-                color: isFirstItem ? AppColors.burntOrange : Colors.grey[400],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildQuickServiceCard({
     required String title,
     required String iconPath,
@@ -1828,23 +1760,36 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             const SizedBox(width: 8),
                             Material(
                               color: Colors.transparent,
-                              child: InkWell(
-                                onTap: _openServiceSearch,
-                                borderRadius: BorderRadius.circular(14),
-                                child: Container(
-                                  padding: const EdgeInsets.all(10),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.25),
-                                    borderRadius: BorderRadius.circular(14),
-                                    border: Border.all(
-                                      color: Colors.white.withOpacity(0.35),
-                                      width: 1.5,
+                              child: Tooltip(
+                                message: 'Search services',
+                                child: InkWell(
+                                  onTap: () {
+                                    HapticFeedback.lightImpact();
+                                    _openServiceSearch();
+                                  },
+                                  borderRadius: BorderRadius.circular(14),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(11),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.28),
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(
+                                        color: Colors.white.withOpacity(0.45),
+                                        width: 1.5,
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.12),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
                                     ),
-                                  ),
-                                  child: const Icon(
-                                    Icons.search_rounded,
-                                    color: Colors.white,
-                                    size: 22,
+                                    child: const Icon(
+                                      Icons.search_rounded,
+                                      color: Colors.white,
+                                      size: 24,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -1897,261 +1842,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ),
                 ),
 
-                // Search Bar with Results
-                Center(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(maxWidth: screenWidth * 0.94),
-                    child: Padding(
-                      padding: EdgeInsets.fromLTRB(
-                        screenWidth * 0.03,
-                        screenHeight * 0.02,
-                        screenWidth * 0.03,
-                        14,
-                      ),
-                  child: Column(
-                    children: [
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
-                        constraints: BoxConstraints(minHeight: 46),
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(24),
-                          boxShadow: [
-                            BoxShadow(
-                              color: _isSearchActive
-                                  ? AppColors.burntOrange.withOpacity(0.2)
-                                  : Colors.black.withOpacity(0.06),
-                              blurRadius: _isSearchActive ? 18 : 12,
-                              offset: const Offset(0, 2),
-                              spreadRadius: 0,
-                            ),
-                          ],
-                          border: Border.all(
-                            color: _isSearchActive
-                                ? AppColors.burntOrange.withOpacity(0.5)
-                                : Colors.grey.shade200,
-                            width: 1.5,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.search_rounded,
-                              color: _isSearchActive
-                                  ? AppColors.burntOrange
-                                  : Colors.grey.shade600,
-                              size: 24,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: TextField(
-                                controller: _searchController,
-                                textAlign: TextAlign.left,
-                                textAlignVertical: TextAlignVertical.center,
-                                onTap: () {
-                                  setState(() {
-                                    _isSearchActive = true;
-                                  });
-                                },
-                                onSubmitted: (value) {
-                                  if (_searchResults.isNotEmpty) {
-                                    final firstRoute = _searchResults[0]['route'];
-                                    HapticFeedback.lightImpact();
-                                    setState(() {
-                                      _isSearchActive = false;
-                                      _searchController.clear();
-                                      _searchResults.clear();
-                                    });
-                                    firstRoute();
-                                  } else {
-                                    setState(() {
-                                      _isSearchActive = false;
-                                    });
-                                  }
-                                },
-                                style: GoogleFonts.inter(
-                                  color: Colors.black87,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                                decoration: InputDecoration(
-                                  hintText: 'Search for services',
-                                  hintStyle: GoogleFonts.inter(
-                                    color: Colors.grey.shade500,
-                                    fontSize: 15,
-                                  ),
-                                  border: InputBorder.none,
-                                  isDense: true,
-                                  contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
-                                ),
-                              ),
-                            ),
-                            if (_isSearchActive && _searchController.text.isNotEmpty)
-                              GestureDetector(
-                                onTap: () {
-                                  _searchController.clear();
-                                  setState(() {
-                                    _searchResults.clear();
-                                  });
-                                },
-                                child: Padding(
-                                  padding: const EdgeInsets.only(left: 8),
-                                  child: Icon(
-                                    Icons.close_rounded,
-                                    color: Colors.grey.shade600,
-                                    size: 22,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                      
-                      // Search Results Dropdown - Colorful
-                      if (_isSearchActive && _searchResults.isNotEmpty)
-                        Container(
-                          margin: const EdgeInsets.only(top: 10),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.burntOrange.withOpacity(0.2),
-                                blurRadius: 20,
-                                offset: const Offset(0, 8),
-                                spreadRadius: 2,
-                              ),
-                            ],
-                            border: Border.all(
-                              color: AppColors.burntOrange.withOpacity(0.2),
-                              width: 1.5,
-                            ),
-                          ),
-                          child: ListView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: _searchResults.length > 5 ? 5 : _searchResults.length,
-                            itemBuilder: (context, index) {
-                              final service = _searchResults[index];
-                              final isFirstItem = index == 0;
-                              return Material(
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  onTap: () {
-                                    HapticFeedback.lightImpact();
-                                    setState(() {
-                                      _isSearchActive = false;
-                                      _searchController.clear();
-                                      _searchResults.clear();
-                                    });
-                                    service['route']();
-                                  },
-                                  borderRadius: BorderRadius.circular(16),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-                                    decoration: BoxDecoration(
-                                      color: isFirstItem 
-                                          ? AppColors.burntOrange.withOpacity(0.1)
-                                          : Colors.transparent,
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.all(8),
-                                          decoration: BoxDecoration(
-                                            color: isFirstItem 
-                                                ? AppColors.burntOrange.withOpacity(0.15)
-                                                : Colors.grey[100],
-                                            borderRadius: BorderRadius.circular(10),
-                                          ),
-                                          child: Icon(
-                                            Icons.search_rounded,
-                                            color: isFirstItem 
-                                                ? AppColors.burntOrange
-                                                : Colors.grey[600],
-                                            size: 18,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: Text(
-                                            service['name'],
-                                            style: GoogleFonts.outfit(
-                                              fontSize: 16,
-                                              fontWeight: isFirstItem ? FontWeight.bold : FontWeight.w600,
-                                              color: isFirstItem 
-                                                  ? AppColors.burntOrange
-                                                  : Colors.black87,
-                                            ),
-                                          ),
-                                        ),
-                                        Icon(
-                                          Icons.arrow_forward_ios_rounded,
-                                          size: 16,
-                                          color: isFirstItem 
-                                              ? AppColors.burntOrange
-                                              : Colors.grey[400],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      
-                      // No Results Found
-                      if (_isSearchActive && _searchController.text.isNotEmpty && _searchResults.isEmpty)
-                        Container(
-                          margin: const EdgeInsets.only(top: 10),
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
-                                blurRadius: 10,
-                                offset: const Offset(0, 3),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            children: [
-                              Icon(
-                                Icons.search_off,
-                                size: 48,
-                                color: Colors.grey[400],
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'No services found',
-                                style: GoogleFonts.outfit(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Try searching for "Car", "Bike", or "Emergency"',
-                                style: GoogleFonts.inter(
-                                  fontSize: 12,
-                                  color: Colors.grey[500],
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                ),
-                ),
 
                 // Sliding Advertisement Section - Colorful (RepaintBoundary: isolates layer work from rest of scroll view)
                 RepaintBoundary(
@@ -2535,7 +2225,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     ],
                   ),
                 ),
-                ),
                 // Main Services
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
@@ -2607,8 +2296,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             ),
           ),
         ),
-        ),
       ),
+          ),
         if (_showOpenAd) _buildOpenAdOverlay(),
         ],
       ),
