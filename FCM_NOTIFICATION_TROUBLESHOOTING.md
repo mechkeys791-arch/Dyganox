@@ -11,6 +11,7 @@ When you create a mechanic request, the app shows "Request OK" but the **mechani
 - **Backend has Firebase key:** EC2 backend must have `firebase-service-account.json` (redeploy after adding it).
 - **Backend is latest:** EC2 must be running the code that sends FCM (run `./update-backend-ec2.sh` to redeploy).
 - **Check FCM status:** `curl http://YOUR_SERVER:8081/api/fcm-status` — should return `fcmInitialized: true`.
+- **Notification payload:** Backend sends notification + data (not data-only). Data-only FCM is unreliable on Android when app is backgrounded. Redeploy backend for the fix.
 
 ---
 
