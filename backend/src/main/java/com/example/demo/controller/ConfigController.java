@@ -3,11 +3,11 @@ package com.example.demo.controller;
 import com.example.demo.model.AppBranding;
 import com.example.demo.model.AuthBackgroundVideo;
 import com.example.demo.model.HomeHeroMedia;
-import com.example.demo.model.NearestMechanicLocation;
+import com.example.demo.model.Mechanic;
 import com.example.demo.repository.AppBrandingRepo;
 import com.example.demo.repository.AuthBackgroundVideoRepo;
 import com.example.demo.repository.HomeHeroMediaRepo;
-import com.example.demo.repository.NearestMechanicLocationRepo;
+import com.example.demo.repository.MechanicRepo;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.ResponseEntity;
@@ -29,14 +29,14 @@ public class ConfigController {
     private final AuthBackgroundVideoRepo authBackgroundVideoRepo;
     private final HomeHeroMediaRepo homeHeroMediaRepo;
     private final AppBrandingRepo appBrandingRepo;
-    private final NearestMechanicLocationRepo nearestMechanicLocationRepo;
+    private final MechanicRepo mechanicRepo;
 
     public ConfigController(AuthBackgroundVideoRepo authBackgroundVideoRepo, HomeHeroMediaRepo homeHeroMediaRepo,
-                            AppBrandingRepo appBrandingRepo, NearestMechanicLocationRepo nearestMechanicLocationRepo) {
+                            AppBrandingRepo appBrandingRepo, MechanicRepo mechanicRepo) {
         this.authBackgroundVideoRepo = authBackgroundVideoRepo;
         this.homeHeroMediaRepo = homeHeroMediaRepo;
         this.appBrandingRepo = appBrandingRepo;
-        this.nearestMechanicLocationRepo = nearestMechanicLocationRepo;
+        this.mechanicRepo = mechanicRepo;
     }
 
     private static double distanceKm(double lat1, double lon1, double lat2, double lon2) {
@@ -141,27 +141,54 @@ public class ConfigController {
         return ResponseEntity.ok(icons);
     }
 
-    /** Public: get pins for "See nearest mechanic" map only. No names. Optional lat, lng, radiusKm to filter by distance. */
+    /**
+     * Public: approved mechanics with coordinates for "See nearest mechanic" map.
+     * Uses live location when set, otherwise registration shop coordinates. No PII in labels (app shows pins only).
+     */
     @GetMapping("/nearest-mechanic-locations")
     public ResponseEntity<Map<String, Object>> getNearestMechanicLocations(
             @RequestParam(required = false) Double lat,
             @RequestParam(required = false) Double lng,
             @RequestParam(required = false, defaultValue = "50") int radiusKm) {
-        List<NearestMechanicLocation> all = nearestMechanicLocationRepo.findAllByOrderByIdAsc();
+        List<Mechanic> all = mechanicRepo.findAll();
         List<Map<String, Object>> locations = new ArrayList<>();
-        for (NearestMechanicLocation loc : all) {
+        for (Mechanic mech : all) {
+            // Same visibility as Book Mechanic list: approved + not blocked (not excluded for suspended/offline).
+            if (Boolean.TRUE.equals(mech.isBlocked())) {
+                continue;
+            }
+            String approval = mech.getApprovalStatus();
+            if (approval == null || !"APPROVED".equalsIgnoreCase(approval.trim())) {
+                continue;
+            }
+            // Match BookMechanicService.withinRadiusForList: per-field current vs registration fallback.
+            String latStr = (mech.getCurrentLatitude() != null && !mech.getCurrentLatitude().isBlank())
+                    ? mech.getCurrentLatitude().trim()
+                    : (mech.getLatitude() != null ? mech.getLatitude().trim() : null);
+            String lngStr = (mech.getCurrentLongitude() != null && !mech.getCurrentLongitude().isBlank())
+                    ? mech.getCurrentLongitude().trim()
+                    : (mech.getLongitude() != null ? mech.getLongitude().trim() : null);
+            if (latStr == null || lngStr == null || latStr.isEmpty() || lngStr.isEmpty()) {
+                continue;
+            }
+            double mlat;
+            double mlng;
             try {
-                double mlat = Double.parseDouble(loc.getLatitude());
-                double mlng = Double.parseDouble(loc.getLongitude());
-                if (lat != null && lng != null && radiusKm > 0) {
-                    if (distanceKm(lat, lng, mlat, mlng) > radiusKm) continue;
+                mlat = Double.parseDouble(latStr);
+                mlng = Double.parseDouble(lngStr);
+            } catch (Exception e) {
+                continue;
+            }
+            if (lat != null && lng != null && radiusKm > 0) {
+                if (distanceKm(lat, lng, mlat, mlng) > radiusKm) {
+                    continue;
                 }
-                locations.add(Map.of(
-                        "id", loc.getId(),
-                        "latitude", loc.getLatitude(),
-                        "longitude", loc.getLongitude()
-                ));
-            } catch (Exception ignore) {}
+            }
+            Map<String, Object> row = new HashMap<>();
+            row.put("id", mech.getId());
+            row.put("latitude", latStr);
+            row.put("longitude", lngStr);
+            locations.add(row);
         }
         String markerIconUrl = "";
         String userLocationMarkerIconUrl = "";

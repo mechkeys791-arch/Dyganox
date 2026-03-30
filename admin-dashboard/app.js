@@ -122,7 +122,7 @@ function switchSection(section) {
         'auth-video': 'Auth Background Video',
         'home-hero': 'Home Hero Graphic',
         'app-branding': 'App Branding',
-        'nearest-mechanic': 'Nearest mechanic (map pins)'
+        'nearest-mechanic': 'See nearest mechanic (map icons)'
     };
     document.getElementById('page-title').textContent = titles[section] || 'Dashboard';
     
@@ -135,7 +135,7 @@ function switchSection(section) {
             loadMechanics();
             break;
         case 'nearest-mechanic':
-            loadNearestMechanic();
+            loadNearestMechanicMapBranding();
             break;
         case 'registration-requests':
             loadRegistrationRequests();
@@ -491,67 +491,15 @@ function displayMechanics(mechanics) {
     `).join('');
 }
 
-// ========== NEAREST MECHANIC (map pins only – not login mechanics) ==========
-async function loadNearestMechanic() {
+// ========== See nearest mechanic: optional map marker icons (pins = approved mechanics in DB) ==========
+async function loadNearestMechanicMapBranding() {
+    const iconUrlEl = document.getElementById('nearest-mechanic-marker-icon-url');
+    const userLocUrlEl = document.getElementById('user-location-marker-icon-url');
     try {
-        const r = await fetch(getApiUrl(API_CONFIG.endpoints.nearestMechanicLocations));
-        const list = r.ok ? await r.json() : [];
-        const tbody = document.getElementById('nearest-mechanic-table-body');
-        if (!tbody) return;
-        if (list.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" class="loading">No locations. Add latitude and longitude above.</td></tr>';
-            return;
-        }
-        tbody.innerHTML = list.map(loc => `
-            <tr>
-                <td>${loc.id}</td>
-                <td>${escapeAttr(loc.latitude || '')}</td>
-                <td>${escapeAttr(loc.longitude || '')}</td>
-                <td><button class="btn-action btn-reject" onclick="deleteNearestMechanicLocation(${loc.id})">Delete</button></td>
-            </tr>
-        `).join('');
-        const iconUrlEl = document.getElementById('nearest-mechanic-marker-icon-url');
-        const userLocUrlEl = document.getElementById('user-location-marker-icon-url');
         const branding = await fetch(getApiUrl(API_CONFIG.endpoints.appBranding)).then(r => r.ok ? r.json() : {});
         if (iconUrlEl) iconUrlEl.value = branding.nearestMechanicMarkerIconUrl || '';
         if (userLocUrlEl) userLocUrlEl.value = branding.userLocationMarkerIconUrl || '';
-    } catch (e) {
-        const tbody = document.getElementById('nearest-mechanic-table-body');
-        if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="loading">Failed to load</td></tr>';
-    }
-}
-
-async function addNearestMechanicLocation() {
-    const latEl = document.getElementById('nearest-mechanic-lat');
-    const lngEl = document.getElementById('nearest-mechanic-lng');
-    const statusEl = document.getElementById('nearest-mechanic-add-status');
-    const btn = document.getElementById('nearest-mechanic-add-btn');
-    const lat = latEl ? latEl.value.trim() : '';
-    const lng = lngEl ? lngEl.value.trim() : '';
-    if (!lat || !lng) {
-        if (statusEl) statusEl.textContent = 'Enter latitude and longitude.';
-        return;
-    }
-    if (btn) btn.disabled = true;
-    if (statusEl) statusEl.textContent = 'Adding...';
-    try {
-        const r = await fetch(getApiUrl(API_CONFIG.endpoints.nearestMechanicLocations), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ latitude: lat, longitude: lng })
-        });
-        if (r.ok) {
-            if (statusEl) statusEl.textContent = 'Added.';
-            if (latEl) latEl.value = '';
-            if (lngEl) lngEl.value = '';
-            loadNearestMechanic();
-        } else {
-            if (statusEl) statusEl.textContent = 'Failed to add';
-        }
-    } catch (e) {
-        if (statusEl) statusEl.textContent = 'Error: ' + (e.message || e);
-    }
-    if (btn) btn.disabled = false;
+    } catch (e) {}
 }
 
 async function uploadUserLocationMarkerIcon() {
@@ -603,14 +551,6 @@ async function saveUserLocationMarkerIconUrl() {
     } catch (e) {
         if (statusEl) statusEl.textContent = 'Error: ' + (e.message || e);
     }
-}
-
-async function deleteNearestMechanicLocation(id) {
-    if (!confirm('Remove this location from the See nearest mechanic map?')) return;
-    try {
-        const r = await fetch(getApiUrl(API_CONFIG.endpoints.nearestMechanicLocations) + '/' + id, { method: 'DELETE' });
-        if (r.ok) loadNearestMechanic();
-    } catch (e) {}
 }
 
 async function uploadNearestMechanicMarkerIcon() {
@@ -685,7 +625,7 @@ async function createMechanicFromAdmin() {
         return;
     }
     if (!lat || !lng || isNaN(parseFloat(lat)) || isNaN(parseFloat(lng))) {
-        if (statusEl) statusEl.textContent = 'Valid latitude and longitude are required for See nearest mechanic.';
+        if (statusEl) statusEl.textContent = 'Valid latitude and longitude are required (shown on See nearest mechanic map and Book Mechanic).';
         return;
     }
     if (btn) btn.disabled = true;

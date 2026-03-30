@@ -4,8 +4,10 @@ import com.google.auth.oauth2.GoogleCredentials;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
 import com.google.firebase.messaging.AndroidConfig;
+import com.google.firebase.messaging.AndroidNotification;
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.Message;
+import com.google.firebase.messaging.Notification;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
@@ -15,7 +17,9 @@ import java.io.InputStream;
 
 /**
  * Sends FCM push notifications to mechanics when a customer creates a request.
- * Uses data-only messages so DyganoxFirebaseMessagingService receives them in foreground, background, and when app is killed.
+ * Uses notification + data payloads: notification ensures system displays when app is backgrounded/killed
+ * (data-only messages are not reliably delivered on Android when app is not in foreground).
+ * Data payload provides requestId for Accept/Reject handling.
  */
 @Service
 public class FcmService {
@@ -77,12 +81,22 @@ public class FcmService {
                 : "A customer requested your service.";
 
         try {
-            // High priority so notification arrives even when app is backgrounded/dozing
+            // Notification payload ensures system displays when app is backgrounded/killed.
+            // Data-only messages are not reliably delivered on Android when app is not in foreground.
+            Notification notification = Notification.builder()
+                    .setTitle(title)
+                    .setBody(body)
+                    .build();
             AndroidConfig androidConfig = AndroidConfig.builder()
                     .setPriority(AndroidConfig.Priority.HIGH)
+                    .setNotification(AndroidNotification.builder()
+                            .setChannelId("mechanic_requests")
+                            .setPriority(AndroidNotification.Priority.HIGH)
+                            .build())
                     .build();
             var builder = Message.builder()
                     .setToken(fcmToken)
+                    .setNotification(notification)
                     .setAndroidConfig(androidConfig)
                     .putData("type", "mechanic_request")
                     .putData("requestId", String.valueOf(requestId))
@@ -109,11 +123,20 @@ public class FcmService {
         if (!initialized) return;
         if (fcmToken == null || fcmToken.isBlank()) return;
         try {
+            Notification notification = Notification.builder()
+                    .setTitle("Request taken")
+                    .setBody("Another mechanic accepted this request")
+                    .build();
             AndroidConfig androidConfig = AndroidConfig.builder()
                     .setPriority(AndroidConfig.Priority.HIGH)
+                    .setNotification(AndroidNotification.builder()
+                            .setChannelId("mechanic_requests")
+                            .setPriority(AndroidNotification.Priority.HIGH)
+                            .build())
                     .build();
             Message message = Message.builder()
                     .setToken(fcmToken)
+                    .setNotification(notification)
                     .setAndroidConfig(androidConfig)
                     .putData("type", "request_taken")
                     .putData("requestId", String.valueOf(requestId))

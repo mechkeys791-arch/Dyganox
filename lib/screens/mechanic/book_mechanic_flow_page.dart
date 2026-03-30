@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import '../../data/book_mechanic_problems.dart';
@@ -66,7 +67,7 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
   void initState() {
     super.initState();
     _loadUserAndVehicles();
-    _getCurrentLocation();
+    _getCurrentLocation(showErrors: false);
     _loadProblemCategoryIcons();
     _paymentGateway = PaymentConfig.getPaymentGateway();
     _paymentGateway.initialize(context);
@@ -118,15 +119,70 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
     });
   }
 
-  Future<void> _getCurrentLocation() async {
+  Future<void> _getCurrentLocation({bool showErrors = true}) async {
+    if (!mounted) return;
     try {
-      final pos = await Geolocator.getCurrentPosition();
-      if (mounted) setState(() {
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.deniedForever) {
+        if (showErrors && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Location is disabled. Turn it on in your device settings, then try again.')),
+          );
+        }
+        return;
+      }
+      if (permission == LocationPermission.denied) {
+        if (showErrors && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Allow location access to use your current position.')),
+          );
+        }
+        return;
+      }
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        if (showErrors && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Turn on GPS/location services, then try again.')),
+          );
+        }
+        return;
+      }
+      final pos = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+      var address = '${pos.latitude.toStringAsFixed(5)}, ${pos.longitude.toStringAsFixed(5)}';
+      try {
+        final placemarks = await placemarkFromCoordinates(pos.latitude, pos.longitude)
+            .timeout(const Duration(seconds: 12));
+        if (placemarks.isNotEmpty) {
+          final p = placemarks.first;
+          final parts = <String>[
+            if ((p.street ?? '').trim().isNotEmpty) p.street!.trim(),
+            if ((p.subLocality ?? '').trim().isNotEmpty) p.subLocality!.trim(),
+            if ((p.locality ?? '').trim().isNotEmpty) p.locality!.trim(),
+            if ((p.subAdministrativeArea ?? '').trim().isNotEmpty) p.subAdministrativeArea!.trim(),
+            if ((p.administrativeArea ?? '').trim().isNotEmpty) p.administrativeArea!.trim(),
+          ];
+          if (parts.isNotEmpty) address = parts.join(', ');
+        }
+      } catch (_) {}
+      if (!mounted) return;
+      setState(() {
         _userLat = pos.latitude;
         _userLng = pos.longitude;
-        _locationAddress = 'Current location';
+        _locationAddress = address;
       });
-    } catch (_) {}
+    } catch (e) {
+      if (showErrors && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not get current location: $e')),
+        );
+      }
+    }
   }
 
   void _pickImage() async {
@@ -1133,7 +1189,7 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
             children: [
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: _getCurrentLocation,
+                  onPressed: () => _getCurrentLocation(showErrors: true),
                   icon: const Icon(Icons.my_location, size: 20),
                   label: const Text('Use current location'),
                   style: ElevatedButton.styleFrom(

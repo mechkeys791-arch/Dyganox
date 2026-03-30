@@ -6,7 +6,6 @@ import com.example.demo.model.AuthBackgroundVideo;
 import com.example.demo.model.Banner;
 import com.example.demo.model.HomeHeroMedia;
 import com.example.demo.model.MarketingPoster;
-import com.example.demo.model.NearestMechanicLocation;
 import com.example.demo.model.SectionPoster;
 import com.example.demo.model.Mechanic;
 import com.example.demo.model.MechanicHelpMessage;
@@ -21,7 +20,6 @@ import com.example.demo.repository.AuthBackgroundVideoRepo;
 import com.example.demo.repository.BannerRepo;
 import com.example.demo.repository.HomeHeroMediaRepo;
 import com.example.demo.repository.MarketingPosterRepo;
-import com.example.demo.repository.NearestMechanicLocationRepo;
 import com.example.demo.repository.SectionPosterRepo;
 import com.example.demo.repository.MechanicHelpMessageRepo;
 import com.example.demo.repository.UserHelpMessageRepo;
@@ -83,9 +81,6 @@ public class AdminController {
 
     @Autowired
     private AppBrandingRepo appBrandingRepo;
-
-    @Autowired
-    private NearestMechanicLocationRepo nearestMechanicLocationRepo;
 
     @Autowired
     private UserAddressRepo userAddressRepo;
@@ -847,56 +842,7 @@ public class AdminController {
         }
     }
 
-    // ========== NEAREST MECHANIC LOCATIONS (See nearest mechanic map only – not login mechanics) ==========
-    @GetMapping("/nearest-mechanic-locations")
-    public ResponseEntity<List<Map<String, Object>>> getNearestMechanicLocations() {
-        try {
-            List<NearestMechanicLocation> list = nearestMechanicLocationRepo.findAllByOrderByIdAsc();
-            List<Map<String, Object>> out = new ArrayList<>();
-            for (NearestMechanicLocation loc : list) {
-                Map<String, Object> m = new HashMap<>();
-                m.put("id", loc.getId());
-                m.put("latitude", loc.getLatitude() != null ? loc.getLatitude() : "");
-                m.put("longitude", loc.getLongitude() != null ? loc.getLongitude() : "");
-                out.add(m);
-            }
-            return ResponseEntity.ok(out);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
-    }
-
-    @PostMapping("/nearest-mechanic-locations")
-    public ResponseEntity<NearestMechanicLocation> createNearestMechanicLocation(@RequestBody Map<String, String> body) {
-        try {
-            String lat = body != null ? body.get("latitude") : null;
-            String lng = body != null ? body.get("longitude") : null;
-            if (lat == null || lng == null || lat.trim().isEmpty() || lng.trim().isEmpty()) {
-                return ResponseEntity.badRequest().build();
-            }
-            NearestMechanicLocation loc = new NearestMechanicLocation();
-            loc.setLatitude(lat.trim());
-            loc.setLongitude(lng.trim());
-            return ResponseEntity.status(HttpStatus.CREATED).body(nearestMechanicLocationRepo.save(loc));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
-    }
-
-    @DeleteMapping("/nearest-mechanic-locations/{id}")
-    public ResponseEntity<Void> deleteNearestMechanicLocation(@PathVariable Long id) {
-        try {
-            if (nearestMechanicLocationRepo.existsById(id)) {
-                nearestMechanicLocationRepo.deleteById(id);
-                return ResponseEntity.ok().build();
-            }
-            return ResponseEntity.notFound().build();
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
-    }
-
-    // Manually create mechanic (admin) – for partner mechanics who login; separate from nearest-mechanic pins
+    // Manually create mechanic (admin) – for partner mechanics who login
     @PostMapping("/mechanics/create")
     public ResponseEntity<Mechanic> createMechanic(@RequestBody Mechanic mechanic) {
         try {
