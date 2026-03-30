@@ -86,7 +86,7 @@
                     </a>
                     <a href="#" class="nav-item" data-section="nearest-mechanic">
                         <i class="fas fa-map-marker-alt"></i>
-                        <span>Nearest mechanic (map pins)</span>
+                        <span>See nearest mechanic (icons)</span>
                     </a>
                     <a href="#" class="nav-item" data-section="registration-requests">
                         <i class="fas fa-user-plus"></i>
@@ -397,7 +397,7 @@
             <section id="mechanics-section" class="content-section">
                 <div class="section-header">
                     <h2>All Mechanics</h2>
-                    <p class="section-subtitle">Add a mechanic below to make them appear in the app’s “See nearest mechanic” based on user location.</p>
+                    <p class="section-subtitle">Approved mechanics with latitude/longitude (shop or live location) appear on “See nearest mechanic” and in Book Mechanic. Add or edit mechanics below.</p>
                 </div>
                 <div class="section-header">
                     <h2>All Mechanics</h2>
@@ -439,11 +439,11 @@
                 </div>
             </section>
 
-            <!-- Nearest mechanic (map pins only – not login mechanics; shown in app See nearest mechanic) -->
+            <!-- Optional marker icon URLs for See nearest mechanic (pin positions come from mechanics table) -->
             <section id="nearest-mechanic-section" class="content-section">
                 <div class="section-header">
-                    <h2>Nearest mechanic (map pins)</h2>
-                    <p class="section-subtitle">Pins shown only on the app "See nearest mechanic" map. No names – just locations and a custom icon. Separate from partner mechanics who login.</p>
+                    <h2>See nearest mechanic – map icons</h2>
+                    <p class="section-subtitle">Map pins are <strong>approved mechanics</strong> from the Mechanics list (coordinates: live location if set, otherwise registration). Optionally upload custom marker images below. The app uses default pins if URLs are empty.</p>
                 </div>
                 <div class="chart-card" style="margin-bottom:20px;">
                     <h3 style="margin-top:0;">Custom marker icon (used for all pins on the map)</h3>
@@ -466,34 +466,6 @@
                         <input type="url" id="user-location-marker-icon-url" class="support-reply-input" placeholder="https://...">
                     </div>
                     <button type="button" class="btn-action btn-approve" onclick="saveUserLocationMarkerIconUrl()">Save icon URL</button>
-                </div>
-                <div class="chart-card">
-                    <h3 style="margin-top:0;">Add location (latitude, longitude only – no name)</h3>
-                    <div class="form-group">
-                        <label>Latitude</label>
-                        <input type="text" id="nearest-mechanic-lat" class="support-reply-input" placeholder="e.g. 12.9141">
-                    </div>
-                    <div class="form-group">
-                        <label>Longitude</label>
-                        <input type="text" id="nearest-mechanic-lng" class="support-reply-input" placeholder="e.g. 74.8560">
-                    </div>
-                    <button type="button" class="btn-action btn-approve" id="nearest-mechanic-add-btn" onclick="addNearestMechanicLocation()">Add location</button>
-                    <span id="nearest-mechanic-add-status" class="muted" style="margin-left:12px;"></span>
-                </div>
-                <div class="table-container" style="margin-top:20px;">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Latitude</th>
-                                <th>Longitude</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="nearest-mechanic-table-body">
-                            <tr><td colspan="4" class="loading">Loading...</td></tr>
-                        </tbody>
-                    </table>
                 </div>
             </section>
 

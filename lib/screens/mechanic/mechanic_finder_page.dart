@@ -1,5 +1,7 @@
+import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -14,14 +16,10 @@ import 'book_mechanic_flow_page.dart';
 /// Custom mechanic marker size in pixels. Change this to make the icon bigger or smaller on the map.
 const int _kMarkerSizePx = 48;
 
-/// Only mechanics within this radius (km) are counted and shown in "X mechanics nearby".
-const double _kCountRadiusKm = 15.0;
+/// Must match API radius used in [AppRemoteService.getNearestMechanicLocations] (50km) for the count line.
+const double _kCountRadiusKm = 50.0;
 
-/// India approximate bounds (so map cannot be panned outside India).
-final LatLng _kIndiaSw = const LatLng(8.0, 68.0);
-final LatLng _kIndiaNe = const LatLng(37.0, 97.0);
-
-/// See nearest mechanic: map pins only (no names). Locations added from admin "Nearest mechanic (map pins)".
+/// See nearest mechanic: pins are approved mechanics (live location if set, else shop lat/lng from mechanics table).
 /// Custom marker icon from admin. Book mechanic goes to full booking flow; location/contact disclosed only after booking.
 class MechanicFinderPage extends StatefulWidget {
   final String? vehicleType;
@@ -33,7 +31,6 @@ class MechanicFinderPage extends StatefulWidget {
 }
 
 const double _kUserMarkerHue = BitmapDescriptor.hueAzure;
-const double _kPinMarkerHue = BitmapDescriptor.hueOrange;
 
 /// Map style: only city (locality) names visible; hide roads, POI, transit, other labels.
 const String _kMapStyleCityNamesOnly = '''
@@ -56,14 +53,13 @@ const String _kMapStyleCityNamesOnly = '''
 class _MechanicFinderPageState extends State<MechanicFinderPage> {
   GoogleMapController? _mapController;
   LatLng _center = const LatLng(12.9141, 74.8560);
-  final Set<Marker> _markers = {};
+  /// New Set instance each update so the map platform reliably picks up marker changes.
+  Set<Marker> _markers = {};
   Position? _currentPosition;
   List<Map<String, dynamic>> _locations = [];
   /// Each map: location + distanceKm (distance from user in km).
   List<Map<String, dynamic>> _locationsWithDistance = [];
-  String _markerIconUrl = '';
   String _userMarkerIconUrl = '';
-  BitmapDescriptor? _customPinIcon;
   BitmapDescriptor? _customUserIcon;
   bool _isLoading = true;
   String _message = '';
@@ -103,21 +99,24 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> {
       final lng = _currentPosition?.longitude;
       final data = await AppRemoteService.getNearestMechanicLocations(lat: lat, lng: lng, radiusKm: 50);
       if (!mounted) return;
-      final list = (data?['locations'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [];
-      final iconUrl = data?['markerIconUrl']?.toString()?.trim() ?? '';
+      final list = _parseLocationsList(data?['locations']);
       final userIconUrl = data?['userLocationMarkerIconUrl']?.toString()?.trim() ?? '';
+      if (kDebugMode) {
+        debugPrint('MechanicFinder: ${list.length} location(s) from API (user lat=$lat lng=$lng)');
+      }
       setState(() {
         _locations = list;
-        _markerIconUrl = iconUrl;
         _userMarkerIconUrl = userIconUrl;
         _isLoading = false;
         _message = '';
       });
       _computeDistances();
-      await Future.wait([_loadCustomPinIcon(), _loadUserLocationIcon()]);
+      // Show default markers immediately (do not wait for custom icon HTTP — avoids empty map).
+      if (mounted) _buildMarkers();
+      await _loadUserLocationIcon();
       if (mounted) {
         _buildMarkers();
-        _moveCameraToUser();
+        _fitMapToPins();
       }
     } catch (e) {
       if (mounted) {
@@ -131,6 +130,19 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> {
     }
   }
 
+  List<Map<String, dynamic>> _parseLocationsList(dynamic raw) {
+    if (raw is! List) return [];
+    final out = <Map<String, dynamic>>[];
+    for (final e in raw) {
+      if (e is Map<String, dynamic>) {
+        out.add(Map<String, dynamic>.from(e));
+      } else if (e is Map) {
+        out.add(Map<String, dynamic>.from(e));
+      }
+    }
+    return out;
+  }
+
   void _computeDistances() {
     final userLat = _currentPosition?.latitude;
     final userLng = _currentPosition?.longitude;
@@ -140,8 +152,8 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> {
     }
     final list = <Map<String, dynamic>>[];
     for (final loc in _locations) {
-      final lat = double.tryParse(loc['latitude']?.toString() ?? '') ?? 0.0;
-      final lng = double.tryParse(loc['longitude']?.toString() ?? '') ?? 0.0;
+      final lat = _readLat(loc);
+      final lng = _readLng(loc);
       double? distanceKm;
       if (lat != 0.0 || lng != 0.0) {
         final meters = Geolocator.distanceBetween(userLat, userLng, lat, lng);
@@ -157,42 +169,13 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> {
     _locationsWithDistance = list;
   }
 
-  /// Locations within _kCountRadiusKm only (for display count).
+  /// Mechanics to include in "X nearby" (same list as pins after API filter). If GPS failed, distance is null — still count them.
   List<Map<String, dynamic>> get _nearbyOnly =>
       _locationsWithDistance.where((e) {
         final km = e['distanceKm'] as double?;
-        return km != null && km <= _kCountRadiusKm;
+        if (km == null) return true;
+        return km <= _kCountRadiusKm;
       }).toList();
-
-  Future<void> _loadCustomPinIcon() async {
-    final url = _markerIconUrl.trim();
-    if (url.isEmpty) {
-      setState(() => _customPinIcon = null);
-      return;
-    }
-    try {
-      final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 10));
-      if (response.statusCode != 200 || response.bodyBytes.isEmpty) {
-        setState(() => _customPinIcon = null);
-        return;
-      }
-      final bytes = response.bodyBytes;
-      final decoded = img.decodeImage(bytes);
-      if (decoded == null) {
-        if (mounted) setState(() => _customPinIcon = null);
-        return;
-      }
-      final resized = img.copyResize(decoded, width: _kMarkerSizePx, height: _kMarkerSizePx);
-      final pngBytes = Uint8List.fromList(img.encodePng(resized));
-      final descriptor = BitmapDescriptor.fromBytes(
-        pngBytes,
-        size: Size(_kMarkerSizePx.toDouble(), _kMarkerSizePx.toDouble()),
-      );
-      if (mounted) setState(() => _customPinIcon = descriptor);
-    } catch (_) {
-      if (mounted) setState(() => _customPinIcon = null);
-    }
-  }
 
   Future<void> _loadUserLocationIcon() async {
     final url = _userMarkerIconUrl.trim();
@@ -231,33 +214,91 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> {
     );
   }
 
+  /// Fits camera so user + all mechanic pins are visible (with padding).
+  void _fitMapToPins() {
+    if (_mapController == null || _markers.isEmpty) return;
+    if (_markers.length == 1) {
+      final p = _markers.first.position;
+      _mapController!.animateCamera(CameraUpdate.newLatLngZoom(p, 14));
+      return;
+    }
+    double minLat = 90, maxLat = -90, minLng = 180, maxLng = -180;
+    for (final m in _markers) {
+      final lat = m.position.latitude;
+      final lng = m.position.longitude;
+      minLat = math.min(minLat, lat);
+      maxLat = math.max(maxLat, lat);
+      minLng = math.min(minLng, lng);
+      maxLng = math.max(maxLng, lng);
+    }
+    if ((maxLat - minLat).abs() < 1e-4) {
+      minLat -= 0.002;
+      maxLat += 0.002;
+    }
+    if ((maxLng - minLng).abs() < 1e-4) {
+      minLng -= 0.002;
+      maxLng += 0.002;
+    }
+    final sw = LatLng(minLat, minLng);
+    final ne = LatLng(maxLat, maxLng);
+    try {
+      final bounds = LatLngBounds(southwest: sw, northeast: ne);
+      _mapController!.animateCamera(CameraUpdate.newLatLngBounds(bounds, 72));
+    } catch (_) {
+      _moveCameraToUser();
+    }
+  }
+
+  double _parseCoord(dynamic v) {
+    if (v == null) return 0.0;
+    if (v is num) return v.toDouble();
+    return double.tryParse(v.toString().trim()) ?? 0.0;
+  }
+
+  double _readLat(Map<String, dynamic> loc) {
+    return _parseCoord(loc['latitude'] ?? loc['lat'] ?? loc['Latitude']);
+  }
+
+  double _readLng(Map<String, dynamic> loc) {
+    return _parseCoord(loc['longitude'] ?? loc['lng'] ?? loc['long'] ?? loc['Longitude']);
+  }
+
   void _buildMarkers() {
-    final Set<Marker> markers = {};
+    final markers = <Marker>{};
     if (_currentPosition != null) {
       final userIcon = _customUserIcon ?? BitmapDescriptor.defaultMarkerWithHue(_kUserMarkerHue);
       markers.add(Marker(
         markerId: const MarkerId('user'),
         position: LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
         icon: userIcon,
+        zIndexInt: 1,
         infoWindow: const InfoWindow(title: 'Your location'),
       ));
     }
-    final pinIcon = _customPinIcon ?? BitmapDescriptor.defaultMarkerWithHue(_kPinMarkerHue);
     for (int i = 0; i < _locationsWithDistance.length; i++) {
       final loc = _locationsWithDistance[i];
-      final lat = double.tryParse(loc['latitude']?.toString() ?? '') ?? 0.0;
-      final lng = double.tryParse(loc['longitude']?.toString() ?? '') ?? 0.0;
+      final lat = _readLat(loc);
+      final lng = _readLng(loc);
+      if (!lat.isFinite || !lng.isFinite) continue;
       if (lat == 0.0 && lng == 0.0) continue;
+      final id = loc['id']?.toString() ?? 'idx_$i';
+      // Always use default pins for mechanic locations. Custom BitmapDescriptor.fromBytes
+      // (admin upload) often renders blank on device; default markers are reliable.
+      final hue = (BitmapDescriptor.hueOrange + ((i * 35) % 330)).toDouble() % 360;
       markers.add(Marker(
-        markerId: MarkerId('pin_$i'),
+        markerId: MarkerId('mechanic_$id'),
         position: LatLng(lat, lng),
-        icon: pinIcon,
-        infoWindow: const InfoWindow(title: 'Mechanic nearby'),
+        icon: BitmapDescriptor.defaultMarkerWithHue(hue),
+        zIndexInt: 2,
+        infoWindow: InfoWindow(title: 'Mechanic ${i + 1}', snippet: 'Nearby service point'),
       ));
     }
+    if (kDebugMode) {
+      debugPrint('MechanicFinder: built ${markers.length} marker(s) (${_locationsWithDistance.length} locations with distance)');
+    }
+    if (!mounted) return;
     setState(() {
-      _markers.clear();
-      _markers.addAll(markers);
+      _markers = markers;
     });
   }
 
@@ -291,16 +332,24 @@ class _MechanicFinderPageState extends State<MechanicFinderPage> {
                 GoogleMap(
                   onMapCreated: (GoogleMapController c) {
                     _mapController = c;
-                    _moveCameraToUser();
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (!mounted) return;
+                      if (_markers.length > 1) {
+                        _fitMapToPins();
+                      } else {
+                        _moveCameraToUser();
+                      }
+                    });
                   },
                   initialCameraPosition: CameraPosition(target: _center, zoom: 14),
-                  markers: _markers,
+                  markers: Set<Marker>.from(_markers),
                   myLocationEnabled: true,
                   myLocationButtonEnabled: false,
                   mapType: MapType.normal,
                   zoomControlsEnabled: true,
                   compassEnabled: true,
-                  cameraTargetBounds: CameraTargetBounds(LatLngBounds(southwest: _kIndiaSw, northeast: _kIndiaNe)),
+                  // Unbounded so camera can always fit user + pins (India-only bound hid off-screen pins for some users).
+                  cameraTargetBounds: CameraTargetBounds.unbounded,
                 ),
                 if (_isLoading)
                   const Center(child: CircularProgressIndicator(color: AppColors.burntOrange)),

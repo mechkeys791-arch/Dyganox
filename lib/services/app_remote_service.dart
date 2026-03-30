@@ -82,7 +82,7 @@ class AppRemoteService {
     return null;
   }
 
-  /// GET nearest mechanic locations (map pins only – no names). Optional lat, lng, radiusKm to filter. Returns { locations: [{ id, latitude, longitude }], markerIconUrl: string }.
+  /// GET approved mechanic coordinates for "See nearest mechanic" map. Optional lat, lng, radiusKm filter. Returns { locations: [{ id: mechanicId, latitude, longitude }], markerIconUrl, userLocationMarkerIconUrl }.
   static Future<Map<String, dynamic>?> getNearestMechanicLocations({double? lat, double? lng, int radiusKm = 50}) async {
     try {
       final query = <String>['radiusKm=$radiusKm'];

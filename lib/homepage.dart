@@ -38,6 +38,158 @@ import 'services/vehicle_service.dart';
 import 'services/app_remote_service.dart';
 import 'core/theme/app_colors.dart';
 
+/// Material full-screen search (same pattern as Play Store / in-app search sheets).
+class _HomeServiceSearchDelegate extends SearchDelegate<Object?> {
+  final List<Map<String, dynamic>> services;
+
+  _HomeServiceSearchDelegate(this.services);
+
+  @override
+  String get searchFieldLabel => 'Search services';
+
+  @override
+  List<Widget>? buildActions(BuildContext context) {
+    if (query.isEmpty) return null;
+    return [
+      IconButton(
+        icon: const Icon(Icons.clear_rounded),
+        onPressed: () {
+          query = '';
+          showSuggestions(context);
+        },
+      ),
+    ];
+  }
+
+  @override
+  Widget? buildLeading(BuildContext context) {
+    return IconButton(
+      icon: const Icon(Icons.arrow_back_rounded),
+      onPressed: () => close(context, null),
+    );
+  }
+
+  @override
+  Widget buildResults(BuildContext context) => _list(context);
+
+  @override
+  Widget buildSuggestions(BuildContext context) => _list(context);
+
+  Widget _list(BuildContext context) {
+    final q = query.trim().toLowerCase();
+    final filtered = q.isEmpty
+        ? List<Map<String, dynamic>>.from(services)
+        : services
+            .where((s) => s['name'].toString().toLowerCase().contains(q))
+            .toList();
+
+    if (filtered.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.search_off_rounded, size: 56, color: Colors.grey[400]),
+              const SizedBox(height: 16),
+              Text(
+                'No services found',
+                style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.grey[700]),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Try another keyword',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[600]),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+      itemCount: filtered.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 6),
+      itemBuilder: (context, index) {
+        final s = filtered[index];
+        final icon = s['icon'] as IconData;
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () {
+              close(context, null);
+              Future.microtask(() => (s['route'] as void Function())());
+            },
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              decoration: BoxDecoration(
+                color: AppColors.creamElevated,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.burntOrange.withOpacity(0.12)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppColors.burntOrange.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(icon, color: AppColors.burntOrange, size: 22),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Text(
+                      s['name'].toString(),
+                      style: GoogleFonts.outfit(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.darkChocolate,
+                      ),
+                    ),
+                  ),
+                  Icon(Icons.chevron_right_rounded, color: Colors.grey[400]),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  ThemeData appBarTheme(BuildContext context) {
+    final base = Theme.of(context);
+    return base.copyWith(
+      appBarTheme: AppBarTheme(
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        backgroundColor: AppColors.burntOrange,
+        iconTheme: const IconThemeData(color: Colors.white),
+        titleTextStyle: GoogleFonts.outfit(
+          color: Colors.white,
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: Colors.white.withOpacity(0.22),
+        hintStyle: GoogleFonts.inter(color: Colors.white.withOpacity(0.85), fontSize: 16),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      ),
+    );
+  }
+}
+
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -52,8 +204,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
   
-  final TextEditingController _searchController = TextEditingController();
-  bool _isSearchActive = false;
   late PageController _adPageController;
   int _currentAdIndex = 0;
   
@@ -63,8 +213,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   Position? _currentPosition;
   bool _isLoadingLocation = false;
   
-  // Search functionality
-  List<Map<String, dynamic>> _searchResults = [];
   final List<Map<String, dynamic>> _allServices = [];
 
   // Carousel banners from API (null until loaded)
@@ -157,9 +305,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     
     // Initialize searchable services
     _initializeServices();
-    
-    // Add listener to search controller
-    _searchController.addListener(_onSearchChanged);
   }
   
   void _initializeServices() {
@@ -177,19 +322,15 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     ]);
   }
   
-  void _onSearchChanged() {
-    setState(() {
-      if (_searchController.text.isEmpty) {
-        _searchResults.clear();
-      } else {
-        _searchResults = _allServices
-            .where((service) =>
-                service['name'].toString().toLowerCase().contains(_searchController.text.toLowerCase()))
-            .toList();
-      }
-    });
+  Future<void> _openServiceSearch() async {
+    HapticFeedback.lightImpact();
+    if (!mounted) return;
+    await showSearch<Object?>(
+      context: context,
+      delegate: _HomeServiceSearchDelegate(List<Map<String, dynamic>>.from(_allServices)),
+    );
   }
-  
+
   Future<void> _refreshHomePage() async {
     await _loadBranding();
     await _loadDefaultVehicle();
@@ -595,7 +736,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   @override
   void dispose() {
     _fadeController.dispose();
-    _searchController.dispose();
     _adPageController.dispose();
     super.dispose();
   }
@@ -1499,14 +1639,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       stops: const [0.0, 0.25, 0.5, 0.75, 1.0],
                     ),
                     borderRadius: const BorderRadius.only(
-                      bottomLeft: Radius.circular(36),
-                      bottomRight: Radius.circular(36),
+                      bottomLeft: Radius.circular(28),
+                      bottomRight: Radius.circular(28),
                     ),
                     boxShadow: [
                       BoxShadow(
                         color: AppColors.burntOrange.withOpacity(0.2),
-                        blurRadius: 24,
-                        offset: const Offset(0, 8),
+                        blurRadius: 16,
+                        offset: const Offset(0, 4),
                         spreadRadius: 0,
                       ),
                     ],
@@ -1524,7 +1664,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       Padding(
                         padding: EdgeInsets.symmetric(
                           horizontal: screenWidth * 0.04,
-                          vertical: screenHeight * 0.015,
+                          vertical: screenHeight * 0.008,
                         ),
                         child: Row(
                           children: [
@@ -1546,7 +1686,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 12,
-                                      vertical: 10,
+                                      vertical: 7,
                                     ),
                                     decoration: BoxDecoration(
                                       color: Colors.white.withOpacity(0.25),
@@ -1578,7 +1718,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                             text: _currentLocation,
                                             style: GoogleFonts.outfit(
                                               color: Colors.white,
-                                              fontSize: 14,
+                                              fontSize: 13,
                                               fontWeight: FontWeight.w600,
                                             ),
                                           ),
@@ -1594,15 +1734,41 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                 ),
                               ),
                             ),
+                            const SizedBox(width: 8),
+                            Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: _openServiceSearch,
+                                borderRadius: BorderRadius.circular(14),
+                                child: Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.25),
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(
+                                      color: Colors.white.withOpacity(0.35),
+                                      width: 1.5,
+                                    ),
+                                  ),
+                                  child: const Icon(
+                                    Icons.search_rounded,
+                                    color: Colors.white,
+                                    size: 22,
+                                  ),
+                                ),
+                              ),
+                            ),
                           ],
                         ),
                       ),
                       
                       // Welcome Message
                       Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: screenWidth * 0.04,
-                          vertical: screenHeight * 0.008,
+                        padding: EdgeInsets.fromLTRB(
+                          screenWidth * 0.04,
+                          4,
+                          screenWidth * 0.04,
+                          6,
                         ),
                         child: Row(
                           children: [
@@ -1613,17 +1779,17 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                   'Hello! 👋',
                                   style: GoogleFonts.outfit(
                                     color: Colors.white,
-                                    fontSize: 28,
+                                    fontSize: 22,
                                     fontWeight: FontWeight.bold,
-                                    letterSpacing: 0.5,
+                                    letterSpacing: 0.3,
                                   ),
                                 ),
-                                const SizedBox(height: 4),
+                                const SizedBox(height: 2),
                                 Text(
                                   'What service do you need today?',
                                   style: GoogleFonts.inter(
                                     color: Colors.white.withOpacity(0.95),
-                                    fontSize: 15,
+                                    fontSize: 13,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
@@ -1633,263 +1799,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         ),
                       ),
                       
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 12),
                     ],
                   ),
-                    ],
-                  ),
-                ),
-
-                // Search Bar with Results
-                Center(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(maxWidth: screenWidth * 0.94),
-                    child: Padding(
-                      padding: EdgeInsets.fromLTRB(
-                        screenWidth * 0.03,
-                        screenHeight * 0.02,
-                        screenWidth * 0.03,
-                        14,
-                      ),
-                  child: Column(
-                    children: [
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
-                        constraints: BoxConstraints(minHeight: 46),
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(24),
-                          boxShadow: [
-                            BoxShadow(
-                              color: _isSearchActive
-                                  ? AppColors.burntOrange.withOpacity(0.2)
-                                  : Colors.black.withOpacity(0.06),
-                              blurRadius: _isSearchActive ? 18 : 12,
-                              offset: const Offset(0, 2),
-                              spreadRadius: 0,
-                            ),
-                          ],
-                          border: Border.all(
-                            color: _isSearchActive
-                                ? AppColors.burntOrange.withOpacity(0.5)
-                                : Colors.grey.shade200,
-                            width: 1.5,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.search_rounded,
-                              color: _isSearchActive
-                                  ? AppColors.burntOrange
-                                  : Colors.grey.shade600,
-                              size: 24,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: TextField(
-                                controller: _searchController,
-                                textAlign: TextAlign.left,
-                                textAlignVertical: TextAlignVertical.center,
-                                onTap: () {
-                                  setState(() {
-                                    _isSearchActive = true;
-                                  });
-                                },
-                                onSubmitted: (value) {
-                                  if (_searchResults.isNotEmpty) {
-                                    final firstRoute = _searchResults[0]['route'];
-                                    HapticFeedback.lightImpact();
-                                    setState(() {
-                                      _isSearchActive = false;
-                                      _searchController.clear();
-                                      _searchResults.clear();
-                                    });
-                                    firstRoute();
-                                  } else {
-                                    setState(() {
-                                      _isSearchActive = false;
-                                    });
-                                  }
-                                },
-                                style: GoogleFonts.inter(
-                                  color: Colors.black87,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                                decoration: InputDecoration(
-                                  hintText: 'Search for services',
-                                  hintStyle: GoogleFonts.inter(
-                                    color: Colors.grey.shade500,
-                                    fontSize: 15,
-                                  ),
-                                  border: InputBorder.none,
-                                  isDense: true,
-                                  contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
-                                ),
-                              ),
-                            ),
-                            if (_isSearchActive && _searchController.text.isNotEmpty)
-                              GestureDetector(
-                                onTap: () {
-                                  _searchController.clear();
-                                  setState(() {
-                                    _searchResults.clear();
-                                  });
-                                },
-                                child: Padding(
-                                  padding: const EdgeInsets.only(left: 8),
-                                  child: Icon(
-                                    Icons.close_rounded,
-                                    color: Colors.grey.shade600,
-                                    size: 22,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                      
-                      // Search Results Dropdown - Colorful
-                      if (_isSearchActive && _searchResults.isNotEmpty)
-                        Container(
-                          margin: const EdgeInsets.only(top: 10),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.burntOrange.withOpacity(0.2),
-                                blurRadius: 20,
-                                offset: const Offset(0, 8),
-                                spreadRadius: 2,
-                              ),
-                            ],
-                            border: Border.all(
-                              color: AppColors.burntOrange.withOpacity(0.2),
-                              width: 1.5,
-                            ),
-                          ),
-                          child: ListView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: _searchResults.length > 5 ? 5 : _searchResults.length,
-                            itemBuilder: (context, index) {
-                              final service = _searchResults[index];
-                              final isFirstItem = index == 0;
-                              return Material(
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  onTap: () {
-                                    HapticFeedback.lightImpact();
-                                    setState(() {
-                                      _isSearchActive = false;
-                                      _searchController.clear();
-                                      _searchResults.clear();
-                                    });
-                                    service['route']();
-                                  },
-                                  borderRadius: BorderRadius.circular(16),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-                                    decoration: BoxDecoration(
-                                      color: isFirstItem 
-                                          ? AppColors.burntOrange.withOpacity(0.1)
-                                          : Colors.transparent,
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.all(8),
-                                          decoration: BoxDecoration(
-                                            color: isFirstItem 
-                                                ? AppColors.burntOrange.withOpacity(0.15)
-                                                : Colors.grey[100],
-                                            borderRadius: BorderRadius.circular(10),
-                                          ),
-                                          child: Icon(
-                                            Icons.search_rounded,
-                                            color: isFirstItem 
-                                                ? AppColors.burntOrange
-                                                : Colors.grey[600],
-                                            size: 18,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: Text(
-                                            service['name'],
-                                            style: GoogleFonts.outfit(
-                                              fontSize: 16,
-                                              fontWeight: isFirstItem ? FontWeight.bold : FontWeight.w600,
-                                              color: isFirstItem 
-                                                  ? AppColors.burntOrange
-                                                  : Colors.black87,
-                                            ),
-                                          ),
-                                        ),
-                                        Icon(
-                                          Icons.arrow_forward_ios_rounded,
-                                          size: 16,
-                                          color: isFirstItem 
-                                              ? AppColors.burntOrange
-                                              : Colors.grey[400],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      
-                      // No Results Found
-                      if (_isSearchActive && _searchController.text.isNotEmpty && _searchResults.isEmpty)
-                        Container(
-                          margin: const EdgeInsets.only(top: 10),
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
-                                blurRadius: 10,
-                                offset: const Offset(0, 3),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            children: [
-                              Icon(
-                                Icons.search_off,
-                                size: 48,
-                                color: Colors.grey[400],
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'No services found',
-                                style: GoogleFonts.outfit(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Try searching for "Car", "Bike", or "Emergency"',
-                                style: GoogleFonts.inter(
-                                  fontSize: 12,
-                                  color: Colors.grey[500],
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ],
-                          ),
-                        ),
                     ],
                   ),
                 ),
@@ -2035,70 +1947,20 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 // Quick Services
                 Container(
                   margin: EdgeInsets.symmetric(
-                    horizontal: screenWidth * 0.03, 
-                    vertical: screenHeight * 0.01
+                    horizontal: 4,
+                    vertical: screenHeight * 0.01,
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  AppColors.burntOrange,
-                                  AppColors.warmBrown,
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              '⚡',
-                              style: TextStyle(fontSize: 20),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Text(
-                            'Quick Services',
-                            style: GoogleFonts.outfit(
-                              fontSize: screenWidth * 0.055,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.darkChocolate,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                          const Spacer(),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  AppColors.burntOrange.withOpacity(0.15),
-                                  AppColors.warmBrown.withOpacity(0.15),
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: AppColors.burntOrange.withOpacity(0.3),
-                                width: 1.5,
-                              ),
-                            ),
-                            child: Text(
-                              '7 Services',
-                              style: GoogleFonts.inter(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.burntOrange,
-                              ),
-                            ),
-                          ),
-                        ],
+                      Text(
+                        'Quick Services',
+                        style: GoogleFonts.outfit(
+                          fontSize: screenWidth * 0.055,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.darkChocolate,
+                          letterSpacing: 0.5,
+                        ),
                       ),
                       SizedBox(height: screenHeight * 0.01),
                       Container(
@@ -2316,25 +2178,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 ),
                 // Main Services
                 Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: AppColors.burntOrange.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Icon(
-                              Icons.build,
-                              color: AppColors.burntOrange,
-                              size: 24,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
                           Expanded(
                             child: Text(
                               'Our Services',
@@ -2364,7 +2213,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
                       // Two icons: Car Services & Bike Services (tap to open full service page)
                       Row(
                         children: [
@@ -2378,7 +2227,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                               ),
                             ),
                           ),
-                          const SizedBox(width: 14),
+                          const SizedBox(width: 10),
                           Expanded(
                             child: _buildServiceCategoryCard(
                               title: 'Bike Services',

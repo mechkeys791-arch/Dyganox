@@ -6,7 +6,6 @@ const API_CONFIG = {
     endpoints: {
         mechanics: '/api/admin/mechanics',
         createMechanic: '/api/admin/mechanics/create',
-        nearestMechanicLocations: '/api/admin/nearest-mechanic-locations',
         uploadNearestMechanicMarkerIcon: '/api/upload/nearest-mechanic-marker-icon',
         uploadUserLocationMarkerIcon: '/api/upload/user-location-marker-icon',
         pendingMechanics: '/api/admin/mechanics/pending',
