@@ -5,12 +5,11 @@ import 'bike_battery_page.dart';
 import 'bike_tyre_care_page.dart';
 import 'towing_service_page.dart';
 import 'mechanics_by_service_page.dart';
-import '../vehicles/add_edit_vehicle_page.dart';
 import '../../core/theme/app_colors.dart';
-import '../../services/app_remote_service.dart';
 import '../../services/vehicle_service.dart';
 import '../../services/cognito_service.dart';
 import '../../services/api_config.dart';
+import '../../widgets/vehicle_selection_sheet.dart';
 
 class BikeServicePage extends StatefulWidget {
   const BikeServicePage({super.key});
@@ -22,9 +21,8 @@ class BikeServicePage extends StatefulWidget {
 class _BikeServicePageState extends State<BikeServicePage> with TickerProviderStateMixin {
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
-  String? _appLogoUrl;
-  String? _bikeServiceImageUrl;
   List<Map<String, dynamic>> _userBikes = [];
+  Map<String, dynamic>? _selectedBike;
   bool _loadingBikes = true;
   String _userEmail = '';
 
@@ -43,17 +41,6 @@ class _BikeServicePageState extends State<BikeServicePage> with TickerProviderSt
   @override
   void initState() {
     super.initState();
-    AppRemoteService.getAppBrandingConfig().then((m) {
-      if (mounted && m != null) {
-        final logo = (m['appLogoUrl']?.toString() ?? '').trim();
-        final bikeImg = (m['bikeServiceImageUrl']?.toString() ?? '').trim();
-        setState(() {
-          if (logo.isNotEmpty) _appLogoUrl = logo;
-          if (bikeImg.isNotEmpty) _bikeServiceImageUrl = bikeImg;
-        });
-      }
-    });
-    
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 400),
       vsync: this,
@@ -72,14 +59,20 @@ class _BikeServicePageState extends State<BikeServicePage> with TickerProviderSt
       final email = user['email']?.toString() ?? '';
       _userEmail = email;
       if (email.isEmpty) {
-        if (mounted) setState(() { _userBikes = []; _loadingBikes = false; });
+        if (mounted) setState(() { _userBikes = []; _selectedBike = null; _loadingBikes = false; });
         return;
       }
       final list = await VehicleService.getMyVehicles(email);
       final bikes = list.where((v) => (v['type'] ?? 'BIKE').toString().toUpperCase() == 'BIKE').toList();
-      if (mounted) setState(() { _userBikes = bikes; _loadingBikes = false; });
+      if (mounted) {
+        setState(() {
+          _userBikes = bikes;
+          _loadingBikes = false;
+          _selectedBike = bikes.isEmpty ? null : bikes.firstWhere((v) => v['isDefault'] == true, orElse: () => bikes.first);
+        });
+      }
     } catch (_) {
-      if (mounted) setState(() { _userBikes = []; _loadingBikes = false; });
+      if (mounted) setState(() { _userBikes = []; _selectedBike = null; _loadingBikes = false; });
     }
   }
 
@@ -134,6 +127,92 @@ class _BikeServicePageState extends State<BikeServicePage> with TickerProviderSt
     child: Icon(Icons.two_wheeler, color: AppColors.burntOrange, size: 32),
   );
 
+  void _showBikePickerSheet() {
+    if (_userEmail.isEmpty) return;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => VehicleSelectionSheet(
+        title: 'Select bike',
+        userEmail: _userEmail,
+        parentContext: context,
+        initialVehicles: _userBikes.isEmpty ? null : _userBikes,
+        onSelectVehicle: (v) {
+          Navigator.pop(ctx);
+          WidgetsBinding.instance.addPostFrameCallback((_) async {
+            if (!mounted) return;
+            setState(() => _selectedBike = v);
+            final id = v['id'];
+            if (id != null) {
+              final idInt = id is int ? id : (id as num).toInt();
+              await VehicleService.updateVehicle(idInt, isDefault: true);
+              if (mounted) _loadUserBikes();
+            }
+          });
+        },
+        onAddVehicle: () {
+          Navigator.pop(ctx);
+          showAddVehicleInBottomSheet(context, userEmail: _userEmail, initialVehicleType: 'BIKE').then((_) {
+            if (mounted) WidgetsBinding.instance.addPostFrameCallback((_) => _loadUserBikes());
+          });
+        },
+      ),
+    );
+  }
+
+  Widget _buildSelectableVehicleCard() {
+    final v = _selectedBike;
+    if (v == null) return const SizedBox.shrink();
+    final hasMultiple = _userBikes.length > 1;
+    final make = v['makeName']?.toString() ?? '';
+    final model = v['modelName']?.toString() ?? '';
+    final plate = v['plateNumber']?.toString() ?? '';
+    final name = '$make $model'.trim();
+    final display = name.isEmpty ? (plate.isNotEmpty ? plate : 'Your bike') : (plate.isNotEmpty ? '$name ($plate)' : name);
+    final imgUrl = _vehicleImageUrl(v);
+    return Material(
+      color: AppColors.creamElevated,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: _showBikePickerSheet,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.burntOrange.withOpacity(0.2)),
+          ),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: imgUrl.isNotEmpty
+                    ? Image.network(imgUrl, width: 64, height: 64, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _vehicleIconPlaceholder())
+                    : _vehicleIconPlaceholder(),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Your bike', style: GoogleFonts.outfit(fontSize: 12, color: AppColors.warmBrownMuted)),
+                    Text(display, style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.darkChocolate)),
+                  ],
+                ),
+              ),
+              if (hasMultiple) ...[
+                Text('Change', style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.burntOrange)),
+                const SizedBox(width: 4),
+                Icon(Icons.chevron_right, size: 20, color: AppColors.burntOrange),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _fadeController.dispose();
@@ -147,68 +226,77 @@ class _BikeServicePageState extends State<BikeServicePage> with TickerProviderSt
     required VoidCallback onTap,
   }) {
     return Container(
-              margin: const EdgeInsets.all(8),
-              child: Material(
-                color: Colors.white,
-                child: InkWell(
-                  onTap: () {
-                    HapticFeedback.lightImpact();
-                    onTap();
-                  },
-                  borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    width: 100,
-                    height: 130,
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      color: Colors.white,
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            color: AppColors.burntOrange.withOpacity(0.15),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Center(
-                            child: Image.asset(
-                              iconPath,
-                              width: 28,
-                              height: 28,
-                              fit: BoxFit.contain,
-                              gaplessPlayback: true,
-                              errorBuilder: (_, __, ___) => Icon(
-                                Icons.build_circle_outlined,
-                                size: 28,
-                                color: AppColors.burntOrange,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          title,
-                          style: GoogleFonts.outfit(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black87,
-                            height: 1.2,
-                          ),
-                          textAlign: TextAlign.center,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
+      margin: const EdgeInsets.all(6),
+      child: Material(
+        color: Colors.white,
+        elevation: 2,
+        shadowColor: AppColors.burntOrange.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            onTap();
+          },
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            width: 100,
+            height: 130,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.burntOrange.withOpacity(0.15), width: 1),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: AppColors.burntOrange.withOpacity(0.12),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.burntOrange.withOpacity(0.15),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Center(
+                    child: Image.asset(
+                      iconPath,
+                      width: 28,
+                      height: 28,
+                      fit: BoxFit.contain,
+                      gaplessPlayback: true,
+                      errorBuilder: (_, __, ___) => Icon(
+                        Icons.build_circle_outlined,
+                        size: 28,
+                        color: AppColors.burntOrange,
+                      ),
                     ),
                   ),
                 ),
-              ),
+                const SizedBox(height: 10),
+                Text(
+                  title,
+                  style: GoogleFonts.outfit(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.darkChocolate,
+                    height: 1.2,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
-
   }
 
   @override
@@ -281,13 +369,12 @@ class _BikeServicePageState extends State<BikeServicePage> with TickerProviderSt
                                   );
                                   return;
                                 }
-                                await Navigator.push(
+                                await showAddVehicleInBottomSheet(
                                   context,
-                                  MaterialPageRoute(
-                                    builder: (_) => AddEditVehiclePage(userEmail: _userEmail, initialVehicleType: 'BIKE'),
-                                  ),
+                                  userEmail: _userEmail,
+                                  initialVehicleType: 'BIKE',
                                 );
-                                _loadUserBikes();
+                                if (mounted) WidgetsBinding.instance.addPostFrameCallback((_) => _loadUserBikes());
                               },
                               borderRadius: BorderRadius.circular(16),
                               child: Container(
@@ -322,70 +409,50 @@ class _BikeServicePageState extends State<BikeServicePage> with TickerProviderSt
                               ),
                             ),
                           )
-                        : _buildVehicleCard(_userBikes.first),
+                        : _buildSelectableVehicleCard(),
               ),
               const SizedBox(height: 16),
-              // Header Section
-              Container(
-                margin: const EdgeInsets.all(20),
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [AppColors.burntOrange, AppColors.warmBrown],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.burntOrange.withOpacity(0.3),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
-                ),
-                child: _bikeServiceImageUrl != null && _bikeServiceImageUrl!.isNotEmpty
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(20),
-                        child: Image.network(
-                          _bikeServiceImageUrl!,
-                          width: double.infinity,
-                          height: double.infinity,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Center(
-                            child: _appLogoUrl != null && _appLogoUrl!.isNotEmpty
-                                ? Image.network(_appLogoUrl!, height: 64, fit: BoxFit.contain, errorBuilder: (_, __, ___) => Icon(Icons.two_wheeler, size: 48, color: Colors.white))
-                                : Icon(Icons.two_wheeler, size: 48, color: Colors.white),
-                          ),
-                        ),
-                      )
-                    : Center(
-                        child: _appLogoUrl != null && _appLogoUrl!.isNotEmpty
-                            ? Image.network(
-                                _appLogoUrl!,
-                                height: 64,
-                                fit: BoxFit.contain,
-                                errorBuilder: (_, __, ___) => Icon(Icons.two_wheeler, size: 48, color: Colors.white),
-                              )
-                            : Icon(Icons.two_wheeler, size: 48, color: Colors.white),
-                      ),
-              ),
 
               // Services Grid
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.06),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Available Services',
-                      style: GoogleFonts.outfit(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppColors.burntOrange.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(Icons.grid_view_rounded, color: AppColors.burntOrange, size: 22),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Available Services',
+                          style: GoogleFonts.outfit(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.darkChocolate,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 20),
                     GridView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),

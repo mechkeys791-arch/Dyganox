@@ -179,6 +179,9 @@ function switchSection(section) {
         case 'banners':
             loadBanners();
             break;
+        case 'service-ads':
+            loadServiceAdsAdmin();
+            break;
         case 'vehicle-catalog':
             loadVehicleCatalog();
             break;
@@ -2842,12 +2845,64 @@ async function loadAppBranding() {
             if (welcomePageTypeEl) welcomePageTypeEl.value = (d.welcomePageMediaType || 'gif') === 'video' ? 'video' : 'gif';
             const welcomePageGifUrlEl = document.getElementById('app-branding-welcome-page-gif-url');
             if (welcomePageGifUrlEl) welcomePageGifUrlEl.value = d.welcomePageGifUrl || '';
-            const problemIconsEl = document.getElementById('app-branding-problem-category-icons-json');
-            if (problemIconsEl) problemIconsEl.value = d.problemCategoryIconsJson || '';
+            const shopM = document.getElementById('app-branding-mechanic-shop-marker-url');
+            const drvM = document.getElementById('app-branding-mechanic-driving-marker-url');
+            if (shopM) shopM.value = d.mechanicShopMarkerIconUrl || '';
+            if (drvM) drvM.value = d.mechanicDrivingMarkerIconUrl || '';
             if (statusEl) statusEl.textContent = '';
         }
     } catch (e) {
         if (statusEl) statusEl.textContent = 'Failed to load: ' + (e.message || e);
+    }
+}
+
+async function uploadMechanicShopMarkerIcon() {
+    const fileInput = document.getElementById('app-branding-mechanic-shop-marker-file');
+    const urlEl = document.getElementById('app-branding-mechanic-shop-marker-url');
+    const statusEl = document.getElementById('app-branding-mechanic-shop-marker-status');
+    if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+        if (statusEl) statusEl.textContent = 'Select an image first.';
+        return;
+    }
+    if (statusEl) statusEl.textContent = 'Uploading...';
+    try {
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+        const r = await fetch(getApiUrl(API_CONFIG.endpoints.uploadMechanicShopMarkerIcon), { method: 'POST', body: formData });
+        const data = await r.json().catch(() => ({}));
+        if (r.ok && data.url) {
+            if (urlEl) urlEl.value = data.url;
+            if (statusEl) statusEl.textContent = 'Uploaded. Click Save.';
+        } else {
+            if (statusEl) statusEl.textContent = data.error || 'Upload failed';
+        }
+    } catch (e) {
+        if (statusEl) statusEl.textContent = 'Error: ' + (e.message || e);
+    }
+}
+
+async function uploadMechanicDrivingMarkerIcon() {
+    const fileInput = document.getElementById('app-branding-mechanic-driving-marker-file');
+    const urlEl = document.getElementById('app-branding-mechanic-driving-marker-url');
+    const statusEl = document.getElementById('app-branding-mechanic-driving-marker-status');
+    if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+        if (statusEl) statusEl.textContent = 'Select an image first.';
+        return;
+    }
+    if (statusEl) statusEl.textContent = 'Uploading...';
+    try {
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+        const r = await fetch(getApiUrl(API_CONFIG.endpoints.uploadMechanicDrivingMarkerIcon), { method: 'POST', body: formData });
+        const data = await r.json().catch(() => ({}));
+        if (r.ok && data.url) {
+            if (urlEl) urlEl.value = data.url;
+            if (statusEl) statusEl.textContent = 'Uploaded. Click Save.';
+        } else {
+            if (statusEl) statusEl.textContent = data.error || 'Upload failed';
+        }
+    } catch (e) {
+        if (statusEl) statusEl.textContent = 'Error: ' + (e.message || e);
     }
 }
 
@@ -2957,8 +3012,10 @@ async function saveAppBranding() {
     const welcomePageMediaUrl = welcomePageUrlEl ? welcomePageUrlEl.value.trim() : '';
     const welcomePageMediaType = welcomePageTypeEl ? welcomePageTypeEl.value : 'gif';
     const welcomePageGifUrl = welcomePageGifUrlEl ? welcomePageGifUrlEl.value.trim() : '';
-    const problemIconsEl = document.getElementById('app-branding-problem-category-icons-json');
-    const problemCategoryIconsJson = problemIconsEl ? problemIconsEl.value.trim() : '';
+    const shopMarkerEl = document.getElementById('app-branding-mechanic-shop-marker-url');
+    const drvMarkerEl = document.getElementById('app-branding-mechanic-driving-marker-url');
+    const mechanicShopMarkerIconUrl = shopMarkerEl ? shopMarkerEl.value.trim() : '';
+    const mechanicDrivingMarkerIconUrl = drvMarkerEl ? drvMarkerEl.value.trim() : '';
     try {
         const r = await fetch(getApiUrl(API_CONFIG.endpoints.appBranding), {
             method: 'PUT',
@@ -2971,7 +3028,8 @@ async function saveAppBranding() {
                 welcomePageMediaUrl: welcomePageMediaUrl || null,
                 welcomePageMediaType: welcomePageMediaType || 'gif',
                 welcomePageGifUrl: welcomePageGifUrl || null,
-                problemCategoryIconsJson: problemCategoryIconsJson || null
+                mechanicShopMarkerIconUrl: mechanicShopMarkerIconUrl || null,
+                mechanicDrivingMarkerIconUrl: mechanicDrivingMarkerIconUrl || null
             })
         });
         if (r.ok) {
@@ -2989,6 +3047,65 @@ async function saveAppBranding() {
 }
 
 // ========== CAR / BIKE & QUICK SERVICE ICONS ==========
+function fillProblemCategoryIconsFromBranding(d) {
+    const json = d.problemCategoryIconsJson;
+    if (!json || !String(json).trim()) return;
+    try {
+        const o = JSON.parse(json);
+        const setUrl = (prefix, id, val) => {
+            const el = document.getElementById('pc-url-' + prefix + '-' + id);
+            if (el) el.value = val || '';
+        };
+        if (o.car && o.bike && typeof o.car === 'object' && typeof o.bike === 'object') {
+            Object.keys(o.car).forEach((k) => setUrl('car', k, o.car[k]));
+            Object.keys(o.bike).forEach((k) => setUrl('bike', k, o.bike[k]));
+        } else {
+            Object.keys(o).forEach((k) => {
+                setUrl('car', k, o[k]);
+                setUrl('bike', k, o[k]);
+            });
+        }
+    } catch (e) { console.warn('problemCategoryIconsJson', e); }
+}
+
+function collectProblemCategoryIconsJson() {
+    const ids = ['tyre_puncture', 'battery_jump', 'ev_vehicle_charge', 'engine_repair', 'brake_issue', 'electrical', 'ac_issue', 'general_checkup'];
+    const car = {};
+    const bike = {};
+    ids.forEach((id) => {
+        const carEl = document.getElementById('pc-url-car-' + id);
+        const bikeEl = document.getElementById('pc-url-bike-' + id);
+        if (carEl && carEl.value.trim()) car[id] = carEl.value.trim();
+        if (bikeEl && bikeEl.value.trim()) bike[id] = bikeEl.value.trim();
+    });
+    return JSON.stringify({ car, bike });
+}
+
+async function uploadProblemCategoryIcon(problemId, vehicleType) {
+    const fileInput = document.getElementById('pc-file-' + vehicleType + '-' + problemId);
+    const urlEl = document.getElementById('pc-url-' + vehicleType + '-' + problemId);
+    if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+        alert('Select an image file first.');
+        return;
+    }
+    try {
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+        formData.append('problemId', problemId);
+        formData.append('vehicleType', vehicleType);
+        const r = await fetch(getApiUrl(API_CONFIG.endpoints.uploadProblemCategoryIcon), { method: 'POST', body: formData });
+        const data = await r.json().catch(() => ({}));
+        if (r.ok && data.url) {
+            if (urlEl) urlEl.value = data.url;
+            await saveCarBikeQuickIcons();
+        } else {
+            alert(data.error || 'Upload failed');
+        }
+    } catch (e) {
+        alert('Error: ' + (e.message || e));
+    }
+}
+
 async function loadCarBikeQuickIcons() {
     try {
         const r = await fetch(getApiUrl(API_CONFIG.endpoints.appBranding));
@@ -3004,6 +3121,9 @@ async function loadCarBikeQuickIcons() {
         set('qs-tyre-care-url', d.quickServiceTyreCareIconUrl);
         set('qs-minor-repair-url', d.quickServiceMinorRepairIconUrl);
         set('qs-battery-jump-url', d.quickServiceBatteryJumpIconUrl);
+        fillProblemCategoryIconsFromBranding(d);
+        const nsEl = document.getElementById('night-service-icons-json');
+        if (nsEl) nsEl.value = d.nightServiceIconsJson && String(d.nightServiceIconsJson).trim() ? d.nightServiceIconsJson : '';
     } catch (e) {}
 }
 
@@ -3107,8 +3227,24 @@ async function saveCarBikeQuickIcons() {
             quickServiceEvChargingIconUrl: get('qs-ev-charging-url') || null,
             quickServiceTyreCareIconUrl: get('qs-tyre-care-url') || null,
             quickServiceMinorRepairIconUrl: get('qs-minor-repair-url') || null,
-            quickServiceBatteryJumpIconUrl: get('qs-battery-jump-url') || null
+            quickServiceBatteryJumpIconUrl: get('qs-battery-jump-url') || null,
+            problemCategoryIconsJson: collectProblemCategoryIconsJson(),
+            nightServiceIconsJson: (function () {
+                const el = document.getElementById('night-service-icons-json');
+                const raw = el ? el.value.trim() : '';
+                if (!raw) return '{}';
+                try {
+                    JSON.parse(raw);
+                    return raw;
+                } catch (e) {
+                    return '__INVALID__';
+                }
+            })()
         };
+        if (body.nightServiceIconsJson === '__INVALID__') {
+            if (statusEl) statusEl.textContent = 'Invalid JSON in Night service icons';
+            return;
+        }
         const r = await fetch(getApiUrl(API_CONFIG.endpoints.appBranding), {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
@@ -3714,4 +3850,132 @@ async function sendHelpReply() {
     } catch (e) {
         showError('Error sending reply.');
     }
+}
+
+// ========== SERVICE STRIP ADS (Night Service) ==========
+function escapeHtmlServiceAd(s) {
+    if (!s) return '';
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+async function uploadServiceAdMediaAdmin() {
+    const fileInput = document.getElementById('service-ad-file');
+    const urlEl = document.getElementById('service-ad-media-url');
+    const statusEl = document.getElementById('service-ad-upload-status');
+    if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+        if (statusEl) statusEl.textContent = 'Select a file first.';
+        return;
+    }
+    if (statusEl) statusEl.textContent = 'Uploading...';
+    try {
+        const fd = new FormData();
+        fd.append('file', fileInput.files[0]);
+        const r = await fetch(getApiUrl(API_CONFIG.endpoints.uploadServiceAdMedia), { method: 'POST', body: fd });
+        const data = await r.json().catch(() => ({}));
+        if (r.ok && data.url) {
+            if (urlEl) urlEl.value = data.url;
+            const typeEl = document.getElementById('service-ad-media-type');
+            if (typeEl) typeEl.value = 'IMAGE';
+            if (statusEl) statusEl.textContent = 'Uploaded.';
+        } else {
+            if (statusEl) statusEl.textContent = data.error || 'Failed';
+        }
+    } catch (e) {
+        if (statusEl) statusEl.textContent = 'Error';
+    }
+}
+
+async function resolveServiceAdPlace() {
+    const q = (document.getElementById('service-ad-place-query').value || '').trim();
+    const statusEl = document.getElementById('service-ad-geocode-status');
+    const latEl = document.getElementById('service-ad-lat');
+    const lngEl = document.getElementById('service-ad-lng');
+    if (!q) {
+        if (statusEl) statusEl.textContent = 'Enter a place name.';
+        return;
+    }
+    if (statusEl) statusEl.textContent = 'Looking up…';
+    try {
+        const r = await fetch(getApiUrl(API_CONFIG.endpoints.geocode) + '?q=' + encodeURIComponent(q));
+        const data = await r.json().catch(() => ({}));
+        if (r.ok && data.latitude && data.longitude) {
+            if (latEl) latEl.value = data.latitude;
+            if (lngEl) lngEl.value = data.longitude;
+            if (statusEl) statusEl.textContent = data.displayName ? String(data.displayName).slice(0, 80) + (String(data.displayName).length > 80 ? '…' : '') : 'OK';
+        } else {
+            if (statusEl) statusEl.textContent = data.error || 'Not found';
+        }
+    } catch (e) {
+        if (statusEl) statusEl.textContent = 'Error';
+    }
+}
+
+async function createServiceAdPlatform() {
+    const statusEl = document.getElementById('service-ad-save-status');
+    const body = {
+        placement: (document.getElementById('service-ad-placement') && document.getElementById('service-ad-placement').value) ? document.getElementById('service-ad-placement').value.trim() : 'NIGHT_SERVICE',
+        mediaUrl: document.getElementById('service-ad-media-url').value.trim(),
+        mediaType: 'IMAGE',
+        title: document.getElementById('service-ad-title').value.trim() || null,
+        subtitle: document.getElementById('service-ad-subtitle').value.trim() || null,
+        latitude: document.getElementById('service-ad-lat').value.trim() || null,
+        longitude: document.getElementById('service-ad-lng').value.trim() || null,
+        radiusKm: parseFloat(document.getElementById('service-ad-radius').value) || 25,
+        sortOrder: parseInt(document.getElementById('service-ad-sort').value, 10) || 0,
+        active: true
+    };
+    if (!body.mediaUrl) {
+        if (statusEl) statusEl.textContent = 'Media URL required';
+        return;
+    }
+    try {
+        const r = await fetch(getApiUrl(API_CONFIG.endpoints.serviceAds), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        if (r.ok) {
+            if (statusEl) statusEl.textContent = 'Saved.';
+            loadServiceAdsAdmin();
+        } else {
+            const err = await r.json().catch(() => ({}));
+            if (statusEl) statusEl.textContent = err.error || 'Save failed';
+        }
+    } catch (e) {
+        if (statusEl) statusEl.textContent = 'Error';
+    }
+}
+
+async function loadServiceAdsAdmin() {
+    const el = document.getElementById('service-ads-list');
+    if (!el) return;
+    el.innerHTML = 'Loading…';
+    try {
+        const r = await fetch(getApiUrl(API_CONFIG.endpoints.serviceAds));
+        if (!r.ok) {
+            el.innerHTML = 'Failed to load';
+            return;
+        }
+        const list = await r.json();
+        if (!Array.isArray(list) || list.length === 0) {
+            el.innerHTML = '<p class="muted">No ads yet.</p>';
+            return;
+        }
+        el.innerHTML = '<table class="data-table"><thead><tr><th>ID</th><th>Source</th><th>Title</th><th>Media</th><th>Active</th><th></th></tr></thead><tbody>' +
+            list.map(function (a) {
+                return '<tr><td>' + a.id + '</td><td>' + (a.source || '') + '</td><td>' + escapeHtmlServiceAd(a.title || '') + '</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;">' + escapeHtmlServiceAd(a.mediaUrl || '') + '</td><td>' + (a.active ? 'Yes' : 'No') + '</td><td>' +
+                    (a.source === 'PLATFORM' ? '<button type="button" class="btn-action btn-reject" onclick="deleteServiceAd(' + a.id + ')">Delete</button>' : '<span class="muted">Mechanic</span>') +
+                    '</td></tr>';
+            }).join('') + '</tbody></table>';
+    } catch (e) {
+        el.innerHTML = 'Error';
+    }
+}
+
+async function deleteServiceAd(id) {
+    if (!confirm('Delete this platform ad?')) return;
+    try {
+        const r = await fetch(getApiUrl(API_CONFIG.endpoints.serviceAds) + '/' + id, { method: 'DELETE' });
+        if (r.ok) loadServiceAdsAdmin();
+    } catch (e) {}
 }

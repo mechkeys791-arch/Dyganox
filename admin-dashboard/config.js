@@ -1,4 +1,4 @@
-// API Configuration
+    // API Configuration
 const API_CONFIG = {
     // Update this with your backend URL
     baseUrl: 'http://34.228.113.212:8081', // Change to your EC2 IP or localhost:8081 for local
@@ -8,6 +8,8 @@ const API_CONFIG = {
         createMechanic: '/api/admin/mechanics/create',
         uploadNearestMechanicMarkerIcon: '/api/upload/nearest-mechanic-marker-icon',
         uploadUserLocationMarkerIcon: '/api/upload/user-location-marker-icon',
+        uploadMechanicShopMarkerIcon: '/api/upload/mechanic-shop-marker-icon',
+        uploadMechanicDrivingMarkerIcon: '/api/upload/mechanic-driving-marker-icon',
         pendingMechanics: '/api/admin/mechanics/pending',
         approveMechanic: '/api/admin/mechanics',
         rejectMechanic: '/api/admin/mechanics',
@@ -22,6 +24,7 @@ const API_CONFIG = {
         registrationRequests: '/api/mechanic/registration-requests',
         banners: '/api/admin/banners',
         uploadBanner: '/api/upload/banner',
+        
         poster: '/api/admin/poster',
         appVersion: '/api/admin/app-version',
         authVideo: '/api/admin/auth-video',
@@ -34,7 +37,11 @@ const API_CONFIG = {
         uploadWelcomePageMedia: '/api/upload/welcome-page-media',
         uploadCarServiceImage: '/api/upload/car-service-image',
         uploadBikeServiceImage: '/api/upload/bike-service-image',
-        uploadQuickServiceIcon: '/api/upload/quick-service-icon'
+        uploadQuickServiceIcon: '/api/upload/quick-service-icon',
+        uploadProblemCategoryIcon: '/api/upload/problem-category-icon',
+        serviceAds: '/api/admin/service-ads',
+        uploadServiceAdMedia: '/api/upload/service-ad-media',
+        geocode: '/api/admin/geocode'
     }
 };
 

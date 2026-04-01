@@ -96,6 +96,17 @@ public class S3Service {
         return publicUrl(key);
     }
 
+    /** Upload mechanic request damage photo (from Book Mechanic flow). Returns public URL. */
+    public String uploadRequestDamagePhoto(String userEmail, MultipartFile file) throws IOException {
+        if (s3Client == null) {
+            throw new IllegalStateException("S3 is not configured.");
+        }
+        String ext = getExtension(file.getOriginalFilename(), "jpg");
+        String key = String.format("request-damage/%s/%s.%s", sanitize(userEmail), UUID.randomUUID(), ext);
+        upload(key, file.getContentType() != null ? file.getContentType() : "image/jpeg", file.getBytes());
+        return publicUrl(key);
+    }
+
     /** Upload section poster image (e.g. below-services banner). Returns public URL. */
     public String uploadSectionPoster(String sectionKey, MultipartFile file) throws IOException {
         if (s3Client == null) {
@@ -256,6 +267,30 @@ public class S3Service {
         return publicUrl(key);
     }
 
+    /** Book mechanic map: mechanic at shop (before live GPS). */
+    public String uploadMechanicShopMarkerIcon(MultipartFile file) throws IOException {
+        if (s3Client == null) throw new IllegalStateException("S3 is not configured.");
+        String ext = getExtension(file.getOriginalFilename(), "png");
+        if (!"png".equalsIgnoreCase(ext) && !"jpg".equalsIgnoreCase(ext) && !"jpeg".equalsIgnoreCase(ext) && !"webp".equalsIgnoreCase(ext)) {
+            throw new IllegalArgumentException("Marker icon should be PNG, JPG, or WebP.");
+        }
+        String key = String.format("app-branding/book-mechanic-shop-marker/%s.%s", UUID.randomUUID(), ext);
+        upload(key, file.getContentType() != null ? file.getContentType() : "image/png", file.getBytes());
+        return publicUrl(key);
+    }
+
+    /** Book mechanic map: mechanic driving (live GPS). */
+    public String uploadMechanicDrivingMarkerIcon(MultipartFile file) throws IOException {
+        if (s3Client == null) throw new IllegalStateException("S3 is not configured.");
+        String ext = getExtension(file.getOriginalFilename(), "png");
+        if (!"png".equalsIgnoreCase(ext) && !"jpg".equalsIgnoreCase(ext) && !"jpeg".equalsIgnoreCase(ext) && !"webp".equalsIgnoreCase(ext)) {
+            throw new IllegalArgumentException("Marker icon should be PNG, JPG, or WebP.");
+        }
+        String key = String.format("app-branding/book-mechanic-driving-marker/%s.%s", UUID.randomUUID(), ext);
+        upload(key, file.getContentType() != null ? file.getContentType() : "image/png", file.getBytes());
+        return publicUrl(key);
+    }
+
     /** Upload Car Services page header image. */
     public String uploadCarServiceImage(MultipartFile file) throws IOException {
         if (s3Client == null) throw new IllegalStateException("S3 is not configured.");
@@ -299,16 +334,34 @@ public class S3Service {
         return publicUrl(key);
     }
 
-    /** Upload problem category icon for Book Mechanic (e.g. tyre_puncture, battery_jump). Returns S3 URL; admin saves in app-branding problemCategoryIconsJson. */
-    public String uploadProblemCategoryIcon(String problemId, MultipartFile file) throws IOException {
+    /** Upload problem category icon for Book Mechanic (e.g. tyre_puncture, battery_jump). vehicleType: car or bike (folder). */
+    public String uploadProblemCategoryIcon(String problemId, String vehicleType, MultipartFile file) throws IOException {
         if (s3Client == null) throw new IllegalStateException("S3 is not configured.");
         String ext = getExtension(file.getOriginalFilename(), "png");
         if (!"png".equalsIgnoreCase(ext) && !"jpg".equalsIgnoreCase(ext) && !"jpeg".equalsIgnoreCase(ext) && !"webp".equalsIgnoreCase(ext)) {
             throw new IllegalArgumentException("Icon should be PNG, JPG, or WebP.");
         }
         String safe = problemId != null ? problemId.replaceAll("[^a-zA-Z0-9_-]", "_") : "problem";
-        String key = String.format("app-branding/problem-category/%s/%s.%s", safe, UUID.randomUUID(), ext);
+        String vt = vehicleType != null ? vehicleType.trim().toLowerCase() : "car";
+        if (!"bike".equals(vt)) vt = "car";
+        String key = String.format("app-branding/problem-category/%s/%s/%s.%s", vt, safe, UUID.randomUUID(), ext);
         upload(key, file.getContentType() != null ? file.getContentType() : "image/png", file.getBytes());
+        return publicUrl(key);
+    }
+
+    /** Image or short video for Night Service / service strip ads. */
+    public String uploadServiceAdMedia(MultipartFile file) throws IOException {
+        if (s3Client == null) {
+            throw new IllegalStateException("S3 is not configured.");
+        }
+        String ext = getExtension(file.getOriginalFilename(), "jpg");
+        if (!"png".equalsIgnoreCase(ext) && !"jpg".equalsIgnoreCase(ext) && !"jpeg".equalsIgnoreCase(ext)
+                && !"webp".equalsIgnoreCase(ext) && !"mp4".equalsIgnoreCase(ext) && !"mov".equalsIgnoreCase(ext)) {
+            throw new IllegalArgumentException("Use PNG, JPG, WebP, MP4, or MOV.");
+        }
+        String key = String.format("service-ads/%s.%s", UUID.randomUUID(), ext);
+        String ct = file.getContentType() != null ? file.getContentType() : "application/octet-stream";
+        upload(key, ct, file.getBytes());
         return publicUrl(key);
     }
 

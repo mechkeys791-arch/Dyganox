@@ -5,12 +5,11 @@ import 'towing_service_page.dart';
 import 'battery_jump_page.dart';
 import 'tyre_care_page.dart';
 import 'mechanics_by_service_page.dart';
-import '../vehicles/add_edit_vehicle_page.dart';
 import '../../core/theme/app_colors.dart';
-import '../../services/app_remote_service.dart';
 import '../../services/vehicle_service.dart';
 import '../../services/cognito_service.dart';
 import '../../services/api_config.dart';
+import '../../widgets/vehicle_selection_sheet.dart';
 
 class CarServicePage extends StatefulWidget {
   const CarServicePage({super.key});
@@ -22,9 +21,8 @@ class CarServicePage extends StatefulWidget {
 class _CarServicePageState extends State<CarServicePage> with TickerProviderStateMixin {
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
-  String? _appLogoUrl;
-  String? _carServiceImageUrl;
   List<Map<String, dynamic>> _userCars = [];
+  Map<String, dynamic>? _selectedCar;
   bool _loadingCars = true;
   String _userEmail = '';
 
@@ -45,17 +43,6 @@ class _CarServicePageState extends State<CarServicePage> with TickerProviderStat
   @override
   void initState() {
     super.initState();
-    AppRemoteService.getAppBrandingConfig().then((m) {
-      if (mounted && m != null) {
-        final logo = (m['appLogoUrl']?.toString() ?? '').trim();
-        final carImg = (m['carServiceImageUrl']?.toString() ?? '').trim();
-        setState(() {
-          if (logo.isNotEmpty) _appLogoUrl = logo;
-          if (carImg.isNotEmpty) _carServiceImageUrl = carImg;
-        });
-      }
-    });
-    
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 400),
       vsync: this,
@@ -74,14 +61,20 @@ class _CarServicePageState extends State<CarServicePage> with TickerProviderStat
       final email = user['email']?.toString() ?? '';
       _userEmail = email;
       if (email.isEmpty) {
-        if (mounted) setState(() { _userCars = []; _loadingCars = false; });
+        if (mounted) setState(() { _userCars = []; _selectedCar = null; _loadingCars = false; });
         return;
       }
       final list = await VehicleService.getMyVehicles(email);
       final cars = list.where((v) => (v['type'] ?? 'CAR').toString().toUpperCase() == 'CAR').toList();
-      if (mounted) setState(() { _userCars = cars; _loadingCars = false; });
+      if (mounted) {
+        setState(() {
+          _userCars = cars;
+          _loadingCars = false;
+          _selectedCar = cars.isEmpty ? null : cars.firstWhere((v) => v['isDefault'] == true, orElse: () => cars.first);
+        });
+      }
     } catch (_) {
-      if (mounted) setState(() { _userCars = []; _loadingCars = false; });
+      if (mounted) setState(() { _userCars = []; _selectedCar = null; _loadingCars = false; });
     }
   }
 
@@ -129,6 +122,93 @@ class _CarServicePageState extends State<CarServicePage> with TickerProviderStat
     );
   }
 
+  void _showCarPickerSheet() {
+    if (_userEmail.isEmpty) return;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      useSafeArea: false,
+      builder: (ctx) => VehicleSelectionSheet(
+        title: 'Select car',
+        userEmail: _userEmail,
+        parentContext: context,
+        initialVehicles: _userCars.isEmpty ? null : _userCars,
+        onSelectVehicle: (v) {
+          Navigator.pop(ctx);
+          WidgetsBinding.instance.addPostFrameCallback((_) async {
+            if (!mounted) return;
+            setState(() => _selectedCar = v);
+            final id = v['id'];
+            if (id != null) {
+              final idInt = id is int ? id : (id as num).toInt();
+              await VehicleService.updateVehicle(idInt, isDefault: true);
+              if (mounted) _loadUserCars();
+            }
+          });
+        },
+        onAddVehicle: () {
+          Navigator.pop(ctx);
+          showAddVehicleInBottomSheet(context, userEmail: _userEmail, initialVehicleType: 'CAR').then((_) {
+            if (mounted) WidgetsBinding.instance.addPostFrameCallback((_) => _loadUserCars());
+          });
+        },
+      ),
+    );
+  }
+
+  Widget _buildSelectableVehicleCard() {
+    final v = _selectedCar;
+    if (v == null) return const SizedBox.shrink();
+    final hasMultiple = _userCars.length > 1;
+    final make = v['makeName']?.toString() ?? '';
+    final model = v['modelName']?.toString() ?? '';
+    final plate = v['plateNumber']?.toString() ?? '';
+    final name = '$make $model'.trim();
+    final display = name.isEmpty ? (plate.isNotEmpty ? plate : 'Your car') : (plate.isNotEmpty ? '$name ($plate)' : name);
+    final imgUrl = _vehicleImageUrl(v);
+    return Material(
+      color: AppColors.creamElevated,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: _showCarPickerSheet,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.burntOrange.withOpacity(0.2)),
+          ),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: imgUrl.isNotEmpty
+                    ? Image.network(imgUrl, width: 64, height: 64, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _vehicleIconPlaceholder())
+                    : _vehicleIconPlaceholder(),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Your car', style: GoogleFonts.outfit(fontSize: 12, color: AppColors.warmBrownMuted)),
+                    Text(display, style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.darkChocolate)),
+                  ],
+                ),
+              ),
+              if (hasMultiple) ...[
+                Text('Change', style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.burntOrange)),
+                const SizedBox(width: 4),
+                Icon(Icons.chevron_right, size: 20, color: AppColors.burntOrange),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _vehicleIconPlaceholder() => Container(
     width: 64,
     height: 64,
@@ -149,66 +229,76 @@ class _CarServicePageState extends State<CarServicePage> with TickerProviderStat
     required VoidCallback onTap,
   }) {
     return Container(
-              margin: const EdgeInsets.all(8),
-              child: Material(
-                color: AppColors.creamElevated,
-                child: InkWell(
-                  onTap: () {
-                    HapticFeedback.lightImpact();
-                    onTap();
-                  },
-                  borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    width: 100,
-                    height: 130,
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      color: AppColors.creamElevated,
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            color: AppColors.burntOrange.withOpacity(0.15),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Center(
-                            child: Image.asset(
-                              iconPath,
-                              width: 28,
-                              height: 28,
-                              fit: BoxFit.contain,
-                              gaplessPlayback: true,
-                              errorBuilder: (_, __, ___) => Icon(
-                                Icons.build_circle_outlined,
-                                size: 28,
-                                color: AppColors.burntOrange,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          title,
-                          style: GoogleFonts.outfit(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black87,
-                            height: 1.2,
-                          ),
-                          textAlign: TextAlign.center,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
+      margin: const EdgeInsets.all(6),
+      child: Material(
+        color: Colors.white,
+        elevation: 2,
+        shadowColor: AppColors.burntOrange.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            onTap();
+          },
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            width: 100,
+            height: 130,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.burntOrange.withOpacity(0.15), width: 1),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: AppColors.burntOrange.withOpacity(0.12),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.burntOrange.withOpacity(0.15),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Center(
+                    child: Image.asset(
+                      iconPath,
+                      width: 28,
+                      height: 28,
+                      fit: BoxFit.contain,
+                      gaplessPlayback: true,
+                      errorBuilder: (_, __, ___) => Icon(
+                        Icons.build_circle_outlined,
+                        size: 28,
+                        color: AppColors.burntOrange,
+                      ),
                     ),
                   ),
                 ),
-              ),
+                const SizedBox(height: 10),
+                Text(
+                  title,
+                  style: GoogleFonts.outfit(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.darkChocolate,
+                    height: 1.2,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -282,13 +372,12 @@ class _CarServicePageState extends State<CarServicePage> with TickerProviderStat
                                   );
                                   return;
                                 }
-                                await Navigator.push(
+                                await showAddVehicleInBottomSheet(
                                   context,
-                                  MaterialPageRoute(
-                                    builder: (_) => AddEditVehiclePage(userEmail: _userEmail, initialVehicleType: 'CAR'),
-                                  ),
+                                  userEmail: _userEmail,
+                                  initialVehicleType: 'CAR',
                                 );
-                                _loadUserCars();
+                                if (mounted) WidgetsBinding.instance.addPostFrameCallback((_) => _loadUserCars());
                               },
                               borderRadius: BorderRadius.circular(16),
                               child: Container(
@@ -323,70 +412,50 @@ class _CarServicePageState extends State<CarServicePage> with TickerProviderStat
                               ),
                             ),
                           )
-                        : _buildVehicleCard(_userCars.first),
+                        : _buildSelectableVehicleCard(),
               ),
               const SizedBox(height: 16),
-              // Header Section
-              Container(
-                margin: const EdgeInsets.all(20),
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [AppColors.burntOrange, AppColors.warmBrown],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.burntOrange.withOpacity(0.3),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
-                ),
-                child: _carServiceImageUrl != null && _carServiceImageUrl!.isNotEmpty
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(20),
-                        child: Image.network(
-                          _carServiceImageUrl!,
-                          width: double.infinity,
-                          height: double.infinity,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Center(
-                            child: _appLogoUrl != null && _appLogoUrl!.isNotEmpty
-                                ? Image.network(_appLogoUrl!, height: 64, fit: BoxFit.contain, errorBuilder: (_, __, ___) => Icon(Icons.directions_car, size: 48, color: AppColors.creamElevated))
-                                : Icon(Icons.directions_car, size: 48, color: AppColors.creamElevated),
-                          ),
-                        ),
-                      )
-                    : Center(
-                        child: _appLogoUrl != null && _appLogoUrl!.isNotEmpty
-                            ? Image.network(
-                                _appLogoUrl!,
-                                height: 64,
-                                fit: BoxFit.contain,
-                                errorBuilder: (_, __, ___) => Icon(Icons.directions_car, size: 48, color: AppColors.creamElevated),
-                              )
-                            : Icon(Icons.directions_car, size: 48, color: AppColors.creamElevated),
-                      ),
-              ),
 
               // Services Grid
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.06),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Available Services',
-                      style: GoogleFonts.outfit(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppColors.burntOrange.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(Icons.grid_view_rounded, color: AppColors.burntOrange, size: 22),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Available Services',
+                          style: GoogleFonts.outfit(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.darkChocolate,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 20),
                     GridView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
@@ -465,7 +534,7 @@ class _CarServicePageState extends State<CarServicePage> with TickerProviderStat
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
             ],
           ),
         ),

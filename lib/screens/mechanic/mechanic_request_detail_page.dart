@@ -6,6 +6,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 import '../../services/api_config.dart';
+import 'full_screen_media_viewer_page.dart';
 import 'mechanic_service_dashboard.dart';
 
 /// Full-screen request details shown after mechanic accepts from notification.
@@ -125,6 +126,33 @@ class _MechanicRequestDetailPageState extends State<MechanicRequestDetailPage> {
     return null;
   }
 
+  bool get _hasDamagePhotos {
+    final raw = _request?['photoUrls'];
+    if (raw == null) return false;
+    if (raw is List) return raw.isNotEmpty;
+    if (raw is String && raw.isNotEmpty) {
+      try {
+        final list = jsonDecode(raw) as List?;
+        return list != null && list.isNotEmpty;
+      } catch (_) {}
+    }
+    return false;
+  }
+
+  List<String> get _damagePhotoUrls {
+    final raw = _request?['photoUrls'];
+    if (raw == null) return [];
+    if (raw is List) return raw.map((e) => e?.toString() ?? '').where((s) => s.isNotEmpty).toList();
+    if (raw is String && raw.isNotEmpty) {
+      try {
+        final list = jsonDecode(raw) as List?;
+        if (list == null) return [];
+        return list.map((e) => e?.toString() ?? '').where((s) => s.isNotEmpty).toList();
+      } catch (_) {}
+    }
+    return [];
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -184,6 +212,10 @@ class _MechanicRequestDetailPageState extends State<MechanicRequestDetailPage> {
                                       (_request!['description'] as String).isNotEmpty) ...[
                                     const SizedBox(height: 12),
                                     _buildDescriptionCard(),
+                                  ],
+                                  if (_hasDamagePhotos) ...[
+                                    const SizedBox(height: 12),
+                                    _buildDamagePhotosCard(),
                                   ],
                                   const SizedBox(height: 20),
                                   _buildActionButtons(),
@@ -256,14 +288,14 @@ class _MechanicRequestDetailPageState extends State<MechanicRequestDetailPage> {
     }
 
     final initialCamera = CameraPosition(target: pos, zoom: 14.5);
-    final markers = {
+    final markers = <Marker>{
       Marker(
         markerId: const MarkerId('customer'),
         position: pos,
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
         infoWindow: InfoWindow(
-          title: _request!['customerName']?.toString() ?? 'Customer',
-          snippet: _request!['serviceType']?.toString() ?? 'Service',
+          title: 'Customer',
+          snippet: _request!['customerName']?.toString() ?? 'User location',
         ),
       ),
     };
@@ -272,7 +304,7 @@ class _MechanicRequestDetailPageState extends State<MechanicRequestDetailPage> {
         markerId: const MarkerId('me'),
         position: LatLng(_myPosition!.latitude, _myPosition!.longitude),
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
-        infoWindow: const InfoWindow(title: 'You', snippet: 'Your location'),
+        infoWindow: const InfoWindow(title: 'Mechanic', snippet: 'Your location'),
       ));
     }
 
@@ -295,7 +327,7 @@ class _MechanicRequestDetailPageState extends State<MechanicRequestDetailPage> {
         markers: markers,
         onMapCreated: (c) => _mapController = c,
         mapType: MapType.normal,
-        myLocationEnabled: true,
+        myLocationEnabled: false,
         myLocationButtonEnabled: true,
         zoomControlsEnabled: false,
         mapToolbarEnabled: false,
@@ -464,6 +496,88 @@ class _MechanicRequestDetailPageState extends State<MechanicRequestDetailPage> {
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDamagePhotosCard() {
+    final urls = _damagePhotoUrls;
+    if (urls.isEmpty) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.photo_library_rounded, size: 20, color: Colors.grey[700]),
+              const SizedBox(width: 8),
+              Text(
+                'Damage photos / videos',
+                style: GoogleFonts.outfit(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey[700],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 100,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: urls.length,
+              itemBuilder: (context, i) {
+                final rawUrl = urls[i];
+                final url = rawUrl.startsWith('http') ? rawUrl : '${ApiConfig.baseUrl}$rawUrl';
+                final isNetwork = url.startsWith('http');
+                return Padding(
+                  padding: EdgeInsets.only(right: i < urls.length - 1 ? 10 : 0),
+                  child: InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => FullScreenMediaViewerPage(
+                            url: url,
+                            title: FullScreenMediaViewerPage.isVideoUrl(url) ? 'Damage video' : 'Damage photo',
+                          ),
+                        ),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(10),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        width: 100,
+                        color: Colors.grey[200],
+                        child: isNetwork
+                            ? Image.network(
+                                url,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.broken_image_outlined, size: 32)),
+                              )
+                            : const Center(child: Icon(Icons.photo_rounded, size: 32, color: Colors.grey)),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
           ),
         ],
       ),

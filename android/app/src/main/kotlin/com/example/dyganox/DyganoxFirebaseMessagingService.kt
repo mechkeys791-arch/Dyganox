@@ -1,8 +1,10 @@
 package com.example.dyganox
 
+import android.app.ActivityManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.util.Log
@@ -32,7 +34,7 @@ class DyganoxFirebaseMessagingService : FirebaseMessagingService() {
     override fun onMessageReceived(@NonNull remoteMessage: RemoteMessage) {
         Log.d(TAG, "onMessageReceived: from=${remoteMessage.from} dataKeys=${remoteMessage.data?.keys}")
         val data = remoteMessage.data
-        if (data == null || data.isEmpty()) {
+        if (data.isEmpty()) {
             Log.w(TAG, "onMessageReceived: ignored - empty data (backend must send data-only message with type, requestId)")
             return
         }
@@ -46,6 +48,11 @@ class DyganoxFirebaseMessagingService : FirebaseMessagingService() {
             }
             try { startService(stopIntent) } catch (_: Exception) {}
             Log.d(TAG, "onMessageReceived: cancelled notification for requestId=$requestId (taken by another mechanic)")
+            return
+        }
+        // Foreground: Flutter FCM posts to Dart, which starts MechanicAlarmService via MethodChannel (avoid duplicate alarm).
+        if (isAppInForeground()) {
+            Log.d(TAG, "onMessageReceived: foreground — Flutter handles alarm + sheet")
             return
         }
         if (type != "mechanic_request") {
@@ -77,7 +84,8 @@ class DyganoxFirebaseMessagingService : FirebaseMessagingService() {
             }
             Log.d(TAG, "MechanicAlarmService started for requestId=$requestId")
         } catch (e: Exception) {
-            Log.w(TAG, "startForegroundService failed (notification already shown)", e)
+            Log.w(TAG, "startForegroundService failed, using fallback notification", e)
+            showFallbackNotification(requestId, title, body)
         }
     }
 
@@ -146,6 +154,20 @@ class DyganoxFirebaseMessagingService : FirebaseMessagingService() {
 
     private fun notificationIdForRequest(requestId: String): Int {
         return (requestId.hashCode() and 0x7FFFFFFF).coerceAtLeast(9001)
+    }
+
+    private fun isAppInForeground(): Boolean {
+        val am = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        val processes = am.runningAppProcesses ?: return false
+        val pkg = packageName
+        for (p in processes) {
+            if (p.processName == pkg &&
+                p.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND
+            ) {
+                return true
+            }
+        }
+        return false
     }
 
     companion object {

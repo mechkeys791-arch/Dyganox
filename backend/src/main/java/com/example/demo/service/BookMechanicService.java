@@ -49,7 +49,7 @@ public class BookMechanicService {
      * If vehicleType is non-null (CAR or BIKE), only returns mechanics who serve that vehicle type.
      */
     public List<Map<String, Object>> findMechanicsByCategoryAndLocation(
-            String problemCategory, Double lat, Double lng, int radiusKm, String vehicleType) {
+            String problemCategory, Double lat, Double lng, int radiusKm, String vehicleType, boolean nightOnly) {
         if (lat == null || lng == null) {
             System.out.println("⚠️ [by-category] lat/lng missing – returning empty (cannot filter by distance)");
             return new ArrayList<>();
@@ -57,6 +57,7 @@ public class BookMechanicService {
         List<Mechanic> all = mechanicRepo.findAll();
         List<Mechanic> approved = all.stream()
                 .filter(m -> "APPROVED".equalsIgnoreCase(m.getApprovalStatus()) && !Boolean.TRUE.equals(m.isBlocked()))
+                .filter(m -> !nightOnly || Boolean.TRUE.equals(m.isNightTimeAvailable()))
                 .filter(m -> servesCategory(m, problemCategory))
                 .filter(m -> servesVehicleType(m, vehicleType))
                 .filter(m -> withinRadiusForList(m, lat, lng, radiusKm))
@@ -76,7 +77,12 @@ public class BookMechanicService {
             map.put("openingTime", m.getOpeningTime());
             map.put("closingTime", m.getClosingTime());
             map.put("workingDays", m.getWorkingDays());
-            // Intentionally omit: phone, latitude, longitude, distance
+            String slat = (m.getCurrentLatitude() != null && !m.getCurrentLatitude().isBlank())
+                    ? m.getCurrentLatitude() : m.getLatitude();
+            String slng = (m.getCurrentLongitude() != null && !m.getCurrentLongitude().isBlank())
+                    ? m.getCurrentLongitude() : m.getLongitude();
+            if (slat != null) map.put("latitude", slat);
+            if (slng != null) map.put("longitude", slng);
             result.add(map);
         }
         return result;
@@ -87,10 +93,11 @@ public class BookMechanicService {
      * Used for broadcast. Sends to Available AND Busy mechanics (Ola-style: all nearest, first to accept wins).
      * Excludes only Offline mechanics. If vehicleType is set, only mechanics who serve that vehicle type.
      */
-    public List<Mechanic> findMechanicsForBroadcast(double lat, double lng, String problemCategory, int radiusKm, String vehicleType) {
+    public List<Mechanic> findMechanicsForBroadcast(double lat, double lng, String problemCategory, int radiusKm, String vehicleType, boolean nightOnly) {
         List<Mechanic> all = mechanicRepo.findAll();
         return all.stream()
                 .filter(m -> "APPROVED".equalsIgnoreCase(m.getApprovalStatus()) && !Boolean.TRUE.equals(m.isBlocked()))
+                .filter(m -> !nightOnly || Boolean.TRUE.equals(m.isNightTimeAvailable()))
                 .filter(m -> !"Offline".equalsIgnoreCase(m.getStatus()))
                 .filter(m -> servesCategory(m, problemCategory))
                 .filter(m -> servesVehicleType(m, vehicleType))
@@ -121,6 +128,7 @@ public class BookMechanicService {
         // Tyre, battery, brake, electrical, ac, general_checkup: mechanics with general_checkup can also serve.
         // Windshield, oil_change, headlight_repair, body_works, wheel_alignment, suspension require explicit category.
         if ("tyre_puncture".equalsIgnoreCase(problemCategory) || "battery_jump".equalsIgnoreCase(problemCategory)
+                || "ev_vehicle_charge".equalsIgnoreCase(problemCategory)
                 || "brake_issue".equalsIgnoreCase(problemCategory) || "electrical".equalsIgnoreCase(problemCategory)
                 || "ac_issue".equalsIgnoreCase(problemCategory) || "general_checkup".equalsIgnoreCase(problemCategory)) {
             if (cats.toLowerCase().contains("general_checkup")) return true;
@@ -167,7 +175,7 @@ public class BookMechanicService {
             String diagnosticAnswers, String comment, String photoUrls,
             double lat, double lng, Double advanceAmount, Double platformFee,
             Double comingChargePerKm, Double comingChargeTotal, Integer requestRadiusKm,
-            Boolean outOfHoursRequest) {
+            Boolean outOfHoursRequest, Boolean nightServiceOnly) {
         MechanicRequest req = new MechanicRequest();
         req.setMechanicId(null);
         req.setAcceptedMechanicId(null);
@@ -189,11 +197,19 @@ public class BookMechanicService {
         req.setComingChargeTotal(comingChargeTotal != null ? comingChargeTotal : 0.0);
         req.setRequestRadiusKm(requestRadiusKm != null ? requestRadiusKm : 5);
         req.setOutOfHoursRequest(Boolean.TRUE.equals(outOfHoursRequest));
+        req.setNightServiceRequest(Boolean.TRUE.equals(nightServiceOnly));
         req.setStatus("PENDING_BROADCAST");
         req.setRequestTime(LocalDateTime.now());
         req.setViewExpiryAt(LocalDateTime.now().plusMinutes(5));
         req.setRefundStatus("PENDING");
-        req.setAmount(0);
+        // Daytime broadcast: amount 0 (pay rules shown at payment). Night: show indicative total on customer UI.
+        if (Boolean.TRUE.equals(nightServiceOnly)) {
+            double adv = advanceAmount != null ? advanceAmount : 100.0;
+            double fee = platformFee != null ? platformFee : 9.0;
+            req.setAmount(adv + fee + 49.0);
+        } else {
+            req.setAmount(0);
+        }
 
         String vehicleType = null;
         if (userVehicleId != null) {
@@ -209,16 +225,17 @@ public class BookMechanicService {
         }
 
         MechanicRequest saved = mechanicRequestRepo.save(req);
+        boolean nightOnly = Boolean.TRUE.equals(nightServiceOnly);
         // Ola-style: try 5km, then 10km, then 20km - send to mechanics who serve this vehicle type (CAR/BIKE)
         int radius = 5;
-        List<Mechanic> mechanics = findMechanicsForBroadcast(lat, lng, problemCategory, 5, vehicleType);
+        List<Mechanic> mechanics = findMechanicsForBroadcast(lat, lng, problemCategory, 5, vehicleType, nightOnly);
         if (mechanics.isEmpty()) {
             radius = 10;
-            mechanics = findMechanicsForBroadcast(lat, lng, problemCategory, 10, vehicleType);
+            mechanics = findMechanicsForBroadcast(lat, lng, problemCategory, 10, vehicleType, nightOnly);
         }
         if (mechanics.isEmpty()) {
             radius = 20;
-            mechanics = findMechanicsForBroadcast(lat, lng, problemCategory, 20, vehicleType);
+            mechanics = findMechanicsForBroadcast(lat, lng, problemCategory, 20, vehicleType, nightOnly);
         }
         saved.setRequestRadiusKm(radius);
 
@@ -282,6 +299,7 @@ public class BookMechanicService {
         req.setAcceptedMechanicId(mechanicId);
         req.setMechanicId(mechanicId);
         req.setStatus("PENDING_PAYMENT");
+        req.setMechanicReadyToDrive(false);
         req.setDistanceKmToCustomer(dist);
         req.setResponseTime(LocalDateTime.now());
         mechanicRequestRepo.save(req);
@@ -331,5 +349,87 @@ public class BookMechanicService {
         }
         result.sort((a, b) -> b.getRequestTime().compareTo(a.getRequestTime()));
         return result;
+    }
+
+    private List<Long> parseJsonLongList(String json) {
+        if (json == null || json.isBlank()) return new ArrayList<>();
+        try {
+            List<?> raw = new ObjectMapper().readValue(json, List.class);
+            List<Long> out = new ArrayList<>();
+            for (Object o : raw) {
+                if (o instanceof Number) out.add(((Number) o).longValue());
+                else out.add(Long.parseLong(o.toString()));
+            }
+            return out;
+        } catch (Exception e) {
+            return new ArrayList<>();
+        }
+    }
+
+    /** Mechanic declines a broadcast offer without cancelling the request for others. */
+    public boolean dismissBroadcast(Long requestId, Long mechanicId) {
+        if (mechanicId == null) return false;
+        Optional<MechanicRequest> opt = mechanicRequestRepo.findById(requestId);
+        if (opt.isEmpty()) return false;
+        MechanicRequest r = opt.get();
+        if (!"PENDING_BROADCAST".equals(r.getStatus())) return false;
+        List<Long> dismissed = parseJsonLongList(r.getBroadcastDismissedMechanicIds());
+        if (!dismissed.contains(mechanicId)) dismissed.add(mechanicId);
+        try {
+            r.setBroadcastDismissedMechanicIds(new ObjectMapper().writeValueAsString(dismissed));
+        } catch (JsonProcessingException e) {
+            return false;
+        }
+        mechanicRequestRepo.save(r);
+        return true;
+    }
+
+    /** Customer app: live mechanic pins + counts while waiting for acceptance. */
+    public Map<String, Object> buildCustomerTracking(Long requestId) {
+        Optional<MechanicRequest> opt = mechanicRequestRepo.findById(requestId);
+        if (opt.isEmpty()) return null;
+        MechanicRequest r = opt.get();
+        List<Long> notified = parseJsonLongList(r.getNotifiedMechanicIds());
+        List<Long> dismissed = parseJsonLongList(r.getBroadcastDismissedMechanicIds());
+        Set<Long> dismissedSet = new HashSet<>(dismissed);
+        List<Map<String, Object>> mechanics = new ArrayList<>();
+        for (Long mid : notified) {
+            if (dismissedSet.contains(mid)) continue;
+            mechanicRepo.findById(mid).ifPresent(m -> {
+                Map<String, Object> mm = new HashMap<>();
+                mm.put("id", m.getId());
+                mm.put("name", m.getName() != null ? m.getName() : "Mechanic");
+                // Customer map before accept: always shop (registration) location — stable pin.
+                mm.put("latitude", m.getLatitude());
+                mm.put("longitude", m.getLongitude());
+                mechanics.add(mm);
+            });
+        }
+        Map<String, Object> out = new HashMap<>();
+        out.put("request", r);
+        out.put("notifiedCount", notified.size());
+        out.put("dismissedCount", dismissed.size());
+        out.put("liveMechanicsCount", mechanics.size());
+        out.put("acceptedMechanicId", r.getAcceptedMechanicId());
+        out.put("hasAccepted", r.getAcceptedMechanicId() != null);
+        out.put("mechanicReadyToDrive", Boolean.TRUE.equals(r.getMechanicReadyToDrive()));
+        out.put("mechanics", mechanics);
+        return out;
+    }
+
+    /** Mechanic left shop — customer app switches pin to live GPS. */
+    public boolean setMechanicReadyToDrive(Long requestId, Long mechanicId) {
+        if (mechanicId == null) return false;
+        Optional<MechanicRequest> opt = mechanicRequestRepo.findById(requestId);
+        if (opt.isEmpty()) return false;
+        MechanicRequest req = opt.get();
+        if (req.getAcceptedMechanicId() == null || !req.getAcceptedMechanicId().equals(mechanicId)) return false;
+        String st = req.getStatus() != null ? req.getStatus() : "";
+        if (!"PENDING_PAYMENT".equals(st) && !"MECHANIC_EN_ROUTE".equals(st) && !"ARRIVED".equals(st)) {
+            return false;
+        }
+        req.setMechanicReadyToDrive(true);
+        mechanicRequestRepo.save(req);
+        return true;
     }
 }

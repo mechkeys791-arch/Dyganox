@@ -2,12 +2,14 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 import '../../services/api_config.dart';
+import 'full_screen_media_viewer_page.dart';
 
 // Teal theme
 import '../../core/theme/app_colors.dart';
@@ -31,7 +33,7 @@ class MechanicRequestDetailBookFlowPage extends StatefulWidget {
   State<MechanicRequestDetailBookFlowPage> createState() => _MechanicRequestDetailBookFlowPageState();
 }
 
-class _MechanicRequestDetailBookFlowPageState extends State<MechanicRequestDetailBookFlowPage> {
+class _MechanicRequestDetailBookFlowPageState extends State<MechanicRequestDetailBookFlowPage> with SingleTickerProviderStateMixin {
   Map<String, dynamic>? _request;
   bool _loading = true;
   bool _accepting = false;
@@ -41,17 +43,48 @@ class _MechanicRequestDetailBookFlowPageState extends State<MechanicRequestDetai
   double? _distanceKm;
   Timer? _locationUpdateTimer;
 
+  final Set<Polyline> _polylines = {};
+  bool _polylineFetched = false;
+  double? _polylineAnchorLat;
+  double? _polylineAnchorLng;
+  DateTime? _lastRouteRefetchAt;
+
+  double? _displayMechanicLat;
+  double? _displayMechanicLng;
+  double _animStartLat = 0, _animStartLng = 0, _animEndLat = 0, _animEndLng = 0;
+  late AnimationController _markerAnimController;
+  late Animation<double> _markerAnimCurve;
+  static const double _minMoveMetersToAnimate = 8;
+
   @override
   void initState() {
     super.initState();
+    _markerAnimController = AnimationController(vsync: this, duration: const Duration(milliseconds: 4200));
+    _markerAnimCurve = CurvedAnimation(parent: _markerAnimController, curve: Curves.easeOutCubic);
+    _markerAnimController.addListener(_onMarkerAnimTick);
     _mechanicLat = widget.mechanicLat;
     _mechanicLng = widget.mechanicLng;
+    if (_mechanicLat != null && _mechanicLng != null) {
+      _displayMechanicLat = _mechanicLat;
+      _displayMechanicLng = _mechanicLng;
+    }
     _loadRequest();
     if (_mechanicLat == null || _mechanicLng == null) _getMechanicLocation();
   }
 
+  void _onMarkerAnimTick() {
+    if (!mounted) return;
+    final t = _markerAnimCurve.value;
+    setState(() {
+      _displayMechanicLat = _animStartLat + (_animEndLat - _animStartLat) * t;
+      _displayMechanicLng = _animStartLng + (_animEndLng - _animStartLng) * t;
+    });
+  }
+
   @override
   void dispose() {
+    _markerAnimController.removeListener(_onMarkerAnimTick);
+    _markerAnimController.dispose();
     _locationUpdateTimer?.cancel();
     super.dispose();
   }
@@ -77,7 +110,49 @@ class _MechanicRequestDetailBookFlowPageState extends State<MechanicRequestDetai
           'currentLongitude': pos.longitude.toString(),
         }),
       );
+      if (!mounted) return;
+      _applyMechanicGpsUpdate(pos.latitude, pos.longitude);
     } catch (_) {}
+  }
+
+  void _applyMechanicGpsUpdate(double lat, double lng) {
+    if (!mounted) return;
+    if (_mechanicLat != null && _mechanicLng != null) {
+      final startLat = _displayMechanicLat ?? _mechanicLat!;
+      final startLng = _displayMechanicLng ?? _mechanicLng!;
+      final distMeters = Geolocator.distanceBetween(startLat, startLng, lat, lng);
+      if (distMeters >= _minMoveMetersToAnimate) {
+        _animStartLat = startLat;
+        _animStartLng = startLng;
+        _animEndLat = lat;
+        _animEndLng = lng;
+        final t = (distMeters / 800).clamp(0.35, 1.0);
+        _markerAnimController.duration = Duration(
+          milliseconds: (2400 + 3800 * t).round().clamp(2000, 6800),
+        );
+        _markerAnimController.reset();
+        _markerAnimController.forward();
+      } else {
+        setState(() {
+          _displayMechanicLat = lat;
+          _displayMechanicLng = lng;
+        });
+      }
+    } else {
+      setState(() {
+        _displayMechanicLat = lat;
+        _displayMechanicLng = lng;
+      });
+    }
+    setState(() {
+      _mechanicLat = lat;
+      _mechanicLng = lng;
+    });
+    if (_request != null) {
+      _computeDistance(lat, lng);
+      _tryFetchRoutePolylineIfReady();
+      if (_polylineFetched) _maybeRefetchRoutePolyline(lat, lng);
+    }
   }
 
   Future<void> _getMechanicLocation() async {
@@ -90,10 +165,113 @@ class _MechanicRequestDetailBookFlowPageState extends State<MechanicRequestDetai
         final m = Map<String, dynamic>.from(jsonDecode(r.body) as Map);
         final lat = double.tryParse(m['latitude']?.toString() ?? '');
         final lng = double.tryParse(m['longitude']?.toString() ?? '');
-        setState(() { _mechanicLat = lat; _mechanicLng = lng; });
-        if (_request != null && lat != null && lng != null) _computeDistance(lat, lng);
+        setState(() {
+          _mechanicLat = lat;
+          _mechanicLng = lng;
+          _displayMechanicLat ??= lat;
+          _displayMechanicLng ??= lng;
+        });
+        if (_request != null && lat != null && lng != null) {
+          _computeDistance(lat, lng);
+          _tryFetchRoutePolylineIfReady();
+        }
       }
     } catch (_) {}
+  }
+
+  void _maybeRefetchRoutePolyline(double lat, double lng) {
+    if (_polylineAnchorLat == null || _polylineAnchorLng == null) return;
+    final moved = Geolocator.distanceBetween(_polylineAnchorLat!, _polylineAnchorLng!, lat, lng);
+    final now = DateTime.now();
+    if (moved < 85) return;
+    if (_lastRouteRefetchAt != null && now.difference(_lastRouteRefetchAt!) < const Duration(seconds: 22)) return;
+    _lastRouteRefetchAt = now;
+    _polylineAnchorLat = lat;
+    _polylineAnchorLng = lng;
+    _polylineFetched = false;
+    _fetchRoutePolyline();
+  }
+
+  void _tryFetchRoutePolylineIfReady() {
+    final r = _request;
+    if (r == null || _mechanicLat == null || _mechanicLng == null) return;
+    final clat = double.tryParse(r['latitude']?.toString() ?? '');
+    final clng = double.tryParse(r['longitude']?.toString() ?? '');
+    if (clat == null || clng == null) return;
+    if (!_polylineFetched) _fetchRoutePolyline();
+  }
+
+  Future<void> _fetchRoutePolyline() async {
+    final r = _request;
+    if (r == null || _mechanicLat == null || _mechanicLng == null) return;
+    if (_polylineFetched) return;
+    final clat = double.tryParse(r['latitude']?.toString() ?? '');
+    final clng = double.tryParse(r['longitude']?.toString() ?? '');
+    if (clat == null || clng == null) return;
+    final key = ApiConfig.googleMapsApiKey;
+    if (key.isEmpty) {
+      _addFallbackPolyline(clat, clng, markFetched: true);
+      return;
+    }
+    try {
+      final polylinePoints = PolylinePoints();
+      final result = await polylinePoints.getRouteBetweenCoordinates(
+        request: PolylineRequest(
+          mode: TravelMode.driving,
+          origin: PointLatLng(_mechanicLat!, _mechanicLng!),
+          destination: PointLatLng(clat, clng),
+        ),
+        googleApiKey: key,
+      );
+      if (result.points.isNotEmpty && mounted) {
+        final points = result.points.map((p) => LatLng(p.latitude, p.longitude)).toList();
+        _polylineAnchorLat = _mechanicLat;
+        _polylineAnchorLng = _mechanicLng;
+        setState(() {
+          _polylines
+            ..clear()
+            ..add(Polyline(
+              polylineId: const PolylineId('route'),
+              points: points,
+              color: AppColors.burntOrange,
+              width: 6,
+              geodesic: true,
+              jointType: JointType.round,
+              startCap: Cap.roundCap,
+              endCap: Cap.roundCap,
+              patterns: const [],
+            ));
+        });
+        _polylineFetched = true;
+      } else {
+        _addFallbackPolyline(clat, clng, markFetched: true);
+      }
+    } catch (_) {
+      _addFallbackPolyline(clat, clng, markFetched: true);
+    }
+  }
+
+  void _addFallbackPolyline(double clat, double clng, {bool markFetched = false}) {
+    if (_mechanicLat == null || _mechanicLng == null || !mounted) return;
+    if (markFetched) _polylineFetched = true;
+    setState(() {
+      _polylines
+        ..clear()
+        ..add(Polyline(
+          polylineId: const PolylineId('route'),
+          points: [
+            LatLng(_mechanicLat!, _mechanicLng!),
+            LatLng(clat, clng),
+          ],
+          color: AppColors.burntOrange,
+          width: 5,
+          geodesic: true,
+          jointType: JointType.round,
+          startCap: Cap.roundCap,
+          endCap: Cap.roundCap,
+          patterns: const [],
+        ));
+    });
   }
 
   void _computeDistance(double mlat, double mlng) {
@@ -119,6 +297,7 @@ class _MechanicRequestDetailBookFlowPageState extends State<MechanicRequestDetai
           _loading = false;
         });
         if (_mechanicLat != null && _mechanicLng != null) _computeDistance(_mechanicLat!, _mechanicLng!);
+        _tryFetchRoutePolylineIfReady();
         if ((req['status']?.toString() ?? '') == 'MECHANIC_EN_ROUTE') _startLocationUpdatesIfEnRoute();
       } else {
         setState(() { _error = 'Failed to load request'; _loading = false; });
@@ -162,6 +341,11 @@ class _MechanicRequestDetailBookFlowPageState extends State<MechanicRequestDetai
   Future<void> _startEnRoute() async {
     setState(() => _accepting = true);
     try {
+      await http.put(
+        Uri.parse('${ApiConfig.mechanicRequestsEndpoint}/${widget.requestId}/ready-to-drive'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'mechanicId': widget.mechanicId}),
+      );
       final r = await http.put(
         Uri.parse('${ApiConfig.mechanicRequestsEndpoint}/${widget.requestId}/start-en-route'),
         headers: {'Content-Type': 'application/json'},
@@ -253,18 +437,21 @@ class _MechanicRequestDetailBookFlowPageState extends State<MechanicRequestDetai
                     target: LatLng(custLat, custLng),
                     zoom: 14,
                   ),
+                  myLocationEnabled: false,
+                  polylines: _polylines,
                   markers: {
                     Marker(
                       markerId: const MarkerId('customer'),
                       position: LatLng(custLat, custLng),
-                      infoWindow: const InfoWindow(title: 'Customer location'),
+                      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+                      infoWindow: const InfoWindow(title: 'Customer', snippet: 'User location'),
                     ),
-                    if (_mechanicLat != null && _mechanicLng != null)
+                    if (_displayMechanicLat != null && _displayMechanicLng != null)
                       Marker(
                         markerId: const MarkerId('me'),
-                        position: LatLng(_mechanicLat!, _mechanicLng!),
+                        position: LatLng(_displayMechanicLat!, _displayMechanicLng!),
                         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
-                        infoWindow: const InfoWindow(title: 'You'),
+                        infoWindow: const InfoWindow(title: 'Mechanic', snippet: 'Your location'),
                       ),
                   },
                 ),
@@ -307,7 +494,7 @@ class _MechanicRequestDetailBookFlowPageState extends State<MechanicRequestDetai
                   ],
                   if (photoUrls.isNotEmpty) ...[
                     const SizedBox(height: 16),
-                    Text('Photos', style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey[700])),
+                    Text('Damage photos / videos', style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey[700])),
                     const SizedBox(height: 8),
                     SizedBox(
                       height: 100,
@@ -315,15 +502,33 @@ class _MechanicRequestDetailBookFlowPageState extends State<MechanicRequestDetai
                         scrollDirection: Axis.horizontal,
                         itemCount: photoUrls.length,
                         itemBuilder: (context, i) {
-                          final url = photoUrls[i];
-                          final isFile = url.startsWith('/') || !url.startsWith('http');
+                          final rawUrl = photoUrls[i];
+                          final fullUrl = rawUrl.startsWith('http') ? rawUrl : '${ApiConfig.baseUrl}$rawUrl';
+                          final isFile = rawUrl.startsWith('/') && !rawUrl.startsWith('http');
                           return Padding(
                             padding: const EdgeInsets.only(right: 8),
-                            child: ClipRRect(
+                            child: InkWell(
+                              onTap: () {
+                                if (isFile && File(rawUrl).existsSync()) {
+                                  Navigator.push(context, MaterialPageRoute(
+                                    builder: (_) => FullScreenMediaViewerPage(url: rawUrl, title: 'Damage photo'),
+                                  ));
+                                } else {
+                                  Navigator.push(context, MaterialPageRoute(
+                                    builder: (_) => FullScreenMediaViewerPage(
+                                      url: fullUrl,
+                                      title: FullScreenMediaViewerPage.isVideoUrl(fullUrl) ? 'Damage video' : 'Damage photo',
+                                    ),
+                                  ));
+                                }
+                              },
                               borderRadius: BorderRadius.circular(8),
-                              child: isFile && File(url).existsSync()
-                                  ? Image.file(File(url), width: 100, height: 100, fit: BoxFit.cover)
-                                  : Image.network(url, width: 100, height: 100, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _placeholderPhoto()),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: isFile && File(rawUrl).existsSync()
+                                    ? Image.file(File(rawUrl), width: 100, height: 100, fit: BoxFit.cover)
+                                    : Image.network(fullUrl, width: 100, height: 100, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _placeholderPhoto()),
+                              ),
                             ),
                           );
                         },
@@ -402,15 +607,31 @@ class _MechanicRequestDetailBookFlowPageState extends State<MechanicRequestDetai
                           const SizedBox(height: 10),
                           if (r['vehiclePhotoUrl'] != null && r['vehiclePhotoUrl'].toString().isNotEmpty)
                             Padding(
-                              padding: const EdgeInsets.only(bottom: 10),
-                              child: ClipRRect(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: InkWell(
+                                onTap: () {
+                                  final vUrl = r['vehiclePhotoUrl'].toString().startsWith('http')
+                                      ? r['vehiclePhotoUrl'].toString()
+                                      : '${ApiConfig.baseUrl}${r['vehiclePhotoUrl']}';
+                                  Navigator.push(context, MaterialPageRoute(
+                                    builder: (_) => FullScreenMediaViewerPage(url: vUrl, title: 'Vehicle photo'),
+                                  ));
+                                },
                                 borderRadius: BorderRadius.circular(8),
-                                child: Image.network(
-                                  r['vehiclePhotoUrl'].toString().startsWith('http') ? r['vehiclePhotoUrl'].toString() : '${ApiConfig.baseUrl}${r['vehiclePhotoUrl']}',
-                                  height: 80,
-                                  width: double.infinity,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Container(
+                                    color: Colors.grey[100],
+                                    constraints: const BoxConstraints(maxHeight: 220),
+                                    child: Image.network(
+                                      r['vehiclePhotoUrl'].toString().startsWith('http')
+                                          ? r['vehiclePhotoUrl'].toString()
+                                          : '${ApiConfig.baseUrl}${r['vehiclePhotoUrl']}',
+                                      width: double.infinity,
+                                      fit: BoxFit.contain,
+                                      errorBuilder: (_, __, ___) => const SizedBox(height: 120, child: Center(child: Icon(Icons.directions_car, size: 48))),
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
@@ -418,15 +639,33 @@ class _MechanicRequestDetailBookFlowPageState extends State<MechanicRequestDetai
                             children: [
                               Icon(Icons.person, color: AppColors.burntOrange, size: 20),
                               const SizedBox(width: 8),
-                              Text(r['customerName']?.toString() ?? '—', style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w600)),
+                              Expanded(
+                                child: Text(
+                                  r['customerName']?.toString() ?? '—',
+                                  style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w600),
+                                ),
+                              ),
                             ],
                           ),
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 8),
                           Row(
                             children: [
                               Icon(Icons.phone, color: AppColors.burntOrange, size: 20),
                               const SizedBox(width: 8),
-                              SelectableText(r['customerPhone']?.toString() ?? '—', style: GoogleFonts.inter(fontSize: 14)),
+                              Expanded(
+                                child: SelectableText(
+                                  r['customerPhone']?.toString() ?? '—',
+                                  style: GoogleFonts.inter(fontSize: 14),
+                                ),
+                              ),
+                              if (r['customerPhone'] != null && r['customerPhone'].toString().trim().isNotEmpty)
+                                IconButton(
+                                  icon: const Icon(Icons.call, color: AppColors.burntOrange),
+                                  onPressed: () {
+                                    final phone = r['customerPhone'].toString().trim().replaceAll(RegExp(r'[\s\-\(\)]'), '');
+                                    try { launchUrl(Uri.parse('tel:$phone'), mode: LaunchMode.externalApplication); } catch (_) {}
+                                  },
+                                ),
                             ],
                           ),
                         ],

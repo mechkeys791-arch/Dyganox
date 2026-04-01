@@ -1,0 +1,3 @@
+-- Optional: run if not using spring.jpa.hibernate.ddl-auto=update
+-- ALTER TABLE app_branding ADD COLUMN night_service_icons_json VARCHAR(8000) NULL;
+-- ALTER TABLE mechanic_requests ADD COLUMN night_service_request BIT(1) NULL;

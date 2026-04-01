@@ -20,6 +20,12 @@ class ApiConfig {
   /// Create: APIs & Services → Credentials → Create OAuth client ID → Web application.
   static const String? googleWebClientId = '1027706392650-6f3kfkmchvlnejrg9dngo4gkhkc697g3.apps.googleusercontent.com';
 
+  /// Used by Directions API (road polylines). Override with `--dart-define=GOOGLE_MAPS_API_KEY=your_key`.
+  static const String googleMapsApiKey = String.fromEnvironment(
+    'GOOGLE_MAPS_API_KEY',
+    defaultValue: 'AIzaSyCkWqRCPB-EovWgvPFuLirPBDKU30wYDzc',
+  );
+
   // Computed base URL 
   static String get baseUrl {
     if (_useLocalServer) {
@@ -38,6 +44,7 @@ class ApiConfig {
   
   // API Endpoints
   static String get mechanicEndpoint => '$baseUrl/api/mechanic';
+  static String mechanicPublicProfile(int mechanicId) => '$mechanicEndpoint/public-profile/$mechanicId';
   static String mechanicLocation(int mechanicId) => '$mechanicEndpoint/$mechanicId/location';
   static String get mechanicRequestsEndpoint => '$baseUrl/api/mechanic-requests';
   /// All bookings for a mechanic (pending, accepted, in-progress, completed, rejected). Backend may implement GET .../mechanic/{id}/bookings.

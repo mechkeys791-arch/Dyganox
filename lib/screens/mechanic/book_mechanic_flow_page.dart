@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -15,20 +14,30 @@ import '../../services/cognito_service.dart';
 import '../../services/vehicle_service.dart';
 import '../../services/payment/payment_config.dart';
 import '../../services/payment/payment_gateway.dart';
-import '../vehicles/add_edit_vehicle_page.dart';
 import '../profile/location_picker_map_page.dart';
 import '../../widgets/vehicle_selection_sheet.dart';
 import '../../core/theme/app_colors.dart';
-import 'mechanic_accepted_ready_page.dart';
+import '../../services/request_damage_upload_service.dart';
+import 'book_mechanic_broadcast_tracking_page.dart';
 
-/// Book Mechanic: vehicle → problem → details (photo compulsory for tyre) → location (map/current) → map + mechanics → send to all → wait → payment when accepted.
-/// If [preselectedMechanicId] is set (from finder "Request mechanic"), flow sends to that mechanic only after location step.
+/// Book Mechanic: vehicle → problem → details → photos → pickup + mechanics map → send → Rapido-style live map until accepted.
+/// If [preselectedMechanicId] is set (from finder "Request mechanic"), flow sends after photos + pickup confirmation.
 /// If [preselectedProblemId] is set (e.g. from Battery Jump or Tyre Care), problem is pre-selected and problem step is skipped.
+/// If [preselectedVehicle] is set (e.g. from homepage Book mechanic / Find mechanic vehicle sheet), vehicle step is skipped.
 class BookMechanicFlowPage extends StatefulWidget {
   final int? preselectedMechanicId;
   final String? preselectedProblemId;
+  final Map<String, dynamic>? preselectedVehicle;
+  /// When true (Night Service entry): mechanic list + broadcast only include mechanics with night time enabled.
+  final bool nightServiceOnly;
 
-  const BookMechanicFlowPage({super.key, this.preselectedMechanicId, this.preselectedProblemId});
+  const BookMechanicFlowPage({
+    super.key,
+    this.preselectedMechanicId,
+    this.preselectedProblemId,
+    this.preselectedVehicle,
+    this.nightServiceOnly = false,
+  });
 
   @override
   State<BookMechanicFlowPage> createState() => _BookMechanicFlowPageState();
@@ -51,12 +60,9 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
   bool _loadingMechanics = false;
   bool _sendingRequest = false;
   Map<String, dynamic>? _createdRequest;
-  bool _waitingForMechanic = false;
-  Timer? _pollTimer;
-  Timer? _countdownTimer;
-  int _waitingSecondsRemaining = 5 * 60; // 5 min
   late PaymentGateway _paymentGateway;
-  Map<String, String> _problemIconUrls = {};
+  Map<String, String> _problemIconUrlsCar = {};
+  Map<String, String> _problemIconUrlsBike = {};
 
   static const double advanceAmount = 100.0;
   static const double platformFee = 9.0;
@@ -75,23 +81,45 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
 
   Future<void> _loadProblemCategoryIcons() async {
     try {
-      final r = await http.get(
-        Uri.parse('${ApiConfig.baseUrl}/api/config/problem-category-icons'),
-        headers: {'Content-Type': 'application/json'},
-      );
-      if (r.statusCode == 200 && mounted) {
-        final map = Map<String, dynamic>.from(jsonDecode(r.body) as Map);
+      final base = '${ApiConfig.baseUrl}/api/config/problem-category-icons';
+      final carR = await http.get(Uri.parse('$base?vehicleType=CAR'), headers: {'Content-Type': 'application/json'});
+      final bikeR = await http.get(Uri.parse('$base?vehicleType=BIKE'), headers: {'Content-Type': 'application/json'});
+      if (!mounted) return;
+      if (carR.statusCode == 200 && bikeR.statusCode == 200) {
+        final carMap = Map<String, dynamic>.from(jsonDecode(carR.body) as Map);
+        final bikeMap = Map<String, dynamic>.from(jsonDecode(bikeR.body) as Map);
         setState(() {
-          _problemIconUrls = map.map((k, v) => MapEntry(k, v?.toString() ?? ''));
+          _problemIconUrlsCar = carMap.map((k, v) => MapEntry(k, v?.toString() ?? ''));
+          _problemIconUrlsBike = bikeMap.map((k, v) => MapEntry(k, v?.toString() ?? ''));
         });
       }
     } catch (_) {}
   }
 
+  String _normalizeProblemIconUrl(String raw) {
+    final s = raw.trim();
+    if (s.isEmpty) return '';
+    if (s.startsWith('http')) return s;
+    return '${ApiConfig.baseUrl}$s';
+  }
+
+  /// User vehicle photo or catalog model image; resolves relative API paths.
+  String _vehiclePhotoUrl(Map<String, dynamic> v) {
+    final url = v['photoUrl']?.toString() ?? v['modelImageUrl']?.toString();
+    if (url == null || url.isEmpty) return '';
+    if (url.startsWith('http')) return url;
+    return '${ApiConfig.baseUrl}$url';
+  }
+
+  String _problemIconUrlFor(ProblemItem p) {
+    final map = _vehicleType.toUpperCase() == 'BIKE' ? _problemIconUrlsBike : _problemIconUrlsCar;
+    final u = map[p.id];
+    if (u == null || u.isEmpty) return '';
+    return _normalizeProblemIconUrl(u);
+  }
+
   @override
   void dispose() {
-    _pollTimer?.cancel();
-    _countdownTimer?.cancel();
     _commentController.dispose();
     _paymentGateway.dispose();
     super.dispose();
@@ -106,7 +134,15 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
     if (!mounted) return;
     setState(() {
       _vehicles = list;
-      _selectedVehicle = list.isNotEmpty ? (list.firstWhere((v) => v['isDefault'] == true, orElse: () => list.first)) : null;
+      if (widget.preselectedVehicle != null) {
+        final id = widget.preselectedVehicle!['id'];
+        _selectedVehicle = (id != null && list.any((v) => v['id'] == id))
+            ? list.firstWhere((v) => v['id'] == id)
+            : widget.preselectedVehicle;
+        _step = widget.preselectedProblemId != null ? 2 : 1;
+      } else {
+        _selectedVehicle = list.isNotEmpty ? (list.firstWhere((v) => v['isDefault'] == true, orElse: () => list.first)) : null;
+      }
       if (_selectedVehicle != null) _vehicleType = (_selectedVehicle!['type'] ?? 'CAR').toString().toUpperCase();
       if (widget.preselectedProblemId != null) {
         final problems = getProblemsForVehicle(_vehicleType);
@@ -194,17 +230,17 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
   List<ProblemItem> get _problems => getProblemsForVehicle(_vehicleType);
 
   bool get _isTyrePuncture => _selectedProblem?.id == 'tyre_puncture';
-  bool get _photoRequired => _isTyrePuncture;
+  bool get _photoRequired => false;
 
-  /// Next button shown when user can proceed: step 0 (vehicle selected or add/select), steps 2–3.
+  /// Next: vehicle, details, photos only — pickup/mechanics step has its own CTA.
   bool _shouldShowBottomBar() {
     if (_step >= 4) return false;
     if (_step == 0) return _vehicles.isEmpty || _selectedVehicle != null || _vehicles.length >= 2;
     if (_step == 1) return false;
-    return true; // step 2 (details), step 3 (location)
+    return true;
   }
 
-  void _nextStep() {
+  Future<void> _nextStep() async {
     if (_step == 0 && _selectedVehicle == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select a vehicle or add one')));
       return;
@@ -219,20 +255,23 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
         return;
       }
     }
-    if (_step == 3 && (_userLat == null || _userLng == null)) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select your location or use current location')));
-      return;
-    }
     if (_step == 3) {
-      if (widget.preselectedMechanicId != null) {
-        _sendRequestToPreselectedMechanic();
+      await _getCurrentLocation();
+      if (_userLat == null || _userLng == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Turn on location or pick on map below')));
+        }
         return;
       }
-      _fetchMechanicsByCategory();
+      if (widget.preselectedMechanicId == null) {
+        _fetchMechanicsByCategory();
+      }
+      setState(() => _step = 4);
+      return;
     }
     setState(() {
       if (_step == 0 && widget.preselectedProblemId != null) {
-        _step = 2; // Skip problem step when preselected (e.g. from Tyre Care, Battery Jump)
+        _step = 2;
       } else {
         _step++;
       }
@@ -246,6 +285,9 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
     final phone = user['phone']?.toString() ?? '';
     setState(() => _sendingRequest = true);
     try {
+      final uploadedUrls = _photoUrls.isNotEmpty
+          ? await RequestDamageUploadService.uploadFiles(_photoUrls, _userEmail!)
+          : <String>[];
       final body = {
         'mechanicId': widget.preselectedMechanicId,
         'customerName': name,
@@ -256,13 +298,14 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
         'description': _selectedProblem?.label ?? 'General checkup',
         'diagnosticAnswers': jsonEncode(_diagnosticAnswers),
         'comment': _commentController.text.trim(),
-        'photoUrls': _photoUrls.isNotEmpty ? jsonEncode(_photoUrls) : null,
+        'photoUrls': uploadedUrls.isNotEmpty ? jsonEncode(uploadedUrls) : null,
         'latitude': _userLat.toString(),
         'longitude': _userLng.toString(),
         'amount': advanceAmount + platformFee,
         'advanceAmount': advanceAmount,
         'platformFee': platformFee,
         'requestRadiusKm': 5,
+        if (widget.nightServiceOnly) 'nightServiceRequest': true,
       };
       final r = await http.post(
         Uri.parse(ApiConfig.mechanicRequestsEndpoint),
@@ -273,13 +316,8 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
         setState(() => _sendingRequest = false);
         if (r.statusCode == 200 || r.statusCode == 201) {
           final created = Map<String, dynamic>.from(jsonDecode(r.body) as Map);
-          setState(() {
-            _createdRequest = created;
-            _waitingForMechanic = true;
-            _waitingSecondsRemaining = 5 * 60;
-            _startCountdownTimer();
-          });
-          _startPolling(created['id']);
+          setState(() => _createdRequest = created);
+          _openLiveTracking(created);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to send request')));
         }
@@ -290,6 +328,56 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
+  }
+
+  String _vehicleSummaryLine() {
+    final v = _selectedVehicle;
+    if (v == null) return '';
+    return '${v['makeName'] ?? ''} ${v['modelName'] ?? ''} (${v['plateNumber'] ?? ''})'.trim();
+  }
+
+  String? _vehiclePhotoForTracking() {
+    final v = _selectedVehicle;
+    if (v == null) return null;
+    final u = v['photoUrl']?.toString() ?? v['modelImageUrl']?.toString();
+    if (u == null || u.trim().isEmpty) return null;
+    return u.trim();
+  }
+
+  String _diagnosticSummaryLine() {
+    if (_diagnosticAnswers.isEmpty) return '';
+    String titleCase(String s) {
+      if (s.isEmpty) return s;
+      return s.split('_').map((w) {
+        if (w.isEmpty) return w;
+        return w[0].toUpperCase() + w.substring(1).toLowerCase();
+      }).join(' ');
+    }
+    return _diagnosticAnswers.entries.map((e) => '${titleCase(e.key)}: ${e.value}').join(' · ');
+  }
+
+  void _openLiveTracking(Map<String, dynamic> created) {
+    final id = created['id'];
+    final rid = id is int ? id : int.tryParse(id?.toString() ?? '') ?? 0;
+    if (!mounted || rid == 0 || _userLat == null || _userLng == null) return;
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute<void>(
+        builder: (ctx) => BookMechanicBroadcastTrackingPage(
+          requestId: rid,
+          initialRequest: Map<String, dynamic>.from(created),
+          userLat: _userLat!,
+          userLng: _userLng!,
+          isNightService: widget.nightServiceOnly,
+          problemLabel: _selectedProblem?.label ?? 'Service',
+          vehicleLine: _vehicleSummaryLine().isEmpty ? 'Your vehicle' : _vehicleSummaryLine(),
+          commentLine: _commentController.text.trim(),
+          vehiclePhotoUrl: _vehiclePhotoForTracking(),
+          diagnosticLine: _diagnosticSummaryLine(),
+          problemCategoryId: _selectedProblem?.id ?? '',
+        ),
+      ),
+    );
   }
 
   Future<void> _pickLocationOnMap() async {
@@ -320,6 +408,7 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
           'lng': _userLng.toString(),
           'radiusKm': '10',
           if (_vehicleType.isNotEmpty) 'vehicleType': _vehicleType,
+          if (widget.nightServiceOnly) 'nightOnly': 'true',
         },
       );
       final r = await http.get(url, headers: {'Content-Type': 'application/json'});
@@ -341,6 +430,9 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
     final phone = user['phone']?.toString() ?? '';
     setState(() => _sendingRequest = true);
     try {
+      final uploadedUrls = _photoUrls.isNotEmpty
+          ? await RequestDamageUploadService.uploadFiles(_photoUrls, _userEmail!)
+          : <String>[];
       final body = {
         'customerName': name,
         'customerEmail': _userEmail,
@@ -350,7 +442,7 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
         'description': _selectedProblem?.label ?? 'General checkup',
         'diagnosticAnswers': jsonEncode(_diagnosticAnswers),
         'comment': _commentController.text.trim(),
-        'photoUrls': _photoUrls.isNotEmpty ? jsonEncode(_photoUrls) : null,
+        'photoUrls': uploadedUrls.isNotEmpty ? jsonEncode(uploadedUrls) : null,
         'latitude': _userLat,
         'longitude': _userLng,
         'advanceAmount': advanceAmount,
@@ -358,6 +450,7 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
         'comingChargePerKm': perKmCharge,
         'comingChargeTotal': 0.0,
         'requestRadiusKm': 5,
+        if (widget.nightServiceOnly) 'nightServiceOnly': true,
       };
       final r = await http.post(
         Uri.parse('${ApiConfig.mechanicRequestsEndpoint}/broadcast'),
@@ -368,13 +461,8 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
         setState(() => _sendingRequest = false);
         if (r.statusCode == 200 || r.statusCode == 201) {
           final created = Map<String, dynamic>.from(jsonDecode(r.body) as Map);
-          setState(() {
-            _createdRequest = created;
-            _waitingForMechanic = true;
-            _waitingSecondsRemaining = 5 * 60;
-            _startCountdownTimer();
-          });
-          _startPolling(created['id']);
+          setState(() => _createdRequest = created);
+          _openLiveTracking(created);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to send request')));
         }
@@ -387,73 +475,7 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
     }
   }
 
-  void _startCountdownTimer() {
-    _countdownTimer?.cancel();
-    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted) return;
-      if (_waitingSecondsRemaining <= 0) {
-        _countdownTimer?.cancel();
-        _pollTimer?.cancel();
-        _cancelRequestAndGoHome();
-        return;
-      }
-      setState(() => _waitingSecondsRemaining--);
-    });
-  }
-
-  Future<void> _cancelRequestAndGoHome() async {
-    if (_createdRequest == null) {
-      if (mounted) _goHome('Request cancelled.');
-      return;
-    }
-    try {
-      await http.put(
-        Uri.parse('${ApiConfig.mechanicRequestsEndpoint}/${_createdRequest!['id']}/cancel'),
-        headers: {'Content-Type': 'application/json'},
-      );
-    } catch (_) {}
-    if (mounted) _goHome('No mechanic accepted in time. Request cancelled.');
-  }
-
-  void _goHome(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: Colors.orange));
-    Navigator.of(context).popUntil((route) => route.isFirst);
-  }
-
-  void _startPolling(dynamic requestId) {
-    _pollTimer?.cancel();
-    _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
-      if (!mounted) return;
-      try {
-        final r = await http.get(
-          Uri.parse('${ApiConfig.mechanicRequestsEndpoint}/$requestId'),
-          headers: {'Content-Type': 'application/json'},
-        );
-        if (r.statusCode == 200) {
-          final req = Map<String, dynamic>.from(jsonDecode(r.body) as Map);
-          final status = req['status']?.toString() ?? '';
-          if (status == 'PENDING_PAYMENT') {
-            _pollTimer?.cancel();
-            _countdownTimer?.cancel();
-            if (mounted) {
-              setState(() => _waitingForMechanic = false);
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => MechanicAcceptedReadyPage(request: req)),
-              );
-            }
-          }
-          if (status == 'CANCELLED' || status == 'REJECTED') {
-            _pollTimer?.cancel();
-            _countdownTimer?.cancel();
-          }
-        }
-      } catch (_) {}
-    });
-  }
-
   void _showPaymentSheet() {
-    setState(() => _waitingForMechanic = false);
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -494,9 +516,6 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
 
   @override
   Widget build(BuildContext context) {
-    if (_waitingForMechanic && _createdRequest != null) {
-      return _buildWaitingScreen();
-    }
     return Scaffold(
       backgroundColor: AppColors.cream,
       appBar: AppBar(
@@ -504,75 +523,20 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
         elevation: 0,
         leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: () => Navigator.pop(context)),
         title: Text(
-          _step == 0 ? 'Select vehicle' : _step == 1 ? 'What\'s the problem?' : _step == 2 ? 'Add details' : _step == 3 ? 'Set location' : 'Mechanics nearby',
+          _step == 0
+              ? 'Select vehicle'
+              : _step == 1
+                  ? 'What\'s the problem?'
+                  : _step == 2
+                      ? 'Add details'
+                      : _step == 3
+                          ? 'Photos (optional)'
+                          : 'Pickup & mechanics',
           style: GoogleFonts.outfit(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
         ),
       ),
       body: _buildStepContent(),
       bottomNavigationBar: _shouldShowBottomBar() ? _buildBottomBar() : null,
-    );
-  }
-
-  Widget _buildWaitingScreen() {
-    final mins = _waitingSecondsRemaining ~/ 60;
-    final secs = _waitingSecondsRemaining % 60;
-    return Scaffold(
-      backgroundColor: AppColors.cream,
-      appBar: AppBar(backgroundColor: AppColors.burntOrange, elevation: 0, title: Text('Request sent', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold))),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0.8, end: 1.1),
-                duration: const Duration(milliseconds: 800),
-                builder: (context, value, child) => Transform.scale(scale: value, child: child),
-                child: Icon(Icons.check_circle, size: 80, color: AppColors.burntOrange),
-              ),
-              const SizedBox(height: 24),
-              Text(
-                'Your request has been sent',
-                style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Waiting for a mechanic to accept...',
-                style: GoogleFonts.inter(fontSize: 16, color: Colors.grey[700]),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 20),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                decoration: BoxDecoration(
-                  color: AppColors.burntOrange.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.burntOrange.withValues(alpha: 0.3)),
-                ),
-                child: Text(
-                  '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')} left',
-                  style: GoogleFonts.outfit(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.burntOrange),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'If no mechanic accepts in 5 min, request will be cancelled.',
-                style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[600]),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
-              const SizedBox(width: 32, height: 32, child: CircularProgressIndicator(strokeWidth: 3, color: AppColors.burntOrange)),
-              const SizedBox(height: 32),
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text('Back to home', style: GoogleFonts.outfit(color: AppColors.burntOrange, fontWeight: FontWeight.w600)),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 
@@ -583,9 +547,9 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
         child: ElevatedButton(
           onPressed: () {
             if (_step == 0 && _vehicles.isEmpty && _userEmail != null) {
-              Navigator.push(context, MaterialPageRoute(
-                builder: (context) => AddEditVehiclePage(userEmail: _userEmail!),
-              )).then((_) => _loadUserAndVehicles());
+              showAddVehicleInBottomSheet(context, userEmail: _userEmail!).then((_) {
+                if (mounted) WidgetsBinding.instance.addPostFrameCallback((_) => _loadUserAndVehicles());
+              });
             } else {
               _nextStep();
             }
@@ -614,7 +578,7 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
       case 2:
         return _buildDetailsStep();
       case 3:
-        return _buildLocationStep();
+        return _buildPhotoStep();
       case 4:
         return _buildMechanicsStep();
       default:
@@ -624,10 +588,11 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
 
   void _showVehicleSelectionSheet() {
     if (_userEmail == null) return;
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
+      useSafeArea: false,
       builder: (sheetContext) => VehicleSelectionSheet(
         title: 'Select vehicle',
         userEmail: _userEmail!,
@@ -635,18 +600,20 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
         initialVehicles: _vehicles.isEmpty ? null : _vehicles,
         onSelectVehicle: (v) {
           Navigator.pop(sheetContext);
-          setState(() {
-            _selectedVehicle = v;
-            _vehicleType = (v['type'] ?? 'CAR').toString().toUpperCase();
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            setState(() {
+              _selectedVehicle = v;
+              _vehicleType = (v['type'] ?? 'CAR').toString().toUpperCase();
+            });
+            if (_vehicles.length == 1) _advanceAfterVehicleSelection();
           });
-          if (_vehicles.length == 1) _advanceAfterVehicleSelection();
         },
         onAddVehicle: () {
           Navigator.pop(sheetContext);
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => AddEditVehiclePage(userEmail: _userEmail!)),
-          ).then((_) => _loadUserAndVehicles());
+          showAddVehicleInBottomSheet(context, userEmail: _userEmail!).then((_) {
+            if (mounted) WidgetsBinding.instance.addPostFrameCallback((_) => _loadUserAndVehicles());
+          });
         },
       ),
     );
@@ -709,9 +676,9 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
                   ElevatedButton.icon(
                     onPressed: () {
                       if (_userEmail != null) {
-                        Navigator.push(context, MaterialPageRoute(
-                          builder: (context) => AddEditVehiclePage(userEmail: _userEmail!),
-                        )).then((_) => _loadUserAndVehicles());
+                        showAddVehicleInBottomSheet(context, userEmail: _userEmail!).then((_) {
+                          if (mounted) WidgetsBinding.instance.addPostFrameCallback((_) => _loadUserAndVehicles());
+                        });
                       }
                     },
                     style: ElevatedButton.styleFrom(backgroundColor: AppColors.burntOrange, foregroundColor: Colors.white),
@@ -768,9 +735,9 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
             TextButton.icon(
               onPressed: () {
                 if (_userEmail != null) {
-                  Navigator.push(context, MaterialPageRoute(
-                    builder: (context) => AddEditVehiclePage(userEmail: _userEmail!),
-                  )).then((_) => _loadUserAndVehicles());
+                  showAddVehicleInBottomSheet(context, userEmail: _userEmail!).then((_) {
+                    if (mounted) WidgetsBinding.instance.addPostFrameCallback((_) => _loadUserAndVehicles());
+                  });
                 }
               },
               icon: const Icon(Icons.add, size: 20),
@@ -786,7 +753,7 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
     final v = _selectedVehicle!;
     final type = (v['type'] ?? 'CAR').toString().toUpperCase();
     final label = '${v['makeName'] ?? ''} ${v['modelName'] ?? ''} (${v['plateNumber'] ?? ''})'.trim();
-    final imageUrl = v['photoUrl']?.toString() ?? v['modelImageUrl']?.toString();
+    final imageUrl = _vehiclePhotoUrl(v);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -799,7 +766,7 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            child: imageUrl != null && imageUrl.isNotEmpty
+            child: imageUrl.isNotEmpty
                 ? Image.network(imageUrl, width: 80, height: 80, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _vehicleIcon(type, 80))
                 : _vehicleIcon(type, 80),
           ),
@@ -846,7 +813,7 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
     final isSelected = _selectedVehicle != null && v['id'] == _selectedVehicle!['id'];
     final type = (v['type'] ?? 'CAR').toString().toUpperCase();
     final label = '${v['makeName'] ?? ''} ${v['modelName'] ?? ''} (${v['plateNumber'] ?? ''})'.trim();
-    final imageUrl = v['photoUrl']?.toString() ?? v['modelImageUrl']?.toString();
+    final imageUrl = _vehiclePhotoUrl(v);
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Material(
@@ -867,7 +834,7 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
-                  child: imageUrl != null && imageUrl.isNotEmpty
+                  child: imageUrl.isNotEmpty
                       ? Image.network(imageUrl, width: 56, height: 56, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _vehicleIcon(type, 56))
                       : _vehicleIcon(type, 56),
                 ),
@@ -914,23 +881,25 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
                     child: Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.all(12),
+                          width: 48,
+                          height: 48,
+                          padding: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
-                            color: AppColors.burntOrange.withValues(alpha: 0.15),
+                            color: AppColors.burntOrange.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: _problemIconUrls[p.id] != null && _problemIconUrls[p.id]!.isNotEmpty
+                          child: _problemIconUrlFor(p).isNotEmpty
                               ? ClipRRect(
                                   borderRadius: BorderRadius.circular(8),
                                   child: Image.network(
-                                    _problemIconUrls[p.id]!,
-                                    width: 26,
-                                    height: 26,
+                                    _problemIconUrlFor(p),
+                                    width: 36,
+                                    height: 36,
                                     fit: BoxFit.contain,
-                                    errorBuilder: (_, __, ___) => Icon(p.icon, color: AppColors.burntOrange, size: 26),
+                                    errorBuilder: (_, __, ___) => Icon(p.icon, color: Colors.grey[500], size: 28),
                                   ),
                                 )
-                              : Icon(p.icon, color: AppColors.burntOrange, size: 26),
+                              : Icon(p.icon, color: Colors.grey[500], size: 28),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
@@ -962,6 +931,58 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
     );
   }
 
+  Widget _buildDetailsVehicleBanner() {
+    final v = _selectedVehicle!;
+    final type = (v['type'] ?? 'CAR').toString().toUpperCase();
+    final imageUrl = _vehiclePhotoUrl(v);
+    final title = '${v['makeName'] ?? ''} ${v['modelName'] ?? ''}'.trim();
+    final plate = v['plateNumber']?.toString() ?? '';
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.creamElevated,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.burntOrange.withValues(alpha: 0.22)),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 2))],
+      ),
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: imageUrl.isNotEmpty
+                ? Image.network(
+                    imageUrl,
+                    width: 88,
+                    height: 88,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => _vehicleIcon(type, 88),
+                  )
+                : _vehicleIcon(type, 88),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Your vehicle', style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[600], fontWeight: FontWeight.w600)),
+                const SizedBox(height: 4),
+                Text(
+                  title.isEmpty ? (type == 'BIKE' ? 'Bike' : 'Car') : title,
+                  style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.darkChocolate),
+                ),
+                if (plate.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(plate, style: GoogleFonts.inter(fontSize: 13, color: Colors.grey[700])),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildDetailsStep() {
     final hasDiagnostic = _selectedProblem?.diagnosticQuestions != null && _selectedProblem!.diagnosticQuestions!.isNotEmpty;
     return SingleChildScrollView(
@@ -971,103 +992,13 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
         children: [
           Text('Add details', style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.darkChocolate)),
           const SizedBox(height: 6),
-          Text('Photos and answers help the mechanic prepare.', style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[700])),
+          Text('Answers help the mechanic prepare. You can add photos of damage in the next step.', style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[700])),
+          if (_selectedVehicle != null) ...[
+            const SizedBox(height: 16),
+            _buildDetailsVehicleBanner(),
+          ],
           const SizedBox(height: 24),
-          // 1. Add photo — in a card
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: AppColors.creamElevated,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 2))],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.add_photo_alternate, size: 22, color: AppColors.burntOrange),
-                    const SizedBox(width: 10),
-                    Text(
-                      _photoRequired ? 'Add photo (required)' : 'Add photo (optional)',
-                      style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600),
-                    ),
-                    if (_photoRequired) Text(' *', style: GoogleFonts.outfit(fontSize: 16, color: Colors.red, fontWeight: FontWeight.w600)),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                if (_photoUrls.isEmpty)
-                  GestureDetector(
-                    onTap: _pickImage,
-                    child: Container(
-                      width: 160,
-                      height: 140,
-                      decoration: BoxDecoration(
-                        color: AppColors.burntOrange.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: AppColors.burntOrange.withValues(alpha: 0.35), width: 2),
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.add_photo_alternate, size: 48, color: AppColors.burntOrange),
-                          const SizedBox(height: 10),
-                          Text('Tap to add photo', style: GoogleFonts.outfit(fontSize: 14, color: AppColors.burntOrange, fontWeight: FontWeight.w600)),
-                        ],
-                      ),
-                    ),
-                  )
-                else
-                  SizedBox(
-                    height: 110,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: _photoUrls.length + 1,
-                      itemBuilder: (context, i) {
-                        if (i == _photoUrls.length) {
-                          return Padding(
-                            padding: const EdgeInsets.only(left: 10),
-                            child: GestureDetector(
-                              onTap: _pickImage,
-                              child: Container(
-                                width: 100,
-                                decoration: BoxDecoration(
-                                  color: AppColors.burntOrange.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: AppColors.burntOrange.withValues(alpha: 0.3)),
-                                ),
-                                child: const Icon(Icons.add, size: 36, color: AppColors.burntOrange),
-                              ),
-                            ),
-                          );
-                        }
-                        return Padding(
-                          padding: EdgeInsets.only(right: 10, left: i == 0 ? 0 : 0),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Stack(
-                              children: [
-                                Image.file(File(_photoUrls[i]), width: 100, height: 110, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.image, size: 40)),
-                                Positioned(
-                                  top: 4,
-                                  right: 4,
-                                  child: GestureDetector(
-                                    onTap: () => setState(() => _photoUrls.removeAt(i)),
-                                    child: const CircleAvatar(radius: 14, backgroundColor: Colors.black54, child: Icon(Icons.close, size: 18, color: Colors.white)),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          // 2. Quick questions
+          // Quick questions
           if (hasDiagnostic) ...[
             const SizedBox(height: 24),
             Container(
@@ -1157,121 +1088,164 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
     );
   }
 
-  Widget _buildLocationStep() {
+  Widget _buildPhotoStep() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Where is the vehicle?', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w600)),
+          Text('Add photo or video of vehicle damage', style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.darkChocolate)),
           const SizedBox(height: 8),
-          Text('Select on map or use current location so we can show nearby mechanics.', style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[700])),
-          if (_locationAddress.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: AppColors.burntOrange.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.burntOrange.withValues(alpha: 0.3)),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.location_on, color: AppColors.burntOrange, size: 22),
-                  const SizedBox(width: 10),
-                  Expanded(child: Text(_locationAddress, style: GoogleFonts.inter(fontSize: 14))),
-                ],
-              ),
+          Text('Optional. Helps the mechanic understand the issue before they arrive.', style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[700])),
+          const SizedBox(height: 24),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppColors.creamElevated,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 2))],
             ),
-          ],
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () => _getCurrentLocation(showErrors: true),
-                  icon: const Icon(Icons.my_location, size: 20),
-                  label: const Text('Use current location'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.burntOrange,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (_photoUrls.isEmpty)
+                  GestureDetector(
+                    onTap: _pickImage,
+                    child: Container(
+                      width: double.infinity,
+                      height: 160,
+                      decoration: BoxDecoration(
+                        color: AppColors.burntOrange.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppColors.burntOrange.withValues(alpha: 0.35), width: 2),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.add_photo_alternate, size: 48, color: AppColors.burntOrange),
+                          const SizedBox(height: 12),
+                          Text('Add photo or video', style: GoogleFonts.outfit(fontSize: 16, color: AppColors.burntOrange, fontWeight: FontWeight.w600)),
+                          Text('Tap to add (optional)', style: GoogleFonts.inter(fontSize: 13, color: Colors.grey[600])),
+                        ],
+                      ),
+                    ),
+                  )
+                else
+                  SizedBox(
+                    height: 120,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: _photoUrls.length + 1,
+                      itemBuilder: (context, i) {
+                        if (i == _photoUrls.length) {
+                          return Padding(
+                            padding: const EdgeInsets.only(left: 10),
+                            child: GestureDetector(
+                              onTap: _pickImage,
+                              child: Container(
+                                width: 100,
+                                decoration: BoxDecoration(
+                                  color: AppColors.burntOrange.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: AppColors.burntOrange.withValues(alpha: 0.3)),
+                                ),
+                                child: const Icon(Icons.add, size: 36, color: AppColors.burntOrange),
+                              ),
+                            ),
+                          );
+                        }
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 10),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Stack(
+                              children: [
+                                Image.file(File(_photoUrls[i]), width: 100, height: 120, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.image, size: 40)),
+                                Positioned(
+                                  top: 4,
+                                  right: 4,
+                                  child: GestureDetector(
+                                    onTap: () => setState(() => _photoUrls.removeAt(i)),
+                                    child: const CircleAvatar(radius: 14, backgroundColor: Colors.black54, child: Icon(Icons.close, size: 18, color: Colors.white)),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _pickLocationOnMap,
-                  icon: const Icon(Icons.map, size: 20),
-                  label: const Text('Pick on map'),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    side: const BorderSide(color: AppColors.burntOrange),
-                    foregroundColor: AppColors.burntOrange,
-                  ),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
+          const SizedBox(height: 16),
+          Text('Next: confirm pickup on the map and request a mechanic.', style: GoogleFonts.inter(fontSize: 13, color: Colors.grey[600])),
         ],
       ),
     );
   }
 
   Widget _buildMechanicsStep() {
-    if (_loadingMechanics) {
+    final preselected = widget.preselectedMechanicId != null;
+    if (!preselected && _loadingMechanics) {
       return const Center(child: CircularProgressIndicator(color: AppColors.burntOrange));
     }
-    if (_mechanics.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.engineering, size: 64, color: Colors.grey[400]),
-              const SizedBox(height: 16),
-              Text('No mechanics within 6 km for this problem.', style: GoogleFonts.outfit(fontSize: 16, color: Colors.grey[700]), textAlign: TextAlign.center),
-              const SizedBox(height: 8),
-              Text('You can still send a request – we\'ll notify mechanics within 5 km.', style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[600]), textAlign: TextAlign.center),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _sendingRequest ? null : _sendRequestToAll,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.burntOrange,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: _sendingRequest
-                      ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : Text('Send request to nearby mechanics', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 16)),
-                ),
-              ),
-            ],
-          ),
+
+    final markers = <Marker>{};
+    if (_userLat != null && _userLng != null) {
+      markers.add(
+        Marker(
+          markerId: const MarkerId('pickup'),
+          position: LatLng(_userLat!, _userLng!),
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+          infoWindow: const InfoWindow(title: 'Pickup point'),
         ),
       );
     }
+    var hueIdx = 0;
+    for (final m in _mechanics) {
+      final lat = double.tryParse(m['latitude']?.toString() ?? '');
+      final lng = double.tryParse(m['longitude']?.toString() ?? '');
+      if (lat == null || lng == null) continue;
+      markers.add(
+        Marker(
+          markerId: MarkerId('mc_${m['id']}'),
+          position: LatLng(lat, lng),
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange + (hueIdx++ % 6) * 6),
+          infoWindow: InfoWindow(title: m['name']?.toString() ?? 'Mechanic'),
+        ),
+      );
+    }
+
+    Future<void> send() async {
+      if (preselected) {
+        await _sendRequestToPreselectedMechanic();
+      } else {
+        await _sendRequestToAll();
+      }
+    }
+
     return Stack(
       children: [
         if (_userLat != null && _userLng != null)
-          SizedBox(
-            height: 220,
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 240,
             child: GoogleMap(
-              initialCameraPosition: CameraPosition(target: LatLng(_userLat!, _userLng!), zoom: 14),
-              markers: {Marker(markerId: const MarkerId('me'), position: LatLng(_userLat!, _userLng!), icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure))},
+              initialCameraPosition: CameraPosition(target: LatLng(_userLat!, _userLng!), zoom: 13),
+              markers: markers,
               myLocationEnabled: true,
+              padding: const EdgeInsets.only(bottom: 20),
             ),
           ),
         DraggableScrollableSheet(
           initialChildSize: 0.55,
-          minChildSize: 0.35,
-          maxChildSize: 0.9,
+          minChildSize: 0.38,
+          maxChildSize: 0.92,
           builder: (context, scrollController) {
             return Container(
               decoration: const BoxDecoration(
@@ -1279,86 +1253,147 @@ class _BookMechanicFlowPageState extends State<BookMechanicFlowPage> {
                 borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
                 boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 12, offset: Offset(0, -4))],
               ),
-              child: Column(
+              child: ListView(
+                controller: scrollController,
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 28),
                 children: [
-                  Container(
-                    margin: const EdgeInsets.only(top: 12, bottom: 8),
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+                    ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Text('Mechanics available (${_mechanics.length})', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold)),
-                  ),
+                  Text('Double-check pickup', style: GoogleFonts.outfit(fontSize: 17, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
-                  Expanded(
-                    child: ListView.builder(
-                      controller: scrollController,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: _mechanics.length + 1,
-                      itemBuilder: (context, i) {
-                        if (i == _mechanics.length) {
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 16, bottom: 24),
-                            child: SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton(
-                                onPressed: _sendingRequest ? null : _sendRequestToAll,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.burntOrange,
-                                  padding: const EdgeInsets.symmetric(vertical: 16),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                ),
-                                child: _sendingRequest
-                                    ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                                    : Text('Send request to nearby mechanics', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 16)),
+                  Material(
+                    color: AppColors.cream,
+                    borderRadius: BorderRadius.circular(12),
+                    child: InkWell(
+                      onTap: _pickLocationOnMap,
+                      borderRadius: BorderRadius.circular(12),
+                      child: Padding(
+                        padding: const EdgeInsets.all(14),
+                        child: Row(
+                          children: [
+                            Icon(Icons.edit_location_alt, color: AppColors.burntOrange),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                _locationAddress.isEmpty ? 'Tap to set on map' : _locationAddress,
+                                style: GoogleFonts.inter(fontSize: 14),
                               ),
                             ),
-                          );
-                        }
-                        final m = _mechanics[i];
-                        final name = m['name'] ?? 'Mechanic';
-                        final specialty = m['specialty'] ?? 'General';
-                        final status = m['status']?.toString() ?? 'Available';
-                        final isAvailable = status == 'Available';
-                        final availability = isAvailable ? 'Available' : (status == 'Offline' ? 'Offline' : 'Busy');
-                        return Opacity(
-                          opacity: isAvailable ? 1.0 : 0.5,
-                          child: Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: Container(
-                              padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(
-                                color: AppColors.cream,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: isAvailable ? AppColors.burntOrange.withValues(alpha: 0.3) : Colors.grey.shade200),
-                              ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 44,
-                                    height: 44,
-                                    decoration: BoxDecoration(color: AppColors.burntOrange.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
-                                    child: Icon(Icons.engineering, color: AppColors.burntOrange, size: 24),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(name, style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 15)),
-                                        Text(specialty, style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[700])),
-                                        Text(availability, style: GoogleFonts.inter(fontSize: 12, color: isAvailable ? AppColors.burntOrange : Colors.grey)),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
+                            Icon(Icons.chevron_right, color: Colors.grey[600]),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: _getCurrentLocation,
+                    icon: const Icon(Icons.my_location, size: 20),
+                    label: const Text('Use current location'),
+                  ),
+                  if (!preselected) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _mechanics.isEmpty
+                                ? 'No profiles in list — you can still broadcast nearby'
+                                : 'Mechanics nearby (${_mechanics.length})',
+                            style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        if (_loadingMechanics || _sendingRequest)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 8),
+                            child: SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.burntOrange),
                             ),
                           ),
-                        );
-                      },
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    if (_mechanics.isEmpty && !_loadingMechanics) ...[
+                      OutlinedButton.icon(
+                        onPressed: _fetchMechanicsByCategory,
+                        icon: const Icon(Icons.refresh, size: 20),
+                        label: const Text('Search nearby again'),
+                        style: OutlinedButton.styleFrom(foregroundColor: AppColors.burntOrange),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                    ..._mechanics.map((m) {
+                      final name = m['name'] ?? 'Mechanic';
+                      final specialty = m['specialty'] ?? 'General';
+                      final status = m['status']?.toString() ?? 'Available';
+                      final isAvailable = status == 'Available';
+                      return Opacity(
+                        opacity: isAvailable ? 1.0 : 0.55,
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: AppColors.cream,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: isAvailable ? AppColors.burntOrange.withValues(alpha: 0.28) : Colors.grey.shade200),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 44,
+                                  height: 44,
+                                  decoration: BoxDecoration(color: AppColors.burntOrange.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
+                                  child: Icon(Icons.engineering, color: AppColors.burntOrange, size: 24),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(name, style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 15)),
+                                      Text(specialty, style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[700])),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                  ] else
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Text(
+                        'We\'ll send this request to your selected mechanic.',
+                        style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[700]),
+                      ),
+                    ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _sendingRequest ? null : () => send(),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.burntOrange,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: _sendingRequest
+                          ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : Text(
+                              preselected ? 'Send request to mechanic' : 'Request nearby mechanics',
+                              style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 16),
+                            ),
                     ),
                   ),
                 ],

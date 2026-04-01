@@ -1360,6 +1360,8 @@ public class AdminController {
             out.put("loadingMediaType", "");
             out.put("nearestMechanicMarkerIconUrl", "");
             out.put("userLocationMarkerIconUrl", "");
+            out.put("mechanicShopMarkerIconUrl", "");
+            out.put("mechanicDrivingMarkerIconUrl", "");
             out.put("carServiceImageUrl", "");
             out.put("bikeServiceImageUrl", "");
             out.put("quickServiceNightServiceIconUrl", "");
@@ -1370,6 +1372,7 @@ public class AdminController {
             out.put("quickServiceMinorRepairIconUrl", "");
             out.put("quickServiceBatteryJumpIconUrl", "");
             out.put("problemCategoryIconsJson", "");
+            out.put("nightServiceIconsJson", "");
             return ResponseEntity.ok(out);
         }
         AppBranding c = opt.get();
@@ -1386,6 +1389,8 @@ public class AdminController {
         out.put("loadingMediaType", c.getLoadingMediaType() != null ? c.getLoadingMediaType() : "");
         out.put("nearestMechanicMarkerIconUrl", c.getNearestMechanicMarkerIconUrl() != null ? c.getNearestMechanicMarkerIconUrl() : "");
         out.put("userLocationMarkerIconUrl", c.getUserLocationMarkerIconUrl() != null ? c.getUserLocationMarkerIconUrl() : "");
+        out.put("mechanicShopMarkerIconUrl", c.getMechanicShopMarkerIconUrl() != null ? c.getMechanicShopMarkerIconUrl() : "");
+        out.put("mechanicDrivingMarkerIconUrl", c.getMechanicDrivingMarkerIconUrl() != null ? c.getMechanicDrivingMarkerIconUrl() : "");
         out.put("carServiceImageUrl", c.getCarServiceImageUrl() != null ? c.getCarServiceImageUrl() : "");
         out.put("bikeServiceImageUrl", c.getBikeServiceImageUrl() != null ? c.getBikeServiceImageUrl() : "");
         out.put("quickServiceNightServiceIconUrl", c.getQuickServiceNightServiceIconUrl() != null ? c.getQuickServiceNightServiceIconUrl() : "");
@@ -1396,6 +1401,7 @@ public class AdminController {
         out.put("quickServiceMinorRepairIconUrl", c.getQuickServiceMinorRepairIconUrl() != null ? c.getQuickServiceMinorRepairIconUrl() : "");
         out.put("quickServiceBatteryJumpIconUrl", c.getQuickServiceBatteryJumpIconUrl() != null ? c.getQuickServiceBatteryJumpIconUrl() : "");
         out.put("problemCategoryIconsJson", c.getProblemCategoryIconsJson() != null ? c.getProblemCategoryIconsJson() : "");
+        out.put("nightServiceIconsJson", c.getNightServiceIconsJson() != null ? c.getNightServiceIconsJson() : "");
         return ResponseEntity.ok(out);
     }
 
@@ -1412,6 +1418,8 @@ public class AdminController {
         String loadingMediaType = body != null && body.get("loadingMediaType") != null ? body.get("loadingMediaType").toString().trim().toLowerCase() : null;
         String nearestMechanicMarkerIconUrl = body != null && body.get("nearestMechanicMarkerIconUrl") != null ? body.get("nearestMechanicMarkerIconUrl").toString().trim() : null;
         String userLocationMarkerIconUrl = body != null && body.get("userLocationMarkerIconUrl") != null ? body.get("userLocationMarkerIconUrl").toString().trim() : null;
+        String mechanicShopMarkerIconUrl = body != null && body.get("mechanicShopMarkerIconUrl") != null ? body.get("mechanicShopMarkerIconUrl").toString().trim() : null;
+        String mechanicDrivingMarkerIconUrl = body != null && body.get("mechanicDrivingMarkerIconUrl") != null ? body.get("mechanicDrivingMarkerIconUrl").toString().trim() : null;
         String carServiceImageUrl = body != null && body.get("carServiceImageUrl") != null ? body.get("carServiceImageUrl").toString().trim() : null;
         String bikeServiceImageUrl = body != null && body.get("bikeServiceImageUrl") != null ? body.get("bikeServiceImageUrl").toString().trim() : null;
         String quickServiceNightServiceIconUrl = body != null && body.get("quickServiceNightServiceIconUrl") != null ? body.get("quickServiceNightServiceIconUrl").toString().trim() : null;
@@ -1422,6 +1430,7 @@ public class AdminController {
         String quickServiceMinorRepairIconUrl = body != null && body.get("quickServiceMinorRepairIconUrl") != null ? body.get("quickServiceMinorRepairIconUrl").toString().trim() : null;
         String quickServiceBatteryJumpIconUrl = body != null && body.get("quickServiceBatteryJumpIconUrl") != null ? body.get("quickServiceBatteryJumpIconUrl").toString().trim() : null;
         String problemCategoryIconsJson = body != null && body.get("problemCategoryIconsJson") != null ? body.get("problemCategoryIconsJson").toString().trim() : null;
+        String nightServiceIconsJson = body != null && body.get("nightServiceIconsJson") != null ? body.get("nightServiceIconsJson").toString().trim() : null;
         if (splashMediaType != null && !splashMediaType.isEmpty() && !"lottie".equals(splashMediaType) && !"gif".equals(splashMediaType) && !"video".equals(splashMediaType)) {
             splashMediaType = "lottie";
         }
@@ -1443,6 +1452,8 @@ public class AdminController {
         if (loadingMediaType != null) c.setLoadingMediaType(loadingMediaType);
         if (nearestMechanicMarkerIconUrl != null) c.setNearestMechanicMarkerIconUrl(nearestMechanicMarkerIconUrl);
         if (userLocationMarkerIconUrl != null) c.setUserLocationMarkerIconUrl(userLocationMarkerIconUrl);
+        if (mechanicShopMarkerIconUrl != null) c.setMechanicShopMarkerIconUrl(mechanicShopMarkerIconUrl);
+        if (mechanicDrivingMarkerIconUrl != null) c.setMechanicDrivingMarkerIconUrl(mechanicDrivingMarkerIconUrl);
         if (carServiceImageUrl != null) c.setCarServiceImageUrl(carServiceImageUrl);
         if (bikeServiceImageUrl != null) c.setBikeServiceImageUrl(bikeServiceImageUrl);
         if (quickServiceNightServiceIconUrl != null) c.setQuickServiceNightServiceIconUrl(quickServiceNightServiceIconUrl);
@@ -1453,6 +1464,7 @@ public class AdminController {
         if (quickServiceMinorRepairIconUrl != null) c.setQuickServiceMinorRepairIconUrl(quickServiceMinorRepairIconUrl);
         if (quickServiceBatteryJumpIconUrl != null) c.setQuickServiceBatteryJumpIconUrl(quickServiceBatteryJumpIconUrl);
         if (problemCategoryIconsJson != null) c.setProblemCategoryIconsJson(problemCategoryIconsJson);
+        if (nightServiceIconsJson != null) c.setNightServiceIconsJson(nightServiceIconsJson);
         return ResponseEntity.ok(appBrandingRepo.save(c));
     }
 

@@ -125,7 +125,16 @@ class MainActivity : FlutterActivity() {
             channel.setMethodCallHandler { call, result ->
                 when (call.method) {
                     "startAlarm" -> {
-                        startMechanicAlarmService()
+                        startMechanicAlarmServiceWithExtras("", "New request", "A customer requested your service.")
+                        result.success(null)
+                    }
+                    "startAlarmForRequest" -> {
+                        @Suppress("UNCHECKED_CAST")
+                        val args = call.arguments as? Map<String, Any?>
+                        val requestId = args?.get("requestId")?.toString() ?: ""
+                        val title = args?.get("title")?.toString() ?: "New request"
+                        val body = args?.get("body")?.toString() ?: "A customer requested your service."
+                        startMechanicAlarmServiceWithExtras(requestId, title, body)
                         result.success(null)
                     }
                     "stopAlarm" -> {
@@ -189,9 +198,12 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    private fun startMechanicAlarmService() {
+    private fun startMechanicAlarmServiceWithExtras(requestId: String, title: String, body: String) {
         val intent = Intent(this, MechanicAlarmService::class.java).apply {
             action = MechanicAlarmService.ACTION_START_ALARM
+            putExtra(MechanicAlarmService.EXTRA_REQUEST_ID, requestId)
+            putExtra(MechanicAlarmService.EXTRA_TITLE, title)
+            putExtra(MechanicAlarmService.EXTRA_BODY, body)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(intent)

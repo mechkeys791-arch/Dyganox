@@ -11,7 +11,6 @@ import '../../services/api_config.dart';
 import '../../services/cognito_service.dart';
 import '../../services/vehicle_service.dart';
 import '../profile/location_picker_map_page.dart';
-import '../vehicles/add_edit_vehicle_page.dart';
 import '../../widgets/vehicle_selection_sheet.dart';
 
 /// Flow: 1) Vehicle (from profile, bottom sheet) → 2) Location (pickup/drop) → 3) What happened → 4) Towing providers (map half + list)
@@ -299,9 +298,11 @@ class _TowingServicePageState extends State<TowingServicePage>
       );
       return;
     }
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      useSafeArea: false,
       builder: (ctx) => VehicleSelectionSheet(
         title: 'Select vehicle',
         userEmail: _userEmail,
@@ -309,14 +310,15 @@ class _TowingServicePageState extends State<TowingServicePage>
         initialVehicles: _userVehicles.isEmpty ? null : _userVehicles,
         onSelectVehicle: (v) {
           Navigator.pop(ctx);
-          setState(() => _selectedVehicle = v);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) setState(() => _selectedVehicle = v);
+          });
         },
         onAddVehicle: () {
           Navigator.pop(ctx);
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (c) => AddEditVehiclePage(userEmail: _userEmail)),
-          ).then((_) => _loadUserVehicles());
+          showAddVehicleInBottomSheet(context, userEmail: _userEmail).then((_) {
+            if (mounted) WidgetsBinding.instance.addPostFrameCallback((_) => _loadUserVehicles());
+          });
         },
       ),
     );
@@ -795,7 +797,9 @@ class _TowingServicePageState extends State<TowingServicePage>
                   Text('Add a vehicle to continue.', style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[500]), textAlign: TextAlign.center),
                   const SizedBox(height: 16),
                   ElevatedButton.icon(
-                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (c) => AddEditVehiclePage(userEmail: _userEmail))).then((_) => _loadUserVehicles()),
+                    onPressed: () => showAddVehicleInBottomSheet(context, userEmail: _userEmail).then((_) {
+                      if (mounted) WidgetsBinding.instance.addPostFrameCallback((_) => _loadUserVehicles());
+                    }),
                     icon: const Icon(Icons.add, size: 18),
                     label: const Text('Add vehicle'),
                     style: ElevatedButton.styleFrom(backgroundColor: AppColors.burntOrange, foregroundColor: Colors.white),

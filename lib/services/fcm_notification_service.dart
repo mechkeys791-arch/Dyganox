@@ -27,12 +27,19 @@ void _stopMechanicAlarm() {
   } catch (_) {}
 }
 
-/// Start 30-sec continuous alarm for mechanic request (foreground only).
-Future<void> _startMechanicAlarm() async {
+/// Start 30-sec alarm + foreground notification with correct request id (Android native service).
+Future<void> _startMechanicAlarmForRequest(Map<String, dynamic> data) async {
   if (!_platform.kIsAndroid) return;
   try {
     const channel = MethodChannel(_kAlarmChannel);
-    await channel.invokeMethod('startAlarm');
+    final requestId = data['requestId']?.toString() ?? '';
+    final title = data['title']?.toString() ?? 'New request';
+    final body = data['body']?.toString() ?? 'A customer requested your service.';
+    await channel.invokeMethod('startAlarmForRequest', {
+      'requestId': requestId,
+      'title': title,
+      'body': body,
+    });
   } catch (_) {}
 }
 
@@ -255,14 +262,16 @@ class FcmNotificationService {
 
     if (type == 'mechanic_request' && requestId != null) {
       onMechanicRequestInForeground?.call(requestId);
-      if (_platform.kIsAndroid) {
-        return;
-      }
       final enabled = await areNotificationsEnabled();
       if (!enabled) return;
-      _startMechanicAlarm();
+      // Android: FCM delivers via Flutter receiver in foreground; native MessagingService is skipped there.
+      // Start MechanicAlarmService from Dart so alarm + one tray notification (Accept/Reject) always run.
+      if (_platform.kIsAndroid) {
+        await _startMechanicAlarmForRequest(data);
+        return;
+      }
       final payload = jsonEncode({'type': type, 'requestId': requestId});
-      _showLocalNotification(
+      await _showLocalNotification(
         id: _notificationIdFromRequestId(requestId),
         title: title,
         body: body,

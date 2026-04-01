@@ -6,6 +6,8 @@ import 'package:http/http.dart' as http;
 import 'dart:async';
 import 'dart:convert';
 import '../../services/api_config.dart';
+import '../../services/service_ads_api.dart';
+import '../../widgets/service_ad_strip.dart';
 import '../mechanic/book_mechanic_flow_page.dart';
 
 class NightServicePage extends StatefulWidget {
@@ -20,17 +22,11 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
   late Animation<double> _fadeAnimation;
   
   // Multiple animation controllers for various effects
-  late AnimationController _moonController;
-  late Animation<double> _moonRotation;
-  
   late AnimationController _glowController;
   late Animation<double> _glowAnimation;
   
   late AnimationController _slideController;
   late Animation<Offset> _slideAnimation;
-  
-  late AnimationController _bounceController;
-  late Animation<double> _bounceAnimation;
   
   late AnimationController _shimmerController;
   late Animation<double> _shimmerAnimation;
@@ -49,12 +45,18 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
   
   // Night service providers (fetched from backend)
   List<Map<String, dynamic>> _nightProviders = [];
+  /// Promotional strip ads (platform + mechanic geo-targeted)
+  List<Map<String, dynamic>> _serviceAds = [];
+  /// Admin-configured tile icons: keys emergency_towing, ev_vehicle_charge, puncture_repair, general_service
+  Map<String, String> _nightTileIconUrls = {};
+  final ScrollController _scrollController = ScrollController();
 
-  final List<Map<String, dynamic>> _nightServices = [
-    {'name': 'Emergency Towing', 'icon': Icons.local_shipping, 'color': AppColors.burntOrange, 'available': true},
-    {'name': 'Battery Jump Start', 'icon': Icons.battery_charging_full, 'color': AppColors.warmBrown, 'available': true},
-    {'name': 'Puncture Repair', 'icon': Icons.build_circle, 'color': AppColors.burntOrange, 'available': true},
-    {'name': 'General Service', 'icon': Icons.handyman, 'color': AppColors.warmBrown, 'available': true},
+  /// Stable keys must match admin JSON in App Branding → Night service icons.
+  static const List<Map<String, dynamic>> _nightServiceDefs = [
+    {'iconKey': 'emergency_towing', 'name': 'Emergency Towing', 'problemId': 'towing_service', 'color': AppColors.burntOrange, 'fallbackIcon': Icons.local_shipping},
+    {'iconKey': 'ev_vehicle_charge', 'name': 'EV vehicle charge', 'problemId': 'ev_vehicle_charge', 'color': AppColors.warmAmber, 'fallbackIcon': Icons.ev_station},
+    {'iconKey': 'puncture_repair', 'name': 'Puncture Repair', 'problemId': 'tyre_puncture', 'color': AppColors.burntOrange, 'fallbackIcon': Icons.build_circle},
+    {'iconKey': 'general_service', 'name': 'General Service', 'problemId': 'general_checkup', 'color': AppColors.warmBrown, 'fallbackIcon': Icons.handyman},
   ];
 
   @override
@@ -68,13 +70,6 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
     );
     _fadeAnimation = CurvedAnimation(parent: _controller, curve: Curves.easeIn);
     _controller.forward();
-    
-    // Moon rotation animation (continuous)
-    _moonController = AnimationController(
-      duration: const Duration(seconds: 20),
-      vsync: this,
-    )..repeat();
-    _moonRotation = Tween<double>(begin: 0, end: 2 * 3.14159).animate(_moonController);
     
     // Glow/pulse animation for night mode elements
     _glowController = AnimationController(
@@ -96,15 +91,6 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
     ).animate(CurvedAnimation(parent: _slideController, curve: Curves.easeOut));
     _slideController.forward();
     
-    // Bounce animation for badges
-    _bounceController = AnimationController(
-      duration: const Duration(milliseconds: 1000),
-      vsync: this,
-    )..repeat(reverse: true);
-    _bounceAnimation = Tween<double>(begin: 0.95, end: 1.05).animate(
-      CurvedAnimation(parent: _bounceController, curve: Curves.easeInOut),
-    );
-    
     // Shimmer animation for active providers
     _shimmerController = AnimationController(
       duration: const Duration(milliseconds: 2000),
@@ -118,6 +104,76 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
     _startTimeUpdate();
     _getCurrentLocation();
     _fetchNightProviders();
+    _fetchServiceAds();
+    _fetchNightTileIcons();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollPeekFromEdge());
+  }
+
+  Future<void> _fetchNightTileIcons() async {
+    try {
+      final r = await http.get(Uri.parse('${ApiConfig.baseUrl}/api/config/night-service-icons'));
+      if (!mounted || r.statusCode != 200) return;
+      final map = Map<String, dynamic>.from(jsonDecode(r.body) as Map);
+      setState(() {
+        _nightTileIconUrls = map.map((k, v) => MapEntry(k.toString(), v?.toString() ?? ''));
+      });
+    } catch (_) {}
+  }
+
+  void _scrollPeekFromEdge() {
+    if (!_scrollController.hasClients) return;
+    _scrollController.animateTo(
+      64,
+      duration: const Duration(milliseconds: 520),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  void _openNightBookSheet({String? preselectedProblemId, int? preselectedMechanicId}) {
+    Navigator.push<void>(
+      context,
+      MaterialPageRoute<void>(
+        builder: (ctx) => BookMechanicFlowPage(
+          preselectedProblemId: preselectedProblemId,
+          preselectedMechanicId: preselectedMechanicId,
+          nightServiceOnly: true,
+        ),
+      ),
+    );
+  }
+
+  String _resolveNightIconUrl(String? raw) {
+    if (raw == null || raw.isEmpty) return '';
+    if (raw.startsWith('http')) return raw;
+    return '${ApiConfig.baseUrl}${raw.startsWith('/') ? '' : '/'}$raw';
+  }
+
+  List<Map<String, dynamic>> get _nightImageAds => _serviceAds.where((a) {
+        final t = (a['mediaType'] ?? 'IMAGE').toString().toUpperCase();
+        return t == 'IMAGE';
+      }).toList();
+
+  Future<void> _fetchServiceAds() async {
+    final lat = _currentPosition?.latitude;
+    final lng = _currentPosition?.longitude;
+    final list = await ServiceAdsApi.fetch(placement: 'NIGHT_SERVICE', lat: lat, lng: lng);
+    if (!mounted) return;
+    setState(() => _serviceAds = list);
+  }
+
+  void _onServiceAdTap(Map<String, dynamic> ad) {
+    final mid = ad['mechanicId'];
+    int? mechanicId;
+    if (mid is int) mechanicId = mid;
+    else if (mid is num) mechanicId = mid.toInt();
+    if (mechanicId != null) {
+      _openNightBookSheet(preselectedMechanicId: mechanicId);
+      return;
+    }
+    final sub = ad['subtitle']?.toString() ?? '';
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(sub.isNotEmpty ? sub : 'Explore night services below')),
+    );
   }
   
   Future<void> _fetchNightProviders() async {
@@ -194,24 +250,12 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
   @override
   void dispose() {
     _controller.dispose();
-    _moonController.dispose();
     _glowController.dispose();
     _slideController.dispose();
-    _bounceController.dispose();
     _shimmerController.dispose();
+    _scrollController.dispose();
     _timeTimer?.cancel();
     super.dispose();
-  }
-
-  String? _nightServiceToProblemId(String? name) {
-    if (name == null) return null;
-    switch (name) {
-      case 'Emergency Towing': return 'towing_service';
-      case 'Battery Jump Start': return 'battery_jump';
-      case 'Puncture Repair': return 'tyre_puncture';
-      case 'General Service': return 'general_checkup';
-      default: return null;
-    }
   }
 
   void _checkNightTime() {
@@ -259,8 +303,10 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
 
       final position = await Geolocator.getCurrentPosition();
       setState(() => _currentPosition = position);
+      await _fetchServiceAds();
     } catch (e) {
       print('Error getting location: $e');
+      await _fetchServiceAds();
     } finally {
       setState(() => _isLoadingLocation = false);
     }
@@ -274,169 +320,58 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
         child: FadeTransition(
           opacity: _fadeAnimation,
           child: CustomScrollView(
+            controller: _scrollController,
             physics: const BouncingScrollPhysics(),
             slivers: [
               // Custom App Bar
               SliverAppBar(
-                expandedHeight: 232,
+                expandedHeight: 248,
                 floating: false,
                 pinned: true,
-                backgroundColor: _isNightTime ? AppColors.warmBrown : AppColors.burntOrange,
-                leading: IconButton(
-                  icon: Icon(Icons.arrow_back, color: AppColors.creamElevated),
-                  onPressed: () => Navigator.pop(context),
-                ),
-                flexibleSpace: FlexibleSpaceBar(
-                  title: AnimatedBuilder(
-                    animation: _glowAnimation,
-                    builder: (context, child) {
-                      return Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'Night Service',
-                            style: GoogleFonts.outfit(
-                              color: AppColors.creamElevated,
-                              fontWeight: FontWeight.bold,
-                              shadows: _isNightTime ? [
-                                Shadow(
-                                  color: AppColors.burntOrange.withOpacity(_glowAnimation.value),
-                                  blurRadius: 10 * _glowAnimation.value,
-                                ),
-                                Shadow(
-                                  color: AppColors.warmBrown.withOpacity(_glowAnimation.value * 0.8),
-                                  blurRadius: 20 * _glowAnimation.value,
-                                ),
-                              ] : [],
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          AnimatedBuilder(
-                            animation: _moonRotation,
-                            builder: (context, child) {
-                              return Transform.rotate(
-                                angle: _moonRotation.value,
-                                child: Text(
-                                  '🌙',
-                                  style: TextStyle(
-                                    fontSize: 20,
-                                    shadows: _isNightTime ? [
-                                      Shadow(
-                                        color: AppColors.creamElevated.withOpacity(_glowAnimation.value * 0.6),
-                                        blurRadius: 15 * _glowAnimation.value,
-                                      ),
-                                    ] : [],
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ],
-                      );
-                    },
+                backgroundColor: _nightImageAds.isNotEmpty
+                    ? Colors.black
+                    : (_isNightTime ? AppColors.warmBrown : AppColors.burntOrange),
+                leading: Padding(
+                  padding: const EdgeInsets.only(left: 4),
+                  child: IconButton(
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.black.withOpacity(0.45),
+                      foregroundColor: Colors.white,
+                    ),
+                    icon: const Icon(Icons.arrow_back),
+                    onPressed: () => Navigator.pop(context),
                   ),
+                ),
+                title: null,
+                flexibleSpace: FlexibleSpaceBar(
+                  title: null,
                   background: Stack(
                     fit: StackFit.expand,
                     children: [
-                      // Gradient background
-                      Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: _isNightTime 
-                              ? [AppColors.warmBrown, AppColors.darkChocolate, AppColors.warmBrownMuted]
-                              : [AppColors.burntOrange, AppColors.warmBrown, AppColors.warmAmber],
+                      if (_nightImageAds.isNotEmpty)
+                        Positioned.fill(
+                          child: ServiceAdStrip(
+                            ads: _nightImageAds,
+                            onAdTap: _onServiceAdTap,
+                            fullBleed: true,
+                          ),
+                        )
+                      else ...[
+                        Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: _isNightTime
+                                  ? [AppColors.warmBrown, AppColors.darkChocolate, AppColors.warmBrownMuted]
+                                  : [AppColors.burntOrange, AppColors.warmBrown, AppColors.warmAmber],
+                            ),
                           ),
                         ),
-                      ),
-                      // Animated stars (only at night)
-                      if (_isNightTime) ..._buildStars(),
-                      // Time and status overlay
-                      Positioned(
-                        bottom: 24,
-                        left: 16,
-                        right: 16,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.access_time,
-                                  color: AppColors.creamElevated.withOpacity(0.9),
-                                  size: 14,
-                                ),
-                                const SizedBox(width: 6),
-                                Flexible(
-                                  child: Text(
-                                    _currentTime,
-                                    style: GoogleFonts.inter(
-                                      color: AppColors.creamElevated.withOpacity(0.9),
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                const Spacer(),
-                                Flexible(
-                                  child: AnimatedBuilder(
-                                    animation: _bounceAnimation,
-                                    builder: (context, child) {
-                                      return Transform.scale(
-                                        scale: _isNightTime ? _bounceAnimation.value : 1.0,
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: _isNightTime 
-                                            ? AppColors.burntOrange.withOpacity(0.2 * _glowAnimation.value)
-                                            : AppColors.warmAmber.withOpacity(0.2),
-                                          borderRadius: BorderRadius.circular(12),
-                                          border: Border.all(
-                                            color: _isNightTime ? AppColors.burntOrange : AppColors.warmAmber,
-                                            width: _isNightTime ? 1 + (_glowAnimation.value * 0.5) : 1,
-                                          ),
-                                          boxShadow: _isNightTime ? [
-                                            BoxShadow(
-                                              color: AppColors.burntOrange.withOpacity(_glowAnimation.value * 0.5),
-                                              blurRadius: 10 * _glowAnimation.value,
-                                              spreadRadius: 2 * _glowAnimation.value,
-                                            ),
-                                          ] : [],
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Icon(
-                                              _isNightTime ? Icons.nightlight : Icons.wb_sunny,
-                                              color: _isNightTime ? AppColors.burntOrange : AppColors.warmAmber,
-                                              size: 14,
-                                            ),
-                                            const SizedBox(width: 6),
-                                            Flexible(
-                                              child: Text(
-                                                _isNightTime ? 'Night Mode Active' : 'Day Time',
-                                                style: GoogleFonts.inter(
-                                                  color: _isNightTime ? AppColors.burntOrange : AppColors.warmAmber,
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
+                        if (_isNightTime) ..._buildStars(),
+                      ],
+                      IgnorePointer(
+                        child: _buildHeroTimeOverlay(),
                       ),
                     ],
                   ),
@@ -450,15 +385,6 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Emergency Alert Banner with slide animation
-                      if (_isNightTime) 
-                        SlideTransition(
-                          position: _slideAnimation,
-                          child: _buildEmergencyBanner(),
-                        ),
-                      
-                      const SizedBox(height: 20),
-
                       // Night Service Info Card with slide animation
                       SlideTransition(
                         position: _slideAnimation,
@@ -550,81 +476,55 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
     });
   }
 
-  Widget _buildEmergencyBanner() {
-    return AnimatedBuilder(
-      animation: _glowAnimation,
-      builder: (context, child) {
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [AppColors.burntOrange, AppColors.warmAmber],
+  /// Clock + day/night chip over the hero (readable on ads and gradient).
+  Widget _buildHeroTimeOverlay() {
+    return SafeArea(
+      bottom: false,
+      child: Align(
+        alignment: Alignment.topRight,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(48, 6, 10, 0),
+          child: Material(
+            color: Colors.black.withOpacity(0.5),
+            borderRadius: BorderRadius.circular(20),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.access_time, color: Colors.white.withOpacity(0.95), size: 14),
+                  const SizedBox(width: 6),
+                  Text(
+                    _currentTime,
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(width: 1, height: 14, color: Colors.white24),
+                  const SizedBox(width: 8),
+                  Icon(
+                    _isNightTime ? Icons.nightlight_round : Icons.wb_sunny_outlined,
+                    color: Colors.white.withOpacity(0.9),
+                    size: 14,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    _isNightTime ? 'Night' : 'Day',
+                    style: GoogleFonts.inter(
+                      color: Colors.white.withOpacity(0.95),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.burntOrange.withOpacity(0.3 * _glowAnimation.value),
-                blurRadius: 12 + (8 * _glowAnimation.value),
-                offset: const Offset(0, 4),
-                spreadRadius: 2 * _glowAnimation.value,
-              ),
-              BoxShadow(
-                color: AppColors.warmAmber.withOpacity(0.2 * _glowAnimation.value),
-                blurRadius: 20 * _glowAnimation.value,
-                offset: const Offset(0, 0),
-                spreadRadius: 4 * _glowAnimation.value,
-              ),
-            ],
           ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.creamElevated.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.emergency,
-                  color: AppColors.creamElevated,
-                  size: 28,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Emergency 24/7 Available',
-                      style: GoogleFonts.outfit(
-                        color: AppColors.creamElevated,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Tap here for immediate assistance',
-                      style: GoogleFonts.inter(
-                        color: AppColors.creamElevated.withOpacity(0.9),
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              IconButton(
-                onPressed: () {
-                  setState(() => _emergencyMode = true);
-                  _showEmergencyDialog();
-                },
-                icon: Icon(Icons.phone_in_talk, color: AppColors.creamElevated),
-              ),
-            ],
-          ),
-        );
-      },
+        ),
+      ),
     );
   }
 
@@ -666,7 +566,7 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
           const SizedBox(height: 16),
           _buildInfoRow(Icons.schedule, 'Operating Hours', '7:00 PM - 7:00 AM'),
           const SizedBox(height: 12),
-          _buildInfoRow(Icons.info_outline, 'Pricing', 'Between you and mechanic. ProMech only connects you. Transparent pricing for night service.'),
+          _buildInfoRow(Icons.info_outline, 'Pricing', 'Between you and mechanic. Transparent pricing.'),
           const SizedBox(height: 12),
           _buildInfoRow(Icons.speed, 'Response Time', 'More time given to mechanic (night hours)'),
           const SizedBox(height: 12),
@@ -678,6 +578,7 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
 
   Widget _buildInfoRow(IconData icon, String title, String value) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Icon(
           icon,
@@ -686,20 +587,29 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: Text(
-            title,
-            style: GoogleFonts.inter(
-              color: AppColors.warmBrownMuted,
-              fontSize: 14,
-            ),
-          ),
-        ),
-        Text(
-          value,
-          style: GoogleFonts.inter(
-            color: _isNightTime ? AppColors.creamElevated : AppColors.warmBrown,
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                title,
+                style: GoogleFonts.inter(
+                  color: AppColors.warmBrownMuted,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                value,
+                style: GoogleFonts.inter(
+                  color: _isNightTime ? AppColors.creamElevated : AppColors.warmBrown,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
           ),
         ),
       ],
@@ -717,76 +627,113 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
     );
   }
 
+  Widget _buildNightServiceTileIcon(Map<String, dynamic> service) {
+    final key = service['iconKey'] as String;
+    final url = _resolveNightIconUrl(_nightTileIconUrls[key]);
+    final fallback = service['fallbackIcon'] as IconData;
+    final accent = service['color'] as Color;
+    if (url.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [accent.withOpacity(0.2), accent.withOpacity(0.08)],
+          ),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Icon(fallback, color: accent, size: 34),
+      );
+    }
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        height: 62,
+        width: 62,
+        color: (_isNightTime ? Colors.white : AppColors.darkChocolate).withOpacity(0.06),
+        child: Image.network(
+          url,
+          fit: BoxFit.contain,
+          errorBuilder: (_, __, ___) => Icon(fallback, color: accent, size: 34),
+        ),
+      ),
+    );
+  }
+
   Widget _buildServiceGrid() {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 1.3,
+        crossAxisSpacing: 14,
+        mainAxisSpacing: 14,
+        childAspectRatio: 1.05,
       ),
-      itemCount: _nightServices.length,
+      itemCount: _nightServiceDefs.length,
       itemBuilder: (context, index) {
-        final service = _nightServices[index];
+        final service = _nightServiceDefs[index];
         final isSelected = _selectedService == service['name'];
-        
-        return GestureDetector(
-          onTap: () {
-            setState(() => _selectedService = isSelected ? '' : service['name']);
-            final problemId = _nightServiceToProblemId(service['name']);
-            if (problemId != null) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => BookMechanicFlowPage(preselectedProblemId: problemId),
+        final accent = service['color'] as Color;
+
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(20),
+            onTap: () {
+              setState(() => _selectedService = isSelected ? '' : service['name'] as String);
+              final problemId = service['problemId'] as String?;
+              if (problemId != null) {
+                _openNightBookSheet(preselectedProblemId: problemId);
+              } else {
+                _showServiceDetails(service);
+              }
+            },
+            child: Ink(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: _isNightTime
+                      ? [AppColors.warmBrown.withOpacity(0.95), AppColors.darkChocolate.withOpacity(0.88)]
+                      : [AppColors.creamElevated, Colors.white],
                 ),
-              );
-            } else {
-              _showServiceDetails(service);
-            }
-          },
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: _isNightTime ? AppColors.warmBrown : AppColors.creamElevated,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: isSelected 
-                  ? service['color']
-                  : (_isNightTime ? AppColors.darkChocolate : AppColors.cream),
-                width: isSelected ? 2 : 1,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: isSelected 
-                    ? (service['color'] as Color).withOpacity(0.3)
-                    : AppColors.darkChocolate.withOpacity(0.05),
-                  blurRadius: isSelected ? 12 : 8,
-                  offset: const Offset(0, 4),
+                border: Border.all(
+                  color: isSelected ? accent : (_isNightTime ? accent.withOpacity(0.35) : AppColors.warmBrownMuted.withOpacity(0.35)),
+                  width: isSelected ? 2.2 : 1,
                 ),
-              ],
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  service['icon'],
-                  color: service['color'],
-                  size: 36,
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  service['name'],
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.inter(
-                    color: _isNightTime ? AppColors.creamElevated : AppColors.warmBrown,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
+                boxShadow: [
+                  BoxShadow(
+                    color: isSelected ? accent.withOpacity(0.28) : Colors.black.withOpacity(_isNightTime ? 0.25 : 0.07),
+                    blurRadius: isSelected ? 16 : 12,
+                    offset: const Offset(0, 6),
                   ),
+                ],
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _buildNightServiceTileIcon(service),
+                    const SizedBox(height: 10),
+                    Text(
+                      service['name'] as String,
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.outfit(
+                        color: _isNightTime ? AppColors.creamElevated : AppColors.warmBrown,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        height: 1.2,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         );
@@ -1040,11 +987,43 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
     );
   }
 
+  /// Clear 24/7 label (avoids [Icons.emergency] which often draws as an empty box on some fonts).
+  Widget _build247BadgeOutlined() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: AppColors.burntOrange.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppColors.burntOrange, width: 1.5),
+      ),
+      child: Text(
+        '24/7',
+        style: GoogleFonts.outfit(
+          color: AppColors.burntOrange,
+          fontWeight: FontWeight.w900,
+          fontSize: 14,
+          letterSpacing: -0.4,
+          height: 1,
+        ),
+      ),
+    );
+  }
+
   Widget _buildEmergencyFAB() {
-    return FloatingActionButton(
+    return FloatingActionButton.extended(
       onPressed: () => _showEmergencyDialog(),
       backgroundColor: AppColors.burntOrange,
-      child: Icon(Icons.report_problem_rounded, color: AppColors.creamElevated),
+      foregroundColor: AppColors.creamElevated,
+      icon: Icon(Icons.phone_in_talk_rounded, color: AppColors.creamElevated, size: 22),
+      label: Text(
+        '24/7',
+        style: GoogleFonts.outfit(
+          color: AppColors.creamElevated,
+          fontWeight: FontWeight.w900,
+          fontSize: 15,
+          letterSpacing: -0.5,
+        ),
+      ),
     );
   }
 
@@ -1076,8 +1055,8 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
             Row(
               children: [
                 Icon(
-                  service['icon'],
-                  color: service['color'],
+                  service['fallbackIcon'] as IconData,
+                  color: service['color'] as Color,
                   size: 32,
                 ),
                 const SizedBox(width: 12),
@@ -1133,11 +1112,13 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
-            Icon(Icons.emergency, color: AppColors.burntOrange),
+            _build247BadgeOutlined(),
             const SizedBox(width: 12),
-            Text(
-              'Emergency Service',
-              style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
+            Expanded(
+              child: Text(
+                'Emergency Service',
+                style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
+              ),
             ),
           ],
         ),
@@ -1153,7 +1134,7 @@ class _NightServicePageState extends State<NightServicePage> with TickerProvider
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppColors.burntOrange.withOpacity(0.1),
+                color: AppColors.burntOrange.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(

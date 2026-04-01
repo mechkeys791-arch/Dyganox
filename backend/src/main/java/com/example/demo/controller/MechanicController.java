@@ -13,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -238,16 +239,45 @@ public class MechanicController {
     }
 
     /** List mechanics by problem category and location. Optional vehicleType (CAR/BIKE) filters to mechanics who serve that vehicle. */
+    /**
+     * Customer app: safe mechanic profile for tracking (no phone, email, or Aadhar).
+     */
+    @GetMapping("/public-profile/{id}")
+    public ResponseEntity<Map<String, Object>> getMechanicPublicProfile(@PathVariable Long id) {
+        Optional<Mechanic> opt = mechanicRepo.findById(id);
+        if (opt.isEmpty()) return ResponseEntity.notFound().build();
+        Mechanic m = opt.get();
+        if (m.getApprovalStatus() == null || !"APPROVED".equalsIgnoreCase(m.getApprovalStatus())) {
+            return ResponseEntity.notFound().build();
+        }
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("id", m.getId());
+        out.put("name", m.getName() != null ? m.getName() : "Mechanic");
+        out.put("profilePhotoUrl", m.getProfilePhotoUrl() != null ? m.getProfilePhotoUrl() : "");
+        out.put("specialty", m.getSpecialty() != null ? m.getSpecialty() : "");
+        out.put("experience", m.getExperience() != null ? m.getExperience() : "");
+        out.put("shopName", m.getShopName() != null ? m.getShopName() : "");
+        out.put("shopCity", m.getShopCity() != null ? m.getShopCity() : "");
+        out.put("rating", m.getRating() != null ? m.getRating() : 0.0);
+        out.put("ratingCount", m.getRatingCount() != null ? m.getRatingCount() : 0);
+        out.put("latitude", m.getLatitude() != null ? m.getLatitude() : "");
+        out.put("longitude", m.getLongitude() != null ? m.getLongitude() : "");
+        out.put("currentLatitude", m.getCurrentLatitude() != null ? m.getCurrentLatitude() : "");
+        out.put("currentLongitude", m.getCurrentLongitude() != null ? m.getCurrentLongitude() : "");
+        return ResponseEntity.ok(out);
+    }
+
     @GetMapping("/by-category")
     public ResponseEntity<?> getMechanicsByCategory(
             @RequestParam String problemCategory,
             @RequestParam(required = false) Double lat,
             @RequestParam(required = false) Double lng,
             @RequestParam(defaultValue = "10") int radiusKm,
-            @RequestParam(required = false) String vehicleType) {
+            @RequestParam(required = false) String vehicleType,
+            @RequestParam(required = false, defaultValue = "false") boolean nightOnly) {
         try {
             List<Map<String, Object>> list = bookMechanicService.findMechanicsByCategoryAndLocation(
-                    problemCategory, lat, lng, radiusKm, vehicleType);
+                    problemCategory, lat, lng, radiusKm, vehicleType, nightOnly);
             return ResponseEntity.ok(list);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", e.getMessage()));

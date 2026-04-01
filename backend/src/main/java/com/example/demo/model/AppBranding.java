@@ -58,6 +58,14 @@ public class AppBranding {
     @Column(name = "user_location_marker_icon_url", length = 1000)
     private String userLocationMarkerIconUrl;
 
+    /** Book mechanic: mechanic pin at shop (before "Ready to drive"). */
+    @Column(name = "mechanic_shop_marker_icon_url", length = 1000)
+    private String mechanicShopMarkerIconUrl;
+
+    /** Book mechanic: mechanic pin while driving (live GPS). */
+    @Column(name = "mechanic_driving_marker_icon_url", length = 1000)
+    private String mechanicDrivingMarkerIconUrl;
+
     /** Header/hero image URL for Car Services page (admin upload). */
     @Column(name = "car_service_image_url", length = 1000)
     private String carServiceImageUrl;
@@ -82,9 +90,13 @@ public class AppBranding {
     @Column(name = "quick_service_battery_jump_icon_url", length = 1000)
     private String quickServiceBatteryJumpIconUrl;
 
-    /** JSON map: problem id -> S3 icon URL for Book Mechanic "What's the problem?" e.g. {"tyre_puncture":"https://..."} */
-    @Column(name = "problem_category_icons_json", length = 3000)
+    /** JSON: nested {"car":{problemId->url},"bike":{...}} or legacy flat {problemId->url} for both. */
+    @Column(name = "problem_category_icons_json", length = 12000)
     private String problemCategoryIconsJson;
+
+    /** JSON: Night Service home tiles keyed by stable id, e.g. {"emergency_towing":"https://...","ev_vehicle_charge":"..."}. */
+    @Column(name = "night_service_icons_json", length = 8000)
+    private String nightServiceIconsJson;
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -110,6 +122,10 @@ public class AppBranding {
     public void setNearestMechanicMarkerIconUrl(String nearestMechanicMarkerIconUrl) { this.nearestMechanicMarkerIconUrl = nearestMechanicMarkerIconUrl; }
     public String getUserLocationMarkerIconUrl() { return userLocationMarkerIconUrl; }
     public void setUserLocationMarkerIconUrl(String userLocationMarkerIconUrl) { this.userLocationMarkerIconUrl = userLocationMarkerIconUrl; }
+    public String getMechanicShopMarkerIconUrl() { return mechanicShopMarkerIconUrl; }
+    public void setMechanicShopMarkerIconUrl(String mechanicShopMarkerIconUrl) { this.mechanicShopMarkerIconUrl = mechanicShopMarkerIconUrl; }
+    public String getMechanicDrivingMarkerIconUrl() { return mechanicDrivingMarkerIconUrl; }
+    public void setMechanicDrivingMarkerIconUrl(String mechanicDrivingMarkerIconUrl) { this.mechanicDrivingMarkerIconUrl = mechanicDrivingMarkerIconUrl; }
     public String getCarServiceImageUrl() { return carServiceImageUrl; }
     public void setCarServiceImageUrl(String carServiceImageUrl) { this.carServiceImageUrl = carServiceImageUrl; }
     public String getBikeServiceImageUrl() { return bikeServiceImageUrl; }
@@ -130,4 +146,6 @@ public class AppBranding {
     public void setQuickServiceBatteryJumpIconUrl(String v) { this.quickServiceBatteryJumpIconUrl = v; }
     public String getProblemCategoryIconsJson() { return problemCategoryIconsJson; }
     public void setProblemCategoryIconsJson(String problemCategoryIconsJson) { this.problemCategoryIconsJson = problemCategoryIconsJson; }
+    public String getNightServiceIconsJson() { return nightServiceIconsJson; }
+    public void setNightServiceIconsJson(String nightServiceIconsJson) { this.nightServiceIconsJson = nightServiceIconsJson; }
 }

@@ -147,11 +147,15 @@ public class MechanicRequestController {
             Double comingChargeTotal = body.get("comingChargeTotal") != null ? Double.valueOf(body.get("comingChargeTotal").toString()) : 0.0;
             Integer requestRadiusKm = body.get("requestRadiusKm") != null ? Integer.valueOf(body.get("requestRadiusKm").toString()) : 5;
             Boolean outOfHoursRequest = body.get("outOfHoursRequest") != null && Boolean.TRUE.equals(body.get("outOfHoursRequest"));
+            boolean nightServiceOnly = false;
+            Object nso = body.get("nightServiceOnly");
+            if (nso instanceof Boolean) nightServiceOnly = (Boolean) nso;
+            else if (nso != null) nightServiceOnly = Boolean.parseBoolean(nso.toString());
 
             MechanicRequest saved = bookMechanicService.createBroadcastRequest(
                     customerName, customerEmail, customerPhone, userVehicleId, problemCategory, description,
                     diagnosticAnswers, comment, photoUrls, lat, lng, advanceAmount, platformFee,
-                    comingChargePerKm, comingChargeTotal, requestRadiusKm, outOfHoursRequest);
+                    comingChargePerKm, comingChargeTotal, requestRadiusKm, outOfHoursRequest, nightServiceOnly);
             return ResponseEntity.status(HttpStatus.CREATED).body(saved);
         } catch (Exception e) {
             e.printStackTrace();
@@ -209,6 +213,31 @@ public class MechanicRequestController {
         }
     }
 
+    /** Customer app: map pins + notified / declined / accepted counts while waiting. */
+    @GetMapping("/{requestId}/customer-tracking")
+    public ResponseEntity<?> customerTracking(@PathVariable Long requestId) {
+        Map<String, Object> data = bookMechanicService.buildCustomerTracking(requestId);
+        if (data == null) return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(data);
+    }
+
+    /** Mechanic declines a broadcast job without cancelling it for other mechanics. */
+    @PutMapping("/{requestId}/broadcast-dismiss")
+    public ResponseEntity<Map<String, String>> broadcastDismiss(
+            @PathVariable Long requestId,
+            @RequestBody Map<String, Object> body) {
+        Object midObj = body != null ? body.get("mechanicId") : null;
+        if (midObj == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "mechanicId required"));
+        }
+        long mechanicId = Long.parseLong(midObj.toString());
+        boolean ok = bookMechanicService.dismissBroadcast(requestId, mechanicId);
+        if (!ok) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", "Cannot dismiss"));
+        }
+        return ResponseEntity.ok(Map.of("message", "Dismissed"));
+    }
+
     @GetMapping("/mechanic/{mechanicId}/pending")
     public ResponseEntity<List<MechanicRequest>> getPendingRequests(@PathVariable Long mechanicId) {
         System.out.println("📤 GET pending requests for mechanic: " + mechanicId);
@@ -261,6 +290,10 @@ public class MechanicRequestController {
             Optional<MechanicRequest> optionalRequest = mechanicRequestRepo.findById(requestId);
             if (optionalRequest.isPresent()) {
                 MechanicRequest request = optionalRequest.get();
+                if ("PENDING_BROADCAST".equals(request.getStatus())) {
+                    return ResponseEntity.badRequest().body(Map.of(
+                            "error", "Broadcast requests: use PUT /broadcast-dismiss with mechanicId so other mechanics still see the job."));
+                }
                 request.setStatus("REJECTED");
                 request.setResponseTime(LocalDateTime.now());
                 mechanicRequestRepo.save(request);
@@ -326,8 +359,26 @@ public class MechanicRequestController {
             return ResponseEntity.badRequest().body(Map.of("error", "No mechanic accepted"));
         }
         r.setStatus("MECHANIC_EN_ROUTE");
+        r.setMechanicReadyToDrive(true);
         mechanicRequestRepo.save(r);
         return ResponseEntity.ok(Map.of("message", "En route", "status", "MECHANIC_EN_ROUTE"));
+    }
+
+    /** Mechanic left shop — customer map switches from shop pin to live GPS. */
+    @PutMapping("/{requestId}/ready-to-drive")
+    public ResponseEntity<Map<String, String>> mechanicReadyToDrive(
+            @PathVariable Long requestId,
+            @RequestBody(required = false) Map<String, Object> body) {
+        Object midObj = body != null ? body.get("mechanicId") : null;
+        if (midObj == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "mechanicId required"));
+        }
+        long mechanicId = Long.parseLong(midObj.toString());
+        boolean ok = bookMechanicService.setMechanicReadyToDrive(requestId, mechanicId);
+        if (!ok) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", "Cannot set ready to drive"));
+        }
+        return ResponseEntity.ok(Map.of("message", "OK"));
     }
 
     @PutMapping("/{requestId}/arrived")

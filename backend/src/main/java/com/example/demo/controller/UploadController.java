@@ -28,7 +28,9 @@ import java.util.regex.Pattern;
 public class UploadController {
 
     private static final Pattern SAFE_SUPPORT_FILENAME = Pattern.compile("^[a-fA-F0-9-]+\\.(jpg|jpeg|png|gif|webp)$");
+    private static final Pattern SAFE_REQUEST_DAMAGE_FILENAME = Pattern.compile("^[a-fA-F0-9-]+\\.(jpg|jpeg|png|gif|webp)$");
     private static final String SUPPORT_PHOTOS_DIR = "support-photos";
+    private static final String REQUEST_DAMAGE_PHOTOS_DIR = "request-damage-photos";
 
     private final S3Service s3Service;
     private final MechanicRepo mechanicRepo;
@@ -125,6 +127,65 @@ public class UploadController {
         }
     }
 
+    /**
+     * Upload mechanic request damage photo (Book Mechanic flow). Call with multipart: "file", "email".
+     * Uses S3 when configured; otherwise saves locally and returns path like /api/upload/serve-request-damage-photo/{id}.jpg
+     * Response: { "url": "https://..." or "/api/upload/serve-request-damage-photo/..." }
+     */
+    @PostMapping("/request-damage-photo")
+    public ResponseEntity<Map<String, String>> uploadRequestDamagePhoto(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("email") String email) {
+        try {
+            String url = s3Service.uploadRequestDamagePhoto(email != null ? email : "unknown", file);
+            return ResponseEntity.ok(Map.of("url", url));
+        } catch (Exception e) {
+            String fallbackUrl = saveRequestDamagePhotoLocally(file);
+            if (fallbackUrl != null) {
+                return ResponseEntity.ok(Map.of("url", fallbackUrl));
+            }
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage() != null ? e.getMessage() : "Upload failed"));
+        }
+    }
+
+    private String saveRequestDamagePhotoLocally(MultipartFile file) {
+        try {
+            File dir = new File(REQUEST_DAMAGE_PHOTOS_DIR);
+            if (!dir.exists() && !dir.mkdirs()) return null;
+            String ext = "jpg";
+            String name = file.getOriginalFilename();
+            if (name != null && name.contains(".")) ext = name.substring(name.lastIndexOf('.') + 1).toLowerCase();
+            if (!Arrays.asList("jpg", "jpeg", "png", "gif", "webp").contains(ext)) ext = "jpg";
+            String id = UUID.randomUUID().toString();
+            File target = new File(dir, id + "." + ext);
+            file.transferTo(target.toPath());
+            return "/api/upload/serve-request-damage-photo/" + id + "." + ext;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    @GetMapping("/serve-request-damage-photo/{filename}")
+    public ResponseEntity<byte[]> serveRequestDamagePhoto(@PathVariable String filename) {
+        if (filename == null || !SAFE_REQUEST_DAMAGE_FILENAME.matcher(filename).matches()) {
+            return ResponseEntity.badRequest().build();
+        }
+        try {
+            File file = new File(REQUEST_DAMAGE_PHOTOS_DIR, filename);
+            if (!file.exists() || !file.isFile()) return ResponseEntity.notFound().build();
+            byte[] bytes = Files.readAllBytes(file.toPath());
+            String contentType = filename.toLowerCase().endsWith(".png") ? "image/png"
+                    : filename.toLowerCase().endsWith(".gif") ? "image/gif"
+                    : filename.toLowerCase().endsWith(".webp") ? "image/webp" : "image/jpeg";
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.parseMediaType(contentType));
+            headers.setCacheControl("max-age=86400");
+            return ResponseEntity.ok().headers(headers).body(bytes);
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
     /** Serve locally stored support photos (fallback when S3 not configured). */
     @GetMapping("/serve-support-photo/{filename}")
     public ResponseEntity<byte[]> serveSupportPhoto(@PathVariable String filename) {
@@ -162,6 +223,18 @@ public class UploadController {
             if (msg.contains("S3") || msg.contains("not configured")) {
                 msg = "S3 is not configured. Set aws.s3.bucket, aws.access-key-id, aws.secret-access-key (e.g. in application-ec2.properties on EC2).";
             }
+            return ResponseEntity.status(500).body(Map.of("error", msg));
+        }
+    }
+
+    @PostMapping("/service-ad-media")
+    public ResponseEntity<Map<String, String>> uploadServiceAdMedia(@RequestParam("file") MultipartFile file) {
+        try {
+            return ResponseEntity.ok(Map.of("url", s3Service.uploadServiceAdMedia(file)));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            String msg = e.getMessage() != null ? e.getMessage() : "Upload failed";
             return ResponseEntity.status(500).body(Map.of("error", msg));
         }
     }
@@ -378,6 +451,28 @@ public class UploadController {
         }
     }
 
+    @PostMapping("/mechanic-shop-marker-icon")
+    public ResponseEntity<Map<String, String>> uploadMechanicShopMarkerIcon(@RequestParam("file") MultipartFile file) {
+        try {
+            return ResponseEntity.ok(Map.of("url", s3Service.uploadMechanicShopMarkerIcon(file)));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage() != null ? e.getMessage() : "Upload failed"));
+        }
+    }
+
+    @PostMapping("/mechanic-driving-marker-icon")
+    public ResponseEntity<Map<String, String>> uploadMechanicDrivingMarkerIcon(@RequestParam("file") MultipartFile file) {
+        try {
+            return ResponseEntity.ok(Map.of("url", s3Service.uploadMechanicDrivingMarkerIcon(file)));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage() != null ? e.getMessage() : "Upload failed"));
+        }
+    }
+
     @PostMapping("/user-location-marker-icon")
     public ResponseEntity<Map<String, String>> uploadUserLocationMarkerIcon(@RequestParam("file") MultipartFile file) {
         try {
@@ -442,9 +537,10 @@ public class UploadController {
     @PostMapping("/problem-category-icon")
     public ResponseEntity<Map<String, String>> uploadProblemCategoryIcon(
             @RequestParam("file") MultipartFile file,
-            @RequestParam("problemId") String problemId) {
+            @RequestParam("problemId") String problemId,
+            @RequestParam(value = "vehicleType", required = false, defaultValue = "car") String vehicleType) {
         try {
-            return ResponseEntity.ok(Map.of("url", s3Service.uploadProblemCategoryIcon(problemId, file)));
+            return ResponseEntity.ok(Map.of("url", s3Service.uploadProblemCategoryIcon(problemId, vehicleType, file)));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         } catch (Exception e) {

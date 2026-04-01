@@ -50,6 +50,15 @@ const List<ProblemItem> carProblems = [
     ],
   ),
   ProblemItem(
+    id: 'ev_vehicle_charge',
+    label: 'EV charging / out of charge',
+    icon: Icons.ev_station,
+    diagnosticQuestions: [
+      DiagnosticQuestion(id: 'charge_level', question: 'Approximate battery level?', options: ['Under 10%', '10–30%', '30–60%', 'Not sure']),
+      DiagnosticQuestion(id: 'connector', question: 'Connector type (if known)?', options: ['CCS2', 'Type 2', 'CHAdeMO', 'Not sure']),
+    ],
+  ),
+  ProblemItem(
     id: 'engine_repair',
     label: 'Engine issue / smoke / overheating',
     icon: Icons.engineering,
@@ -82,6 +91,12 @@ const List<ProblemItem> carProblems = [
     label: 'General checkup (not sure what\'s wrong)',
     icon: Icons.search,
     suggestion: 'Mechanic will call you after you book the service. Describe what you notice if you can.',
+    diagnosticQuestions: [
+      DiagnosticQuestion(id: 'vehicle_condition', question: 'How would you describe the issue?', options: ['Strange noise', 'Warning light on', 'Performance issue', 'Routine check', 'Not sure']),
+      DiagnosticQuestion(id: 'when_notice', question: 'When did you first notice it?', options: ['Today', 'This week', 'This month', 'Gradually over time']),
+      DiagnosticQuestion(id: 'mileage', question: 'When was the last full service?', options: ['Within 3 months', '3–6 months ago', '6–12 months ago', 'Over a year ago', 'Never / new vehicle']),
+      DiagnosticQuestion(id: 'urgency', question: 'How urgent is it?', options: ['Can wait a few days', 'Need within 24 hours', 'As soon as possible']),
+    ],
   ),
 ];
 
@@ -106,6 +121,14 @@ const List<ProblemItem> bikeProblems = [
     ],
   ),
   ProblemItem(
+    id: 'ev_vehicle_charge',
+    label: 'EV / e-bike charging help',
+    icon: Icons.ev_station,
+    diagnosticQuestions: [
+      DiagnosticQuestion(id: 'charge_level', question: 'Approximate charge left?', options: ['Empty', 'Low', 'Medium', 'Not sure']),
+    ],
+  ),
+  ProblemItem(
     id: 'engine_repair',
     label: 'Engine issue / smoke / unusual sound',
     icon: Icons.engineering,
@@ -126,6 +149,12 @@ const List<ProblemItem> bikeProblems = [
     label: 'General checkup (not sure what\'s wrong)',
     icon: Icons.search,
     suggestion: 'Mechanic will call you after you book the service.',
+    diagnosticQuestions: [
+      DiagnosticQuestion(id: 'vehicle_condition', question: 'How would you describe the issue?', options: ['Strange noise', 'Starting problem', 'Performance issue', 'Routine check', 'Not sure']),
+      DiagnosticQuestion(id: 'when_notice', question: 'When did you first notice it?', options: ['Today', 'This week', 'This month', 'Gradually over time']),
+      DiagnosticQuestion(id: 'last_service', question: 'Last full service?', options: ['Within 3 months', '3–6 months ago', '6–12 months ago', 'Over a year ago']),
+      DiagnosticQuestion(id: 'urgency', question: 'How urgent?', options: ['Can wait', 'Within 24 hours', 'As soon as possible']),
+    ],
   ),
 ];
 

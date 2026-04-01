@@ -57,7 +57,7 @@ class MechanicAlarmService : Service() {
             val channel = NotificationChannel(
                 channelId,
                 "Mechanic requests",
-                NotificationManager.IMPORTANCE_HIGH
+                NotificationManager.IMPORTANCE_MAX
             ).apply {
                 description = "New mechanic service requests"
                 enableVibration(true)
@@ -65,6 +65,10 @@ class MechanicAlarmService : Service() {
                 setSound(android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_RINGTONE),
                     android.media.AudioAttributes.Builder().setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION_RINGTONE).build())
                 enableLights(true)
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    setBypassDnd(true)
+                }
             }
             getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
         }

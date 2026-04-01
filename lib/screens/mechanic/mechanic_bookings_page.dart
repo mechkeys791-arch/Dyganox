@@ -441,42 +441,31 @@ class _MechanicBookingsPageState extends State<MechanicBookingsPage> {
                 ],
                 if (isPending) ...[
                   const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            widget.onAccept(booking);
-                            Navigator.pop(context);
-                          },
-                          icon: const Icon(Icons.check_circle, size: 20),
-                          label: const Text('Accept'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF10B981),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          ),
-                        ),
+                  _SwipeAcceptTrack(
+                    onComplete: () async {
+                      final dynamic r = widget.onAccept(booking);
+                      if (r is Future) await r;
+                      if (!context.mounted) return;
+                      Navigator.pop(context);
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        widget.onReject(booking);
+                        Navigator.pop(context);
+                      },
+                      icon: const Icon(Icons.cancel, size: 20),
+                      label: const Text('Decline'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFFEF4444),
+                        side: const BorderSide(color: Color(0xFFEF4444)),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            widget.onReject(booking);
-                            Navigator.pop(context);
-                          },
-                          icon: const Icon(Icons.cancel, size: 20),
-                          label: const Text('Decline'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFFEF4444),
-                            side: const BorderSide(color: Color(0xFFEF4444)),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ] else if (isAccepted || inProgress) ...[
                   if (widget.onReached != null && isAccepted) ...[
@@ -696,6 +685,88 @@ class _MechanicBookingsPageState extends State<MechanicBookingsPage> {
           ],
         ),
       ],
+    );
+  }
+}
+
+/// Slide thumb to the right to confirm accept (Rapido-style).
+class _SwipeAcceptTrack extends StatefulWidget {
+  final Future<void> Function() onComplete;
+
+  const _SwipeAcceptTrack({required this.onComplete});
+
+  @override
+  State<_SwipeAcceptTrack> createState() => _SwipeAcceptTrackState();
+}
+
+class _SwipeAcceptTrackState extends State<_SwipeAcceptTrack> {
+  double _dx = 0;
+  bool _busy = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, c) {
+        final trackW = c.maxWidth;
+        const thumb = 48.0;
+        const pad = 4.0;
+        final maxDx = (trackW - thumb - pad * 2).clamp(0.0, double.infinity);
+        return Container(
+          height: 56,
+          decoration: BoxDecoration(
+            color: const Color(0xFF047857),
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 8, offset: const Offset(0, 2))],
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Text(
+                'Slide to accept →',
+                style: GoogleFonts.outfit(color: Colors.white.withOpacity(0.85), fontWeight: FontWeight.w600, fontSize: 15),
+              ),
+              Positioned(
+                left: pad + _dx.clamp(0, maxDx),
+                top: pad,
+                child: GestureDetector(
+                  onHorizontalDragUpdate: (d) {
+                    if (_busy) return;
+                    setState(() => _dx = (_dx + d.delta.dx).clamp(0, maxDx));
+                  },
+                  onHorizontalDragEnd: (_) async {
+                    if (_busy) return;
+                    if (maxDx <= 0) return;
+                    if (_dx >= maxDx * 0.82) {
+                      setState(() {
+                        _busy = true;
+                        _dx = maxDx;
+                      });
+                      try {
+                        await widget.onComplete();
+                      } finally {
+                        if (mounted) setState(() { _busy = false; _dx = 0; });
+                      }
+                    } else {
+                      setState(() => _dx = 0);
+                    }
+                  },
+                  child: Container(
+                    width: thumb,
+                    height: thumb,
+                    decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                    child: _busy
+                        ? const Padding(
+                            padding: EdgeInsets.all(12),
+                            child: CircularProgressIndicator(strokeWidth: 2.5, color: Color(0xFF047857)),
+                          )
+                        : const Icon(Icons.arrow_forward_rounded, color: Color(0xFF047857), size: 26),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

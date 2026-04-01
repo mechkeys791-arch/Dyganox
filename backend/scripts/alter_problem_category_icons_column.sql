@@ -1,0 +1,2 @@
+-- Run once if your DB still has VARCHAR(3000) for problem_category_icons_json.
+-- ALTER TABLE app_branding MODIFY COLUMN problem_category_icons_json VARCHAR(12000);

@@ -49,6 +49,10 @@
                         <i class="fas fa-images"></i>
                         <span>Carousel / Banners</span>
                     </a>
+                    <a href="#" class="nav-item" data-section="service-ads">
+                        <i class="fas fa-ad"></i>
+                        <span>Service strip ads</span>
+                    </a>
                     <a href="#" class="nav-item" data-section="vehicle-catalog">
                         <i class="fas fa-car"></i>
                         <span>Vehicle Catalog</span>
@@ -753,6 +757,51 @@
                 </div>
             </section>
 
+            <!-- Service strip ads (Night Service, platform-owned) -->
+            <section id="service-ads-section" class="content-section">
+                <div class="section-header">
+                    <h2>Service strip ads</h2>
+                    <p class="section-subtitle"><strong>Image-only</strong> hero on <strong>Night Service</strong> (fills the header area like Zepto/Swiggy). <strong>Platform</strong> ads here; mechanics upload from the app (1/month). Leave area empty for <strong>worldwide</strong>; or enter a <strong>place name</strong> and look up coordinates, then set <strong>radius km</strong> for who sees the ad.</p>
+                </div>
+                <div class="chart-card" style="margin-bottom:20px;">
+                    <h3 style="margin-top:0;">Add platform ad</h3>
+                    <div class="form-group">
+                        <label>Placement (where it appears in the app)</label>
+                        <select id="service-ad-placement" class="support-reply-input" style="max-width:420px;">
+                            <option value="NIGHT_SERVICE">NIGHT_SERVICE — Night Service header strip</option>
+                            <option value="BOOK_MECHANIC_WAITING">BOOK_MECHANIC_WAITING — Book mechanic live map / waiting for mechanic</option>
+                            <option value="BOOK_MECHANIC_ACCEPTED">BOOK_MECHANIC_ACCEPTED — After mechanic accepts (tracking / detail)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Banner image</label>
+                        <input type="file" id="service-ad-file" accept=".png,.jpg,.jpeg,.webp">
+                        <button type="button" class="btn-action btn-approve" onclick="uploadServiceAdMediaAdmin()">Upload</button>
+                        <span id="service-ad-upload-status" class="muted" style="margin-left:8px;"></span>
+                    </div>
+                    <div class="form-group"><label>Image URL</label><input type="url" id="service-ad-media-url" class="support-reply-input" placeholder="https://..."></div>
+                    <input type="hidden" id="service-ad-media-type" value="IMAGE">
+                    <div class="form-group"><label>Title (internal / list only)</label><input type="text" id="service-ad-title" class="support-reply-input" placeholder="e.g. Monsoon campaign"></div>
+                    <div class="form-group"><label>Subtitle (optional — snackbar when user taps a platform ad)</label><input type="text" id="service-ad-subtitle" class="support-reply-input"></div>
+                    <div class="form-group">
+                        <label>Target area (place name)</label>
+                        <input type="text" id="service-ad-place-query" class="support-reply-input" placeholder="e.g. Indiranagar Bangalore, Mumbai, Koramangala">
+                        <button type="button" class="btn-action btn-view" style="margin-top:8px;" onclick="resolveServiceAdPlace()">Look up location</button>
+                        <span id="service-ad-geocode-status" class="muted" style="margin-left:8px;"></span>
+                    </div>
+                    <div class="form-group"><label>Latitude (filled after look up, or paste manually)</label><input type="text" id="service-ad-lat" class="support-reply-input" placeholder="optional"></div>
+                    <div class="form-group"><label>Longitude</label><input type="text" id="service-ad-lng" class="support-reply-input" placeholder="optional"></div>
+                    <div class="form-group"><label>Radius km (users within this distance of the point above see the ad)</label><input type="number" id="service-ad-radius" class="support-reply-input" value="25" style="max-width:120px;"></div>
+                    <div class="form-group"><label>Sort order</label><input type="number" id="service-ad-sort" class="support-reply-input" value="0" style="max-width:120px;"></div>
+                    <button type="button" class="btn-action btn-approve" onclick="createServiceAdPlatform()">Save platform ad</button>
+                    <span id="service-ad-save-status" class="muted" style="margin-left:12px;"></span>
+                </div>
+                <div class="chart-card">
+                    <h3 style="margin-top:0;">All ads (platform + mechanic)</h3>
+                    <div id="service-ads-list" class="muted">Loading…</div>
+                </div>
+            </section>
+
             <!-- Active Jobs Section -->
             <section id="active-jobs-section" class="content-section">
                 <div class="section-header">
@@ -1017,11 +1066,23 @@
                         <input type="url" id="app-branding-welcome-page-gif-url" class="support-reply-input" placeholder="https://bucket.s3.amazonaws.com/app-branding/welcome/xxx.gif">
                     </div>
                     <hr style="margin:16px 0;">
+                    <h3 style="margin-top:0;">Book mechanic map markers</h3>
+                    <p class="muted" style="margin-bottom:12px;">Custom pins: <strong>shop</strong> (until mechanic taps Ready to drive) and <strong>driving</strong> (live GPS). PNG/JPG/WebP.</p>
                     <div class="form-group">
-                        <label><strong>Book Mechanic – Problem category icons (S3 URLs)</strong></label>
-                        <p class="muted" style="margin-top:4px;">JSON map: problem id → icon URL. Keys: tyre_puncture, battery_jump, engine_repair, brake_issue, electrical, ac_issue, general_checkup. Upload icons to S3 then paste URLs here.</p>
-                        <textarea id="app-branding-problem-category-icons-json" class="support-reply-input" rows="4" placeholder='{"tyre_puncture":"https://...","battery_jump":"https://..."}' style="width:100%;font-family:monospace;"></textarea>
+                        <label>Shop marker</label>
+                        <input type="file" id="app-branding-mechanic-shop-marker-file" accept=".png,.jpg,.jpeg,.webp">
+                        <button type="button" class="btn-action btn-approve" onclick="uploadMechanicShopMarkerIcon()">Upload</button>
+                        <span id="app-branding-mechanic-shop-marker-status" class="muted" style="margin-left:8px;"></span>
+                        <input type="url" id="app-branding-mechanic-shop-marker-url" class="support-reply-input" style="margin-top:8px;" placeholder="https://...">
                     </div>
+                    <div class="form-group">
+                        <label>Driving / live GPS marker</label>
+                        <input type="file" id="app-branding-mechanic-driving-marker-file" accept=".png,.jpg,.jpeg,.webp">
+                        <button type="button" class="btn-action btn-approve" onclick="uploadMechanicDrivingMarkerIcon()">Upload</button>
+                        <span id="app-branding-mechanic-driving-marker-status" class="muted" style="margin-left:8px;"></span>
+                        <input type="url" id="app-branding-mechanic-driving-marker-url" class="support-reply-input" style="margin-top:8px;" placeholder="https://...">
+                    </div>
+                    <hr style="margin:16px 0;">
                     <button type="button" class="btn-action btn-approve" onclick="saveAppBranding()">Save</button>
                     <p id="app-branding-save-status" class="muted" style="margin-top:8px;"></p>
                 </div>
@@ -1052,6 +1113,92 @@
                         <label>Bike service image URL</label>
                         <input type="url" id="bike-service-image-url" class="support-reply-input" placeholder="https://...">
                     </div>
+                </div>
+                <div class="chart-card" style="margin-bottom:20px;">
+                    <h3 style="margin-top:0;">Book Mechanic – problem icons (Car vs Bike)</h3>
+                    <p class="muted">Square PNG/JPG/WebP (~48×48 or larger). <strong>Car</strong> and <strong>Bike</strong> can use different art. The app shows these on “What’s the problem?” after the user picks a vehicle. AC issue is car-only in the app.</p>
+                    <table class="data-table" style="margin-top:12px; font-size:13px;">
+                        <thead><tr><th>Problem</th><th>Car – file</th><th>Car – upload</th><th>Car URL</th><th>Bike – file</th><th>Bike – upload</th><th>Bike URL</th></tr></thead>
+                        <tbody>
+                            <tr>
+                                <td>Tyre puncture / flat</td>
+                                <td><input type="file" id="pc-file-car-tyre_puncture" accept=".png,.jpg,.jpeg,.webp"></td>
+                                <td><button type="button" class="btn-action btn-approve" onclick="uploadProblemCategoryIcon('tyre_puncture','car')">Upload</button></td>
+                                <td><input type="url" id="pc-url-car-tyre_puncture" class="support-reply-input" placeholder="https://..." style="min-width:180px;"></td>
+                                <td><input type="file" id="pc-file-bike-tyre_puncture" accept=".png,.jpg,.jpeg,.webp"></td>
+                                <td><button type="button" class="btn-action btn-approve" onclick="uploadProblemCategoryIcon('tyre_puncture','bike')">Upload</button></td>
+                                <td><input type="url" id="pc-url-bike-tyre_puncture" class="support-reply-input" placeholder="https://..." style="min-width:180px;"></td>
+                            </tr>
+                            <tr>
+                                <td>Battery / not starting</td>
+                                <td><input type="file" id="pc-file-car-battery_jump" accept=".png,.jpg,.jpeg,.webp"></td>
+                                <td><button type="button" class="btn-action btn-approve" onclick="uploadProblemCategoryIcon('battery_jump','car')">Upload</button></td>
+                                <td><input type="url" id="pc-url-car-battery_jump" class="support-reply-input" placeholder="https://..."></td>
+                                <td><input type="file" id="pc-file-bike-battery_jump" accept=".png,.jpg,.jpeg,.webp"></td>
+                                <td><button type="button" class="btn-action btn-approve" onclick="uploadProblemCategoryIcon('battery_jump','bike')">Upload</button></td>
+                                <td><input type="url" id="pc-url-bike-battery_jump" class="support-reply-input" placeholder="https://..."></td>
+                            </tr>
+                            <tr>
+                                <td>EV charging / out of charge</td>
+                                <td><input type="file" id="pc-file-car-ev_vehicle_charge" accept=".png,.jpg,.jpeg,.webp"></td>
+                                <td><button type="button" class="btn-action btn-approve" onclick="uploadProblemCategoryIcon('ev_vehicle_charge','car')">Upload</button></td>
+                                <td><input type="url" id="pc-url-car-ev_vehicle_charge" class="support-reply-input" placeholder="https://..."></td>
+                                <td><input type="file" id="pc-file-bike-ev_vehicle_charge" accept=".png,.jpg,.jpeg,.webp"></td>
+                                <td><button type="button" class="btn-action btn-approve" onclick="uploadProblemCategoryIcon('ev_vehicle_charge','bike')">Upload</button></td>
+                                <td><input type="url" id="pc-url-bike-ev_vehicle_charge" class="support-reply-input" placeholder="https://..."></td>
+                            </tr>
+                            <tr>
+                                <td>Engine / smoke</td>
+                                <td><input type="file" id="pc-file-car-engine_repair" accept=".png,.jpg,.jpeg,.webp"></td>
+                                <td><button type="button" class="btn-action btn-approve" onclick="uploadProblemCategoryIcon('engine_repair','car')">Upload</button></td>
+                                <td><input type="url" id="pc-url-car-engine_repair" class="support-reply-input" placeholder="https://..."></td>
+                                <td><input type="file" id="pc-file-bike-engine_repair" accept=".png,.jpg,.jpeg,.webp"></td>
+                                <td><button type="button" class="btn-action btn-approve" onclick="uploadProblemCategoryIcon('engine_repair','bike')">Upload</button></td>
+                                <td><input type="url" id="pc-url-bike-engine_repair" class="support-reply-input" placeholder="https://..."></td>
+                            </tr>
+                            <tr>
+                                <td>Brake</td>
+                                <td><input type="file" id="pc-file-car-brake_issue" accept=".png,.jpg,.jpeg,.webp"></td>
+                                <td><button type="button" class="btn-action btn-approve" onclick="uploadProblemCategoryIcon('brake_issue','car')">Upload</button></td>
+                                <td><input type="url" id="pc-url-car-brake_issue" class="support-reply-input" placeholder="https://..."></td>
+                                <td><input type="file" id="pc-file-bike-brake_issue" accept=".png,.jpg,.jpeg,.webp"></td>
+                                <td><button type="button" class="btn-action btn-approve" onclick="uploadProblemCategoryIcon('brake_issue','bike')">Upload</button></td>
+                                <td><input type="url" id="pc-url-bike-brake_issue" class="support-reply-input" placeholder="https://..."></td>
+                            </tr>
+                            <tr>
+                                <td>Electrical</td>
+                                <td><input type="file" id="pc-file-car-electrical" accept=".png,.jpg,.jpeg,.webp"></td>
+                                <td><button type="button" class="btn-action btn-approve" onclick="uploadProblemCategoryIcon('electrical','car')">Upload</button></td>
+                                <td><input type="url" id="pc-url-car-electrical" class="support-reply-input" placeholder="https://..."></td>
+                                <td><input type="file" id="pc-file-bike-electrical" accept=".png,.jpg,.jpeg,.webp"></td>
+                                <td><button type="button" class="btn-action btn-approve" onclick="uploadProblemCategoryIcon('electrical','bike')">Upload</button></td>
+                                <td><input type="url" id="pc-url-bike-electrical" class="support-reply-input" placeholder="https://..."></td>
+                            </tr>
+                            <tr>
+                                <td>AC not cooling (car only)</td>
+                                <td><input type="file" id="pc-file-car-ac_issue" accept=".png,.jpg,.jpeg,.webp"></td>
+                                <td><button type="button" class="btn-action btn-approve" onclick="uploadProblemCategoryIcon('ac_issue','car')">Upload</button></td>
+                                <td><input type="url" id="pc-url-car-ac_issue" class="support-reply-input" placeholder="https://..."></td>
+                                <td colspan="3" class="muted">—</td>
+                            </tr>
+                            <tr>
+                                <td>General checkup</td>
+                                <td><input type="file" id="pc-file-car-general_checkup" accept=".png,.jpg,.jpeg,.webp"></td>
+                                <td><button type="button" class="btn-action btn-approve" onclick="uploadProblemCategoryIcon('general_checkup','car')">Upload</button></td>
+                                <td><input type="url" id="pc-url-car-general_checkup" class="support-reply-input" placeholder="https://..."></td>
+                                <td><input type="file" id="pc-file-bike-general_checkup" accept=".png,.jpg,.jpeg,.webp"></td>
+                                <td><button type="button" class="btn-action btn-approve" onclick="uploadProblemCategoryIcon('general_checkup','bike')">Upload</button></td>
+                                <td><input type="url" id="pc-url-bike-general_checkup" class="support-reply-input" placeholder="https://..."></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p class="muted" style="margin-top:8px;">After upload, URLs fill automatically. Click <strong>Save all URLs</strong> below to persist nested JSON for the app.</p>
+                </div>
+                <div class="chart-card" style="margin-bottom:20px;">
+                    <h3 style="margin-top:0;">Night Service – tile icons (app)</h3>
+                    <p class="muted">JSON object: keys must match the app — <code>emergency_towing</code>, <code>ev_vehicle_charge</code>, <code>puncture_repair</code>, <code>general_service</code>. Values are full image URLs (upload elsewhere e.g. S3, paste URL). Empty object = app uses built-in Material icons.</p>
+                    <textarea id="night-service-icons-json" class="support-reply-input" rows="5" style="width:100%;font-family:monospace;font-size:12px;" placeholder='{"emergency_towing":"https://...","ev_vehicle_charge":"https://...","puncture_repair":"https://...","general_service":"https://..."}'></textarea>
+                    <p class="muted" style="margin-top:6px;">Saved with <strong>Save all URLs</strong> below (same as Car/Bike icons).</p>
                 </div>
                 <div class="chart-card">
                     <h3 style="margin-top:0;">Quick service icons (home screen)</h3>

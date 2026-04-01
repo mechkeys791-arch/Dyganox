@@ -17,6 +17,7 @@ import 'mechanic_suspended_page.dart';
 import 'mechanic_request_detail_book_flow_page.dart';
 import 'mechanic_login_request_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/service_category_mapping.dart';
 import '../../services/cognito_service.dart';
@@ -60,6 +61,8 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
   List<Map<String, dynamic>> _transactions = [];
   
   String? _appLogoUrl;
+  bool? _promoCanCreate;
+  bool _promoUploading = false;
 
   // Mechanic profile (from API / widget)
   final Map<String, dynamic> _mechanicProfile = {
@@ -118,6 +121,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
     _fetchBookings();
     _fetchWallet();
     _fetchNearbyBroadcastRequests();
+    _loadPromoEligibility();
 
     // Register FCM token and save mechanic ID for notification Accept/View (accept-by/mechanicId, open Book flow detail)
     final mechanicId = widget.mechanicData?['id'];
@@ -354,6 +358,10 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
     final lat = request['latitude']?.toString() ?? '';
     final lng = request['longitude']?.toString() ?? '';
     final reqTime = (request['requestTime'] ?? request['createdAt'])?.toString() ?? '';
+    final locationAddress = request['locationAddress'] ?? request['fullAddress'] ?? request['address'];
+    final locationDisplay = (locationAddress != null && locationAddress.toString().trim().isNotEmpty)
+        ? locationAddress.toString().trim()
+        : (lat.isNotEmpty && lng.isNotEmpty ? 'Location set' : 'Location not shared');
     return {
       'id': request['id'],
       'customerName': request['customerName'] ?? 'Unknown',
@@ -367,7 +375,8 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
       'vehiclePlateNumber': plate,
       'latitude': request['latitude'],
       'longitude': request['longitude'],
-      'location': lat.isNotEmpty && lng.isNotEmpty ? '$lat, $lng' : 'Location',
+      'location': locationDisplay,
+      'locationAddress': locationAddress?.toString(),
       'date': reqTime.length >= 10 ? reqTime.substring(0, 10) : 'Today',
       'time': reqTime.length >= 16 ? reqTime.substring(11, 16) : 'Now',
       'status': status,
@@ -618,6 +627,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
         await _fetchBookings();
         await _fetchNearbyBroadcastRequests();
         await _fetchWallet();
+        _loadPromoEligibility();
         _showSnackBar('Dashboard refreshed!', AppColors.warmAmber);
       },
       child: SingleChildScrollView(
@@ -634,6 +644,12 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
             
             // Quick Actions Section
             _buildQuickActions(),
+            const SizedBox(height: 20),
+            _buildMechanicPromoCard(),
+            const SizedBox(height: 20),
+            
+            // Live services (accepted / in-progress)
+            _buildLiveServicesSection(),
             const SizedBox(height: 20),
             
             // New requests near you (Book Mechanic flow - 5 min window)
@@ -1854,6 +1870,345 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
     );
   }
 
+  Future<void> _loadPromoEligibility() async {
+    final mid = widget.mechanicData?['id'];
+    if (mid == null) return;
+    final id = mid is int ? mid : int.tryParse(mid.toString());
+    if (id == null) return;
+    try {
+      final r = await http.get(Uri.parse('${ApiConfig.baseUrl}/api/mechanic/$id/promo-ad/eligibility'));
+      if (r.statusCode == 200 && mounted) {
+        final m = jsonDecode(r.body) as Map<String, dynamic>;
+        setState(() => _promoCanCreate = m['canCreate'] == true);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _pickAndUploadPromoAd() async {
+    final mid = widget.mechanicData?['id'];
+    if (mid == null) return;
+    final id = mid is int ? mid : int.tryParse(mid.toString());
+    if (id == null) return;
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(title: const Text('Photo'), onTap: () => Navigator.pop(ctx, 'image')),
+            ListTile(title: const Text('Video'), onTap: () => Navigator.pop(ctx, 'video')),
+          ],
+        ),
+      ),
+    );
+    if (choice == null || !mounted) return;
+    final picker = ImagePicker();
+    final XFile? file = choice == 'video'
+        ? await picker.pickVideo(source: ImageSource.gallery)
+        : await picker.pickImage(source: ImageSource.gallery, imageQuality: 88);
+    if (file == null || !mounted) return;
+    setState(() => _promoUploading = true);
+    try {
+      final req = http.MultipartRequest('POST', Uri.parse('${ApiConfig.baseUrl}/api/upload/service-ad-media'));
+      req.files.add(await http.MultipartFile.fromPath('file', file.path));
+      final streamed = await req.send();
+      final body = await streamed.stream.bytesToString();
+      if (streamed.statusCode != 200) {
+        if (mounted) setState(() => _promoUploading = false);
+        _showSnackBar('Upload failed', Colors.red);
+        return;
+      }
+      final map = jsonDecode(body) as Map<String, dynamic>;
+      final url = map['url']?.toString();
+      if (url == null || url.isEmpty) {
+        if (mounted) setState(() => _promoUploading = false);
+        return;
+      }
+      final isVideo = choice == 'video' || file.path.toLowerCase().endsWith('.mp4') || file.path.toLowerCase().endsWith('.mov');
+      final post = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/api/mechanic/$id/promo-ad'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'mediaUrl': url, 'mediaType': isVideo ? 'VIDEO' : 'IMAGE'}),
+      );
+      if (mounted) {
+        setState(() => _promoUploading = false);
+        if (post.statusCode == 200) {
+          _showSnackBar('Promotion saved. It appears in Night Service for users near you.', Colors.green);
+          _loadPromoEligibility();
+        } else {
+          try {
+            final err = jsonDecode(post.body) as Map<String, dynamic>?;
+            _showSnackBar(err?['error']?.toString() ?? 'Could not save promotion', Colors.orange);
+          } catch (_) {
+            _showSnackBar('Could not save promotion', Colors.orange);
+          }
+        }
+      }
+    } catch (e) {
+      if (mounted) setState(() => _promoUploading = false);
+      _showSnackBar('Error: $e', Colors.red);
+    }
+  }
+
+  Widget _buildMechanicPromoCard() {
+    final mid = widget.mechanicData?['id'];
+    if (mid == null) return const SizedBox.shrink();
+    final can = _promoCanCreate;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.burntOrange.withOpacity(0.2)),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 2)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.campaign_outlined, color: AppColors.burntOrange, size: 22),
+              const SizedBox(width: 8),
+              Text('Monthly promotion (free)', style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.darkChocolate)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'One photo or video per month on the Night Service screen. Users nearby see your ad; tap sends the booking to you only.',
+            style: GoogleFonts.inter(fontSize: 13, color: AppColors.warmBrownMuted),
+          ),
+          const SizedBox(height: 12),
+          if (can == null)
+            const SizedBox(height: 8, child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))))
+          else if (can == false)
+            Text('You already have an active promotion this month.', style: GoogleFonts.inter(fontSize: 13, color: Colors.grey[700]))
+          else
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _promoUploading ? null : _pickAndUploadPromoAd,
+                icon: _promoUploading
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.upload_file, size: 20),
+                label: Text(_promoUploading ? 'Uploading…' : 'Upload photo or video'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.burntOrange,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// Parse photoUrls from booking (List or JSON string).
+  List<String> _parseBookingPhotoUrls(dynamic raw) {
+    if (raw == null) return [];
+    if (raw is List) return raw.map((e) => e?.toString() ?? '').where((s) => s.isNotEmpty).toList();
+    if (raw is String && raw.isNotEmpty) {
+      try {
+        final list = jsonDecode(raw) as List?;
+        if (list == null) return [];
+        return list.map((e) => e?.toString() ?? '').where((s) => s.isNotEmpty).toList();
+      } catch (_) {}
+    }
+    return [];
+  }
+
+  /// Display location for a booking: address if available, otherwise "Location set" (never raw lat/long).
+  String _bookingLocationDisplay(Map<String, dynamic> booking) {
+    final addr = booking['locationAddress'] ?? booking['fullAddress'] ?? booking['address'];
+    if (addr != null && addr.toString().trim().isNotEmpty) return addr.toString().trim();
+    final lat = booking['latitude']?.toString();
+    final lng = booking['longitude']?.toString();
+    if (lat != null && lng != null && lat.isNotEmpty && lng.isNotEmpty) return 'Location set';
+    return 'Location not shared';
+  }
+
+  Widget _buildLiveServicesSection() {
+    final live = _bookings.where((b) {
+      final s = (b['status'] ?? '').toString().toLowerCase();
+      return s == 'accepted' || s == 'in progress' || s == 'in-progress' || s == 'mechanic_en_route' || s == 'arrived';
+    }).toList();
+    if (live.isEmpty) return const SizedBox.shrink();
+    final mechanicId = widget.mechanicData?['id'];
+    final id = mechanicId is int ? mechanicId : int.tryParse(mechanicId?.toString() ?? '');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.burntOrange.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(Icons.directions_car_rounded, color: AppColors.burntOrange, size: 22),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'Live services',
+              style: GoogleFonts.outfit(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.darkChocolate,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        ListView.separated(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: live.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 10),
+          itemBuilder: (context, index) {
+            final booking = live[index];
+            final rawId = booking['id'];
+            final requestIdInt = rawId is int ? rawId : (rawId is num ? rawId.toInt() : int.tryParse(rawId?.toString() ?? ''));
+            final customerName = booking['customerName']?.toString() ?? 'Customer';
+            final service = booking['service']?.toString() ?? 'Service';
+            final locationDisplay = _bookingLocationDisplay(booking);
+            final photoUrls = _parseBookingPhotoUrls(booking['photoUrls']);
+            return Material(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              elevation: 2,
+              shadowColor: Colors.black.withOpacity(0.06),
+              child: InkWell(
+                onTap: requestIdInt != null && id != null
+                    ? () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => MechanicRequestDetailBookFlowPage(requestId: requestIdInt!, mechanicId: id!),
+                          ),
+                        ).then((_) {
+                          if (mounted) _fetchBookings();
+                        });
+                      }
+                    : null,
+                borderRadius: BorderRadius.circular(16),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          CircleAvatar(
+                            backgroundColor: AppColors.burntOrange.withOpacity(0.2),
+                            child: Text(
+                              customerName.isNotEmpty ? customerName[0].toUpperCase() : '?',
+                              style: GoogleFonts.outfit(
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.darkChocolate,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  customerName,
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.darkChocolate,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  service,
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 13,
+                                    color: AppColors.warmBrownMuted,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    Icon(Icons.location_on_outlined, size: 14, color: AppColors.warmBrownMuted),
+                                    const SizedBox(width: 4),
+                                    Expanded(
+                                      child: Text(
+                                        locationDisplay,
+                                        style: GoogleFonts.outfit(
+                                          fontSize: 12,
+                                          color: AppColors.warmBrownMuted,
+                                        ),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (photoUrls.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        Text(
+                          'Damage photos',
+                          style: GoogleFonts.outfit(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        SizedBox(
+                          height: 56,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: photoUrls.length,
+                            itemBuilder: (context, i) {
+                              final rawUrl = photoUrls[i];
+                              final url = rawUrl.startsWith('http') ? rawUrl : '${ApiConfig.baseUrl}$rawUrl';
+                              return Padding(
+                                padding: EdgeInsets.only(right: i < photoUrls.length - 1 ? 8 : 0),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.network(
+                                    url,
+                                    width: 56,
+                                    height: 56,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Container(
+                                      width: 56,
+                                      height: 56,
+                                      color: Colors.grey[200],
+                                      child: const Icon(Icons.image_outlined, size: 24),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
   Widget _buildFloatingHelpBot() {
     final email = (_mechanicProfile['email'] ?? widget.mechanicData?['email'] ?? '').toString();
     if (email.isEmpty) return const SizedBox.shrink();
@@ -2239,24 +2594,29 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
   
   Future<void> _rejectBooking(Map<String, dynamic> booking) async {
     try {
-      print("Rejecting booking ID: ${booking['id']}");
+      final mechanicId = widget.mechanicData?['id'];
+      final mid = mechanicId is int ? mechanicId : int.tryParse(mechanicId?.toString() ?? '');
+      final isBroadcast = booking['isBroadcast'] == true;
+      final uri = isBroadcast && mid != null
+          ? Uri.parse("${ApiConfig.mechanicRequestsEndpoint}/${booking['id']}/broadcast-dismiss")
+          : Uri.parse("${ApiConfig.mechanicRequestsEndpoint}/${booking['id']}/reject");
+      final body = isBroadcast && mid != null ? jsonEncode({'mechanicId': mid}) : null;
       final response = await http.put(
-        Uri.parse("${ApiConfig.mechanicRequestsEndpoint}/${booking['id']}/reject"),
+        uri,
         headers: {"Content-Type": "application/json"},
+        body: body,
       );
 
       if (response.statusCode == 200) {
         setState(() {
           _bookings.remove(booking);
         });
-        _showSnackBar('Booking declined.', Colors.orange);
-        print("✅ Booking ${booking['id']} rejected successfully");
+        _showSnackBar(isBroadcast ? 'Offer dismissed.' : 'Booking declined.', Colors.orange);
+        _fetchNearbyBroadcastRequests();
       } else {
-        print("❌ Failed to reject booking: ${response.statusCode}");
-        _showSnackBar('Failed to decline booking. Please try again.', Colors.red);
+        _showSnackBar('Failed to decline. Please try again.', Colors.red);
       }
     } catch (e) {
-      print("❌ Error rejecting booking: $e");
       _showSnackBar('Network error. Please try again.', Colors.red);
     }
   }

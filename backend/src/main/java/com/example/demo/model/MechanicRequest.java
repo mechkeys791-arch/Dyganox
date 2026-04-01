@@ -59,8 +59,15 @@ public class MechanicRequest {
     private String refundStatus;          // PENDING, REFUNDED
     private LocalDateTime viewExpiryAt;   // 5 min window for mechanics to see request
     private Boolean outOfHoursRequest;    // true = extra 100 for minor repair when shop closed
+    /** True when created from Night Service flow (broadcast targets night-available mechanics only). */
+    private Boolean nightServiceRequest;
     @Column(length = 500)
     private String notifiedMechanicIds;    // JSON array of mechanic IDs who received the request (for admin)
+    /** JSON array of mechanic IDs who declined/dismissed a PENDING_BROADCAST request (does not cancel the request). */
+    @Column(length = 2000)
+    private String broadcastDismissedMechanicIds;
+    /** After accept: map shows shop until mechanic taps Ready to drive; then live GPS. */
+    private Boolean mechanicReadyToDrive = false;
     private Double customerRating;         // 1-5 after service (customer rates mechanic)
     @Column(length = 500)
     private String customerRatingComment;
@@ -181,8 +188,14 @@ public class MechanicRequest {
     public void setViewExpiryAt(LocalDateTime viewExpiryAt) { this.viewExpiryAt = viewExpiryAt; }
     public Boolean getOutOfHoursRequest() { return outOfHoursRequest; }
     public void setOutOfHoursRequest(Boolean outOfHoursRequest) { this.outOfHoursRequest = outOfHoursRequest; }
+    public Boolean getNightServiceRequest() { return nightServiceRequest; }
+    public void setNightServiceRequest(Boolean nightServiceRequest) { this.nightServiceRequest = nightServiceRequest; }
     public String getNotifiedMechanicIds() { return notifiedMechanicIds; }
     public void setNotifiedMechanicIds(String notifiedMechanicIds) { this.notifiedMechanicIds = notifiedMechanicIds; }
+    public String getBroadcastDismissedMechanicIds() { return broadcastDismissedMechanicIds; }
+    public void setBroadcastDismissedMechanicIds(String broadcastDismissedMechanicIds) { this.broadcastDismissedMechanicIds = broadcastDismissedMechanicIds; }
+    public Boolean getMechanicReadyToDrive() { return mechanicReadyToDrive; }
+    public void setMechanicReadyToDrive(Boolean mechanicReadyToDrive) { this.mechanicReadyToDrive = mechanicReadyToDrive; }
     public Double getCustomerRating() { return customerRating; }
     public void setCustomerRating(Double customerRating) { this.customerRating = customerRating; }
     public String getCustomerRatingComment() { return customerRatingComment; }

@@ -9,6 +9,7 @@ import com.example.demo.repository.AuthBackgroundVideoRepo;
 import com.example.demo.repository.HomeHeroMediaRepo;
 import com.example.demo.repository.MechanicRepo;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -101,6 +102,12 @@ public class ConfigController {
         map.put("quickServiceTyreCareIconUrl", "");
         map.put("quickServiceMinorRepairIconUrl", "");
         map.put("quickServiceBatteryJumpIconUrl", "");
+        map.put("nightServiceIconsJson", "");
+        map.put("nearestMechanicMarkerIconUrl", "");
+        map.put("userLocationMarkerIconUrl", "");
+        map.put("mechanicShopMarkerIconUrl", "");
+        map.put("mechanicDrivingMarkerIconUrl", "");
+        map.put("problemCategoryIconsJson", "");
         if (opt.isPresent()) {
             AppBranding c = opt.get();
             map.put("appLogoUrl", c.getAppLogoUrl() != null ? c.getAppLogoUrl() : "");
@@ -121,20 +128,57 @@ public class ConfigController {
             map.put("quickServiceTyreCareIconUrl", c.getQuickServiceTyreCareIconUrl() != null ? c.getQuickServiceTyreCareIconUrl() : "");
             map.put("quickServiceMinorRepairIconUrl", c.getQuickServiceMinorRepairIconUrl() != null ? c.getQuickServiceMinorRepairIconUrl() : "");
             map.put("quickServiceBatteryJumpIconUrl", c.getQuickServiceBatteryJumpIconUrl() != null ? c.getQuickServiceBatteryJumpIconUrl() : "");
+            map.put("nightServiceIconsJson", c.getNightServiceIconsJson() != null ? c.getNightServiceIconsJson() : "");
+            map.put("nearestMechanicMarkerIconUrl", c.getNearestMechanicMarkerIconUrl() != null ? c.getNearestMechanicMarkerIconUrl() : "");
+            map.put("userLocationMarkerIconUrl", c.getUserLocationMarkerIconUrl() != null ? c.getUserLocationMarkerIconUrl() : "");
+            map.put("mechanicShopMarkerIconUrl", c.getMechanicShopMarkerIconUrl() != null ? c.getMechanicShopMarkerIconUrl() : "");
+            map.put("mechanicDrivingMarkerIconUrl", c.getMechanicDrivingMarkerIconUrl() != null ? c.getMechanicDrivingMarkerIconUrl() : "");
+            map.put("problemCategoryIconsJson", c.getProblemCategoryIconsJson() != null ? c.getProblemCategoryIconsJson() : "");
         }
         return ResponseEntity.ok(map);
     }
 
-    /** Public: get problem category icon URLs for Book Mechanic "What's the problem?". Returns map of problemId -> iconUrl from S3 (admin config). */
+    /** Public: Night Service tile icons from admin (JSON string of key → image URL). */
+    @GetMapping("/night-service-icons")
+    public ResponseEntity<Map<String, String>> getNightServiceIcons() {
+        Map<String, String> icons = new HashMap<>();
+        var opt = appBrandingRepo.findTop1ByOrderByIdDesc();
+        ObjectMapper om = new ObjectMapper();
+        if (opt.isPresent()) {
+            String json = opt.get().getNightServiceIconsJson();
+            if (json != null && !json.isBlank()) {
+                try {
+                    icons = om.readValue(json, new TypeReference<Map<String, String>>() {});
+                } catch (Exception ignored) {}
+            }
+        }
+        return ResponseEntity.ok(icons);
+    }
+
+    /**
+     * Book Mechanic "What's the problem?" icons.
+     * Optional query: vehicleType=CAR|BIKE (default CAR).
+     * Stored JSON may be nested: {"car":{"tyre_puncture":"https://..."},"bike":{...}} or legacy flat map (same URLs for both).
+     */
     @GetMapping("/problem-category-icons")
-    public ResponseEntity<Map<String, String>> getProblemCategoryIcons() {
+    public ResponseEntity<Map<String, String>> getProblemCategoryIcons(
+            @RequestParam(required = false, defaultValue = "CAR") String vehicleType) {
         var opt = appBrandingRepo.findTop1ByOrderByIdDesc();
         Map<String, String> icons = new HashMap<>();
+        ObjectMapper om = new ObjectMapper();
         if (opt.isPresent()) {
             String json = opt.get().getProblemCategoryIconsJson();
             if (json != null && !json.isBlank()) {
                 try {
-                    icons = new ObjectMapper().readValue(json, new TypeReference<Map<String, String>>() {});
+                    JsonNode root = om.readTree(json);
+                    if (root.isObject() && root.has("car") && root.has("bike")
+                            && root.get("car").isObject() && root.get("bike").isObject()) {
+                        String vt = vehicleType == null ? "CAR" : vehicleType.trim().toUpperCase();
+                        JsonNode branch = "BIKE".equals(vt) ? root.get("bike") : root.get("car");
+                        icons = om.convertValue(branch, new TypeReference<Map<String, String>>() {});
+                    } else {
+                        icons = om.readValue(json, new TypeReference<Map<String, String>>() {});
+                    }
                 } catch (Exception ignored) {}
             }
         }

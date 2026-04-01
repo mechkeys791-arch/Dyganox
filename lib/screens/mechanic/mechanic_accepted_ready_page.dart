@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -9,6 +10,9 @@ import 'dart:convert';
 import 'package:geolocator/geolocator.dart';
 import '../../core/theme/app_colors.dart';
 import '../../services/api_config.dart';
+import '../../services/app_remote_service.dart';
+import '../../services/service_ads_api.dart';
+import '../../widgets/service_ad_strip.dart';
 
 /// When mechanic has accepted: video placeholder, then when en route = map + ETA, then "Has mechanic reached?" confirm.
 /// Mechanic marker animates smoothly between location updates (Swiggy/Zomato style) instead of jumping.
@@ -23,6 +27,15 @@ class MechanicAcceptedReadyPage extends StatefulWidget {
 
 class _MechanicAcceptedReadyPageState extends State<MechanicAcceptedReadyPage> with SingleTickerProviderStateMixin {
   String? _mechanicName;
+  String? _profilePhotoUrl;
+  String? _shopName;
+  double? _rating;
+  int? _ratingCount;
+  double? _shopLat;
+  double? _shopLng;
+  List<Map<String, dynamic>> _ads = [];
+  BitmapDescriptor? _shopMarkerIcon;
+  BitmapDescriptor? _drivingMarkerIcon;
   Map<String, dynamic> _request = {};
   Timer? _pollTimer;
   Timer? _mechanicLocationTimer;
@@ -34,7 +47,7 @@ class _MechanicAcceptedReadyPageState extends State<MechanicAcceptedReadyPage> w
   int? _etaMinutes;
   bool _confirmingArrival = false;
   GoogleMapController? _mapController;
-  BitmapDescriptor? _vehicleMarkerIcon;
+  BitmapDescriptor? _fallbackMarkerIcon;
 
   /// Smoothed position for the mechanic marker (interpolated between API updates so it doesn't jump).
   double? _displayMechanicLat;
@@ -42,29 +55,125 @@ class _MechanicAcceptedReadyPageState extends State<MechanicAcceptedReadyPage> w
   double _animStartLat = 0, _animStartLng = 0, _animEndLat = 0, _animEndLng = 0;
   late AnimationController _markerAnimController;
   late Animation<double> _markerAnimCurve;
-  static const Duration _markerAnimDuration = Duration(seconds: 8);
-  static const double _minMoveMetersToAnimate = 15;
+  static const Duration _markerAnimDuration = Duration(milliseconds: 5200);
+  static const double _minMoveMetersToAnimate = 6;
 
   final Set<Polyline> _polylines = {};
   bool _polylineFetched = false;
+  double? _polylineAnchorLat;
+  double? _polylineAnchorLng;
+  DateTime? _lastRouteRefetchAt;
 
   @override
   void initState() {
     super.initState();
     _markerAnimController = AnimationController(vsync: this, duration: _markerAnimDuration);
-    _markerAnimCurve = CurvedAnimation(parent: _markerAnimController, curve: Curves.easeInOut);
+    _markerAnimCurve = CurvedAnimation(parent: _markerAnimController, curve: Curves.easeOutCubic);
     _markerAnimController.addListener(_onMarkerAnimTick);
     _request = Map.from(widget.request);
     _customerLat = double.tryParse(_request['latitude']?.toString() ?? '');
     _customerLng = double.tryParse(_request['longitude']?.toString() ?? '');
     _mechanicName = _request['acceptedMechanicName']?.toString();
-    if (_mechanicName == null || _mechanicName!.isEmpty) _fetchMechanicName();
-    _createVehicleMarkerIcon();
-    if ((_request['status']?.toString() ?? '') == 'MECHANIC_EN_ROUTE') {
-      _fetchMechanicLocation();
-      _startMechanicLocationPolling();
-    }
+    _createFallbackMarkerIcon();
+    _loadBrandingMarkers();
+    _loadPublicProfile();
+    _loadAds();
+    _syncTrackingModeFromRequest();
     _pollRequest();
+  }
+
+  bool _livePinForRequestMap(Map<String, dynamic> req) {
+    final st = req['status']?.toString() ?? '';
+    if (st == 'MECHANIC_EN_ROUTE' || st == 'ARRIVED') return true;
+    return req['mechanicReadyToDrive'] == true;
+  }
+
+  bool _useLivePin() => _livePinForRequestMap(_request);
+
+  void _syncTrackingModeFromRequest() {
+    if (_useLivePin()) {
+      _fetchMechanicLocation();
+      if ((_request['status']?.toString() ?? '') == 'MECHANIC_EN_ROUTE') {
+        _startMechanicLocationPolling();
+      }
+    } else {
+      _applyShopPinFromProfile();
+    }
+  }
+
+  void _applyShopPinFromProfile() {
+    if (_shopLat == null || _shopLng == null) return;
+    if (!mounted) return;
+    setState(() {
+      _mechanicLat = _shopLat;
+      _mechanicLng = _shopLng;
+      _displayMechanicLat = _shopLat;
+      _displayMechanicLng = _shopLng;
+    });
+    _polylineFetched = false;
+    if (_customerLat != null && _customerLng != null) {
+      _fetchRoutePolyline();
+    }
+  }
+
+  Future<void> _loadAds() async {
+    final list = await ServiceAdsApi.fetchMerged(
+      ['BOOK_MECHANIC_ACCEPTED', 'BOOK_MECHANIC_WAITING', 'NIGHT_SERVICE'],
+      lat: _customerLat,
+      lng: _customerLng,
+    );
+    if (mounted) setState(() => _ads = list);
+  }
+
+  Future<void> _bitmapFromUrl(String? url, void Function(BitmapDescriptor) onOk) async {
+    if (url == null || url.isEmpty) return;
+    try {
+      final r = await http.get(Uri.parse(url));
+      if (r.statusCode != 200 || !mounted) return;
+      final codec = await ui.instantiateImageCodec(r.bodyBytes, targetWidth: 120);
+      final frame = await codec.getNextFrame();
+      final bd = await frame.image.toByteData(format: ui.ImageByteFormat.png);
+      if (bd != null && mounted) onOk(BitmapDescriptor.fromBytes(bd.buffer.asUint8List()));
+    } catch (_) {}
+  }
+
+  Future<void> _loadBrandingMarkers() async {
+    try {
+      final b = await AppRemoteService.getAppBrandingConfig();
+      if (b == null) return;
+      await _bitmapFromUrl(b['mechanicShopMarkerIconUrl']?.toString(), (icon) {
+        if (mounted) setState(() => _shopMarkerIcon = icon);
+      });
+      await _bitmapFromUrl(b['mechanicDrivingMarkerIconUrl']?.toString(), (icon) {
+        if (mounted) setState(() => _drivingMarkerIcon = icon);
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _loadPublicProfile() async {
+    final id = _request['acceptedMechanicId'];
+    if (id == null) return;
+    final mid = id is int ? id : int.tryParse(id.toString());
+    if (mid == null) return;
+    try {
+      final r = await http.get(
+        Uri.parse(ApiConfig.mechanicPublicProfile(mid)),
+        headers: {'Content-Type': 'application/json'},
+      );
+      if (r.statusCode != 200 || !mounted) return;
+      final m = Map<String, dynamic>.from(jsonDecode(r.body) as Map);
+      setState(() {
+        _mechanicName = m['name']?.toString() ?? _mechanicName ?? 'Mechanic';
+        _profilePhotoUrl = m['profilePhotoUrl']?.toString();
+        _shopName = m['shopName']?.toString();
+        final rv = m['rating'];
+        _rating = rv is num ? rv.toDouble() : double.tryParse(rv?.toString() ?? '');
+        _ratingCount = (m['ratingCount'] as num?)?.toInt() ?? int.tryParse(m['ratingCount']?.toString() ?? '') ?? 0;
+        _shopLat = double.tryParse(m['latitude']?.toString() ?? '');
+        _shopLng = double.tryParse(m['longitude']?.toString() ?? '');
+      });
+      if (!_useLivePin()) _applyShopPinFromProfile();
+    } catch (_) {}
   }
 
   void _onMarkerAnimTick() {
@@ -85,10 +194,10 @@ class _MechanicAcceptedReadyPageState extends State<MechanicAcceptedReadyPage> w
     super.dispose();
   }
 
-  Future<void> _createVehicleMarkerIcon() async {
+  Future<void> _createFallbackMarkerIcon() async {
     try {
       final icon = await _createVehicleBitmapDescriptor();
-      if (mounted) setState(() => _vehicleMarkerIcon = icon);
+      if (mounted) setState(() => _fallbackMarkerIcon = icon);
     } catch (_) {}
   }
 
@@ -159,12 +268,24 @@ class _MechanicAcceptedReadyPageState extends State<MechanicAcceptedReadyPage> w
         );
         if (r.statusCode == 200 && mounted) {
           final req = Map<String, dynamic>.from(jsonDecode(r.body) as Map);
+          final prevLive = _livePinForRequestMap(_request);
           setState(() => _request = req);
+          final nowLive = _livePinForRequestMap(req);
           final status = req['status']?.toString() ?? '';
-          if (status == 'MECHANIC_EN_ROUTE' || status == 'ARRIVED') {
+          if (nowLive && !prevLive) {
+            _polylineFetched = false;
+            _fetchMechanicLocation();
+          }
+          if (!nowLive && prevLive) {
+            _mechanicLocationTimer?.cancel();
+            _applyShopPinFromProfile();
+          }
+          if (nowLive) {
             _fetchMechanicLocation();
             if (status == 'MECHANIC_EN_ROUTE') {
-              if (_mechanicLocationTimer == null) _startMechanicLocationPolling();
+              if (_mechanicLocationTimer == null || !_mechanicLocationTimer!.isActive) {
+                _startMechanicLocationPolling();
+              }
               if (_mechanicLat != null && _customerLat != null) _updateEta();
             } else {
               _mechanicLocationTimer?.cancel();
@@ -175,33 +296,23 @@ class _MechanicAcceptedReadyPageState extends State<MechanicAcceptedReadyPage> w
     });
   }
 
-  Future<void> _fetchMechanicName() async {
-    final id = _request['acceptedMechanicId'];
-    if (id == null) return;
-    try {
-      final r = await http.get(
-        Uri.parse('${ApiConfig.mechanicEndpoint}/$id'),
-        headers: {'Content-Type': 'application/json'},
-      );
-      if (r.statusCode == 200 && mounted) {
-        final m = jsonDecode(r.body) as Map<String, dynamic>;
-        setState(() => _mechanicName = m['name']?.toString() ?? 'Mechanic');
-      }
-    } catch (_) {}
-  }
-
   Future<void> _fetchMechanicLocation() async {
+    if (!_useLivePin()) return;
     final id = _request['acceptedMechanicId'];
     if (id == null) return;
+    final mid = id is int ? id : int.tryParse(id.toString());
+    if (mid == null) return;
     try {
       final r = await http.get(
-        Uri.parse('${ApiConfig.mechanicEndpoint}/$id'),
+        Uri.parse(ApiConfig.mechanicPublicProfile(mid)),
         headers: {'Content-Type': 'application/json'},
       );
       if (r.statusCode == 200 && mounted) {
-        final m = jsonDecode(r.body) as Map<String, dynamic>;
-        final lat = double.tryParse(m['currentLatitude']?.toString() ?? m['latitude']?.toString() ?? '');
-        final lng = double.tryParse(m['currentLongitude']?.toString() ?? m['longitude']?.toString() ?? '');
+        final m = Map<String, dynamic>.from(jsonDecode(r.body) as Map);
+        final lat = double.tryParse(m['currentLatitude']?.toString() ?? '') ??
+            double.tryParse(m['latitude']?.toString() ?? '');
+        final lng = double.tryParse(m['currentLongitude']?.toString() ?? '') ??
+            double.tryParse(m['longitude']?.toString() ?? '');
         if (lat != null && lng != null) {
           final prevLat = _mechanicLat;
           final prevLng = _mechanicLng;
@@ -214,6 +325,10 @@ class _MechanicAcceptedReadyPageState extends State<MechanicAcceptedReadyPage> w
               _animStartLng = startLng;
               _animEndLat = lat;
               _animEndLng = lng;
+              final t = (distMeters / 800).clamp(0.35, 1.0);
+              _markerAnimController.duration = Duration(
+                milliseconds: (2600 + 4200 * t).round().clamp(2200, 7200),
+              );
               _markerAnimController.reset();
               _markerAnimController.forward();
             } else {
@@ -233,6 +348,8 @@ class _MechanicAcceptedReadyPageState extends State<MechanicAcceptedReadyPage> w
             setState(() => _distanceKm = dist);
             if (!_polylineFetched) {
               _fetchRoutePolyline();
+            } else {
+              _maybeRefetchRoutePolyline(lat, lng);
             }
           }
           if (_mapController != null && (prevLat != lat || prevLng != lng)) {
@@ -253,9 +370,27 @@ class _MechanicAcceptedReadyPageState extends State<MechanicAcceptedReadyPage> w
     } catch (_) {}
   }
 
+  void _maybeRefetchRoutePolyline(double lat, double lng) {
+    if (_polylineAnchorLat == null || _polylineAnchorLng == null) return;
+    final moved = Geolocator.distanceBetween(_polylineAnchorLat!, _polylineAnchorLng!, lat, lng);
+    final now = DateTime.now();
+    if (moved < 85) return;
+    if (_lastRouteRefetchAt != null && now.difference(_lastRouteRefetchAt!) < const Duration(seconds: 22)) return;
+    _lastRouteRefetchAt = now;
+    _polylineAnchorLat = lat;
+    _polylineAnchorLng = lng;
+    _polylineFetched = false;
+    _fetchRoutePolyline();
+  }
+
   Future<void> _fetchRoutePolyline() async {
     if (_mechanicLat == null || _mechanicLng == null || _customerLat == null || _customerLng == null) return;
-    _polylineFetched = true;
+    if (_polylineFetched) return;
+    final key = ApiConfig.googleMapsApiKey;
+    if (key.isEmpty) {
+      _addFallbackPolyline(markFetched: true);
+      return;
+    }
     try {
       final polylinePoints = PolylinePoints();
       final result = await polylinePoints.getRouteBetweenCoordinates(
@@ -264,30 +399,45 @@ class _MechanicAcceptedReadyPageState extends State<MechanicAcceptedReadyPage> w
           origin: PointLatLng(_mechanicLat!, _mechanicLng!),
           destination: PointLatLng(_customerLat!, _customerLng!),
         ),
+        googleApiKey: key,
       );
       if (result.points.isNotEmpty && mounted) {
         final points = result.points.map((p) => LatLng(p.latitude, p.longitude)).toList();
+        _polylineAnchorLat = _mechanicLat;
+        _polylineAnchorLng = _mechanicLng;
+        if (result.totalDurationValue != null && result.totalDurationValue! > 0) {
+          final mins = math.max(1, (result.totalDurationValue! / 60).ceil());
+          setState(() => _etaMinutes = mins);
+        } else {
+          _updateEta();
+        }
         setState(() {
           _polylines.clear();
           _polylines.add(Polyline(
             polylineId: const PolylineId('route'),
             points: points,
             color: AppColors.burntOrange,
-            width: 5,
-            patterns: [],
+            width: 6,
+            geodesic: true,
+            jointType: JointType.round,
+            startCap: Cap.roundCap,
+            endCap: Cap.roundCap,
+            patterns: const [],
           ));
         });
+        _polylineFetched = true;
       } else {
-        _addFallbackPolyline();
+        _addFallbackPolyline(markFetched: true);
       }
     } catch (_) {
-      _addFallbackPolyline();
+      _addFallbackPolyline(markFetched: true);
     }
   }
 
-  void _addFallbackPolyline() {
+  void _addFallbackPolyline({bool markFetched = false}) {
     if (_mechanicLat == null || _mechanicLng == null || _customerLat == null || _customerLng == null) return;
     if (!mounted) return;
+    if (markFetched) _polylineFetched = true;
     setState(() {
       _polylines.clear();
       _polylines.add(Polyline(
@@ -298,7 +448,11 @@ class _MechanicAcceptedReadyPageState extends State<MechanicAcceptedReadyPage> w
         ],
         color: AppColors.burntOrange,
         width: 5,
-        patterns: [],
+        geodesic: true,
+        jointType: JointType.round,
+        startCap: Cap.roundCap,
+        endCap: Cap.roundCap,
+        patterns: const [],
       ));
     });
   }
@@ -337,9 +491,43 @@ class _MechanicAcceptedReadyPageState extends State<MechanicAcceptedReadyPage> w
     final status = _request['status']?.toString() ?? 'PENDING_PAYMENT';
     final isEnRoute = status == 'MECHANIC_EN_ROUTE';
     final isArrived = status == 'ARRIVED';
+    final useLive = _useLivePin();
     final mechanicMarkerLat = _displayMechanicLat ?? _mechanicLat;
     final mechanicMarkerLng = _displayMechanicLng ?? _mechanicLng;
-    final showMap = isEnRoute && mechanicMarkerLat != null && mechanicMarkerLng != null && _customerLat != null;
+    final showMap = _customerLat != null &&
+        _customerLng != null &&
+        mechanicMarkerLat != null &&
+        mechanicMarkerLng != null &&
+        (status == 'PENDING_PAYMENT' || isEnRoute || isArrived);
+
+    BitmapDescriptor mechIcon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange);
+    if (useLive) {
+      mechIcon = _drivingMarkerIcon ?? _fallbackMarkerIcon ?? mechIcon;
+    } else {
+      mechIcon = _shopMarkerIcon ?? _fallbackMarkerIcon ?? mechIcon;
+    }
+
+    String statusLine;
+    if (isArrived) {
+      statusLine = 'Mechanic has reached your location.';
+    } else if (isEnRoute) {
+      statusLine = 'Mechanic is on the way to you.';
+    } else if (useLive) {
+      statusLine = 'Live location is on — mechanic is heading out.';
+    } else {
+      statusLine = 'Map shows their shop until they tap Ready to drive.';
+    }
+
+    String appTitle;
+    if (isArrived) {
+      appTitle = 'Mechanic arrived';
+    } else if (isEnRoute) {
+      appTitle = 'Mechanic on the way';
+    } else if (useLive) {
+      appTitle = 'Mechanic on the way';
+    } else {
+      appTitle = 'Mechanic accepted';
+    }
 
     return Scaffold(
       backgroundColor: AppColors.cream,
@@ -348,7 +536,7 @@ class _MechanicAcceptedReadyPageState extends State<MechanicAcceptedReadyPage> w
         elevation: 0,
         leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: () => Navigator.pop(context)),
         title: Text(
-          isEnRoute ? 'Mechanic on the way' : isArrived ? 'Mechanic arrived' : 'Mechanic on the way',
+          appTitle,
           style: GoogleFonts.outfit(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
         ),
       ),
@@ -368,7 +556,7 @@ class _MechanicAcceptedReadyPageState extends State<MechanicAcceptedReadyPage> w
                       children: [
                         Text('$name has accepted', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.darkChocolate)),
                         Text(
-                          isEnRoute ? 'Mechanic is on the way to you.' : isArrived ? 'Mechanic has reached your location.' : 'Mechanic has joined. He will contact you.',
+                          statusLine,
                           style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[700]),
                         ),
                       ],
@@ -379,7 +567,7 @@ class _MechanicAcceptedReadyPageState extends State<MechanicAcceptedReadyPage> w
             ),
             if (showMap) ...[
               SizedBox(
-                height: 260,
+                height: MediaQuery.of(context).size.height * 0.34,
                 width: double.infinity,
                 child: GoogleMap(
                   initialCameraPosition: CameraPosition(
@@ -395,9 +583,9 @@ class _MechanicAcceptedReadyPageState extends State<MechanicAcceptedReadyPage> w
                     ),
                     Marker(
                       markerId: const MarkerId('mechanic'),
-                      position: LatLng(mechanicMarkerLat!, mechanicMarkerLng!),
-                      icon: _vehicleMarkerIcon ?? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
-                      infoWindow: const InfoWindow(title: 'Mechanic'),
+                      position: LatLng(mechanicMarkerLat as double, mechanicMarkerLng as double),
+                      icon: mechIcon,
+                      infoWindow: InfoWindow(title: useLive ? 'Mechanic (live)' : 'Mechanic shop'),
                     ),
                   },
                   polylines: _polylines,
@@ -405,7 +593,7 @@ class _MechanicAcceptedReadyPageState extends State<MechanicAcceptedReadyPage> w
                   mapToolbarEnabled: false,
                 ),
               ),
-              if (_etaMinutes != null || _distanceKm != null)
+              if (useLive && (_etaMinutes != null || _distanceKm != null))
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 20),
                   padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
@@ -425,6 +613,14 @@ class _MechanicAcceptedReadyPageState extends State<MechanicAcceptedReadyPage> w
                     ],
                   ),
                 ),
+              if (!useLive && _shopLat != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Text(
+                    'Pin: mechanic\'s shop. Route is from the shop to you.',
+                    style: GoogleFonts.inter(fontSize: 13, color: Colors.grey[700]),
+                  ),
+                ),
               const SizedBox(height: 16),
             ] else if (!isArrived)
               ConstrainedBox(
@@ -439,9 +635,9 @@ class _MechanicAcceptedReadyPageState extends State<MechanicAcceptedReadyPage> w
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.videocam_rounded, size: 48, color: AppColors.burntOrange.withValues(alpha: 0.8)),
+                      Icon(Icons.store_mall_directory_rounded, size: 48, color: AppColors.burntOrange.withValues(alpha: 0.8)),
                       const SizedBox(height: 8),
-                      Text('Mechanic getting ready', style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.darkChocolate)),
+                      Text('Loading map…', style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.darkChocolate)),
                     ],
                   ),
                 ),
@@ -476,6 +672,19 @@ class _MechanicAcceptedReadyPageState extends State<MechanicAcceptedReadyPage> w
               ),
               const SizedBox(height: 16),
             ],
+            if (_ads.isNotEmpty) ...[
+              ServiceAdHorizontalRail(
+                ads: _ads,
+                height: 108,
+                onAdTap: (ad) {
+                  final sub = ad['subtitle']?.toString() ?? '';
+                  if (sub.isNotEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(sub)));
+                  }
+                },
+              ),
+              const SizedBox(height: 16),
+            ],
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 20),
               padding: const EdgeInsets.all(20),
@@ -487,6 +696,48 @@ class _MechanicAcceptedReadyPageState extends State<MechanicAcceptedReadyPage> w
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      CircleAvatar(
+                        radius: 36,
+                        backgroundColor: AppColors.burntOrange.withValues(alpha: 0.2),
+                        backgroundImage: (_profilePhotoUrl != null && _profilePhotoUrl!.isNotEmpty)
+                            ? NetworkImage(
+                                _profilePhotoUrl!.startsWith('http') ? _profilePhotoUrl! : '${ApiConfig.baseUrl}$_profilePhotoUrl',
+                              )
+                            : null,
+                        child: (_profilePhotoUrl == null || _profilePhotoUrl!.isEmpty)
+                            ? Icon(Icons.person, size: 40, color: AppColors.burntOrange)
+                            : null,
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(name, style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.darkChocolate)),
+                            if (_shopName != null && _shopName!.isNotEmpty)
+                              Text(_shopName!, style: GoogleFonts.inter(fontSize: 13, color: Colors.grey[700])),
+                            if (_rating != null && _rating! > 0) ...[
+                              const SizedBox(height: 6),
+                              Row(
+                                children: [
+                                  Icon(Icons.star_rounded, color: Colors.amber.shade700, size: 22),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '${_rating!.toStringAsFixed(1)}${_ratingCount != null && _ratingCount! > 0 ? ' ($_ratingCount reviews)' : ''}',
+                                    style: GoogleFonts.inter(fontSize: 14, color: AppColors.darkChocolate),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
                   Row(
                     children: [
                       Container(

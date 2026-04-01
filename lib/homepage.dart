@@ -28,7 +28,6 @@ import 'services/user_profile_service.dart';
 import 'services/cognito_service.dart';
 import 'emergency_assistance_page.dart';
 import 'screens/vehicles/vehicles_page.dart';
-import 'screens/vehicles/add_edit_vehicle_page.dart';
 import 'widgets/custom_nav_bar.dart';
 import 'widgets/home_hero_overlay.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -354,6 +353,25 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       _branding = m;
       _brandingLoaded = true;
     });
+  }
+
+  /// Admin S3 URLs are usually absolute; allow relative paths from API.
+  String? _resolveBrandingImageUrl(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return null;
+    final s = raw.trim();
+    if (s.startsWith('http://') || s.startsWith('https://')) return s;
+    if (s.startsWith('//')) return 'https:$s';
+    final base = ApiConfig.baseUrl;
+    if (s.startsWith('/')) return '$base$s';
+    return '$base/$s';
+  }
+
+  Widget _nightServiceFallbackIcon(double size, bool isNightTime) {
+    return Icon(
+      Icons.nights_stay_rounded,
+      size: size * 0.88,
+      color: isNightTime ? AppColors.burntOrange : AppColors.darkChocolate.withOpacity(0.88),
+    );
   }
 
   Future<void> _loadHomeHeroConfig() async {
@@ -761,19 +779,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => const BookMechanicFlowPage(),
+              builder: (context) => BookMechanicFlowPage(preselectedVehicle: vehicle),
             ),
           );
         },
         onAddVehicle: () {
           Navigator.pop(sheetContext);
           if (email.isNotEmpty) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => AddEditVehiclePage(userEmail: email),
-              ),
-            );
+            showAddVehicleInBottomSheet(context, userEmail: email);
           }
         },
       ),
@@ -805,12 +818,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         onAddVehicle: () {
           Navigator.pop(sheetContext);
           if (email.isNotEmpty) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => AddEditVehiclePage(userEmail: email),
-              ),
-            );
+            showAddVehicleInBottomSheet(context, userEmail: email);
           }
         },
       ),
@@ -1403,6 +1411,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     const double iconSize = 0.14; // same as other quick service icons
     final nightLogical = screenWidth * iconSize;
     final nightCachePx = (nightLogical * _devicePixelRatio).round().clamp(48, 256);
+    final nightIconUrl = _resolveBrandingImageUrl(_branding?['quickServiceNightServiceIconUrl']?.toString());
     return Container(
       child: Material(
         color: Colors.white,
@@ -1435,29 +1444,27 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Center(
-                        child: (_branding?['quickServiceNightServiceIconUrl']?.toString()?.trim().isNotEmpty ?? false)
-                        ? Image.network(
-                            _branding!['quickServiceNightServiceIconUrl']!.toString().trim(),
-                            width: nightLogical,
-                            height: nightLogical,
-                            fit: BoxFit.contain,
-                            filterQuality: FilterQuality.low,
-                            cacheWidth: nightCachePx,
-                            cacheHeight: nightCachePx,
-                            color: isNightTime ? AppColors.burntOrange : null,
-                            loadingBuilder: (context, child, loadingProgress) {
-                              if (loadingProgress == null) return child;
-                              return Image.asset('assets/icons/24-hour-service.png', width: nightLogical, height: nightLogical, fit: BoxFit.contain, color: isNightTime ? AppColors.burntOrange : null);
-                            },
-                            errorBuilder: (_, __, ___) => Image.asset('assets/icons/24-hour-service.png', width: nightLogical, height: nightLogical, fit: BoxFit.contain, color: isNightTime ? AppColors.burntOrange : null),
-                          )
-                        : Image.asset(
-                            'assets/icons/24-hour-service.png',
-                            width: nightLogical,
-                            height: nightLogical,
-                            fit: BoxFit.contain,
-                            color: isNightTime ? AppColors.burntOrange : null,
-                          ),
+                      child: nightIconUrl != null
+                          ? Image.network(
+                              nightIconUrl,
+                              width: nightLogical,
+                              height: nightLogical,
+                              fit: BoxFit.contain,
+                              filterQuality: FilterQuality.low,
+                              cacheWidth: nightCachePx,
+                              cacheHeight: nightCachePx,
+                              gaplessPlayback: true,
+                              loadingBuilder: (context, child, loadingProgress) {
+                                if (loadingProgress == null) return child;
+                                return SizedBox(
+                                  width: nightLogical,
+                                  height: nightLogical,
+                                  child: Center(child: _nightServiceFallbackIcon(nightLogical, isNightTime)),
+                                );
+                              },
+                              errorBuilder: (_, __, ___) => _nightServiceFallbackIcon(nightLogical, isNightTime),
+                            )
+                          : _nightServiceFallbackIcon(nightLogical, isNightTime),
                     ),
                     SizedBox(height: screenHeight * 0.008),
                     Flexible(
@@ -1531,7 +1538,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     required VoidCallback onTap,
     String? iconUrl,
   }) {
-    final useNetwork = iconUrl != null && iconUrl.trim().isNotEmpty;
+    final resolvedUrl = _resolveBrandingImageUrl(iconUrl);
+    final useNetwork = resolvedUrl != null;
     const double iconSize = 0.14; // bigger icons (was 0.06 inside 0.12 circle)
     final iconLogicalPx = screenWidth * iconSize;
     final iconCachePx = (iconLogicalPx * _devicePixelRatio).round().clamp(48, 256);
@@ -1553,13 +1561,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 Center(
                   child: useNetwork
                       ? Image.network(
-                          iconUrl!,
+                          resolvedUrl,
                           width: iconLogicalPx,
                           height: iconLogicalPx,
                           fit: BoxFit.contain,
                           filterQuality: FilterQuality.low,
                           cacheWidth: iconCachePx,
                           cacheHeight: iconCachePx,
+                          gaplessPlayback: true,
                           loadingBuilder: (context, child, loadingProgress) {
                             if (loadingProgress == null) return child;
                             return Image.asset(iconPath, width: iconLogicalPx, height: iconLogicalPx, fit: BoxFit.contain);
@@ -1838,9 +1847,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       const SizedBox(height: 12),
                     ],
                   ),
-                    ],
-                  ),
-                ),
+                ],
+              ),
+            ),
 
 
                 // Sliding Advertisement Section - Colorful (RepaintBoundary: isolates layer work from rest of scroll view)
@@ -2313,7 +2322,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       'subtitle': '24/7 Support Available',
       'icon': Icons.emergency,
       'color': AppColors.burntOrange,
-      'gradient': [AppColors.burntOrange, AppColors.warmBrown, AppColors.warmAmber],
+      'gradient': [AppColors.darkChocolate, AppColors.warmBrown, AppColors.burntOrange],
       'image': 'assets/icons/eva_on_road.png',
     },
     {
@@ -2321,7 +2330,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       'subtitle': 'Expert Mechanics at Your Doorstep',
       'icon': Icons.build_circle,
       'color': AppColors.burntOrange,
-      'gradient': [AppColors.warmBrown, AppColors.warmAmber, AppColors.warmAmber],
+      'gradient': [const Color(0xFF1A0F28), AppColors.warmBrown, AppColors.burntOrange],
       'image': 'assets/icons/luxcar.png',
     },
     {
@@ -2329,7 +2338,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       'subtitle': 'Find Nearest Charging Stations',
       'icon': Icons.electric_car,
       'color': AppColors.burntOrange,
-      'gradient': [AppColors.burntOrange, AppColors.warmBrown, AppColors.warmAmber],
+      'gradient': [AppColors.warmBrown, AppColors.darkChocolate, AppColors.burntOrange],
       'image': 'assets/icons/evnw.png',
     },
   ];
@@ -2350,7 +2359,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     final String? rawImageUrl = ad['imageUrl'] as String?;
     final String bannerImageUrl = _resolveBannerImageUrl(rawImageUrl);
     final gradient = (ad['gradient'] as List<Color>?) ??
-        [AppColors.burntOrange, AppColors.warmBrown, AppColors.warmAmber];
+        [AppColors.darkChocolate, AppColors.warmBrown, AppColors.burntOrange];
 
     return Positioned.fill(
       child: Material(
@@ -2430,18 +2439,19 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     final String? rawImageUrl = ad['imageUrl'] as String?;
     final String bannerImageUrl = _resolveBannerImageUrl(rawImageUrl);
     final gradient = (ad['gradient'] as List<Color>?) ??
-        [AppColors.burntOrange, AppColors.warmBrown, AppColors.warmAmber];
+        [AppColors.darkChocolate, AppColors.warmBrown, AppColors.burntOrange];
     final color = ad['color'] as Color? ?? AppColors.burntOrange;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 4),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.black.withOpacity(0.35), width: 1),
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity(0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
+            color: Colors.black.withOpacity(0.45),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
             spreadRadius: 0,
           ),
         ],
@@ -2486,17 +2496,18 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       },
                     ),
             ),
-            // Subtle overlay for text readability - lighter to show vibrant colors
+            // Strong dark scrim so carousel matches darker app chrome; text stays readable
             Positioned.fill(
               child: Container(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      Colors.black.withOpacity(0.15),
-                      Colors.black.withOpacity(0.25),
+                      Colors.black.withOpacity(0.52),
+                      Colors.black.withOpacity(0.68),
                     ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    stops: const [0.0, 1.0],
                   ),
                 ),
               ),
@@ -2527,9 +2538,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                 fontWeight: FontWeight.bold,
                                 shadows: [
                                   Shadow(
-                                    color: Colors.black.withOpacity(0.3),
+                                    color: Colors.black.withOpacity(0.75),
                                     offset: const Offset(0, 2),
-                                    blurRadius: 4,
+                                    blurRadius: 10,
                                   ),
                                 ],
                               ),
@@ -2538,14 +2549,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             Text(
                               (ad['subtitle'] as String?) ?? '',
                               style: GoogleFonts.inter(
-                                color: Colors.white,
+                                color: Colors.white.withOpacity(0.92),
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
                                 shadows: [
                                   Shadow(
-                                    color: Colors.black.withOpacity(0.3),
+                                    color: Colors.black.withOpacity(0.65),
                                     offset: const Offset(0, 1),
-                                    blurRadius: 3,
+                                    blurRadius: 8,
                                   ),
                                 ],
                               ),
