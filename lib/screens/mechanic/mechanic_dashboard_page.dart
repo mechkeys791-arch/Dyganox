@@ -206,7 +206,6 @@ class _MechanicDashboardPageState extends State<MechanicDashboardPage> with Tick
   }
 
   @override
-  @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _checkLaunchRequestId();

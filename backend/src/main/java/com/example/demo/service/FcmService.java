@@ -4,10 +4,10 @@ import com.google.auth.oauth2.GoogleCredentials;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
 import com.google.firebase.messaging.AndroidConfig;
-import com.google.firebase.messaging.AndroidNotification;
+import com.google.firebase.messaging.ApnsConfig;
+import com.google.firebase.messaging.Aps;
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.Message;
-import com.google.firebase.messaging.Notification;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
@@ -17,9 +17,11 @@ import java.io.InputStream;
 
 /**
  * Sends FCM push notifications to mechanics when a customer creates a request.
- * Uses notification + data payloads: notification ensures system displays when app is backgrounded/killed
- * (data-only messages are not reliably delivered on Android when app is not in foreground).
- * Data payload provides requestId for Accept/Reject handling.
+ * Uses data-only + high priority on Android so {@code onMessageReceived} runs in
+ * {@link com.example.dyganox.DyganoxFirebaseMessagingService} when the app is backgrounded or killed.
+ * If we send a top-level {@code notification} payload, Android delivers to the system tray only and
+ * <em>does not</em> call {@code onMessageReceived}, so the custom alarm / Accept-Reject flow never runs.
+ * Title/body are carried in the data map; the client shows notifications from that data.
  */
 @Service
 public class FcmService {
@@ -81,22 +83,13 @@ public class FcmService {
                 : "A customer requested your service.";
 
         try {
-            // Notification payload ensures system displays when app is backgrounded/killed.
-            // Data-only messages are not reliably delivered on Android when app is not in foreground.
-            Notification notification = Notification.builder()
-                    .setTitle(title)
-                    .setBody(body)
-                    .build();
+            // Pure data + HIGH priority. Do not set Notification or AndroidConfig.notification — otherwise
+            // Android delivers to the tray only and skips onMessageReceived when backgrounded.
             AndroidConfig androidConfig = AndroidConfig.builder()
                     .setPriority(AndroidConfig.Priority.HIGH)
-                    .setNotification(AndroidNotification.builder()
-                            .setChannelId("mechanic_requests")
-                            .setPriority(AndroidNotification.Priority.HIGH)
-                            .build())
                     .build();
             var builder = Message.builder()
                     .setToken(fcmToken)
-                    .setNotification(notification)
                     .setAndroidConfig(androidConfig)
                     .putData("type", "mechanic_request")
                     .putData("requestId", String.valueOf(requestId))
@@ -106,6 +99,11 @@ public class FcmService {
             if (distanceStr.length() > 0) {
                 builder = builder.putData("distanceKm", distanceStr);
             }
+            // iOS: allow background delivery of data (optional; app may still need notification permission)
+            builder = builder.setApnsConfig(ApnsConfig.builder()
+                    .putHeader("apns-priority", "10")
+                    .setAps(Aps.builder().setContentAvailable(true).build())
+                    .build());
             Message message = builder.build();
 
             String messageId = FirebaseMessaging.getInstance().send(message);
@@ -123,25 +121,20 @@ public class FcmService {
         if (!initialized) return;
         if (fcmToken == null || fcmToken.isBlank()) return;
         try {
-            Notification notification = Notification.builder()
-                    .setTitle("Request taken")
-                    .setBody("Another mechanic accepted this request")
-                    .build();
             AndroidConfig androidConfig = AndroidConfig.builder()
                     .setPriority(AndroidConfig.Priority.HIGH)
-                    .setNotification(AndroidNotification.builder()
-                            .setChannelId("mechanic_requests")
-                            .setPriority(AndroidNotification.Priority.HIGH)
-                            .build())
                     .build();
             Message message = Message.builder()
                     .setToken(fcmToken)
-                    .setNotification(notification)
                     .setAndroidConfig(androidConfig)
                     .putData("type", "request_taken")
                     .putData("requestId", String.valueOf(requestId))
                     .putData("title", "Request taken")
                     .putData("body", "Another mechanic accepted this request")
+                    .setApnsConfig(ApnsConfig.builder()
+                            .putHeader("apns-priority", "10")
+                            .setAps(Aps.builder().setContentAvailable(true).build())
+                            .build())
                     .build();
             FirebaseMessaging.getInstance().send(message);
             System.out.println("✅ [FCM] request_taken sent requestId=" + requestId);
