@@ -408,7 +408,7 @@ class _BookMechanicBroadcastTrackingPageState extends State<BookMechanicBroadcas
                           const SizedBox(width: 8),
                           Expanded(child: _statTile('Accepted', _request['acceptedMechanicId'] != null ? '1' : '0', Icons.check_circle_outline)),
                           const SizedBox(width: 8),
-                          Expanded(child: _statTile('Declined', '$_dismissed', Icons.cancel_outlined)),
+                          Expanded(child: _statTile('Passed on job', '$_dismissed', Icons.cancel_outlined)),
                         ],
                       ),
                     ),

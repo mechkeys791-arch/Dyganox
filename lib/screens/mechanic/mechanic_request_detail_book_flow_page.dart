@@ -37,6 +37,7 @@ class _MechanicRequestDetailBookFlowPageState extends State<MechanicRequestDetai
   Map<String, dynamic>? _request;
   bool _loading = true;
   bool _accepting = false;
+  bool _dismissing = false;
   String? _error;
   double? _mechanicLat;
   double? _mechanicLng;
@@ -309,7 +310,7 @@ class _MechanicRequestDetailBookFlowPageState extends State<MechanicRequestDetai
 
   Future<void> _accept() async {
     if (_request == null) return;
-    if (_request!['acceptedMechanicId'] != null) {
+    if (_request!['acceptedMechanicId'] != null && _request!['acceptedMechanicId'].toString().isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('This request was already accepted by another mechanic.')));
       return;
@@ -336,6 +337,67 @@ class _MechanicRequestDetailBookFlowPageState extends State<MechanicRequestDetai
       if (mounted) setState(() => _accepting = false);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
+  }
+
+  Future<void> _dismissOffer() async {
+    if (_request == null) return;
+    final st = _request!['status']?.toString() ?? '';
+    if (st == 'PENDING_BROADCAST') {
+      setState(() => _dismissing = true);
+      try {
+        final r = await http.put(
+          Uri.parse('${ApiConfig.mechanicRequestsEndpoint}/${widget.requestId}/broadcast-dismiss'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'mechanicId': widget.mechanicId}),
+        );
+        if (!mounted) return;
+        setState(() => _dismissing = false);
+        if (r.statusCode == 200) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('You passed on this job. The customer still has other mechanics.')),
+          );
+          Navigator.pop(context, true);
+        } else {
+          final body = jsonDecode(r.body) as Map?;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(body?['error']?.toString() ?? 'Could not update. Try again.')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() => _dismissing = false);
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        }
+      }
+      return;
+    }
+    if (st == 'PENDING') {
+      setState(() => _dismissing = true);
+      try {
+        final r = await http.put(
+          Uri.parse('${ApiConfig.mechanicRequestsEndpoint}/${widget.requestId}/reject'),
+          headers: {'Content-Type': 'application/json'},
+        );
+        if (!mounted) return;
+        setState(() => _dismissing = false);
+        if (r.statusCode == 200) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Request declined.')));
+          Navigator.pop(context, true);
+        } else {
+          final body = jsonDecode(r.body) as Map?;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(body?['error']?.toString() ?? 'Could not decline.')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() => _dismissing = false);
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        }
+      }
+      return;
+    }
+    if (mounted) Navigator.pop(context);
   }
 
   Future<void> _startEnRoute() async {
@@ -403,8 +465,14 @@ class _MechanicRequestDetailBookFlowPageState extends State<MechanicRequestDetai
     }
     final r = _request!;
     final status = r['status']?.toString() ?? '';
-    final accepted = r['acceptedMechanicId'] != null;
-    final acceptedByMe = accepted && r['acceptedMechanicId'] == widget.mechanicId;
+    final accRaw = r['acceptedMechanicId'];
+    final accId = accRaw == null
+        ? null
+        : (accRaw is num
+            ? accRaw.toInt()
+            : int.tryParse(accRaw.toString().contains('.') ? accRaw.toString().split('.').first : accRaw.toString()));
+    final accepted = accId != null;
+    final acceptedByMe = accId != null && accId == widget.mechanicId;
     final custLat = double.tryParse(r['latitude']?.toString() ?? '');
     final custLng = double.tryParse(r['longitude']?.toString() ?? '');
     List<String> photoUrls = [];
@@ -551,7 +619,7 @@ class _MechanicRequestDetailBookFlowPageState extends State<MechanicRequestDetai
                           child: Text(
                             accepted
                                 ? (acceptedByMe ? 'You accepted. Waiting for customer payment.' : 'Another mechanic accepted.')
-                                : 'Verify all details above. You have 5 minutes to accept.',
+                                : 'Verify details, then accept or pass. The customer is waiting for a mechanic.',
                             style: GoogleFonts.inter(fontSize: 13),
                           ),
                         ),
@@ -564,21 +632,23 @@ class _MechanicRequestDetailBookFlowPageState extends State<MechanicRequestDetai
                       children: [
                         Expanded(
                           child: OutlinedButton(
-                            onPressed: () => Navigator.pop(context),
+                            onPressed: (_accepting || _dismissing) ? null : _dismissOffer,
                             style: OutlinedButton.styleFrom(
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                               side: const BorderSide(color: Colors.grey),
                               foregroundColor: Colors.grey[700],
                             ),
-                            child: Text('Dismiss', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+                            child: _dismissing
+                                ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2))
+                                : Text('Pass on job', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           flex: 2,
                           child: ElevatedButton(
-                            onPressed: _accepting ? null : _accept,
+                            onPressed: (_accepting || _dismissing) ? null : _accept,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.warmAmber,
                               padding: const EdgeInsets.symmetric(vertical: 14),

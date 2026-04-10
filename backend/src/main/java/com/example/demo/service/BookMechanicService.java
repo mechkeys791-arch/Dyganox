@@ -200,7 +200,8 @@ public class BookMechanicService {
         req.setNightServiceRequest(Boolean.TRUE.equals(nightServiceOnly));
         req.setStatus("PENDING_BROADCAST");
         req.setRequestTime(LocalDateTime.now());
-        req.setViewExpiryAt(LocalDateTime.now().plusMinutes(5));
+        // Hide from "nearby" list after this; accept still allowed longer (see acceptByMechanic).
+        req.setViewExpiryAt(LocalDateTime.now().plusMinutes(45));
         req.setRefundStatus("PENDING");
         // Daytime broadcast: amount 0 (pay rules shown at payment). Night: show indicative total on customer UI.
         if (Boolean.TRUE.equals(nightServiceOnly)) {
@@ -281,14 +282,24 @@ public class BookMechanicService {
         MechanicRequest req = opt.get();
         if (req.getAcceptedMechanicId() != null) return Optional.empty();
         if (!"PENDING_BROADCAST".equals(req.getStatus())) return Optional.empty();
-        if (req.getViewExpiryAt() != null && LocalDateTime.now().isAfter(req.getViewExpiryAt()))
+        // Do not use viewExpiryAt here — mechanics often open FCM late; 5 min caused false "expired".
+        if (req.getRequestTime() != null && LocalDateTime.now().isAfter(req.getRequestTime().plusHours(48))) {
             return Optional.empty();
+        }
 
         Optional<Mechanic> mechanicOpt = mechanicRepo.findById(mechanicId);
         if (mechanicOpt.isEmpty()) return Optional.empty();
         Mechanic mechanic = mechanicOpt.get();
-        double mlat = Double.parseDouble(mechanic.getLatitude());
-        double mlng = Double.parseDouble(mechanic.getLongitude());
+        // Same coordinates as broadcast + nearby list (current GPS when set, else shop).
+        String mlatStr = (mechanic.getCurrentLatitude() != null && !mechanic.getCurrentLatitude().isBlank())
+                ? mechanic.getCurrentLatitude() : mechanic.getLatitude();
+        String mlngStr = (mechanic.getCurrentLongitude() != null && !mechanic.getCurrentLongitude().isBlank())
+                ? mechanic.getCurrentLongitude() : mechanic.getLongitude();
+        if (mlatStr == null || mlngStr == null || mlatStr.isBlank() || mlngStr.isBlank()) {
+            return Optional.empty();
+        }
+        double mlat = Double.parseDouble(mlatStr);
+        double mlng = Double.parseDouble(mlngStr);
         double clat = Double.parseDouble(req.getLatitude());
         double clng = Double.parseDouble(req.getLongitude());
         double dist = distanceKm(mlat, mlng, clat, clng);

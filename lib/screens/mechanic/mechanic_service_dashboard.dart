@@ -22,6 +22,19 @@ import '../../core/theme/app_colors.dart';
 import '../../data/service_category_mapping.dart';
 import '../../services/cognito_service.dart';
 
+/// JSON often decodes numeric ids as [double]; [int.tryParse] fails on "12.0".
+int? _parseMechanicId(dynamic raw) {
+  if (raw == null) return null;
+  if (raw is int) return raw;
+  if (raw is num) return raw.toInt();
+  final s = raw.toString().trim();
+  final direct = int.tryParse(s);
+  if (direct != null) return direct;
+  final dot = s.indexOf('.');
+  if (dot > 0) return int.tryParse(s.substring(0, dot));
+  return null;
+}
+
 class MechanicServiceDashboard extends StatefulWidget {
   final Map<String, dynamic>? mechanicData;
   /// If set, after mount the dashboard will open this request (e.g. from FCM Accept).
@@ -124,16 +137,13 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
     _loadPromoEligibility();
 
     // Register FCM token and save mechanic ID for notification Accept/View (accept-by/mechanicId, open Book flow detail)
-    final mechanicId = widget.mechanicData?['id'];
-    if (mechanicId != null) {
-      final id = mechanicId is int ? mechanicId : int.tryParse(mechanicId.toString());
-      if (id != null) {
-        FcmNotificationService.registerMechanicToken(id);
-        FcmNotificationService.saveMechanicId(id);
-        SharedPreferences.getInstance().then((prefs) {
-          prefs.setInt('mechanic_id', id);
-        });
-      }
+    final id = _parseMechanicId(widget.mechanicData?['id']);
+    if (id != null) {
+      FcmNotificationService.registerMechanicToken(id);
+      FcmNotificationService.saveMechanicId(id);
+      SharedPreferences.getInstance().then((prefs) {
+        prefs.setInt('mechanic_id', id);
+      });
     }
 
     // When request FCM arrives in foreground, show bottom sheet (pop up from bottom)
@@ -392,8 +402,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
 
   Future<void> _fetchBookings() async {
     setState(() => _isLoadingBookings = true);
-    final mechanicId = widget.mechanicData?['id'] ?? 1;
-    final id = mechanicId is int ? mechanicId : int.tryParse(mechanicId.toString());
+    final id = _parseMechanicId(widget.mechanicData?['id']);
     if (id == null) {
       setState(() { _bookings = []; _isLoadingBookings = false; });
       return;
@@ -449,9 +458,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
   }
 
   Future<void> _fetchNearbyBroadcastRequests() async {
-    final mechanicId = widget.mechanicData?['id'];
-    if (mechanicId == null) return;
-    final id = mechanicId is int ? mechanicId : int.tryParse(mechanicId.toString());
+    final id = _parseMechanicId(widget.mechanicData?['id']);
     if (id == null) return;
     setState(() => _isLoadingNearby = true);
     try {
@@ -2557,8 +2564,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
   
   // BOOKING ACTIONS
   Future<void> _acceptBooking(Map<String, dynamic> booking) async {
-    final mechanicId = widget.mechanicData?['id'];
-    final id = mechanicId is int ? mechanicId : int.tryParse(mechanicId?.toString() ?? '');
+    final id = _parseMechanicId(widget.mechanicData?['id']);
     if (id == null) {
       _showSnackBar('Unable to accept: mechanic not loaded.', Colors.red);
       return;
@@ -2594,8 +2600,7 @@ class _MechanicServiceDashboardState extends State<MechanicServiceDashboard> wit
   
   Future<void> _rejectBooking(Map<String, dynamic> booking) async {
     try {
-      final mechanicId = widget.mechanicData?['id'];
-      final mid = mechanicId is int ? mechanicId : int.tryParse(mechanicId?.toString() ?? '');
+      final mid = _parseMechanicId(widget.mechanicData?['id']);
       final isBroadcast = booking['isBroadcast'] == true;
       final uri = isBroadcast && mid != null
           ? Uri.parse("${ApiConfig.mechanicRequestsEndpoint}/${booking['id']}/broadcast-dismiss")
